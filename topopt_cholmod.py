@@ -1,15 +1,20 @@
-# A 165 LINE TOPOLOGY OPTIMIZATION CODE BY NIELS AAGE AND VILLADS EGEDE JOHANSEN, JANUARY 2013
+# A 200 LINE TOPOLOGY OPTIMIZATION CODE BY NIELS AAGE AND VILLADS EGEDE JOHANSEN, JANUARY 2013
+# Updated by Niels Aage February 2016
 from __future__ import division
 import numpy as np
+
 from scipy.sparse import coo_matrix
-from scipy.sparse.linalg import spsolve
 from matplotlib.colors import Normalize
 import matplotlib.pyplot as plt
-# MAIN DRIVER
+import cvxopt
+import cvxopt.cholmod
+
+
 def main(nelx, nely, volfrac, penal, rmin, ft):
     """
     Topology optimization workflow with the SIMP method based on 
-    the default direct solver of scipy sparse.
+    the  Cholesky factorization of CHOLMOD which we call through 
+    the package cvxopt.
     
     Parameters
     ----------
@@ -102,22 +107,25 @@ def main(nelx, nely, volfrac, penal, rmin, ft):
     im = ax.imshow(-xPhys.reshape((nelx, nely)).T, cmap='gray',
                    interpolation='none', norm=Normalize(vmin=-1, vmax=0))
     fig.show()
-    # Set loop counter and gradient vectors
     for loop in np.arange(2000):
         # Setup and solve FE problem
-        sK = (KE.flatten()[:,None]*(Emin+(xPhys)
-              ** penal*(Emax-Emin))).flatten(order='F')#[mask]
+        sK = ((KE.flatten()[np.newaxis]).T*(Emin+(xPhys)
+              ** penal*(Emax-Emin))).flatten(order='F')
         K = coo_matrix((sK, (iK, jK)), shape=(ndof, ndof)).tocsc()
-        # Remove constrained dofs from matrix
-        K = K[free, :][:, free]
+        # Remove constrained dofs from matrix and convert to coo
+        K = deleterowcol(K, fixed, fixed).tocoo()
         # Solve system
-        u[free, 0] = spsolve(K, f[free, 0])
-        #u[free, 0] = cg(K, f[free, 0],x0=)
+        K = cvxopt.spmatrix(K.data, K.row.astype(int), K.col.astype(int))
+        B = cvxopt.matrix(f[free, 0])
+        cvxopt.cholmod.linsolve(K, B)
+        u[free, 0] = np.array(B)[:, 0]
+
         # Objective and sensitivity
         ce = (np.dot(u[edofMat].reshape(nelx*nely, 8), KE)
                  * u[edofMat].reshape(nelx*nely, 8)).sum(1)
         obj = ((Emin+xPhys**penal*(Emax-Emin))*ce).sum()
         dc = (-penal*xPhys**(penal-1)*(Emax-Emin))*ce
+
         dv = np.ones(nely*nelx)
         # Sensitivity filtering:
         if ft == 0:
@@ -126,31 +134,36 @@ def main(nelx, nely, volfrac, penal, rmin, ft):
         elif ft == 1:
             dc[:] = np.asarray(H*(dc[np.newaxis].T/Hs))[:, 0]
             dv[:] = np.asarray(H*(dv[np.newaxis].T/Hs))[:, 0]
+
         # Optimality criteria
         xold[:] = x
         (x[:], g) = oc(nelx, nely, x, volfrac, dc, dv, g)
+
         # Filter design variables
         if ft == 0:
             xPhys[:] = x
         elif ft == 1:
             xPhys[:] = np.asarray(H*x[np.newaxis].T/Hs)[:, 0]
+
         # Compute the change by the inf. norm
         change = np.linalg.norm(
             x.reshape(nelx*nely, 1)-xold.reshape(nelx*nely, 1), np.inf)
+
         # Plot to screen
         im.set_array(-xPhys.reshape((nelx, nely)).T)
         fig.canvas.draw()
+
         # Write iteration history to screen (req. Python 2.6 or newer)
         print("it.: {0} , obj.: {1:.3f} Vol.: {2:.3f}, ch.: {3:.3f}".format(
             loop, obj, (g+volfrac*nelx*nely)/(nelx*nely), change))
         # convergence check
         if change < 0.01:
             break
-    #anim = ArtistAnimation(fig, imgs)
     # Make sure the plot stays and that the shell remains
     plt.show()
     input("Press any key...")
 
+# element stiffness matrix
 def lk():
     """
     Create element stiffness matrix.
@@ -214,6 +227,7 @@ def oc(nelx, nely, x, volfrac, dc, dv, g):
     move = 0.2
     # reshape to perform vector operations
     xnew = np.zeros(nelx*nely)
+
     while (l2-l1)/(l1+l2) > 1e-3:
         lmid = 0.5*(l2+l1)
         xnew[:] = np.maximum(0.0, np.maximum(
@@ -225,15 +239,42 @@ def oc(nelx, nely, x, volfrac, dc, dv, g):
             l2 = lmid
     return (xnew, gt)
 
-# The real main driver
+def deleterowcol(A, delrow, delcol):
+    """
+    Deletes rows and columns in csc matrix.
+    This functions assumes that the matrix is in symmetric csc form
+
+    Parameters
+    ----------
+    A : scipy.sparse csc matrix
+        matrix for which rows and columns are deleted.
+    delrow : np.array
+        indices of rows to delete.
+    delcol : np.array
+        indices of columns to delete.
+
+    Returns
+    -------
+    A : scipy.sparse csc matrix
+        matrix with delete indices.
+
+    """
+    m = A.shape[0]
+    keep = np.delete(np.arange(0, m), delrow)
+    A = A[keep, :]
+    keep = np.delete(np.arange(0, m), delcol)
+    A = A[:, keep]
+    return A
+
 if __name__ == "__main__":
     # Default input parameters
-    nelx = 60  # 180
-    nely = 20  # 60
-    volfrac = 0.5  # 0.4
-    rmin = 2.4  # 5.4
+    nelx = 60
+    nely = 20
+    volfrac = 0.5
+    rmin = 2.4
     penal = 3.0
     ft = 0  # ft==0 -> sens, ft==1 -> dens
+
     import sys
     if len(sys.argv) > 1:
         nelx = int(sys.argv[1])
@@ -247,4 +288,5 @@ if __name__ == "__main__":
         penal = float(sys.argv[5])
     if len(sys.argv) > 6:
         ft = int(sys.argv[6])
+
     main(nelx, nely, volfrac, penal, rmin, ft)
