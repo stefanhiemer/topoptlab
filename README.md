@@ -4,7 +4,7 @@ topopt.py
 - [x] docstrings for documentation
 - [x] vectorize the simulation set up
 - [ ] animation
-- [ ] check whether iK,jK,sK can be filtered by masking before setting up the
+- [x] check whether iK,jK,sK can be filtered by masking before setting up the
       stiffness matrix.
 
 topopt_cholmod.py

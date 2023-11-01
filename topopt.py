@@ -94,8 +94,9 @@ def main(nelx, nely, volfrac, penal, rmin, ft):
     # Set load
     f[1, 0] = -1
     # get rid of fixed degrees of freedom from stiffness matrix 
-    #mask = ~(np.isin(iK,fixed) | np.isin(jK,fixed))
-    #iK,jK = iK[mask],jK[mask]
+    mask = ~(np.isin(iK,fixed) | np.isin(jK,fixed))
+    iK,jK = update_indices(iK, fixed, mask),update_indices(jK, fixed, mask)
+    ndof_free = ndof - fixed.shape[0]
     # Initialize plot and plot the initial design
     plt.ion()  # Ensure that redrawing is possible
     fig, ax = plt.subplots(1,1)
@@ -106,10 +107,10 @@ def main(nelx, nely, volfrac, penal, rmin, ft):
     for loop in np.arange(2000):
         # Setup and solve FE problem
         sK = (KE.flatten()[:,None]*(Emin+(xPhys)
-              ** penal*(Emax-Emin))).flatten(order='F')#[mask]
-        K = coo_matrix((sK, (iK, jK)), shape=(ndof, ndof)).tocsc()
+              ** penal*(Emax-Emin))).flatten(order='F')[mask]
+        K = coo_matrix((sK, (iK, jK)), shape=(ndof_free, ndof_free)).tocsc()
         # Remove constrained dofs from matrix
-        K = K[free, :][:, free]
+        #K = K[free, :][:, free]
         # Solve system
         u[free, 0] = spsolve(K, f[free, 0])
         #u[free, 0] = cg(K, f[free, 0],x0=)
@@ -150,6 +151,33 @@ def main(nelx, nely, volfrac, penal, rmin, ft):
     # Make sure the plot stays and that the shell remains
     plt.show()
     input("Press any key...")
+
+def update_indices(indices,fixed,mask):
+    """
+    Update the indices for the stiffness matrix construction by kicking out
+    the fixed degrees of freedom and renumbering the indices.
+
+    Parameters
+    ----------
+    indices : np.array
+        indices of degrees of freedom used to construct the stiffness matrix.
+    fixed : np.array
+        indices of fixed degrees of freedom.
+    mask : np.array
+        mask to kick out fixed degrees of freedom.
+
+    Returns
+    -------
+    indices : np.arrays
+        updated indices.
+
+    """
+    val, ind = np.unique(indices,return_inverse=True)
+    
+    _mask = ~np.isin(val, fixed)
+    val[_mask] = np.arange(_mask.sum())
+    
+    return val[ind][mask]
 
 def lk():
     """
