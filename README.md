@@ -6,6 +6,11 @@ topopt.py
 - [ ] animation
 - [x] check whether iK,jK,sK can be filtered by masking before setting up the
       stiffness matrix.
+- [ ] Haevisde filter
+- [ ] Helmholtz filter 
+- [ ] different examples than just MBB beam
+- [ ] heat conduction
+- [ ] 3D
 
 topopt_cholmod.py
 - [x] docstrings for documentation
@@ -15,3 +20,8 @@ topopt_cholmod.py
       usually this is a bad idea as np.arrays and sparse matrices do not mix.
 - [x] lines 112 to 121 to conversion from coo to csc and back just to convert 
       it to the cvx sparse format. I suspect that this is unnecessary.
+- [ ] Haevisde filter
+- [ ] Helmholtz filter 
+- [ ] different examples than just MHB beam
+- [ ] heat conduction
+- [ ] 3D

@@ -2,11 +2,11 @@
 from __future__ import division
 import numpy as np
 from scipy.sparse import coo_matrix
-from scipy.sparse.linalg import spsolve
+from scipy.sparse.linalg import spsolve,cholesky
 from matplotlib.colors import Normalize
 import matplotlib.pyplot as plt
 # MAIN DRIVER
-def main(nelx, nely, volfrac, penal, rmin, ft):
+def main(nelx, nely, volfrac, penal, rmin, ft, pde=False):
     """
     Topology optimization workflow with the SIMP method based on 
     the default direct solver of scipy sparse.
@@ -26,7 +26,9 @@ def main(nelx, nely, volfrac, penal, rmin, ft):
         to element center distance are used for filtering.
     ft : int
         integer flag for the filter. 0 sensitivity filtering, 
-        1 density filtering.
+        1 density filtering, 2 Haeviside filter, -1 no filter.
+    pde: boolean
+        if true, Helmholtz filter is used
 
     Returns
     -------
@@ -37,7 +39,8 @@ def main(nelx, nely, volfrac, penal, rmin, ft):
     print("nodes: " + str(nelx) + " x " + str(nely))
     print("volfrac: " + str(volfrac) + ", rmin: " +
           str(rmin) + ", penal: " + str(penal))
-    print("Filter method: " + ["Sensitivity based", "Density based"][ft])
+    print("Filter method: " + ["Sensitivity based", "Density based",
+                               "Haeviside","No filter"][ft])
     # Max and min stiffness
     Emin = 1e-9
     Emax = 1.0
@@ -46,44 +49,69 @@ def main(nelx, nely, volfrac, penal, rmin, ft):
     # Allocate design variables (as array), initialize and allocate sens.
     x = volfrac * np.ones(nely*nelx, dtype=float)
     xold = x.copy()
-    xPhys = x.copy()
+    if ft != 2:
+        xPhys = x.copy()
+    else:
+        beta = 1 
+        xTilde = x.copy()
+        xPhys = 1 - np.exp(-beta * xTilde) + xTilde*np.exp(-beta)
     g = 0  # must be initialized to use the NGuyen/Paulino OC approach
     # FE: Build the index vectors for the for coo matrix format.
     KE = lk()
-    edofMat = np.zeros((nelx*nely, 8), dtype=int)
     elx,ely = np.arange(nelx)[:,None], np.arange(nely)[None,:]
     el = np.arange(nelx*nely)
     n1 = ((nely+1)*elx+ely).flatten()
     n2 = ((nely+1)*(elx+1)+ely).flatten()
-    edofMat[el.flatten(), :] = np.column_stack((2*n1+2, 2*n1+3, 2*n2+2, 2*n2+3, 
-                                      2*n2, 2*n2+1, 2*n1, 2*n1+1))
+    edofMat = np.column_stack((2*n1+2, 2*n1+3, 2*n2+2, 2*n2+3, 
+                               2*n2, 2*n2+1, 2*n1, 2*n1+1))
     # Construct the index pointers for the coo format
     iK = np.kron(edofMat, np.ones((8, 1))).flatten()
     jK = np.kron(edofMat, np.ones((1, 8))).flatten()
     # Filter: Build (and assemble) the index+data vectors for the coo matrix format
-    nfilter = int(nelx*nely*((2*(np.ceil(rmin)-1)+1)**2))
-    iH = np.zeros(nfilter)
-    jH = np.zeros(nfilter)
-    sH = np.zeros(nfilter)
-    i = np.floor(el/nely)
-    j = el%nely
-    kk1 = np.maximum(i-(np.ceil(rmin)-1), 0).astype(int)
-    kk2 = np.minimum(i+np.ceil(rmin), nelx).astype(int)
-    ll1 = np.maximum(j-(np.ceil(rmin)-1), 0).astype(int)
-    ll2 = np.minimum(j+np.ceil(rmin), nely).astype(int)
-    n_neigh = (kk2-kk1)*(ll2-ll1)
-    el,i,j = np.repeat(el, n_neigh),np.repeat(i, n_neigh),np.repeat(j, n_neigh)
-    cc = np.arange(el.shape[0])
-    k,l = np.hstack([np.stack([a.flatten() for a in \
-                     np.meshgrid(np.arange(k1,k2),np.arange(l1,l2))]) \
-                     for k1,k2,l1,l2 in zip(kk1,kk2,ll1,ll2)])
-    fac = rmin-np.sqrt(((i-k)**2+(j-l)**2))
-    iH[cc] = el # row
-    jH[cc] = k*nely+l #column
-    sH[cc] = np.maximum(0.0, fac)
-    # Finalize assembly and convert to csc format
-    H = coo_matrix((sH, (iH, jH)), shape=(nelx*nely, nelx*nely)).tocsc()
-    Hs = H.sum(1)
+    if not pde and ft in [0,1,2]:
+        nfilter = int(nelx*nely*((2*(np.ceil(rmin)-1)+1)**2))
+        iH = np.zeros(nfilter)
+        jH = np.zeros(nfilter)
+        sH = np.zeros(nfilter)
+        i = np.floor(el/nely)
+        j = el%nely
+        kk1 = np.maximum(i-(np.ceil(rmin)-1), 0).astype(int)
+        kk2 = np.minimum(i+np.ceil(rmin), nelx).astype(int)
+        ll1 = np.maximum(j-(np.ceil(rmin)-1), 0).astype(int)
+        ll2 = np.minimum(j+np.ceil(rmin), nely).astype(int)
+        n_neigh = (kk2-kk1)*(ll2-ll1)
+        el,i,j = np.repeat(el, n_neigh),np.repeat(i, n_neigh),np.repeat(j, n_neigh)
+        cc = np.arange(el.shape[0])
+        k,l = np.hstack([np.stack([a.flatten() for a in \
+                         np.meshgrid(np.arange(k1,k2),np.arange(l1,l2))]) \
+                         for k1,k2,l1,l2 in zip(kk1,kk2,ll1,ll2)])
+        fac = rmin-np.sqrt(((i-k)**2+(j-l)**2))
+        iH[cc] = el # row
+        jH[cc] = k*nely+l #column
+        sH[cc] = np.maximum(0.0, fac)
+        # Finalize assembly and convert to csc format
+        H = coo_matrix((sH, (iH, jH)), shape=(nelx*nely, nelx*nely)).tocsc()
+        Hs = H.sum(1)
+    elif pde and ft in [0,1]:
+        Rmin = rmin/(2*np.sqrt(3))
+        KEF = (Rmin**2) * np.array([[4, -1, -2, -1],
+                                    [-1, 4, -1, -2],
+                                    [-2, -1, 4, -1],
+                                    [-1, -2, -1, 4]])/6 + \
+                          np.array([[4, 2, 1, 2],[2, 4, 2, 1],
+                                    [1, 2, 4, 2],[2, 1, 2, 4]])/36 
+        #edofMatF = 
+        #iKF = np.kron(edofMatF, np.ones((4, 1))).flatten()
+        #jKF = np.kron(edofMatF, np.ones((1, 4))).flatten()
+        #sKF = 
+        #KF = coo_matrix((sKF, (iKF, jKF)), shape=(nelx*nely, nelx*nely)).tocsc()
+        #LF = cholesky(KF,lower=True)
+        #iTF = edofMatF.flatten()
+        #jTF =
+        #sTF = 
+        #TF = coo_matrix((sTF, (iTF, jTF)), shape=(nelx*nely, nelx*nely)).tocsc()
+        
+        raise NotImplementedError("Helmholtz filter not completely implemented yet.")
     # BC's and support
     dofs = np.arange(2*(nelx+1)*(nely+1))
     fixed = np.union1d(dofs[0:2*(nely+1):2], np.array([2*(nelx+1)*(nely+1)-1]))
@@ -102,9 +130,11 @@ def main(nelx, nely, volfrac, penal, rmin, ft):
     fig, ax = plt.subplots(1,1)
     im = ax.imshow(-xPhys.reshape((nelx, nely)).T, cmap='gray',
                    interpolation='none', norm=Normalize(vmin=-1, vmax=0))
-    fig.show()
+    fig.show() 
+    loopbeta = 0
     # Set loop counter and gradient vectors
     for loop in np.arange(2000):
+        loopbeta += 1 
         # Setup and solve FE problem
         sK = (KE.flatten()[:,None]*(Emin+(xPhys)
               ** penal*(Emax-Emin))).flatten(order='F')[mask]
@@ -127,6 +157,12 @@ def main(nelx, nely, volfrac, penal, rmin, ft):
         elif ft == 1:
             dc[:] = np.asarray(H*(dc[np.newaxis].T/Hs))[:, 0]
             dv[:] = np.asarray(H*(dv[np.newaxis].T/Hs))[:, 0]
+        elif ft == 2:
+            dx = beta * np.exp(-beta*xTilde)+np.exp(-beta)
+            dc[:] = np.asarray(H*((dc*dx)[np.newaxis].T/Hs))[:, 0]
+            dv[:] = np.asarray(H*((dv*dx)[np.newaxis].T/Hs))[:, 0]
+        elif ft == -1:
+            pass
         # Optimality criteria
         xold[:] = x
         (x[:], g) = oc(nelx, nely, x, volfrac, dc, dv, g)
@@ -135,9 +171,22 @@ def main(nelx, nely, volfrac, penal, rmin, ft):
             xPhys[:] = x
         elif ft == 1:
             xPhys[:] = np.asarray(H*x[np.newaxis].T/Hs)[:, 0]
+        elif ft == 2:
+            xTilde[:] = np.asarray(H*x[np.newaxis].T/Hs)[:, 0]
+            xPhys = 1 - np.exp(-beta * xTilde) + xTilde*np.exp(-beta)
+        elif ft == 3:
+            pass#xPhys[:] = 
+        elif ft == -1:
+            pass
         # Compute the change by the inf. norm
         change = np.linalg.norm(
-            x.reshape(nelx*nely, 1)-xold.reshape(nelx*nely, 1), np.inf)
+            x.reshape(nelx*nely, 1)-xold.reshape(nelx*nely, 1), np.inf) 
+        # update regularization parameter for Heaviside filter:
+        if ft == 2 and beta < 512 and ( loopbeta >= 50 or change <=0.01):
+            beta = 2*beta 
+            loopbeta = 0
+            change = 1
+            print("Parameter beta increased to\n",beta)
         # Plot to screen
         im.set_array(-xPhys.reshape((nelx, nely)).T)
         fig.canvas.draw()
@@ -252,6 +301,32 @@ def oc(nelx, nely, x, volfrac, dc, dv, g):
         else:
             l2 = lmid
     return (xnew, gt)
+
+def threshold(xPhys, volfrac):
+    """
+    Threshold graey scale design to black and white design.
+
+    Parameters
+    ----------
+    xPhys : np.array, shape (nel)
+        element densities for topology optimization used for scaling the 
+        material properties. 
+    volfrac : float
+        volume fraction.
+
+    Returns
+    -------
+    xPhys : np.array, shape (nel)
+        thresholded element densities for topology optimization used for scaling the 
+        material properties. 
+
+    """
+    indices = np.flip(np.argsort(xPhys))
+    vt = np.floor(volfrac*xPhys.shape[0]).astype(int)
+    xPhys[indices[:vt]] = 1.
+    xPhys[indices[vt:]] = 0.
+    print("Thresholded Vol.: {0:.3f}".format(vt/xPhys.shape[0]))
+    return xPhys
 
 # The real main driver
 if __name__ == "__main__":
