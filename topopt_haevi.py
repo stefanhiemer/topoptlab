@@ -2,12 +2,11 @@
 from __future__ import division
 import numpy as np
 from scipy.sparse import coo_matrix, diags
-from scipy.sparse.linalg import spsolve, spsolve_triangular,splu
-from scipy.linalg import cholesky
+from scipy.sparse.linalg import spsolve, splu
 from matplotlib.colors import Normalize
 import matplotlib.pyplot as plt
 # MAIN DRIVER
-def main(nelx, nely, volfrac, penal, rmin, ft, pde=False):
+def main(nelx, nely, volfrac, penal, rmin):
     """
     Topology optimization workflow with the SIMP method based on 
     the default direct solver of scipy sparse.
@@ -25,11 +24,6 @@ def main(nelx, nely, volfrac, penal, rmin, ft, pde=False):
     rmin : float
         cutoff radius for the filter. Only elements within the element-center 
         to element center distance are used for filtering.
-    ft : int
-        integer flag for the filter. 0 sensitivity filtering, 
-        1 density filtering, -1 no filter.
-    pde: boolean
-        if true, Helmholtz filter is used
 
     Returns
     -------
@@ -40,8 +34,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft, pde=False):
     print("nodes: " + str(nelx) + " x " + str(nely))
     print("volfrac: " + str(volfrac) + ", rmin: " +
           str(rmin) + ", penal: " + str(penal))
-    print("Filter method: " + ["Sensitivity based", "Density based",
-                               "Haeviside","No filter"][ft])
+    print("Filter method: Haeviside Projection Filter")
     # Max and min stiffness
     Emin = 1e-9
     Emax = 1.0
@@ -49,8 +42,10 @@ def main(nelx, nely, volfrac, penal, rmin, ft, pde=False):
     ndof = 2*(nelx+1)*(nely+1)
     # Allocate design variables (as array), initialize and allocate sens.
     x = volfrac * np.ones(nely*nelx, dtype=float)
-    xold = x.copy()
-    xPhys = x.copy()
+    xnew = x.copy()
+    beta = 1 
+    xTilde = x.copy()
+    xPhys = 1 - np.exp(-beta * xTilde) + xTilde*np.exp(-beta)
     g = 0  # must be initialized to use the NGuyen/Paulino OC approach
     # FE: Build the index vectors for the for coo matrix format.
     KE = lk()
@@ -64,51 +59,29 @@ def main(nelx, nely, volfrac, penal, rmin, ft, pde=False):
     iK = np.kron(edofMat, np.ones((8, 1))).flatten()
     jK = np.kron(edofMat, np.ones((1, 8))).flatten()
     # Filter: Build (and assemble) the index+data vectors for the coo matrix format
-    if not pde and ft in [0,1]:
-        nfilter = int(nelx*nely*((2*(np.ceil(rmin)-1)+1)**2))
-        iH = np.zeros(nfilter)
-        jH = np.zeros(nfilter)
-        sH = np.zeros(nfilter)
-        i = np.floor(el/nely)
-        j = el%nely
-        kk1 = np.maximum(i-(np.ceil(rmin)-1), 0).astype(int)
-        kk2 = np.minimum(i+np.ceil(rmin), nelx).astype(int)
-        ll1 = np.maximum(j-(np.ceil(rmin)-1), 0).astype(int)
-        ll2 = np.minimum(j+np.ceil(rmin), nely).astype(int)
-        n_neigh = (kk2-kk1)*(ll2-ll1)
-        el,i,j = np.repeat(el, n_neigh),np.repeat(i, n_neigh),np.repeat(j, n_neigh)
-        cc = np.arange(el.shape[0])
-        k,l = np.hstack([np.stack([a.flatten() for a in \
-                         np.meshgrid(np.arange(k1,k2),np.arange(l1,l2))]) \
-                         for k1,k2,l1,l2 in zip(kk1,kk2,ll1,ll2)])
-        fac = rmin-np.sqrt(((i-k)**2+(j-l)**2))
-        iH[cc] = el # row
-        jH[cc] = k*nely+l #column
-        sH[cc] = np.maximum(0.0, fac)
-        # Finalize assembly and convert to csc format
-        H = coo_matrix((sH, (iH, jH)), shape=(nelx*nely, nelx*nely)).tocsc()
-        Hs = H.sum(1)
-    elif pde and ft in [0,1]:
-        Rmin = rmin/(2*np.sqrt(3))
-        KEF = (Rmin**2) * np.array([[4, -1, -2, -1],
-                                    [-1, 4, -1, -2],
-                                    [-2, -1, 4, -1],
-                                    [-1, -2, -1, 4]])/6 + \
-                          np.array([[4, 2, 1, 2],
-                                    [2, 4, 2, 1],
-                                    [1, 2, 4, 2],
-                                    [2, 1, 2, 4]])/36
-        ndofF = (nelx+1)*(nely+1)
-        edofMatF = np.column_stack((n1, n2, n2 +1, n1 +1 ))
-        iKF = np.kron(edofMatF, np.ones((4, 1))).flatten()
-        jKF = np.kron(edofMatF, np.ones((1, 4))).flatten()
-        sKF = np.tile(KEF.flatten(),nelx*nely)
-        KF = coo_matrix((sKF, (iKF, jKF)), shape=(ndofF, ndofF)).tocsc()
-        LF = coo_matrix(cholesky(KF.toarray(),lower=True)).tocsc()
-        iTF = edofMatF.flatten(order='F')
-        jTF = np.tile(el, 4)
-        sTF = np.full(4*nelx*nely,1/4)
-        TF = coo_matrix((sTF, (iTF, jTF)), shape=(ndofF,nelx*nely)).tocsc()
+    nfilter = int(nelx*nely*((2*(np.ceil(rmin)-1)+1)**2))
+    iH = np.zeros(nfilter)
+    jH = np.zeros(nfilter)
+    sH = np.zeros(nfilter)
+    i = np.floor(el/nely)
+    j = el%nely
+    kk1 = np.maximum(i-(np.ceil(rmin)-1), 0).astype(int)
+    kk2 = np.minimum(i+np.ceil(rmin), nelx).astype(int)
+    ll1 = np.maximum(j-(np.ceil(rmin)-1), 0).astype(int)
+    ll2 = np.minimum(j+np.ceil(rmin), nely).astype(int)
+    n_neigh = (kk2-kk1)*(ll2-ll1)
+    el,i,j = np.repeat(el, n_neigh),np.repeat(i, n_neigh),np.repeat(j, n_neigh)
+    cc = np.arange(el.shape[0])
+    k,l = np.hstack([np.stack([a.flatten() for a in \
+                     np.meshgrid(np.arange(k1,k2),np.arange(l1,l2))]) \
+                     for k1,k2,l1,l2 in zip(kk1,kk2,ll1,ll2)])
+    fac = rmin-np.sqrt(((i-k)**2+(j-l)**2))
+    iH[cc] = el # row
+    jH[cc] = k*nely+l #column
+    sH[cc] = np.maximum(0.0, fac)
+    # Finalize assembly and convert to csc format
+    H = coo_matrix((sH, (iH, jH)), shape=(nelx*nely, nelx*nely)).tocsc()
+    Hs = H.sum(1)
     # BC's and support
     dofs = np.arange(2*(nelx+1)*(nely+1))
     fixed = np.union1d(dofs[0:2*(nely+1):2], np.array([2*(nelx+1)*(nely+1)-1]))
@@ -127,9 +100,11 @@ def main(nelx, nely, volfrac, penal, rmin, ft, pde=False):
     fig, ax = plt.subplots(1,1)
     im = ax.imshow(-xPhys.reshape((nelx, nely)).T, cmap='gray',
                    interpolation='none', norm=Normalize(vmin=-1, vmax=0))
-    fig.show()
+    fig.show() 
+    loopbeta = 0
     # Set loop counter and gradient vectors
     for loop in np.arange(2000):
+        loopbeta += 1 
         # Setup and solve FE problem
         sK = (KE.flatten()[:,None]*(Emin+(xPhys)
               ** penal*(Emax-Emin))).flatten(order='F')[mask]
@@ -146,42 +121,46 @@ def main(nelx, nely, volfrac, penal, rmin, ft, pde=False):
         dc = (-penal*xPhys**(penal-1)*(Emax-Emin))*ce
         dv = np.ones(nely*nelx)
         # Sensitivity filtering:
-        if ft == 0 and not pde:
-            dc[:] = np.asarray((H*(x*dc))[np.newaxis].T /
-                               Hs)[:, 0] / np.maximum(0.001, x)
-        elif ft == 0 and pde:
-            dc[:] = (TF.T@spsolve_triangular(LF.T, 
-                            (spsolve_triangular(LF,TF@(dc*xPhys))),
-                            lower=False)) \
-                     /np.maximum(0.001, x)
-        elif ft == 1 and not pde:
-            dc[:] = np.asarray(H*(dc[np.newaxis].T/Hs))[:, 0]
-            dv[:] = np.asarray(H*(dv[np.newaxis].T/Hs))[:, 0]
-        elif ft == 1 and pde:
-            dc[:] = TF.T @ spsolve_triangular(LF.T, 
-                                              (spsolve_triangular(LF, TF@dc)),
-                                              lower=False)
-            dv[:] = TF.T @ spsolve_triangular(LF.T, 
-                                              (spsolve_triangular(LF, TF@dv)),
-                                              lower=False)
-        elif ft == -1:
-            pass
+        dx = beta * np.exp(-beta*xTilde)+np.exp(-beta)
+        dc[:] = np.asarray(H*((dc*dx)[np.newaxis].T/Hs))[:, 0]
+        dv[:] = np.asarray(H*((dv*dx)[np.newaxis].T/Hs))[:, 0]
         # Optimality criteria
-        xold[:] = x
-        (x[:], g) = oc(nelx, nely, x, volfrac, dc, dv, g)
-        # Filter design variables
-        if ft == 0:
-            xPhys[:] = x
-        elif ft == 1 and not pde:
-            xPhys[:] = np.asarray(H*x[np.newaxis].T/Hs)[:, 0]
-        elif ft == 1 and pde:
-            xPhys[:] = TF.T @ spsolve_triangular(LF.T, 
-                                                 (spsolve(LF, TF@x)),
-                                                 lower=False)
-        elif ft == -1:
-            pass
+        l1 = 0
+        l2 = 1e9
+        move = 0.2
+        # reshape to perform vector operations
+        while (l2-l1)/(l1+l2) > 1e-3:
+            lmid = 0.5*(l2+l1)
+            xnew = np.maximum(0.0, 
+                              np.maximum(x-move, 
+                                         np.minimum(1.0, 
+                                                    np.minimum(x+move, 
+                                                     x*np.sqrt(-dc/dv/lmid)))))
+            # Filter design variables
+            xTilde[:] = np.asarray((H*xnew[np.newaxis].T)/Hs)[:,0]
+            xPhys = 1 - np.exp(-beta * xTilde) + xTilde*np.exp(-beta)
+            #
+            g = xPhys.sum() - volfrac*nelx*nely
+            if g > 0:
+                l1 = lmid
+            else:
+                l2 = lmid
+            print(l1,l2,lmid)
+            print(xPhys)
+        print("Separator")
+        print(x)
+        print(xPhys)
+        import sys 
+        sys.exit()
         # Compute the change by the inf. norm
-        change = (np.abs(x-xold)).max()
+        change = (np.abs(x-xnew)).max()
+        xnew = x.copy()
+        # update regularization parameter for Heaviside filter:
+        if beta < 512 and ( loopbeta >= 50 or change <=0.01):
+            beta = 2*beta 
+            loopbeta = 0
+            change = 1
+            print("Parameter beta increased to \n",beta)
         # Plot to screen
         im.set_array(-xPhys.reshape((nelx, nely)).T)
         fig.canvas.draw()
@@ -247,55 +226,37 @@ def lk():
                                [k[7], k[2], k[1], k[4], k[3], k[6], k[5], k[0]]])
     return (KE)
 
-def oc(nelx, nely, x, volfrac, dc, dv, g):
+def sparse_cholesky(A):
     """
-    Optimality criteria method (section 2.2 in paper) for maximum/minimum 
-    stiffness/compliance. Heuristic updating scheme for the element densities 
-    to find the Lagrangian multiplier.
-    Usually more sophisticated methods are used like Sequential Linear/Quadratic
-    Programming or the Method of Moving Asymptotes.
+    Compute Cholesky decomposition for scipy.sparse matrix A. The input matrix 
+    A must be a sparse symmetric positive-definite. 
     
+    Taken from 
+    https://gist.github.com/omitakahiro/c49e5168d04438c5b20c921b928f1f5d. 
+    This was done to deal with just the standard scipy python packages and not
+    external packages like scikit.sparse.
+
     Parameters
     ----------
-    nelx : int
-        number of elements in x direction.
-    nely : int
-        number of elements in y direction.
-    x : np.array, shape (nel)
-        element densities for topology optimization of the current iteration.
-    volfrac : float
-        volume fraction.
-    dc : np.array, shape (nel)
-        gradient of objective function/complicance with respect to element 
-        densities.
-    dv : np.array, shape (nel)
-        gradient of volume constraint with respect to element densities..
-    g : float
-        parameter for the heuristic updating scheme.
+    A : ndarray or sparse matrix
+        sparse symmetric positive-definite matrix.
 
     Returns
     -------
-    xnew : np.array, shape (nel)
-        updatet element densities for topology optimization.
-    gt : float
-        updated parameter for the heuristic updating scheme..
+    L :sparse matrix
+        lower triangular matrix.
 
     """
-    l1 = 0
-    l2 = 1e9
-    move = 0.2
-    # reshape to perform vector operations
-    xnew = np.zeros(nelx*nely)
-    while (l2-l1)/(l1+l2) > 1e-3:
-        lmid = 0.5*(l2+l1)
-        xnew[:] = np.maximum(0.0, np.maximum(
-            x-move, np.minimum(1.0, np.minimum(x+move, x*np.sqrt(-dc/dv/lmid)))))
-        gt = g+np.sum((dv*(xnew-x)))
-        if gt > 0:
-            l1 = lmid
-        else:
-            l2 = lmid 
-    return (xnew, gt)
+    n = A.shape[0]
+    
+    # sparse LU decomposition 
+    LU = splu(A,diag_pivot_thresh=0) 
+    
+    # check the matrix A is positive definite. 
+    if ( LU.perm_r == np.arange(n) ).all() and ( LU.U.diagonal() > 0 ).all():  
+        return LU.L.dot( diags(LU.U.diagonal()**0.5) )  
+    else:
+        ValueError('The matrix is not positive definite')
 
 def threshold(xPhys, volfrac):
     """
@@ -326,12 +287,11 @@ def threshold(xPhys, volfrac):
 # The real main driver
 if __name__ == "__main__":
     # Default input parameters
-    nelx = 60  # 180
-    nely = 20  # 60
+    nelx = 5  # 180
+    nely = 3  # 60
     volfrac = 0.5  # 0.4
-    rmin = 2.4  # 5.4
+    rmin = 1.1  # 5.4
     penal = 3.0
-    ft = 0 # ft==0 -> sens, ft==1 -> dens
     import sys
     if len(sys.argv) > 1:
         nelx = int(sys.argv[1])
@@ -343,6 +303,4 @@ if __name__ == "__main__":
         rmin = float(sys.argv[4])
     if len(sys.argv) > 5:
         penal = float(sys.argv[5])
-    if len(sys.argv) > 6:
-        ft = int(sys.argv[6])
-    main(nelx, nely, volfrac, penal, rmin, ft, pde=True)
+    main(nelx, nely, volfrac, penal, rmin)

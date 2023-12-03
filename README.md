@@ -6,11 +6,13 @@ topopt.py
 - [ ] animation
 - [x] check whether iK,jK,sK can be filtered by masking before setting up the
       stiffness matrix.
-- [ ] Haevisde filter
-- [ ] Helmholtz filter 
+- [x] Helmholtz filter (with dense cholesky as scipy has no sparse cholesky)
+- [ ] Helmholtz filter with LU decomposition
 - [ ] different examples than just MBB beam
+- [ ] multiload cases
 - [ ] heat conduction
 - [ ] 3D
+- [ ] Haevisde filter (delegated to later)
 
 topopt_cholmod.py
 - [x] docstrings for documentation
