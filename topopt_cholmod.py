@@ -3,14 +3,15 @@
 from __future__ import division
 import numpy as np
 
-from scipy.sparse import coo_matrix
+from scipy.sparse import coo_matrix,csc_matrix
+from scipy.sparse.linalg import spsolve_triangular
 from matplotlib.colors import Normalize
 import matplotlib.pyplot as plt
-import cvxopt
-import cvxopt.cholmod
+from cvxopt import spmatrix,matrix
+from cvxopt.cholmod import linsolve, numeric, symbolic
 
 
-def main(nelx, nely, volfrac, penal, rmin, ft):
+def main(nelx, nely, volfrac, penal, rmin, ft, pde=False):
     """
     Topology optimization workflow with the SIMP method based on 
     the  Cholesky factorization of CHOLMOD which we call through 
@@ -66,29 +67,53 @@ def main(nelx, nely, volfrac, penal, rmin, ft):
     iK = np.kron(edofMat, np.ones((8, 1))).flatten()
     jK = np.kron(edofMat, np.ones((1, 8))).flatten()
     # Filter: Build (and assemble) the index+data vectors for the coo matrix format
-    nfilter = int(nelx*nely*((2*(np.ceil(rmin)-1)+1)**2))
-    iH = np.zeros(nfilter)
-    jH = np.zeros(nfilter)
-    sH = np.zeros(nfilter)
-    i = np.floor(el/nely)
-    j = el%nely
-    kk1 = np.maximum(i-(np.ceil(rmin)-1), 0).astype(int)
-    kk2 = np.minimum(i+np.ceil(rmin), nelx).astype(int)
-    ll1 = np.maximum(j-(np.ceil(rmin)-1), 0).astype(int)
-    ll2 = np.minimum(j+np.ceil(rmin), nely).astype(int)
-    n_neigh = (kk2-kk1)*(ll2-ll1)
-    el,i,j = np.repeat(el, n_neigh),np.repeat(i, n_neigh),np.repeat(j, n_neigh)
-    cc = np.arange(el.shape[0])
-    k,l = np.hstack([np.stack([a.flatten() for a in \
-                     np.meshgrid(np.arange(k1,k2),np.arange(l1,l2))]) \
-                     for k1,k2,l1,l2 in zip(kk1,kk2,ll1,ll2)])
-    fac = rmin-np.sqrt(((i-k)**2+(j-l)**2))
-    iH[cc] = el # row
-    jH[cc] = k*nely+l #column
-    sH[cc] = np.maximum(0.0, fac)
-    # Finalize assembly and convert to csc format
-    H = coo_matrix((sH, (iH, jH)), shape=(nelx*nely, nelx*nely)).tocsc()
-    Hs = H.sum(1)
+    if not pde and ft in [0,1]:
+        nfilter = int(nelx*nely*((2*(np.ceil(rmin)-1)+1)**2))
+        iH = np.zeros(nfilter)
+        jH = np.zeros(nfilter)
+        sH = np.zeros(nfilter)
+        i = np.floor(el/nely)
+        j = el%nely
+        kk1 = np.maximum(i-(np.ceil(rmin)-1), 0).astype(int)
+        kk2 = np.minimum(i+np.ceil(rmin), nelx).astype(int)
+        ll1 = np.maximum(j-(np.ceil(rmin)-1), 0).astype(int)
+        ll2 = np.minimum(j+np.ceil(rmin), nely).astype(int)
+        n_neigh = (kk2-kk1)*(ll2-ll1)
+        el,i,j = np.repeat(el, n_neigh),np.repeat(i, n_neigh),np.repeat(j, n_neigh)
+        cc = np.arange(el.shape[0])
+        k,l = np.hstack([np.stack([a.flatten() for a in \
+                         np.meshgrid(np.arange(k1,k2),np.arange(l1,l2))]) \
+                         for k1,k2,l1,l2 in zip(kk1,kk2,ll1,ll2)])
+        fac = rmin-np.sqrt(((i-k)**2+(j-l)**2))
+        iH[cc] = el # row
+        jH[cc] = k*nely+l #column
+        sH[cc] = np.maximum(0.0, fac)
+        # Finalize assembly and convert to csc format
+        H = coo_matrix((sH, (iH, jH)), shape=(nelx*nely, nelx*nely)).tocsc()
+        Hs = H.sum(1)
+    elif pde and ft in [0,1]:
+        Rmin = rmin/(2*np.sqrt(3))
+        KEF = (Rmin**2) * np.array([[4, -1, -2, -1],
+                                    [-1, 4, -1, -2],
+                                    [-2, -1, 4, -1],
+                                    [-1, -2, -1, 4]])/6 + \
+                          np.array([[4, 2, 1, 2],
+                                    [2, 4, 2, 1],
+                                    [1, 2, 4, 2],
+                                    [2, 1, 2, 4]])/36
+        ndofF = (nelx+1)*(nely+1)
+        edofMatF = np.column_stack((n1, n2, n2 +1, n1 +1 ))
+        iKF = np.kron(edofMatF, np.ones((4, 1))).flatten()
+        jKF = np.kron(edofMatF, np.ones((1, 4))).flatten()
+        sKF = np.tile(KEF.flatten(),nelx*nely)
+        KF = spmatrix(sKF, iKF, jKF)
+        LF = symbolic(KF)
+        numeric(KF, LF)
+        LF = csc_matrix((LF.L(), LF.I(), LF.J), shape=KF.shape)
+        iTF = edofMatF.flatten(order='F')
+        jTF = np.tile(el, 4)
+        sTF = np.full(4*nelx*nely,1/4)
+        TF = coo_matrix((sTF, (iTF, jTF)), shape=(ndofF,nelx*nely)).tocsc()
     # BC's and support
     dofs = np.arange(2*(nelx+1)*(nely+1))
     fixed = np.union1d(dofs[0:2*(nely+1):2], np.array([2*(nelx+1)*(nely+1)-1]))
@@ -116,9 +141,9 @@ def main(nelx, nely, volfrac, penal, rmin, ft):
         #K = deleterowcol(K, fixed, fixed).tocoo()
         # Solve system
         #K = cvxopt.spmatrix(K.data, K.row.astype(int), K.col.astype(int))
-        K = cvxopt.spmatrix(sK, iK.astype(int), jK.astype(int))
-        B = cvxopt.matrix(f[free, 0])
-        cvxopt.cholmod.linsolve(K, B)
+        K = spmatrix(sK, iK.astype(int), jK.astype(int))
+        B = matrix(f[free, 0])
+        linsolve(K, B)
         u[free, 0] = np.array(B)[:, 0]
 
         # Objective and sensitivity
@@ -129,12 +154,28 @@ def main(nelx, nely, volfrac, penal, rmin, ft):
 
         dv = np.ones(nely*nelx)
         # Sensitivity filtering:
-        if ft == 0:
+        if ft == 0 and not pde:
             dc[:] = np.asarray((H*(x*dc))[np.newaxis].T /
                                Hs)[:, 0] / np.maximum(0.001, x)
-        elif ft == 1:
+        # solve KF y = TF@(dc*xPhys), dc_updated = TF.T @ y
+        elif ft == 0 and pde:
+            dc[:] = (TF.T@spsolve_triangular(LF.T, 
+                            (spsolve_triangular(LF,TF@(dc*xPhys))),
+                            lower=False))/np.maximum(0.001, x)
+        elif ft == 1 and not pde:
             dc[:] = np.asarray(H*(dc[np.newaxis].T/Hs))[:, 0]
-            dv[:] = np.asarray(H*(dv[np.newaxis].T/Hs))[:, 0]
+            dv[:] = np.asarray(H*(dv[np.newaxis].T/Hs))[:, 0] 
+        # solve KF y = TF@dc, dc_updated = TF.T @ y
+        # solve KF z = TF@dv, dv_updated = TF.T @ z
+        elif ft == 1 and pde:
+            dc[:] = TF.T @ spsolve_triangular(LF.T, 
+                                              (spsolve_triangular(LF, TF@dc)),
+                                              lower=False)
+            dv[:] = TF.T @ spsolve_triangular(LF.T, 
+                                              (spsolve_triangular(LF, TF@dv)),
+                                              lower=False)
+        elif ft == -1:
+            pass
 
         # Optimality criteria
         xold[:] = x
@@ -143,8 +184,14 @@ def main(nelx, nely, volfrac, penal, rmin, ft):
         # Filter design variables
         if ft == 0:
             xPhys[:] = x
-        elif ft == 1:
+        elif ft == 1 and not pde:
             xPhys[:] = np.asarray(H*x[np.newaxis].T/Hs)[:, 0]
+        elif ft == 1 and pde:
+            xPhys[:] = TF.T @ spsolve_triangular(LF.T, 
+                                                 (spsolve_triangular(LF, TF@x)),
+                                                 lower=False)
+        elif ft == -1:
+            pass
 
         # Compute the change by the inf. norm
         change = np.linalg.norm(

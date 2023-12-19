@@ -2,12 +2,13 @@
 from __future__ import division
 import numpy as np
 from scipy.sparse import coo_matrix, diags
-from scipy.sparse.linalg import spsolve, spsolve_triangular,splu
+from scipy.sparse.linalg import spsolve,spsolve_triangular,splu,cg
 from scipy.linalg import cholesky
 from matplotlib.colors import Normalize
 import matplotlib.pyplot as plt
 # MAIN DRIVER
-def main(nelx, nely, volfrac, penal, rmin, ft, pde=False):
+def main(nelx, nely, volfrac, penal, rmin, ft, 
+         pde=False, passive=False, verbose=True):
     """
     Topology optimization workflow with the SIMP method based on 
     the default direct solver of scipy sparse.
@@ -30,6 +31,8 @@ def main(nelx, nely, volfrac, penal, rmin, ft, pde=False):
         1 density filtering, -1 no filter.
     pde: boolean
         if true, Helmholtz filter is used
+    passive: boolean
+        if true, passive elements to form a cricle are created.
 
     Returns
     -------
@@ -104,24 +107,40 @@ def main(nelx, nely, volfrac, penal, rmin, ft, pde=False):
         jKF = np.kron(edofMatF, np.ones((1, 4))).flatten()
         sKF = np.tile(KEF.flatten(),nelx*nely)
         KF = coo_matrix((sKF, (iKF, jKF)), shape=(ndofF, ndofF)).tocsc()
-        LF = coo_matrix(cholesky(KF.toarray(),lower=True)).tocsc()
+        #LF = coo_matrix(cholesky(KF.toarray(),lower=True)).tocsc()
+        #LU = splu(KF)
         iTF = edofMatF.flatten(order='F')
         jTF = np.tile(el, 4)
         sTF = np.full(4*nelx*nely,1/4)
         TF = coo_matrix((sTF, (iTF, jTF)), shape=(ndofF,nelx*nely)).tocsc()
     # BC's and support
     dofs = np.arange(2*(nelx+1)*(nely+1))
-    fixed = np.union1d(dofs[0:2*(nely+1):2], np.array([2*(nelx+1)*(nely+1)-1]))
+    # MBB beam
+    #fixed = np.union1d(dofs[0:2*(nely+1):2], 
+    #                   np.array([2*(nelx+1)*(nely+1)-1]))
+    # cases 5.1 and 5.2
+    fixed = dofs[:2*nely+1]
+    # general
     free = np.setdiff1d(dofs, fixed)
     # Solution and RHS vectors
     f = np.zeros((ndof, 1))
     u = np.zeros((ndof, 1))
     # Set load
-    f[1, 0] = -1
+    #f[1, 0] = -1 # MBB
+    f[2*(nelx+1)*(nely+1)-1,0] = -1 # case 5.1 and 5.2
+    #f[2*nelx*(nely+1)+1,1] = 1 # case 5.2
     # get rid of fixed degrees of freedom from stiffness matrix 
     mask = ~(np.isin(iK,fixed) | np.isin(jK,fixed))
     iK,jK = update_indices(iK, fixed, mask),update_indices(jK, fixed, mask)
     ndof_free = ndof - fixed.shape[0]
+    # passive elements
+    if passive:
+        el = np.arange(nelx*nely)
+        i = np.floor(el/nely)
+        j = el%nely
+        pass_el = np.sqrt( (j+1-nely/2)**2 + (i+1-nelx/3)**2) < nely/3
+    else:
+        pass_el = None
     # Initialize plot and plot the initial design
     plt.ion()  # Ensure that redrawing is possible
     fig, ax = plt.subplots(1,1)
@@ -136,48 +155,65 @@ def main(nelx, nely, volfrac, penal, rmin, ft, pde=False):
         K = coo_matrix((sK, (iK, jK)), shape=(ndof_free, ndof_free)).tocsc()
         # Remove constrained dofs from matrix
         #K = K[free, :][:, free]
-        # Solve system
-        u[free, 0] = spsolve(K, f[free, 0])
-        #u[free, 0] = cg(K, f[free, 0],x0=)
+        # Solve system(s)
+        u[free, 0] = spsolve(K, f[free, 0])#u[free, :] = spsolve(K, f[free, :])
         # Objective and sensitivity
-        ce = (np.dot(u[edofMat].reshape(nelx*nely, 8), KE)
-                 * u[edofMat].reshape(nelx*nely, 8)).sum(1)
-        obj = ((Emin+xPhys**penal*(Emax-Emin))*ce).sum()
-        dc = (-penal*xPhys**(penal-1)*(Emax-Emin))*ce
+        obj = 0
+        dc = 0
+        for i in np.arange(f.shape[1]):
+            #ce = (np.dot(u[edofMat,i].reshape(nelx*nely, 8), KE)
+            #         * u[edofMat,i].reshape(nelx*nely, 8)).sum(1)
+            ui = u[:,i]
+            ce = (np.dot(ui[edofMat].reshape(nelx*nely, 8), KE)
+                     * ui[edofMat].reshape(nelx*nely, 8)).sum(1)
+            obj += ((Emin+xPhys**penal*(Emax-Emin))*ce).sum()
+            dc -= penal*xPhys**(penal-1)*(Emax-Emin)*ce
         dv = np.ones(nely*nelx)
         # Sensitivity filtering:
         if ft == 0 and not pde:
             dc[:] = np.asarray((H*(x*dc))[np.newaxis].T /
                                Hs)[:, 0] / np.maximum(0.001, x)
+        # solve KF y = TF@(dc*xPhys), dc_updated = TF.T @ y
         elif ft == 0 and pde:
-            dc[:] = (TF.T@spsolve_triangular(LF.T, 
-                            (spsolve_triangular(LF,TF@(dc*xPhys))),
-                            lower=False)) \
-                     /np.maximum(0.001, x)
+            #dc[:] = (TF.T@spsolve_triangular(LF.T, 
+            #                (spsolve_triangular(LF,TF@(dc*xPhys))),
+            #                lower=False)) \
+            #         /np.maximum(0.001, x)
+            #dc[:] = TF.T @ LU.solve(TF@(dc*xPhys))/np.maximum(0.001, x)
+            dc[:] = TF.T @ spsolve(KF,TF@(dc*xPhys))/np.maximum(0.001, x)
         elif ft == 1 and not pde:
             dc[:] = np.asarray(H*(dc[np.newaxis].T/Hs))[:, 0]
-            dv[:] = np.asarray(H*(dv[np.newaxis].T/Hs))[:, 0]
+            dv[:] = np.asarray(H*(dv[np.newaxis].T/Hs))[:, 0] 
+        # solve KF y = TF@dc, dc_updated = TF.T @ y
+        # solve KF z = TF@dv, dv_updated = TF.T @ z
         elif ft == 1 and pde:
-            dc[:] = TF.T @ spsolve_triangular(LF.T, 
-                                              (spsolve_triangular(LF, TF@dc)),
-                                              lower=False)
-            dv[:] = TF.T @ spsolve_triangular(LF.T, 
-                                              (spsolve_triangular(LF, TF@dv)),
-                                              lower=False)
+            #dc[:] = TF.T @ spsolve_triangular(LF.T, 
+            #                                  (spsolve_triangular(LF, TF@dc)),
+            #                                  lower=False)
+            #dv[:] = TF.T @ spsolve_triangular(LF.T, 
+            #                                  (spsolve_triangular(LF, TF@dv)),
+            #                                  lower=False)
+            #dc[:] = TF.T @ LU.solve(TF@dc)
+            #dv[:] = TF.T @ LU.solve(TF@dv)
+            dc[:] = TF.T @ spsolve(KF,TF@dc)
+            dv[:] = TF.T @ spsolve(KF,TF@dv)
         elif ft == -1:
             pass
         # Optimality criteria
         xold[:] = x
-        (x[:], g) = oc(nelx, nely, x, volfrac, dc, dv, g)
+        (x[:], g) = oc(nelx, nely, x, volfrac, dc, dv, g, pass_el)
+        
         # Filter design variables
         if ft == 0:
             xPhys[:] = x
         elif ft == 1 and not pde:
             xPhys[:] = np.asarray(H*x[np.newaxis].T/Hs)[:, 0]
         elif ft == 1 and pde:
-            xPhys[:] = TF.T @ spsolve_triangular(LF.T, 
-                                                 (spsolve(LF, TF@x)),
-                                                 lower=False)
+            #xPhys[:] = TF.T @ spsolve_triangular(LF.T, 
+            #                                     (spsolve_triangular(LF, TF@x)),
+            #                                     lower=False)
+            #xPhys[:] = TF.T @ LU.solve(TF@x)
+            xPhys[:] = TF.T @ spsolve(KF,TF@x)
         elif ft == -1:
             pass
         # Compute the change by the inf. norm
@@ -186,7 +222,8 @@ def main(nelx, nely, volfrac, penal, rmin, ft, pde=False):
         im.set_array(-xPhys.reshape((nelx, nely)).T)
         fig.canvas.draw()
         # Write iteration history to screen (req. Python 2.6 or newer)
-        print("it.: {0} , obj.: {1:.3f} Vol.: {2:.3f}, ch.: {3:.3f}".format(
+        if verbose: 
+            print("it.: {0} , obj.: {1:.3f} Vol.: {2:.3f}, ch.: {3:.3f}".format(
             loop, obj, xPhys.mean(), change))
         # convergence check
         if change < 0.01:
@@ -195,6 +232,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft, pde=False):
     # Make sure the plot stays and that the shell remains
     plt.show()
     input("Press any key...")
+    return x, obj
 
 def update_indices(indices,fixed,mask):
     """
@@ -247,7 +285,7 @@ def lk():
                                [k[7], k[2], k[1], k[4], k[3], k[6], k[5], k[0]]])
     return (KE)
 
-def oc(nelx, nely, x, volfrac, dc, dv, g):
+def oc(nelx, nely, x, volfrac, dc, dv, g, pass_el):
     """
     Optimality criteria method (section 2.2 in paper) for maximum/minimum 
     stiffness/compliance. Heuristic updating scheme for the element densities 
@@ -272,6 +310,11 @@ def oc(nelx, nely, x, volfrac, dc, dv, g):
         gradient of volume constraint with respect to element densities..
     g : float
         parameter for the heuristic updating scheme.
+    pass_el : None or np.array 
+        array who contains indices used for un/masking passive elements. 0 
+        means an active element that is part of the optimization, 1 and 2 
+        indicate empty and full elements which are not part of the 
+        optimization.
 
     Returns
     -------
@@ -290,11 +333,17 @@ def oc(nelx, nely, x, volfrac, dc, dv, g):
         lmid = 0.5*(l2+l1)
         xnew[:] = np.maximum(0.0, np.maximum(
             x-move, np.minimum(1.0, np.minimum(x+move, x*np.sqrt(-dc/dv/lmid)))))
-        gt = g+np.sum((dv*(xnew-x)))
+        
+        # passive element update
+        if pass_el is not None:
+            xnew[pass_el==1] = 0
+            xnew[pass_el==2] = 1
+        gt = xnew.sum() - volfrac * x.shape[0] #g+np.sum((dv*(xnew-x)))
         if gt > 0:
             l1 = lmid
         else:
-            l2 = lmid 
+            l2 = lmid
+        
     return (xnew, gt)
 
 def threshold(xPhys, volfrac):
@@ -326,10 +375,10 @@ def threshold(xPhys, volfrac):
 # The real main driver
 if __name__ == "__main__":
     # Default input parameters
-    nelx = 60  # 180
-    nely = 20  # 60
+    nelx = 150  # 180
+    nely = 100  # 60
     volfrac = 0.5  # 0.4
-    rmin = 2.4  # 5.4
+    rmin = 5#0.04*nelx  # 5.4
     penal = 3.0
     ft = 0 # ft==0 -> sens, ft==1 -> dens
     import sys
@@ -345,4 +394,4 @@ if __name__ == "__main__":
         penal = float(sys.argv[5])
     if len(sys.argv) > 6:
         ft = int(sys.argv[6])
-    main(nelx, nely, volfrac, penal, rmin, ft, pde=True)
+    main(nelx, nely, volfrac, penal, rmin, ft, passive=True,pde=False)

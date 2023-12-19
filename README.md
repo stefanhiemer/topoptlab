@@ -7,11 +7,14 @@ topopt.py
 - [x] check whether iK,jK,sK can be filtered by masking before setting up the
       stiffness matrix.
 - [x] Helmholtz filter (with dense cholesky as scipy has no sparse cholesky)
-- [ ] Helmholtz filter with LU decomposition
-- [ ] different examples than just MBB beam
-- [ ] multiload cases
+- [x] Helmholtz filter with LU decomposition (tested it, but gives different
+      results. I guess that Super-LU uses a different precision.)
+- [x] different examples than just MBB beam
+- [x] multiload cases
+- [x] passive elements
 - [ ] heat conduction
 - [ ] 3D
+- [ ] multigrid
 - [ ] Haevisde filter (delegated to later)
 
 topopt_cholmod.py
