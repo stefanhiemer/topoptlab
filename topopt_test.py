@@ -4,7 +4,14 @@ from topopt import main
 
 
 def test_Helmholtz_sensitivity_filtering():
-    
+    """
+    Tests Fig. 4 top row and Section 4.2.
+
+    Returns
+    -------
+    None.
+
+    """
     # Default input parameters
     volfrac = 0.5
     penal = 3.0
@@ -19,7 +26,14 @@ def test_Helmholtz_sensitivity_filtering():
     return
 
 def test_Helmholtz_density_filtering():
-    
+    """
+    Tests Fig. 4 bottom row and Section 4.2.
+
+    Returns
+    -------
+    None.
+
+    """
     # Default input parameters
     volfrac = 0.5
     penal = 3.0
@@ -33,7 +47,14 @@ def test_Helmholtz_density_filtering():
     return
 
 def test_sensitivity_filtering():
-    
+    """
+    Tests Fig. 3 top row and Section 3.4.
+
+    Returns
+    -------
+    None.
+
+    """
     # Default input parameters
     volfrac = 0.5
     penal = 3.0
@@ -48,7 +69,14 @@ def test_sensitivity_filtering():
     return
 
 def test_density_filtering():
-    
+    """
+    Tests Fig. 3 bottom row and Section 3.4.
+
+    Returns
+    -------
+    None.
+
+    """
     # Default input parameters
     volfrac = 0.5
     penal = 3.0

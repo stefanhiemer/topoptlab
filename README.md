@@ -12,6 +12,7 @@ topopt.py
 - [x] different examples than just MBB beam
 - [x] multiload cases
 - [x] passive elements
+- [x] compliant mechanism
 - [ ] heat conduction
 - [ ] 3D
 - [ ] multigrid
