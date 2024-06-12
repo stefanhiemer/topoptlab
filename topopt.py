@@ -114,7 +114,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         sTF = np.full(4*nelx*nely,1/4)
         TF = coo_matrix((sTF, (iTF, jTF)), shape=(ndofF,nelx*nely)).tocsc()
     # BC's and support
-    dofs = np.arange(2*(nelx+1)*(nely+1))
+    dofs = np.arange(ndof)
     # MBB beam
     fixed = np.union1d(dofs[0:2*(nely+1):2], 
                        np.array([2*(nelx+1)*(nely+1)-1]))
@@ -349,32 +349,6 @@ def oc(nelx, nely, x, volfrac, dc, dv, g, pass_el):
             l2 = lmid
         
     return (xnew, gt)
-
-def threshold(xPhys, volfrac):
-    """
-    Threshold grey scale design to black and white design.
-
-    Parameters
-    ----------
-    xPhys : np.array, shape (nel)
-        element densities for topology optimization used for scaling the 
-        material properties. 
-    volfrac : float
-        volume fraction.
-
-    Returns
-    -------
-    xPhys : np.array, shape (nel)
-        thresholded element densities for topology optimization used for scaling the 
-        material properties. 
-
-    """
-    indices = np.flip(np.argsort(xPhys))
-    vt = np.floor(volfrac*xPhys.shape[0]).astype(int)
-    xPhys[indices[:vt]] = 1.
-    xPhys[indices[vt:]] = 0.
-    print("Thresholded Vol.: {0:.3f}".format(vt/xPhys.shape[0]))
-    return xPhys
 
 # The real main driver
 if __name__ == "__main__":

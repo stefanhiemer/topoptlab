@@ -39,20 +39,17 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     None.
 
     """
-    print("Compliant mechanism problem with OC")
+    print("Minimum heat compliance problem with OC")
     print("nodes: " + str(nelx) + " x " + str(nely))
     print("volfrac: " + str(volfrac) + ", rmin: " +
           str(rmin) + ", penal: " + str(penal))
     print("Filter method: " + ["Sensitivity based", "Density based",
                                "Haeviside","No filter"][ft])
     # Max and min stiffness
-    Emin = 1e-9
-    Emax = 1.0
-    # stiffness constants springs 
-    kin = 0.1
-    kout = 0.1
+    kmin = 1e-3
+    kmax = 1.0
     # dofs:
-    ndof = 2*(nelx+1)*(nely+1)
+    ndof = (nelx+1)*(nely+1)
     # Allocate design variables (as array), initialize and allocate sens.
     x = volfrac * np.ones(nely*nelx, dtype=float)
     xold = x.copy()
@@ -64,11 +61,10 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     el = np.arange(nelx*nely)
     n1 = ((nely+1)*elx+ely).flatten()
     n2 = ((nely+1)*(elx+1)+ely).flatten()
-    edofMat = np.column_stack((2*n1+2, 2*n1+3, 2*n2+2, 2*n2+3, 
-                               2*n2, 2*n2+1, 2*n1, 2*n1+1))
+    edofMat = np.column_stack((n1+1, n2+1, n2, n1))
     # Construct the index pointers for the coo format
-    iK = np.kron(edofMat, np.ones((8, 1))).flatten()
-    jK = np.kron(edofMat, np.ones((1, 8))).flatten()
+    iK = np.kron(edofMat, np.ones((4, 1))).flatten()
+    jK = np.kron(edofMat, np.ones((1, 4))).flatten()
     # Filter: Build (and assemble) the index+data vectors for the coo matrix format
     if not pde and ft in [0,1]:
         nfilter = int(nelx*nely*((2*(np.ceil(rmin)-1)+1)**2))
@@ -116,26 +112,23 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         jTF = np.tile(el, 4)
         sTF = np.full(4*nelx*nely,1/4)
         TF = coo_matrix((sTF, (iTF, jTF)), shape=(ndofF,nelx*nely)).tocsc()
-    # BC's and support
+    # BC's
     dofs = np.arange(ndof)
-    fixed = np.union1d(np.arange(1,(nelx+1)*(nely+1)*2,(nely+1)*2), # symmetry
-                       np.arange(2*(nely+1)-4,2*(nely+1))) # bottom left bit
-    din = 0
-    dout = 2*nelx*(nely+1)
+    # heat sink
+    start = int(nely / 2 + 1 - nely / 20)
+    end = int(nely / 2 + 1 + nely / 20)
+    fixed = np.arange(start, end + 1)
     # general
     free = np.setdiff1d(dofs, fixed)
     # Solution and RHS vectors
-    f = np.zeros((ndof, 2))
-    u = np.zeros((ndof, 2))
-    # Set load
-    f[din,0] = 1
-    f[dout,1] = -1
+    f = np.zeros((ndof, 1))
+    u = np.zeros((ndof, 1))
+    # load/source
+    f[:, 0] = -1 # constant source
     # get rid of fixed degrees of freedom from stiffness matrix 
     mask = ~(np.isin(iK,fixed) | np.isin(jK,fixed))
     #
-    _din, _dout = update_spring(np.array([din,dout]), fixed, 
-                                np.isin(np.array([din,dout]),fixed))
-    iK,jK = update_stiff(iK, fixed, mask),update_stiff(jK, fixed, mask)
+    iK,jK = update_indices(iK, fixed, mask),update_indices(jK, fixed, mask)
     ndof_free = ndof - fixed.shape[0]
     # passive elements
     if passive:
@@ -154,18 +147,27 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     # Set loop counter and gradient vectors
     for loop in np.arange(2000):
         # Setup and solve FE problem
-        sK = (KE.flatten()[:,None]*(Emin+(xPhys)
-              ** penal*(Emax-Emin))).flatten(order='F')[mask]
+        sK = (KE.flatten()[:,None]*(kmin+(xPhys)
+              ** penal*(kmax-kmin))).flatten(order='F')[mask]
         K = coo_matrix((sK, (iK, jK)), shape=(ndof_free, ndof_free)).tocsc()
-        # add springs to stiffness matrix
-        K[_din,_din] += kin # 
-        K[_dout,_dout] += kout # 
-        # Solve systems
-        u[free, :] = spsolve(K, f[free, :])
+        # Remove constrained dofs from matrix
+        #K = K[free, :][:, free]
+        # Solve system(s)
+        if u.shape[1] == 1:
+            u[free, 0] = spsolve(K, f[free, 0])
+        else:
+            u[free, :] = spsolve(K, f[free, :])
         # Objective and sensitivity
-        obj = u[dout,0].copy()
-        dc = penal*xPhys**(penal-1)*(Emax-Emin)*(np.dot(u[edofMat,1].reshape(nelx*nely, 8), KE)*\
-              u[edofMat,0].reshape(nelx*nely, 8)).sum(1)
+        obj = 0
+        dc = 0
+        for i in np.arange(f.shape[1]):
+            #ce = (np.dot(u[edofMat,i].reshape(nelx*nely, 8), KE)
+            #         * u[edofMat,i].reshape(nelx*nely, 8)).sum(1)
+            ui = u[:,i]
+            ce = (np.dot(ui[edofMat].reshape(nelx*nely, 4), KE)
+                     * ui[edofMat].reshape(nelx*nely, 4)).sum(1)
+            obj += ((kmin+xPhys**penal*(kmax-kmin))*ce).sum()
+            dc -= penal*xPhys**(penal-1)*(kmax-kmin)*ce
         dv = np.ones(nely*nelx)
         # Sensitivity filtering:
         if ft == 0 and not pde:
@@ -221,57 +223,18 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         fig.canvas.draw()
         # Write iteration history to screen (req. Python 2.6 or newer)
         if verbose: 
-            print("it.: {0} , obj.: {1:.8f} Vol.: {2:.8f}, ch.: {3:.8f}".format(
+            print("it.: {0} , obj.: {1:.3f} Vol.: {2:.3f}, ch.: {3:.3f}".format(
             loop, obj, xPhys.mean(), change))
         # convergence check
         if change < 0.01:
             break
     #anim = ArtistAnimation(fig, imgs)
     # Make sure the plot stays and that the shell remains
-    im.set_array(-xPhys.reshape((nelx, nely)).T)
-    # plot fixed nodes
-    fixed_dof = fixed%2 # if 0, x degree fixed, else y
-    node = (fixed-fixed_dof)/2
-    x = np.floor(node/(nely+1)) - 1/4
-    y = node%(nely+1) - 1/4
-    ax.scatter(x[fixed_dof==0],y[fixed_dof==0],
-               alpha=0.5,color="r",label="x fixed")
-    ax.scatter(x[fixed_dof==1],y[fixed_dof==1],
-               alpha=0.5,color="r",label="y fixed",
-               facecolors='none')
-    # 
-    din_dof = din%2 # if 0, x degree fixed, else y
-    node = (din-din_dof)/2
-    x = np.array(np.floor(node/(nely+1)) - 1/4)
-    y = np.array(node%(nely+1) - 1/4)
-    mask = np.array(din_dof==0)
-    if np.any(mask):
-        ax.scatter(x[mask],y[mask],
-                     alpha=0.5,color="g",label="x input")
-    if np.any(~mask):
-        ax.scatter(x[~mask],y[~mask],
-                   alpha=0.5,color="g",label="y input",
-                   facecolors='none')
-    #
-    dout_dof = dout%2 # if 0, x degree fixed, else y
-    node = (dout-dout_dof)/2
-    x = np.array(np.floor(node/(nely+1)) - 1/4)
-    y = np.array(node%(nely+1) - 1/4)
-    mask = np.array(dout_dof==0)
-    if np.any(mask):
-        ax.scatter(x[mask],y[mask],
-                     alpha=0.5,color="b",label="x output")
-    if np.any(~mask):
-        ax.scatter(x[~mask],y[~mask],
-                   alpha=0.5,color="b",label="y output",
-                   facecolors='none')
-    ax.legend()
-    #
     plt.show()
     input("Press any key...")
     return x, obj
 
-def update_stiff(indices,fixed,mask):
+def update_indices(indices,fixed,mask):
     """
     Update the indices for the stiffness matrix construction by kicking out
     the fixed degrees of freedom and renumbering the indices.
@@ -298,57 +261,20 @@ def update_stiff(indices,fixed,mask):
     
     return val[ind][mask]
 
-def update_spring(inds,fixed,mask):
-    """
-    Update the indices for the springs for the in and output.
-
-    Parameters
-    ----------
-    inds : np.array
-        indices of the spring degrees of freedom in the stiffness matrix.
-    fixed : np.array
-        indices of fixed degrees of freedom.
-    mask : np.array
-        mask to kick out fixed degrees of freedom.
-
-    Returns
-    -------
-    inds : np.arrays
-        updated indices.
-
-    """
-    
-    #a = np.bincount(np.digitize(fixed, inds))[:inds.shape[0]].cumsum()
-    #print(a)
-    #import sys 
-    #sys.exit()
-    #digits = np.bincount(np.digitize(fixed, indices))
-    inds = inds - np.bincount(np.digitize(fixed, inds))[:inds.shape[0]].cumsum()
-    
-    return inds
-
 def lk():
     """
     Create element stiffness matrix.
     
     Returns
     -------
-    Ke : np.array, shape (8,8)
+    Ke : np.array, shape (4,4)
         element stiffness matrix.
         
     """
-    E = 1
-    nu = 0.3
-    k = np.array([1/2-nu/6, 1/8+nu/8, -1/4-nu/12, -1/8+3*nu /
-                 8, -1/4+nu/12, -1/8-nu/8, nu/6, 1/8-3*nu/8])
-    KE = E/(1-nu**2)*np.array([[k[0], k[1], k[2], k[3], k[4], k[5], k[6], k[7]],
-                               [k[1], k[0], k[7], k[6], k[5], k[4], k[3], k[2]],
-                               [k[2], k[7], k[0], k[5], k[6], k[3], k[4], k[1]],
-                               [k[3], k[6], k[5], k[0], k[7], k[2], k[1], k[4]],
-                               [k[4], k[5], k[6], k[7], k[0], k[1], k[2], k[3]],
-                               [k[5], k[4], k[3], k[2], k[1], k[0], k[7], k[6]],
-                               [k[6], k[3], k[4], k[1], k[2], k[7], k[0], k[5]],
-                               [k[7], k[2], k[1], k[4], k[3], k[6], k[5], k[0]]])
+    KE = np.array([[2/3, -1/6, -1/3, -1/6,],
+                   [-1/6, 2/3, -1/6, -1/3],
+                   [-1/3, -1/6, 2/3, -1/6],
+                   [-1/6, -1/3, -1/6, 2/3]])
     return (KE)
 
 def oc(nelx, nely, x, volfrac, dc, dv, g, pass_el):
@@ -392,15 +318,13 @@ def oc(nelx, nely, x, volfrac, dc, dv, g, pass_el):
     """
     l1 = 0
     l2 = 1e9
-    move = 0.1
-    damp = 0.3
+    move = 0.2
     # reshape to perform vector operations
     xnew = np.zeros(nelx*nely)
-    while (l2-l1)/(l1+l2) > 1e-4 and l2 > 1e-40:
+    while (l2-l1)/(l1+l2) > 1e-3:
         lmid = 0.5*(l2+l1)
         xnew[:] = np.maximum(0.0, np.maximum(
-            x-move, np.minimum(1.0, np.minimum(x+move, x*np.maximum(1e-10,
-                                                                    -dc/dv/lmid)**damp))))
+            x-move, np.minimum(1.0, np.minimum(x+move, x*np.sqrt(-dc/dv/lmid)))))
         
         # passive element update
         if pass_el is not None:
@@ -414,13 +338,39 @@ def oc(nelx, nely, x, volfrac, dc, dv, g, pass_el):
         
     return (xnew, gt)
 
+def threshold(xPhys, volfrac):
+    """
+    Threshold grey scale design to black and white design.
+
+    Parameters
+    ----------
+    xPhys : np.array, shape (nel)
+        element densities for topology optimization used for scaling the 
+        material properties. 
+    volfrac : float
+        volume fraction.
+
+    Returns
+    -------
+    xPhys : np.array, shape (nel)
+        thresholded element densities for topology optimization used for scaling the 
+        material properties. 
+
+    """
+    indices = np.flip(np.argsort(xPhys))
+    vt = np.floor(volfrac*xPhys.shape[0]).astype(int)
+    xPhys[indices[:vt]] = 1.
+    xPhys[indices[vt:]] = 0.
+    print("Thresholded Vol.: {0:.3f}".format(vt/xPhys.shape[0]))
+    return xPhys
+
 # The real main driver
 if __name__ == "__main__":
     # Default input parameters
     nelx = 40
-    nely = 20
-    volfrac = 0.3
-    rmin = 1.2#0.04*nelx  # 5.4
+    nely = 40
+    volfrac = 0.4
+    rmin = 1.2
     penal = 3.0
     ft = 0 # ft==0 -> sens, ft==1 -> dens
     import sys
