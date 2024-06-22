@@ -144,7 +144,9 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     im = ax.imshow(-xPhys.reshape((nelx, nely)).T, cmap='gray',
                    interpolation='none', norm=Normalize(vmin=-1, vmax=0))
     fig.show()
-    # Set loop counter and gradient vectors
+    # gradient for the volume constraint is constant regardless of iteration
+    dv = np.ones(nely*nelx)
+    # optimization loop
     for loop in np.arange(2000):
         # Setup and solve FE problem
         sK = (KE.flatten()[:,None]*(kmin+(xPhys)
@@ -168,7 +170,6 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                      * ui[edofMat].reshape(nelx*nely, 4)).sum(1)
             obj += ((kmin+xPhys**penal*(kmax-kmin))*ce).sum()
             dc -= penal*xPhys**(penal-1)*(kmax-kmin)*ce
-        dv = np.ones(nely*nelx)
         # Sensitivity filtering:
         if ft == 0 and not pde:
             dc[:] = np.asarray((H*(x*dc))[np.newaxis].T /
