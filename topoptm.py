@@ -150,6 +150,12 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     fig, ax = plt.subplots(1,1)
     im = ax.imshow(-xPhys.reshape((nelx, nely)).T, cmap='gray',
                    interpolation='none', norm=Normalize(vmin=-1, vmax=0))
+    ax.tick_params(axis='both',
+                   which='both',
+                   bottom=False,
+                   left=False,
+                   labelbottom=False,
+                   labelleft=False)
     fig.show()
     # gradient for the volume constraint is constant regardless of iteration
     dv = np.ones(nely*nelx)
@@ -220,6 +226,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         # Plot to screen
         im.set_array(-xPhys.reshape((nelx, nely)).T)
         fig.canvas.draw()
+        plt.pause(0.01)
         # Write iteration history to screen (req. Python 2.6 or newer)
         if verbose: 
             print("it.: {0} , obj.: {1:.8f} Vol.: {2:.8f}, ch.: {3:.8f}".format(
