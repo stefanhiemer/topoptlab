@@ -178,6 +178,8 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         jTF = np.tile(el, 4)
         sTF = np.full(4*nelx*nely,1/4)
         TF = coo_matrix((sTF, (iTF, jTF)), shape=(ndofF,nelx*nely)).tocsc()
+    elif pde and ft in [2]:
+        raise ValueError("PDE filter and Heaviside projection incompatible.")
     # BC's and support
     dofs = np.arange(ndof)
     # MBB beam
@@ -292,8 +294,14 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         # density update by solver
         xold[:] = x
         # optimality criteria
-        if solver=="oc":
-            (x[:], g) = oc(nelx, nely, x, volfrac, dc, dv, g, pass_el)
+        if solver=="oc" and ft != 2:
+                (x[:], g) = oc(nelx, nely, x, volfrac, dc, dv, g, 
+                               pass_el,
+                               None,None,None)
+        elif solver=="oc" and ft in [2]:
+                (x[:],xTilde[:], g) = oc(nelx, nely, x, volfrac, dc, dv, g, 
+                               pass_el,
+                               H,Hs,beta) 
         # method of moving asymptotes, implementation by Arjen Deetman
         elif solver=="mma":
             xval = x.copy()[np.newaxis].T
@@ -422,7 +430,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             xold1 = xval.copy()
             x = xmma.copy().flatten()
         # Filter design variables
-        if ft == 0:
+        if ft in [0,2]:
             xPhys[:] = x
         elif ft == 1 and not pde:
             xPhys[:] = np.asarray(H*x[np.newaxis].T/Hs)[:, 0]
@@ -432,9 +440,6 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             #                                     lower=False)
             #xPhys[:] = TF.T @ LU.solve(TF@x)
             xPhys[:] = TF.T @ spsolve(KF,TF@x)
-        elif ft == 2:
-            xTilde[:] = np.asarray(H*x[np.newaxis].T/Hs)[:, 0]
-            xPhys = 1 - np.exp(-beta*xTilde) 
         elif ft == -1:
             xPhys[:]  = x
         # Compute the change by the inf. norm
@@ -528,7 +533,8 @@ def update_mma(x,xold1,xold2,xPhys,obj,dc,dv,iteration,
     return mmasub(m,x.shape[0],iteration,xval,xmin,xmax,xold1,xold2,f0val,df0dx,
                   fval,dfdx,low,upp,a0,a,c,d,move)
     
-def oc(nelx, nely, x, volfrac, dc, dv, g, pass_el):
+def oc(nelx, nely, x, volfrac, dc, dv, g, pass_el,
+       H,Hs,beta):
     """
     Optimality criteria method (section 2.2 in paper) for maximum/minimum 
     stiffness/compliance. Heuristic updating scheme for the element densities 
@@ -572,11 +578,16 @@ def oc(nelx, nely, x, volfrac, dc, dv, g, pass_el):
     move = 0.2
     # reshape to perform vector operations
     xnew = np.zeros(nelx*nely)
+    print("Start OC")
     while (l2-l1)/(l1+l2) > 1e-3:
+        print(l1,l2)
         lmid = 0.5*(l2+l1)
         xnew[:] = np.maximum(0.0, np.maximum(
             x-move, np.minimum(1.0, np.minimum(x+move, x*np.sqrt(-dc/dv/lmid)))))
-        
+        #
+        if not beta is None:
+            xTilde = np.asarray(H*x[np.newaxis].T/Hs)[:, 0]
+            xnew = 1 - np.exp(-beta*xTilde) 
         # passive element update
         if pass_el is not None:
             xnew[pass_el==1] = 0
@@ -586,8 +597,10 @@ def oc(nelx, nely, x, volfrac, dc, dv, g, pass_el):
             l1 = lmid
         else:
             l2 = lmid
-        
-    return (xnew, gt)
+    if beta is None:
+        return (xnew, gt)
+    else:
+        return (xnew, xTilde, gt)
 
 # The real main driver
 if __name__ == "__main__":

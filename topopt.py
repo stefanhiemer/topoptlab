@@ -213,7 +213,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                    bottom=False,
                    left=False,
                    labelbottom=False,
-                   labelleft=False) # labels along the bottom edge are off
+                   labelleft=False)
     fig.show()
     # gradient for the volume constraint is constant regardless of iteration
     dv = np.ones(nely*nelx)
