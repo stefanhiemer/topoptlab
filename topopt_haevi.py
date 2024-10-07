@@ -500,7 +500,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             beta = 2 * beta
             loopbeta = 0
             print(f"Parameter beta increased to {beta}")
-        elif (ft == 2) and (beta >= 512):
+        elif (ft == 2) and (beta >= 512) and (change < 0.01):
             break
     #anim = ArtistAnimation(fig, imgs)
     # Make sure the plot stays and that the shell remains
