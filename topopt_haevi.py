@@ -18,7 +18,8 @@ except ModuleNotFoundError:
 def main(nelx, nely, volfrac, penal, rmin, ft, 
          pde=False, passive=False, solver="oc", 
          nouteriter=2000, ninneriter=15,
-         verbose=True):
+         verbose=True,
+         debug=False):
     """
     Topology optimization workflow with the SIMP method based on 
     the default direct solver of scipy sparse.
@@ -68,7 +69,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     x = volfrac * np.ones(nely*nelx, dtype=float)
     xold = x.copy()
     xPhys = x.copy()
-    beta = 1
+    beta = 4
     if ft == 2:
         xTilde = x.copy()
         xPhys = 1 - np.exp(-beta * xTilde) + xTilde * np.exp(-beta)
@@ -224,7 +225,28 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     # gradient for the volume constraint is constant regardless of iteration
     dv = np.ones(nely*nelx)
     # optimization loop
+    if debug:
+        print("x: ", x)
+        print("xPhys: ", xPhys)
+        if ft == 2:
+            print("xTilde: ", xTilde)
+        
     loopbeta = 0
+    if debug == 1:
+        if ft == 2:
+            print("it.: {0} , x.: {1:.10f}, xTilde: {2:.10f}, xPhys: {3:.10f},".format(
+                   0, np.median(x),np.median(xTilde),np.median(xPhys)), 
+                   "dv: {0:.10f}, g: {1:.10f}".format(
+                   np.median(dv),
+                   g),
+                   )
+        else:
+            print("it.: {0} , x.: {1:.10f}, xPhys: {2:.10f},".format(
+                   0, np.median(x),np.median(xPhys)), 
+                   "dv: {0:.10f}, g: {1:.10f}".format(
+                   np.median(dv),
+                   g),
+                   )
     for loop in np.arange(nouteriter):
         #
         loopbeta += 1 
@@ -288,20 +310,21 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         elif ft == 2:
             dx = beta*np.exp(-beta*xTilde) + np.exp(-beta)
             dc[:] = np.asarray(H*((dc*dx)[np.newaxis].T/Hs))[:, 0]
-            dv[:] = np.asarray(H*((dv*dx)[np.newaxis].T/Hs))[:, 0]
+            dv[:] = np.asarray(H*((np.ones(nely*nelx)*dx)[np.newaxis].T/Hs))[:, 0]
         elif ft == -1:
             pass
         # density update by solver
         xold[:] = x
         # optimality criteria
         if solver=="oc" and ft != 2:
-                (x[:], g) = oc(nelx, nely, x, volfrac, dc, dv, g, 
-                               pass_el,
-                               None,None,None)
+             (x[:], g) = oc(nelx, nely, x, volfrac, dc, dv, g, 
+                            pass_el,
+                            None,None,None)
         elif solver=="oc" and ft in [2]:
-                (x[:],xTilde[:], g) = oc(nelx, nely, x, volfrac, dc, dv, g, 
-                               pass_el,
-                               H,Hs,beta) 
+            (x[:],xTilde[:], g) = oc(nelx, nely, x, volfrac, dc, dv, g, 
+                                     pass_el,
+                                     H,Hs,beta,
+                                     debug=debug) 
         # method of moving asymptotes, implementation by Arjen Deetman
         elif solver=="mma":
             xval = x.copy()[np.newaxis].T
@@ -430,7 +453,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             xold1 = xval.copy()
             x = xmma.copy().flatten()
         # Filter design variables
-        if ft in [0,2]:
+        if ft in [0,-1]:
             xPhys[:] = x
         elif ft == 1 and not pde:
             xPhys[:] = np.asarray(H*x[np.newaxis].T/Hs)[:, 0]
@@ -440,8 +463,8 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             #                                     lower=False)
             #xPhys[:] = TF.T @ LU.solve(TF@x)
             xPhys[:] = TF.T @ spsolve(KF,TF@x)
-        elif ft == -1:
-            xPhys[:]  = x
+        if ft == 2:
+            xPhys = 1 - np.exp(-beta*xTilde) + xTilde*np.exp(-beta)
         # Compute the change by the inf. norm
         change = (np.abs(x-xold)).max()
         # Plot to screen
@@ -449,8 +472,25 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         fig.canvas.draw()
         plt.pause(0.01)
         # Write iteration history to screen (req. Python 2.6 or newer)
+        if debug == 1:
+            if ft == 2:
+                print("it.: {0} , x.: {1:.10f}, xTilde: {2:.10f}, xPhys: {3:.10f},".format(
+                       loop+1, np.median(x),np.median(xTilde),np.median(xPhys)), 
+                       "dc: {0:.10f}, dv: {1:.10f}, g: {2:.10f}".format(
+                       np.median(dc),
+                       np.median(dv),
+                       g),
+                       )
+            else:
+                print("it.: {0} , x.: {1:.10f}, xPhys: {2:.10f},".format(
+                       loop+1, np.median(x),np.median(xPhys)), 
+                       "dc: {0:.10f}, dv: {1:.10f}, g: {2:.10f}".format(
+                       np.median(dc),
+                       np.median(dv),
+                       g),
+                       )
         if verbose: 
-            print("it.: {0} , obj.: {1:.3f} Vol.: {2:.3f}, ch.: {3:.3f}".format(
+            print("it.: {0} , obj.: {1:.10f}, Vol.: {2:.10f}, ch.: {3:.10f}".format(
             loop, obj, xPhys.mean(), change))
         # convergence check
         if change < 0.01 and ft != 2:
@@ -534,7 +574,8 @@ def update_mma(x,xold1,xold2,xPhys,obj,dc,dv,iteration,
                   fval,dfdx,low,upp,a0,a,c,d,move)
     
 def oc(nelx, nely, x, volfrac, dc, dv, g, pass_el,
-       H,Hs,beta):
+       H,Hs,beta,
+       debug=False):
     """
     Optimality criteria method (section 2.2 in paper) for maximum/minimum 
     stiffness/compliance. Heuristic updating scheme for the element densities 
@@ -578,25 +619,35 @@ def oc(nelx, nely, x, volfrac, dc, dv, g, pass_el,
     move = 0.2
     # reshape to perform vector operations
     xnew = np.zeros(nelx*nely)
-    print("Start OC")
+    if debug:
+        i = 0
     while (l2-l1)/(l1+l2) > 1e-3:
-        print(l1,l2)
         lmid = 0.5*(l2+l1)
-        xnew[:] = np.maximum(0.0, np.maximum(
-            x-move, np.minimum(1.0, np.minimum(x+move, x*np.sqrt(-dc/dv/lmid)))))
+        xnew[:] = np.maximum(0.0, 
+                             np.maximum(x-move, 
+                              np.minimum(1.0, 
+                               np.minimum(x+move, 
+                                          x*np.sqrt(-dc/dv/lmid)))))
         #
         if not beta is None:
-            xTilde = np.asarray(H*x[np.newaxis].T/Hs)[:, 0]
-            xnew = 1 - np.exp(-beta*xTilde) 
+            xTilde = np.asarray(H*xnew[np.newaxis].T/Hs)[:, 0]
+            xPhys = 1 - np.exp(-beta*xTilde) + xTilde*np.exp(-beta)
+        else:
+            xPhys = xnew
         # passive element update
         if pass_el is not None:
             xnew[pass_el==1] = 0
             xnew[pass_el==2] = 1
-        gt = xnew.sum() - volfrac * x.shape[0] #g+np.sum((dv*(xnew-x)))
+        #
+        gt = xPhys.sum() - volfrac * x.shape[0] #g+np.sum((dv*(xnew-x)))
         if gt > 0:
             l1 = lmid
         else:
             l2 = lmid
+        if debug:
+            i = i+1
+            print("oc it.: {0} , l1: {1:.10f} l2: {2:.10f}, gt: {3:.10f}".format(
+            i, l1, l2, gt))
     if beta is None:
         return (xnew, gt)
     else:
@@ -625,4 +676,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 6:
         ft = int(sys.argv[6])
     main(nelx, nely, volfrac, penal, rmin, ft, 
-         passive=False,pde=False,solver="oc",ninneriter=0)
+         passive=False,pde=False,solver="oc",
+         nouteriter=2000,
+         ninneriter=0,
+         debug=False)
