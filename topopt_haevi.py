@@ -13,7 +13,8 @@ try:
 except ModuleNotFoundError:
     raise ModuleNotFoundError(message)
     
-
+projections = [2,3,4]
+filters = [0,1]
 # MAIN DRIVER
 def main(nelx, nely, volfrac, penal, rmin, ft, 
          pde=False, passive=False, solver="oc", 
@@ -74,7 +75,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     xold = x.copy()
     xPhys = x.copy()
     # these are Heavisde projections
-    if ft in [2,3,4]:
+    if ft in projections:
         beta = 1
         xTilde = x.copy()
         if solver!="oc":
@@ -149,7 +150,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     iK = np.kron(edofMat, np.ones((8, 1))).flatten()
     jK = np.kron(edofMat, np.ones((1, 8))).flatten()
     # Filter: Build (and assemble) the index+data vectors for the coo matrix format
-    if not pde and ft in [0,1,2,3,4]:
+    if not pde:
         nfilter = int(nelx*nely*((2*(np.ceil(rmin)-1)+1)**2))
         iH = np.zeros(nfilter)
         jH = np.zeros(nfilter)
@@ -173,7 +174,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         # Finalize assembly and convert to csc format
         H = coo_matrix((sH, (iH, jH)), shape=(nelx*nely, nelx*nely)).tocsc()
         Hs = H.sum(1)
-    elif pde and ft in [0,1]:
+    elif pde:
         Rmin = rmin/(2*np.sqrt(3))
         KEF = (Rmin**2) * np.array([[4, -1, -2, -1],
                                     [-1, 4, -1, -2],
@@ -299,27 +300,28 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         elif ft == 1 and pde:
             dc[:] = TF.T @ spsolve(KF,TF@dc)
             dv[:] = TF.T @ spsolve(KF,TF@dv)
-        elif ft in [2,3,4]:
+        elif ft in projections:
             if ft == 2:
                 dx = beta*np.exp(-beta*xTilde) + np.exp(-beta)
             elif ft == 3:
-                dx = np.exp(-beta*(1-xTilde)) * beta * xTilde \
-                     + np.exp(-beta) 
+                dx = np.exp(-beta*(1-xTilde)) * beta \
+                     + np.exp(-beta)
             elif ft == 4:
-                dx = (1 - beta * np.tanh(beta * (xTilde - eta))**2) /\
+                dx = beta * (1 - np.tanh(beta * (xTilde - eta))**2) /\
                         (np.tanh(beta*eta)+np.tanh(beta*(1-eta)))
             dc[:] = np.asarray(H*((dc*dx)[np.newaxis].T/Hs))[:, 0]
             dv[:] = np.asarray(H*((dv*dx)[np.newaxis].T/Hs))[:, 0]
+            # safety for division by 0
         elif ft == -1:
             pass
         # density update by solver
         xold[:] = x
         # optimality criteria
-        if solver=="oc" and ft in [0,1]:
+        if solver=="oc" and ft in filters:
              (x[:], g) = oc(nelx, nely, x, volfrac, dc, dv, g, 
                             pass_el,
                             None,None,None,None,None,debug)
-        elif solver=="oc" and ft in [2,3,4]:
+        elif solver=="oc" and ft in projections:
             (x[:],xTilde[:],xPhys[:],g) = oc(nelx, nely, x, volfrac, dc, dv, g, 
                                      pass_el,
                                      H,Hs,beta,eta,ft,
@@ -478,14 +480,14 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             print("it.: {0} , obj.: {1:.10f}, Vol.: {2:.10f}, ch.: {3:.10f}".format(
             loop, obj, xPhys.mean(), change))
         # convergence check and continuation
-        if change < 0.01 and ft in [0,1]:
+        if change < 0.01 and ft in filters:
             break
-        elif (ft in [2,3,4]) and (beta < 512) and \
-            (loopbeta >= 50 or change < 0.01):
+        elif (ft in projections) and (beta < 512) and \
+            (loopbeta >= 100 or change < 0.01):
             beta = 2 * beta
             loopbeta = 0
             print(f"Parameter beta increased to {beta}")
-        elif (ft in [2,3,4]) and (beta >= 512) and (change < 0.01):
+        elif (ft in projections) and (beta >= 512) and (change < 0.01):
             break
     #anim = ArtistAnimation(fig, imgs)
     # Make sure the plot stays and that the shell remains
@@ -555,7 +557,8 @@ def update_mma(x,xold1,xold2,xPhys,obj,dc,dv,iteration,
     dfdx = mu1*(dv/(x.shape[0]*volfrac))[np.newaxis]
     xval = x.copy()[np.newaxis].T 
         
-    return mmasub(m,x.shape[0],iteration,xval,xmin,xmax,xold1,xold2,f0val,df0dx,
+    return mmasub(m,x.shape[0],iteration,xval,xmin,xmax,
+                  xold1,xold2,f0val,df0dx,
                   fval,dfdx,low,upp,a0,a,c,d,move)
     
 def oc(nelx, nely, x, volfrac, dc, dv, g, pass_el,
@@ -601,8 +604,7 @@ def oc(nelx, nely, x, volfrac, dc, dv, g, pass_el,
     """
     l1 = 0
     l2 = 1e9
-    move = 0.2
-    damp = 0.3
+    move = 0.1
     # reshape to perform vector operations
     xnew = np.zeros(nelx*nely)
     xTilde = np.zeros(nelx*nely)
@@ -615,10 +617,9 @@ def oc(nelx, nely, x, volfrac, dc, dv, g, pass_el,
                              np.maximum(x-move, 
                                         np.minimum(1.0, 
                                                    np.minimum(x+move, 
-                                                              x*np.maximum(1e-10,
-                                                                    -dc/dv/lmid)**damp))))
+                                                              x*np.sqrt(-dc/dv/lmid)))))
         #
-        if ft in [2,3,4]:
+        if ft in projections:
             xTilde = np.asarray(H*xnew[np.newaxis].T/Hs)[:, 0]
         if ft in [2]:
             xPhys = 1 - np.exp(-beta*xTilde) + xTilde*np.exp(-beta)
@@ -648,6 +649,7 @@ def oc(nelx, nely, x, volfrac, dc, dv, g, pass_el,
                 "dc: {0:.10f} dv: {1:.10f}".format(
                     np.max(dc),np.median(dv)))
             if np.isnan(gt):
+                print()
                 import sys 
                 sys.exit()
     if beta is None:
