@@ -288,6 +288,11 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                 obj += ((Emin+xPhys**penal*(Emax-Emin))*ce).sum()
                 dc -= penal*xPhys**(penal-1)*(Emax-Emin)*ce
         dv = np.ones(nely*nelx) 
+        if debug:
+            print("Pre-Sensitivity Filter: it.: {0}, dc: {1:.10f}, dv: {2:.10f}".format(
+                   loop, 
+                   np.max(dc),
+                   np.min(dv)))
         # Sensitivity filtering:
         if ft == 0 and not pde:
             dc[:] = np.asarray((H*(x*dc))[np.newaxis].T /
@@ -314,6 +319,11 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             # safety for division by 0
         elif ft == -1:
             pass
+        if debug:
+            print("Post-Sensitivity Filter: it.: {0}, dc: {1:.10f}, dv: {2:.10f}".format(
+                   loop, 
+                   np.max(dc),
+                   np.min(dv)))
         # density update by solver
         xold[:] = x
         # optimality criteria
@@ -463,19 +473,11 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             if ft == 2:
                 print("it.: {0} , x.: {1:.10f}, xTilde: {2:.10f}, xPhys: {3:.10f},".format(
                        loop+1, np.median(x),np.median(xTilde),np.median(xPhys)), 
-                       "dc: {0:.10f}, dv: {1:.10f}, g: {2:.10f}".format(
-                       np.median(dc),
-                       np.median(dv),
-                       g),
-                       )
+                       "g: {0:.10f}".format(g))
             else:
                 print("it.: {0} , x.: {1:.10f}, xPhys: {2:.10f},".format(
                        loop+1, np.median(x),np.median(xPhys)), 
-                       "dc: {0:.10f}, dv: {1:.10f}, g: {2:.10f}".format(
-                       np.median(dc),
-                       np.median(dv),
-                       g),
-                       )
+                       "g: {0:.10f}".format(g))
         if verbose: 
             print("it.: {0} , obj.: {1:.10f}, Vol.: {2:.10f}, ch.: {3:.10f}".format(
             loop, obj, xPhys.mean(), change))
@@ -611,13 +613,13 @@ def oc(nelx, nely, x, volfrac, dc, dv, g, pass_el,
     xPhys = np.zeros(nelx*nely)
     if debug:
         i = 0
-    while (l2-l1)/(l1+l2) > 1e-4 and l2 > 1e-20:
+    while (l2-l1)/(l1+l2) > 1e-5 and np.abs(l2-l1) > 1e-10:
         lmid = 0.5*(l2+l1)
         xnew[:] = np.maximum(0.0, 
                              np.maximum(x-move, 
                                         np.minimum(1.0, 
                                                    np.minimum(x+move, 
-                                                              x*np.sqrt(-dc/dv/lmid)))))
+                                                              x*np.sqrt(-dc/(dv+1e-12)/lmid)))))
         #
         if ft in projections:
             xTilde = np.asarray(H*xnew[np.newaxis].T/Hs)[:, 0]
@@ -647,7 +649,7 @@ def oc(nelx, nely, x, volfrac, dc, dv, g, pass_el,
                 "x: {0:.10f} xTilde: {1:.10f} xPhys: {2:.10f}".format(
                     np.median(x),np.median(xTilde),np.median(xPhys)),
                 "dc: {0:.10f} dv: {1:.10f}".format(
-                    np.max(dc),np.median(dv)))
+                    np.max(dc),np.min(dv)))
             if np.isnan(gt):
                 print()
                 import sys 
@@ -662,10 +664,10 @@ if __name__ == "__main__":
     # Default input parameters
     nelx = 60  # 180
     nely = 20  # 60
-    volfrac = 0.5  # 0.4
-    rmin = 0.03*nelx  # 5.4
+    volfrac = 0.4  # 0.4
+    rmin = 0.04*nelx  # 5.4
     penal = 3.0
-    ft = 4 # ft==0 -> sens, ft==1 -> dens
+    ft = 1 # ft==0 -> sens, ft==1 -> dens
     import sys
     if len(sys.argv) > 1:
         nelx = int(sys.argv[1])
