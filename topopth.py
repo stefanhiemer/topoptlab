@@ -1,5 +1,8 @@
 # A 165 LINE TOPOLOGY OPTIMIZATION CODE BY NIELS AAGE AND VILLADS EGEDE JOHANSEN, JANUARY 2013
 from __future__ import division
+from os.path import isfile, remove
+import logging 
+
 import numpy as np
 from scipy.sparse import coo_matrix, diags
 from scipy.sparse.linalg import spsolve,spsolve_triangular,splu,cg
@@ -39,10 +42,17 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     None.
 
     """
-    print("Minimum heat compliance problem with OC")
-    print("nodes: " + str(nelx) + " x " + str(nely))
-    print("volfrac: " + str(volfrac) + ", rmin: " +
-          str(rmin) + ", penal: " + str(penal))
+    # check if log file exists and if true delete
+    if isfile("topopth.log"):
+        remove("topopth.log")
+    logging.basicConfig(level=logging.INFO,
+                    format='%(message)s',
+                    handlers=[
+                        logging.FileHandler("topopth.log"),
+                        logging.StreamHandler()])
+    logging.info("Minimum compliance problem with oc")
+    logging.info(f"nodes: {nelx} x {nely}")
+    logging.info(f"volfrac: {volfrac}, rmin: {rmin},  penal: {penal}")
     print("Filter method: " + ["Sensitivity based", "Density based",
                                "Haeviside","No filter"][ft])
     # Max and min stiffness
@@ -231,7 +241,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         plt.pause(0.01)
         # Write iteration history to screen (req. Python 2.6 or newer)
         if verbose: 
-            print("it.: {0} , obj.: {1:.3f} Vol.: {2:.3f}, ch.: {3:.3f}".format(
+            logging.info("it.: {0} , obj.: {1:.3f} Vol.: {2:.3f}, ch.: {3:.3f}".format(
             loop, obj, xPhys.mean(), change))
         # convergence check
         if change < 0.01:

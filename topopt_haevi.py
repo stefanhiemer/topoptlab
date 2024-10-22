@@ -1,5 +1,8 @@
 # A 165 LINE TOPOLOGY OPTIMIZATION CODE BY NIELS AAGE AND VILLADS EGEDE JOHANSEN, JANUARY 2013
 from __future__ import division
+from os.path import isfile, remove
+import logging 
+
 import numpy as np
 from scipy.sparse import coo_matrix
 from scipy.sparse.linalg import spsolve
@@ -55,11 +58,19 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     None.
 
     """
-    print("Minimum compliance problem with "+solver)
-    print("nodes: " + str(nelx) + " x " + str(nely))
-    print("volfrac: " + str(volfrac) + ", rmin: " +
-          str(rmin) + ", penal: " + str(penal))
-    print("Filter method: " + ["Sensitivity based", 
+    # check if log file exists and if true delete
+    if isfile("topopt_haevi.log"):
+        remove("topopt_haevi.log")
+    logging.basicConfig(level=logging.INFO,
+                    format='%(message)s',
+                    handlers=[
+                        logging.FileHandler("topopt_haevi.log"),
+                        logging.StreamHandler()])
+    #
+    logging.info(f"Minimum compliance problem with {solver}")
+    logging.info(f"nodes: {nelx} x {nely}")
+    logging.info(f"volfrac: {volfrac}, rmin: {rmin},  penal: {penal}")
+    logging.info("Filter method: " + ["Sensitivity based", 
                                "Density based",
                                "Haeviside Guest",
                                "Haeviside complement Sigmund 2007",
@@ -479,7 +490,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                        loop+1, np.median(x),np.median(xPhys)), 
                        "g: {0:.10f}".format(g))
         if verbose: 
-            print("it.: {0} , obj.: {1:.10f}, Vol.: {2:.10f}, ch.: {3:.10f}".format(
+            logging.info("it.: {0} , obj.: {1:.10f}, Vol.: {2:.10f}, ch.: {3:.10f}".format(
             loop, obj, xPhys.mean(), change))
         # convergence check and continuation
         if change < 0.01 and ft in filters:
@@ -488,7 +499,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             (loopbeta >= 100 or change < 0.01):
             beta = 2 * beta
             loopbeta = 0
-            print(f"Parameter beta increased to {beta}")
+            logging.info(f"Parameter beta increased to {beta}")
         elif (ft in projections) and (beta >= 512) and (change < 0.01):
             break
     #anim = ArtistAnimation(fig, imgs)

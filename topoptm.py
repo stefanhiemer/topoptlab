@@ -325,12 +325,6 @@ def update_spring(inds,fixed,mask):
         updated indices.
 
     """
-    
-    #a = np.bincount(np.digitize(fixed, inds))[:inds.shape[0]].cumsum()
-    #print(a)
-    #import sys 
-    #sys.exit()
-    #digits = np.bincount(np.digitize(fixed, indices))
     inds = inds - np.bincount(np.digitize(fixed, inds))[:inds.shape[0]].cumsum()
     
     return inds
