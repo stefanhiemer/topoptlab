@@ -507,9 +507,9 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     plt.show()
     input("Press any key...")
     #
-    export_vtk(filename="topopt_haevi.vtk", 
+    export_vtk(filename="topopt_haevi", 
                nelx=nelx,nely=nely, 
-               xPhys=xPhys,x=x, 
+               xPhys=xPhys,x=x, xTilde=xTilde,
                u=u,f=f,volfrac=volfrac)
     return x, obj
 

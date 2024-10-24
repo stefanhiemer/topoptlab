@@ -1,5 +1,9 @@
 # A 165 LINE TOPOLOGY OPTIMIZATION CODE BY NIELS AAGE AND VILLADS EGEDE JOHANSEN, JANUARY 2013
 from __future__ import division
+from os.path import isfile
+from os import remove
+import logging 
+
 import numpy as np
 from scipy.sparse import coo_matrix, diags
 from scipy.sparse.linalg import spsolve,spsolve_triangular,splu,cg
@@ -7,7 +11,7 @@ from scipy.linalg import cholesky
 from matplotlib.colors import Normalize
 import matplotlib.pyplot as plt
 
-from output_designs import export_vtk
+from output_designs import export_vtk,export_stl
 # MAIN DRIVER
 def main(nelx, nely, volfrac, penal, rmin, ft, 
          pde=False, passive=False, verbose=True):
@@ -41,11 +45,19 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     None.
 
     """
-    print("Compliant mechanism problem with OC")
-    print("nodes: " + str(nelx) + " x " + str(nely))
-    print("volfrac: " + str(volfrac) + ", rmin: " +
-          str(rmin) + ", penal: " + str(penal))
-    print("Filter method: " + ["Sensitivity based", "Density based",
+    # check if log file exists and if true delete
+    if isfile("topoptm.log"):
+        remove("topoptm.log")
+    logging.basicConfig(level=logging.INFO,
+                    format='%(message)s',
+                    handlers=[
+                        logging.FileHandler("topoptm.log"),
+                        logging.StreamHandler()])
+    #
+    logging.info("Compliant mechanism problem with OC")
+    logging.info(f"nodes: {nelx} x {nely}")
+    logging.info(f"volfrac: {volfrac}, rmin: {rmin},  penal: {penal}")
+    logging.info("Filter method: " + ["Sensitivity based", "Density based",
                                "Haeviside","No filter"][ft])
     # Max and min stiffness
     Emin = 1e-9
@@ -231,7 +243,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         plt.pause(0.01)
         # Write iteration history to screen (req. Python 2.6 or newer)
         if verbose: 
-            print("it.: {0} , obj.: {1:.8f} Vol.: {2:.8f}, ch.: {3:.8f}".format(
+            logging.info("it.: {0} , obj.: {1:.8f} Vol.: {2:.8f}, ch.: {3:.8f}".format(
             loop, obj, xPhys.mean(), change))
         # convergence check
         if change < 0.01:
@@ -240,10 +252,14 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     plt.show()
     input("Press any key...")
     #
-    export_vtk(filename="topoptm.vtk", 
+    export_vtk(filename="topoptm", 
                nelx=nelx,nely=nely, 
                xPhys=xPhys,x=x, 
                u=u,f=f,volfrac=volfrac)
+    export_stl(filename="topoptm", 
+               nelx=nelx,nely=nely, 
+               xPhys=xPhys,
+               volfrac=volfrac)
     return x, obj
 
 def update_stiff(indices,fixed,mask):

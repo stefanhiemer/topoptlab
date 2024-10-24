@@ -1,6 +1,7 @@
 # A 165 LINE TOPOLOGY OPTIMIZATION CODE BY NIELS AAGE AND VILLADS EGEDE JOHANSEN, JANUARY 2013
 from __future__ import division
-from os.path import isfile, remove
+from os.path import isfile
+from os import remove
 import logging 
 
 import numpy as np
@@ -13,7 +14,7 @@ from output_designs import export_vtk
 
 message = "MMA module not found. Get it from https://github.com/arjendeetman/GCMMA-MMA-Python/tree/master .Copy mma.py in the same directory as this python file."
 try:
-    from mma import mmasub,gcmmasub,asymp,concheck,raaupdate
+    from mmapy import mmasub,gcmmasub,asymp,concheck,raaupdate
 except ModuleNotFoundError:
     raise ModuleNotFoundError(message)
     
@@ -453,7 +454,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     plt.show()
     input("Press any key...")
     #
-    export_vtk(filename="topopt.vtk", 
+    export_vtk(filename="topopt", 
                nelx=nelx,nely=nely, 
                xPhys=xPhys,x=x, 
                u=u,f=f,volfrac=volfrac)
@@ -608,4 +609,4 @@ if __name__ == "__main__":
     if len(sys.argv) > 6:
         ft = int(sys.argv[6])
     main(nelx, nely, volfrac, penal, rmin, ft, 
-         passive=False,pde=False,solver="gcmma",ninneriter=0)
+         passive=False,pde=False,solver="mma",ninneriter=0)

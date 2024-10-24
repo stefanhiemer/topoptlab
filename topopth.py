@@ -1,6 +1,7 @@
 # A 165 LINE TOPOLOGY OPTIMIZATION CODE BY NIELS AAGE AND VILLADS EGEDE JOHANSEN, JANUARY 2013
 from __future__ import division
-from os.path import isfile, remove
+from os.path import isfile 
+from os import remove
 import logging 
 
 import numpy as np
@@ -56,7 +57,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     logging.info("Minimum compliance problem with oc")
     logging.info(f"nodes: {nelx} x {nely}")
     logging.info(f"volfrac: {volfrac}, rmin: {rmin},  penal: {penal}")
-    print("Filter method: " + ["Sensitivity based", "Density based",
+    logging.info("Filter method: " + ["Sensitivity based", "Density based",
                                "Haeviside","No filter"][ft])
     # Max and min stiffness
     kmin = 1e-3
@@ -253,7 +254,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     plt.show()
     input("Press any key...")
     #
-    export_vtk(filename="topopth.vtk", 
+    export_vtk(filename="topopth", 
                nelx=nelx,nely=nely, 
                xPhys=xPhys,x=x, 
                u=u,f=f,volfrac=volfrac)
