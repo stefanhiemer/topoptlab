@@ -74,5 +74,5 @@ def export_vtk(filename,
     Mesh(points,
          [("quad", edofMat)],
          point_data=node_data, 
-         cell_data=el_data).write("foo.vtk")
+         cell_data=el_data).write(filename)
     return
