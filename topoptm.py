@@ -6,6 +6,8 @@ from scipy.sparse.linalg import spsolve,spsolve_triangular,splu,cg
 from scipy.linalg import cholesky
 from matplotlib.colors import Normalize
 import matplotlib.pyplot as plt
+
+from output_designs import export_vtk
 # MAIN DRIVER
 def main(nelx, nely, volfrac, penal, rmin, ft, 
          pde=False, passive=False, verbose=True):
@@ -233,50 +235,15 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             loop, obj, xPhys.mean(), change))
         # convergence check
         if change < 0.01:
-            break
-    #anim = ArtistAnimation(fig, imgs)
-    # Make sure the plot stays and that the shell remains
-    im.set_array(-xPhys.reshape((nelx, nely)).T)
-    # plot fixed nodes
-    fixed_dof = fixed%2 # if 0, x degree fixed, else y
-    node = (fixed-fixed_dof)/2
-    x = np.floor(node/(nely+1)) - 1/4
-    y = node%(nely+1) - 1/4
-    ax.scatter(x[fixed_dof==0],y[fixed_dof==0],
-               alpha=0.5,color="r",label="x fixed")
-    ax.scatter(x[fixed_dof==1],y[fixed_dof==1],
-               alpha=0.5,color="r",label="y fixed",
-               facecolors='none')
-    # 
-    din_dof = din%2 # if 0, x degree fixed, else y
-    node = (din-din_dof)/2
-    x = np.array(np.floor(node/(nely+1)) - 1/4)
-    y = np.array(node%(nely+1) - 1/4)
-    mask = np.array(din_dof==0)
-    if np.any(mask):
-        ax.scatter(x[mask],y[mask],
-                     alpha=0.5,color="g",label="x input")
-    if np.any(~mask):
-        ax.scatter(x[~mask],y[~mask],
-                   alpha=0.5,color="g",label="y input",
-                   facecolors='none')
-    #
-    dout_dof = dout%2 # if 0, x degree fixed, else y
-    node = (dout-dout_dof)/2
-    x = np.array(np.floor(node/(nely+1)) - 1/4)
-    y = np.array(node%(nely+1) - 1/4)
-    mask = np.array(dout_dof==0)
-    if np.any(mask):
-        ax.scatter(x[mask],y[mask],
-                     alpha=0.5,color="b",label="x output")
-    if np.any(~mask):
-        ax.scatter(x[~mask],y[~mask],
-                   alpha=0.5,color="b",label="y output",
-                   facecolors='none')
-    ax.legend()
+            break 
     #
     plt.show()
     input("Press any key...")
+    #
+    export_vtk(filename="topoptm.vtk", 
+               nelx=nelx,nely=nely, 
+               xPhys=xPhys,x=x, 
+               u=u,f=f,volfrac=volfrac)
     return x, obj
 
 def update_stiff(indices,fixed,mask):

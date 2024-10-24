@@ -1,3 +1,6 @@
 __pycache__
 old.py
 old_cholmod.py
+*vtk
+*png
+*pdf

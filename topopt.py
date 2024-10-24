@@ -9,6 +9,7 @@ from scipy.sparse.linalg import spsolve
 from matplotlib.colors import Normalize
 import matplotlib.pyplot as plt
 
+from output_designs import export_vtk
 
 message = "MMA module not found. Get it from https://github.com/arjendeetman/GCMMA-MMA-Python/tree/master .Copy mma.py in the same directory as this python file."
 try:
@@ -448,10 +449,14 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         # convergence check
         if change < 0.01:
             break
-    #anim = ArtistAnimation(fig, imgs)
-    # Make sure the plot stays and that the shell remains
+    #
     plt.show()
     input("Press any key...")
+    #
+    export_vtk(filename="topopt.vtk", 
+               nelx=nelx,nely=nely, 
+               xPhys=xPhys,x=x, 
+               u=u,f=f,volfrac=volfrac)
     return x, obj
 
 
