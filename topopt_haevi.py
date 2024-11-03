@@ -1,9 +1,12 @@
 # A 165 LINE TOPOLOGY OPTIMIZATION CODE BY NIELS AAGE AND VILLADS EGEDE JOHANSEN, JANUARY 2013
 from __future__ import division
-from os.path import isfile, remove
+from os.path import isfile
+from os import remove
 import logging 
+import traceback
 
 import numpy as np
+from scipy.optimize import minimize
 from scipy.sparse import coo_matrix
 from scipy.sparse.linalg import spsolve
 from matplotlib.colors import Normalize
@@ -13,11 +16,11 @@ from output_designs import export_vtk
 
 message = "MMA module not found. Get it from https://github.com/arjendeetman/GCMMA-MMA-Python/tree/master .Copy mma.py in the same directory as this python file."
 try:
-    from mma import mmasub,gcmmasub,asymp,concheck,raaupdate
+    from mmapy import mmasub,gcmmasub,asymp,concheck,raaupdate
 except ModuleNotFoundError:
     raise ModuleNotFoundError(message)
     
-projections = [2,3,4]
+projections = [2,3,4,5]
 filters = [0,1]
 # MAIN DRIVER
 def main(nelx, nely, volfrac, penal, rmin, ft, 
@@ -76,6 +79,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                                "Haeviside Guest",
                                "Haeviside complement Sigmund 2007",
                                "Haeviside eta projection",
+                               "Volume Preserving eta projection",
                                "No filter"][ft])
     # Max and min Young's modulus
     Emin = 1e-9
@@ -90,16 +94,25 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     if ft in projections:
         beta = 1
         xTilde = x.copy()
-        if solver!="oc":
-            raise NotImplementedError()
     if ft in [2]:
         eta=None
         xPhys = 1 - np.exp(-beta*xTilde) + xTilde*np.exp(-beta)
     elif ft in [3]:
         eta = None
         xPhys = np.exp(-beta*(1-xTilde)) - (1-xTilde)*np.exp(-beta)
-    elif ft in [4]:
-        eta = 0.5
+    elif ft in [4,5]:
+        if ft in [4]: 
+            eta = 0.5
+        elif ft in [5]:
+            result = minimize(find_eta, x0=0.5,
+                              bounds=[[0., 1.]], 
+                              method='Nelder-Mead',jac=True,tol=1e-10,
+                              args=(xTilde,beta,volfrac))
+            if result.success:
+                eta = result.x
+            else:
+                raise ValueError("volume conserving eta could not be found")
+            eta = 0.5
         xPhys = (np.tanh(beta*eta)+np.tanh(beta*(xTilde - eta)))/\
                 (np.tanh(beta*eta)+np.tanh(beta*(1-eta)))
     # initialize solver
@@ -123,7 +136,10 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         a = np.zeros((m,1)) 
         c = 10000*np.ones((m,1))
         d = np.zeros((m,1))
-        move = 0.2
+        if ft in [5]: 
+            move = 0.1
+        else:
+            move = 0.2
     elif solver == "gcmma":
         # number of constraints.
         m = 1 
@@ -141,7 +157,10 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         a = np.zeros((m,1)) 
         c = 10000*np.ones((m,1))
         d = np.zeros((m,1))
-        move = 0.2
+        if ft in [5]: 
+            move = 0.1
+        else:
+            move = 0.2
         #
         epsimin = 0.0000001
         raa0 = 0.01
@@ -241,7 +260,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         pass_el = None
     # Initialize plot and plot the initial design
     plt.ion()  # Ensure that redrawing is possible
-    fig, ax = plt.subplots(1,1)
+    fig, ax = plt.subplots(1,1,figsize=(12,4))
     im = ax.imshow(-xPhys.reshape((nelx, nely)).T, cmap='gray',
                    interpolation='none', norm=Normalize(vmin=-1, vmax=0))
     ax.tick_params(axis='both',
@@ -250,6 +269,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                    left=False,
                    labelbottom=False,
                    labelleft=False)
+    ax.axis("off")
     fig.show()
     # optimization loop
     if debug:
@@ -306,24 +326,24 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                    np.max(dc),
                    np.min(dv)))
         # Sensitivity filtering:
-        if ft == 0 and not pde:
+        if ft in [0] and not pde:
             dc[:] = np.asarray((H*(x*dc))[np.newaxis].T /
                                Hs)[:, 0] / np.maximum(0.001, x)
-        elif ft == 0 and pde:
+        elif ft in [0] and pde:
             dc[:] = TF.T @ spsolve(KF,TF@(dc*xPhys))/np.maximum(0.001, x)
-        elif ft == 1 and not pde:
+        elif ft in [1] and not pde:
             dc[:] = np.asarray(H*(dc[np.newaxis].T/Hs))[:, 0]
             dv[:] = np.asarray(H*(dv[np.newaxis].T/Hs))[:, 0] 
-        elif ft == 1 and pde:
+        elif ft in [1] and pde:
             dc[:] = TF.T @ spsolve(KF,TF@dc)
             dv[:] = TF.T @ spsolve(KF,TF@dv)
         elif ft in projections:
-            if ft == 2:
+            if ft in [2]:
                 dx = beta*np.exp(-beta*xTilde) + np.exp(-beta)
-            elif ft == 3:
+            elif ft in [3]:
                 dx = np.exp(-beta*(1-xTilde)) * beta \
                      + np.exp(-beta)
-            elif ft == 4:
+            elif ft in [4,5]:
                 dx = beta * (1 - np.tanh(beta * (xTilde - eta))**2) /\
                         (np.tanh(beta*eta)+np.tanh(beta*(1-eta)))
             dc[:] = np.asarray(H*((dc*dx)[np.newaxis].T/Hs))[:, 0]
@@ -345,14 +365,17 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                             None,None,None,None,None,debug)
         elif solver=="oc" and ft in projections:
             (x[:],xTilde[:],xPhys[:],g) = oc(nelx, nely, x, volfrac, dc, dv, g, 
-                                     pass_el,
-                                     H,Hs,beta,eta,ft,
-                                     debug=debug) 
+                                             pass_el,
+                                             H,Hs,beta,eta,ft,
+                                             debug=debug) 
         # method of moving asymptotes, implementation by Arjen Deetman
         elif solver=="mma":
             xval = x.copy()[np.newaxis].T
-            xmma,ymma,zmma,lam,xsi,eta,mu,zet,s,low,upp = update_mma(x,xold1,xold2,xPhys,obj,dc,dv,loop,
-                                                                     m,xmin,xmax,low,upp,a0,a,c,d,move)
+            xmma,ymma,zmma,lam,xsi,eta_mma,mu,zet,s,low,upp = update_mma(x,xold1,xold2,xPhys,
+                                                                         obj,dc,dv,loop,
+                                                                         m,xmin,xmax,
+                                                                         low,upp,
+                                                                         a0,a,c,d,move)
             xold2 = xold1.copy()
             xold1 = xval.copy()
             x = xmma.copy().flatten()
@@ -370,7 +393,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             low,upp,raa0,raa= \
                   asymp(loop,x.shape[0],xval,xold1,xold2,xmin,xmax,low,upp,
                         raa0,raa,raa0eps,raaeps,df0dx,dfdx)
-            xmma,ymma,zmma,lam,xsi,eta,mu,zet,s,f0app,fapp= \
+            xmma,ymma,zmma,lam,xsi,eta_gcmma,mu,zet,s,f0app,fapp= \
                   gcmmasub(m,x.shape[0],loop,epsimin,xval,xmin,xmax,low,upp,
                            raa0,raa,f0val,df0dx,fval,dfdx,a0,a,c,d)
             # calculate objective- and constraint function values
@@ -417,7 +440,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                                          obj,constr,f0app,fapp,raa0, 
                                          raa,raa0eps,raaeps,epsimin)
                     # solve subproblem with new raa0 and raa:
-                    xmma,ymma,zmma,lam,xsi,eta,mu,zet,s,f0app,fapp = gcmmasub(m,
+                    xmma,ymma,zmma,lam,xsi,eta_gcmma,mu,zet,s,f0app,fapp = gcmmasub(m,
                                                     x.shape[0],loop,epsimin,xval,xmin, 
                                                     xmax,low,upp,raa0,raa,f0val,
                                                     df0dx,fval,dfdx,a0,a,c,d)
@@ -431,6 +454,11 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                         xPhys[:] = np.asarray(H*xmma.copy().flatten()[np.newaxis].T/Hs)[:, 0]
                     elif ft == 1 and pde:
                         xPhys[:] = TF.T @ spsolve(KF,TF@xmma.copy().flatten())
+                    elif ft in [5]:
+                        result = minimize(find_eta, x0=eta,
+                                          bounds=[[0., 1.]], 
+                                          method='Nelder-Mead',jac=True,tol=1e-10,
+                                          args=(xTilde,beta,volfrac))
                     elif ft == -1:
                         xPhys[:]  = xmma.copy().flatten()
                     # Setup and solve FE problem
@@ -470,10 +498,22 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         # Filter design variables
         if ft in [0,-1]:
             xPhys[:] = x
-        elif ft == 1 and not pde:
+        elif ft in [1] and not pde:
             xPhys[:] = np.asarray(H*x[np.newaxis].T/Hs)[:, 0]
-        elif ft == 1 and pde:
+        elif ft in [1] and pde:
             xPhys[:] = TF.T @ spsolve(KF,TF@x)
+        elif ft in [5]:
+            result = minimize(find_eta, x0=eta,
+                              bounds=[[0., 1.]], 
+                              method='Nelder-Mead',jac=True,tol=1e-10,
+                              args=(xTilde,beta,volfrac))
+            if result.success :
+                eta = result.x
+            else:
+                raise ValueError("volume conserving eta could not be found: ",result)
+            xTilde = np.asarray(H*x[np.newaxis].T/Hs)[:, 0]
+            xPhys = (np.tanh(beta*eta)+np.tanh(beta * (xTilde - eta)))/\
+                    (np.tanh(beta*eta)+np.tanh(beta*(1-eta)))
         # Compute the change by the inf. norm
         change = (np.abs(x-xold)).max()
         # Plot to screen
@@ -492,21 +532,25 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                        "g: {0:.10f}".format(g))
         if verbose: 
             logging.info("it.: {0} , obj.: {1:.10f}, Vol.: {2:.10f}, ch.: {3:.10f}".format(
-            loop, obj, xPhys.mean(), change))
+            loop+1, obj, xPhys.mean(), change))
         # convergence check and continuation
         if change < 0.01 and ft in filters:
             break
         elif (ft in projections) and (beta < 512) and \
-            (loopbeta >= 100 or change < 0.01):
+            (loopbeta >= 50 or change < 0.01):
             beta = 2 * beta
             loopbeta = 0
             logging.info(f"Parameter beta increased to {beta}")
         elif (ft in projections) and (beta >= 512) and (change < 0.01):
             break
     #
+    plt.savefig("test.pdf", format="pdf",bbox_inches="tight")
     plt.show()
+    logging.shutdown()
     input("Press any key...")
     #
+    if ft in [0,1]:
+        xTilde=None
     export_vtk(filename="topopt_haevi", 
                nelx=nelx,nely=nely, 
                xPhys=xPhys,x=x, xTilde=xTilde,
@@ -675,15 +719,24 @@ def oc(nelx, nely, x, volfrac, dc, dv, g, pass_el,
     else:
         return (xnew, xTilde, xPhys, gt)
 
+def find_eta(eta,xTilde,beta,volfrac):
+    # Calculate the expression for given eta
+    xPhys = (np.tanh(beta * eta) + np.tanh(beta * (xTilde - eta))) / \
+           (np.tanh(beta * eta) + np.tanh(beta * (1 - eta)))
+    #grad = -beta * np.sinh(beta)**(-1) * np.cosh(beta * (xTilde - eta))**(-2) * \
+    #        np.sinh(xTilde * beta) * np.sinh((1 - xTilde) * beta)
+    return np.abs(np.mean(xPhys) - volfrac)**2, None#, grad.mean()
+           
+
 # The real main driver
 if __name__ == "__main__":
     # Default input parameters
     nelx = 60  # 180
-    nely = 20  # 60
+    nely = int(nelx/3)  # 60
     volfrac = 0.4  # 0.4
-    rmin = 0.04*nelx  # 5.4
+    rmin = 0.03*nelx  # 5.4
     penal = 3.0
-    ft = 1 # ft==0 -> sens, ft==1 -> dens
+    ft = 5 # ft==0 -> sens, ft==1 -> dens
     import sys
     if len(sys.argv) > 1:
         nelx = int(sys.argv[1])
@@ -697,8 +750,12 @@ if __name__ == "__main__":
         penal = float(sys.argv[5])
     if len(sys.argv) > 6:
         ft = int(sys.argv[6])
-    main(nelx, nely, volfrac, penal, rmin, ft, 
-         passive=False,pde=False,solver="oc",
-         nouteriter=2000,
-         ninneriter=0,
-         debug=False)
+    try:
+        main(nelx, nely, volfrac, penal, rmin, ft, 
+             passive=False,pde=False,solver="mma",
+             nouteriter=2000,
+             ninneriter=0,
+             debug=False)
+    except Exception as e:
+        logging.error(traceback.format_exc())
+        logging.shutdown()
