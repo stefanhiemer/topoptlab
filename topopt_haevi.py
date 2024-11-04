@@ -543,8 +543,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             logging.info(f"Parameter beta increased to {beta}")
         elif (ft in projections) and (beta >= 512) and (change < 0.01):
             break
-    #
-    plt.savefig("test.pdf", format="pdf",bbox_inches="tight")
+    # 
     plt.show()
     logging.shutdown()
     input("Press any key...")
