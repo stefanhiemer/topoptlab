@@ -518,10 +518,15 @@ def update_mma(x,xold1,xold2,xPhys,obj,dc,dv,iteration,
     mu1 = 1.0 # Scale factor for volume constraint function
     f0val = mu0*obj 
     df0dx = mu0*dc[np.newaxis].T
-    fval = mu1*np.array([[xPhys.sum()/x.shape[0]-volfrac]])
+    fval = mu1*np.array([[xPhys.mean()-volfrac]])
     dfdx = mu1*(dv/(x.shape[0]*volfrac))[np.newaxis]
     xval = x.copy()[np.newaxis].T 
-        
+    #print(f0val.shape)
+    #print(df0dx.shape)
+    #print(fval.shape)
+    #print(dfdx.shape)
+    #print(xval.shape)
+    #raise ValueError
     return mmasub(m,x.shape[0],iteration,xval,xmin,xmax,xold1,xold2,f0val,df0dx,
                   fval,dfdx,low,upp,a0,a,c,d,move)
     
@@ -590,11 +595,11 @@ def oc(nelx, nely, x, volfrac, dc, dv, g, pass_el):
 if __name__ == "__main__":
     # Default input parameters
     nelx = 60  # 180
-    nely = 20  # 60
+    nely = int(nelx/3)  # 60
     volfrac = 0.5  # 0.4
-    rmin = 2.4 #0.04*nelx  # 5.4
+    rmin = 0.04*nelx  # 5.4
     penal = 3.0
-    ft = 0 # ft==0 -> sens, ft==1 -> dens
+    ft = 1 # ft==0 -> sens, ft==1 -> dens
     import sys
     if len(sys.argv) > 1:
         nelx = int(sys.argv[1])
