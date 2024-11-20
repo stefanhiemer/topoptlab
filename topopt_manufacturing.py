@@ -7,7 +7,7 @@ import traceback
 
 import numpy as np
 from scipy.optimize import minimize
-from scipy.sparse import coo_matrix
+from scipy.sparse import coo_matrix,csc_array
 from scipy.sparse.linalg import spsolve
 from matplotlib.colors import Normalize
 import matplotlib.pyplot as plt
@@ -24,7 +24,7 @@ projections = [2,3,4,5]
 filters = [0,1]
 # MAIN DRIVER
 def main(nelx, nely, volfrac, penal, rmin, ft,
-         manufact = None, q = 10,
+         manufact = None, q = 10, baseplate="S",
          pde=False, passive=False, solver="oc", 
          nouteriter=2000, ninneriter=15,
          verbose=True,
@@ -81,6 +81,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                                "Haeviside complement Sigmund 2007",
                                "Haeviside eta projection",
                                "Volume Preserving eta projection",
+                               "Additive Manufacturing filter by Langelaar combined with density filter",
                                "No filter"][ft])
     #
     if manufact is not None and solver == "oc":
@@ -98,13 +99,16 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     if ft in projections:
         beta = 1
         xTilde = x.copy()
+    # Haeviside projection Guest 2004
     if ft in [2]:
         eta=None
         xPhys = 1 - np.exp(-beta*xTilde) + xTilde*np.exp(-beta)
+    # Haeviside counterpart projection Sigmund 2007
     elif ft in [3]:
         eta = None
         xPhys = np.exp(-beta*(1-xTilde)) - (1-xTilde)*np.exp(-beta)
-    elif ft in [4,5,6]:
+    # eta projection and volume conserving adaptation in similar style to Xu 2010
+    elif ft in [4,5]:
         if ft in [4]: 
             eta = 0.5
         elif ft in [5]:
@@ -119,6 +123,12 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             eta = 0.5
         xPhys = (np.tanh(beta*eta)+np.tanh(beta*(xTilde - eta)))/\
                 (np.tanh(beta*eta)+np.tanh(beta*(1-eta)))
+    # additive manufacturing filter by Langelaar
+    elif ft in [6]:
+        xTilde = x.copy()
+        # filter needs the densities assembled to rectangular domain
+        xPhys = AMfilter(xTilde.reshape((nelx, nely)).T, baseplate)
+        xPhys = xPhys.T.flatten()
     # initialize solver
     if solver=="oc":
         # must be initialized to use the NGuyen/Paulino OC approach
@@ -195,7 +205,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     iK = np.kron(edofMat, np.ones((8, 1))).flatten()
     jK = np.kron(edofMat, np.ones((1, 8))).flatten()
     # Filter: Build (and assemble) the index+data vectors for the coo matrix format
-    if not pde and ft in [0,1,2,3,4,5]:
+    if not pde and ft in [0,1,2,3,4,5,6]:
         nfilter = int(nelx*nely*((2*(np.ceil(rmin)-1)+1)**2))
         iH = np.zeros(nfilter)
         jH = np.zeros(nfilter)
@@ -213,30 +223,6 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                          np.meshgrid(np.arange(k1,k2),np.arange(l1,l2))]) \
                          for k1,k2,l1,l2 in zip(kk1,kk2,ll1,ll2)])
         fac = rmin-np.sqrt(((i-k)**2+(j-l)**2))
-        iH[cc] = el # row
-        jH[cc] = k*nely+l #column
-        sH[cc] = np.maximum(0.0, fac)
-        # Finalize assembly and convert to csc format
-        H = coo_matrix((sH, (iH, jH)), shape=(nelx*nely, nelx*nely)).tocsc()
-        Hs = H.sum(1)
-    elif not pde and ft in [6]:
-        nfilter = int(nelx*nely*((2*(np.ceil(rmin)-1)+1)**2))
-        iH = np.zeros(nfilter)
-        jH = np.zeros(nfilter)
-        sH = np.zeros(nfilter)
-        i = np.floor(el/nely)
-        j = el%nely
-        kk1 = np.maximum(i-(np.ceil(rmin)-1), 0).astype(int)
-        kk2 = np.minimum(i+np.ceil(rmin), nelx).astype(int)
-        ll1 = np.maximum(j-(np.ceil(rmin)-1), 0).astype(int)
-        ll2 = np.minimum(j+np.ceil(rmin), nely).astype(int)
-        n_neigh = (kk2-kk1)*(ll2-ll1)
-        el,i,j = np.repeat(el, n_neigh),np.repeat(i, n_neigh),np.repeat(j, n_neigh)
-        cc = np.arange(el.shape[0])
-        k,l = np.hstack([np.stack([a.flatten() for a in \
-                         np.meshgrid(np.arange(k1,k2),np.arange(l1,l2))]) \
-                         for k1,k2,l1,l2 in zip(kk1,kk2,ll1,ll2)])
-        fac = (i-k) # rmin-np.sqrt(((i-k)**2+(j-l)**2))
         iH[cc] = el # row
         jH[cc] = k*nely+l #column
         sH[cc] = np.maximum(0.0, fac)
@@ -416,8 +402,11 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                 dx = beta * (1 - np.tanh(beta * (xTilde - eta))**2) /\
                         (np.tanh(beta*eta)+np.tanh(beta*(1-eta)))
             dc[:] = np.asarray(H*((dc*dx)[np.newaxis].T/Hs))[:, 0] 
-            dconstrs[:] = np.asarray(H*((dconstrs*dx[:,None])/Hs))[:,:]
-        elif ft == -1:
+            dconstrs[:] = np.asarray(H*((dconstrs*dx[:,None])/Hs))
+        elif ft in [6]:
+            dconstrs = AMfilter(xTilde,baseplate,dconstrs)
+            dconstrs[:] = np.asarray(H*(dconstrs/Hs))[:,:]
+        elif ft in [-1]:
             pass
         if debug:
             print("Post-Sensitivity Filter: it.: {0}, dc: {1:.10f}, dconstrs: {2:.10f}".format(
@@ -432,9 +421,9 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                             dc, dconstrs[:,0], g, 
                             pass_el,
                             None,None,None,None,None,debug)
-        elif solver=="oc" and ft in projections:
+        elif solver=="oc" and ((ft in projections) or ft in [6]):
             (x[:],xTilde[:],xPhys[:],g) = oc(nelx, nely, x, volfrac, 
-                                             dc, dconstrs[:,0], g, 
+                                             dc, dconstrs[:,0], g, baseplate,
                                              pass_el,
                                              H,Hs,beta,eta,ft,
                                              debug=debug) 
@@ -617,7 +606,6 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                nelx=nelx,nely=nely, 
                xPhys=xPhys,x=x, xTilde=xTilde,
                u=u,f=f,volfrac=volfrac)
-    print(x)
     return x, obj
 
 
@@ -696,7 +684,7 @@ def update_mma(x,xold1,xold2,xPhys,
                   low,upp,
                   a0,a,c,d,move)
     
-def oc(nelx, nely, x, volfrac, dc, dv, g, pass_el,
+def oc(nelx, nely, x, volfrac, dc, dv, g, baseplate, pass_el,
        H,Hs,beta,eta,ft,
        debug=False):
     """
@@ -754,7 +742,7 @@ def oc(nelx, nely, x, volfrac, dc, dv, g, pass_el,
                                                    np.minimum(x+move, 
                                                               x*np.sqrt(-dc/(dv+1e-12)/lmid)))))
         #
-        if ft in projections:
+        if ft in projections or ft in [6]:
             xTilde = np.asarray(H*xnew[np.newaxis].T/Hs)[:, 0]
         if ft in [2]:
             xPhys = 1 - np.exp(-beta*xTilde) + xTilde*np.exp(-beta)
@@ -763,12 +751,16 @@ def oc(nelx, nely, x, volfrac, dc, dv, g, pass_el,
         elif ft in [4]:
             xPhys = (np.tanh(beta*eta)+np.tanh(beta * (xTilde - eta)))/\
                     (np.tanh(beta*eta)+np.tanh(beta*(1-eta)))
+        elif ft in [6]:
+            # filter needs the densities assembled to rectangular domain
+            xPhys = AMfilter(xTilde.reshape((nelx, nely)).T, baseplate)
+            xPhys = xPhys.T.flatten()
         else:
             xPhys = xnew
         # passive element update
         if pass_el is not None:
-            xnew[pass_el==1] = 0
-            xnew[pass_el==2] = 1
+            xPhys[pass_el==1] = 0
+            xPhys[pass_el==2] = 1
         #
         gt = xPhys.sum() - volfrac * x.shape[0] #g+np.sum((dv*(xnew-x)))
         if gt > 0:
@@ -799,7 +791,147 @@ def find_eta(eta,xTilde,beta,volfrac):
     #grad = -beta * np.sinh(beta)**(-1) * np.cosh(beta * (xTilde - eta))**(-2) * \
     #        np.sinh(xTilde * beta) * np.sinh((1 - xTilde) * beta)
     return np.abs(np.mean(xPhys) - volfrac)**2, None#, grad.mean()
-           
+
+def AMfilter(x, baseplate='S', sensitivities=None):
+    """
+    Applies the filter by 
+    
+    Langelaar, Matthijs. "An additive manufacturing filter for topology optimization of print-ready designs." Structural and multidisciplinary optimization 55 (2017): 871-883.
+    
+    
+    Applies a filter to densities that enforces that each density cannot be 
+    larger then the maximum density of its supporting region.
+    
+    Parameters
+    ----------
+    x : np.ndarray
+        Blueprint design (2D array), with values between 0 and 1 and shape 
+        (nely,nelx). The shape is needed to determine the positions of elements
+        with respect to the baseplate.
+    baseplate : str, optional
+        Character indicating baseplate orientation: 'N', 'E', 'S', 'W'. Default is 'S'.
+        For 'X', the filter bypasses and returns the input as-is.
+    sensitivities : np.ndarray
+        sensitivities associated with the design input shape 
+        (nely,nelx,nsens).
+        
+    Returns
+    -------
+    xi : np.ndarray
+        Printable design (2D array) after applying the additive manufacturing filter.
+    varargout : list of np.ndarray
+        Processed sensitivities, if provided.
+    """
+    # number of supporting elements
+    Ns = 3
+    # Constants for smooth max/min functions
+    P,ep,xi_0 = 40,1e-4,.5
+    Q = P + np.log(Ns) / np.log(xi_0)
+    SHIFT = 100 * np.finfo(float).tiny**(1 / P)
+    BACKSHIFT = 0.95 * Ns**(1 / Q) * SHIFT**(P / Q)
+    # Check for bypass option
+    if baseplate == 'X':
+        return x, sensitivities  # Return as-is
+    # Determine rotation based on baseplate orientation
+    nRot = 'SWNE'.find(baseplate.upper())
+    x = np.rot90(x, nRot).copy()
+    # Initialize xi
+    xi = np.zeros_like(x)
+    nely, nelx = x.shape
+    # loop for applying AM filter from top moving layer-wise downwards
+    xi[-1, :] = x[-1,:].copy()  # Copy base row as-is
+    Xi, keep,sq = [np.zeros_like(x) for i in np.arange(3)]
+    #cbr = np.pad(xi[-1:0:-1,:],
+    #             pad_width=((0,0),(1, 1)),
+    #             mode='constant',
+    #             constant_values=0) + SHIFT
+    #print("cbr:\n",cbr)
+    #print()
+    for i in np.arange(nely-2,-1,-1):
+        cbr = np.pad(xi[i+1,:] + SHIFT, 
+                     (1, 1), 
+                     'constant',
+                     constant_values=SHIFT)
+        #print(cbr)
+        keep[i,:] = (cbr[:-2]**P + cbr[1:-1]**P + cbr[2:]**P)
+        Xi[i,:] = keep[i,:]**(1 / Q) - BACKSHIFT
+        sq[i,:] = np.sqrt((x[i,:] - Xi[i,:])**2 + ep)
+        xi[i,:] = 0.5 * ((x[i,:] + Xi[i,:]) - sq[i,:] + np.sqrt(ep))
+    # Process sensitivities if provided. 
+    if sensitivities is not None:
+        # 
+        nSens = sensitivities.shape[-1]
+        # sensitivities as obtained by the usual adjoint analysis. this must be
+        # rotated and filtered
+        dfxi = np.rot90(sensitivities, nRot)
+        # filtered gradients/sensitivities
+        dfx = np.zeros_like(dfxi)
+        """
+        print("x")
+        print(x)
+        print("Xi")
+        print(Xi)
+        print("xi")
+        print(xi)
+        print("dfxi")
+        print(dfxi)
+        print("dfx")
+        print(dfx)
+        """
+        # precalculate indices later for fast multiplication via sparse matrix
+        qi = np.repeat(np.arange(nelx), Ns)
+        qj = np.tile([-1, 0, 1], nelx) + qi
+        # Lagrangian multipliers for adjoint sensitivity analysis 
+        lambda_vals = np.zeros((nelx,nSens))
+        # iterate from top to base layer
+        for i in np.arange(nely-1):
+            # smin sensitivity terms
+            dsmindx = 0.5 * (1 - (x[i, :] - Xi[i, :]) / sq[i, :])
+            dsmindXi = 1 - dsmindx
+            # smax sensitivity terms
+            cbr = np.pad(xi[i + 1, :] + SHIFT, 
+                         (1, 1), 
+                         'constant',
+                         constant_values=SHIFT)  # Pad with zeros
+            dmx = np.zeros((nelx,Ns))
+            for j in np.arange(Ns):
+                dmx[:,j] = (P/Q) * keep[i, :]**((1/Q) - 1) * cbr[np.arange(nelx)+j]**(P - 1)
+            # Rearrange data for quick multiplication
+            qs = dmx.flatten()
+            """
+            print("cbr")
+            print(cbr)
+            print("qs")
+            print(qs)
+            """
+            dsmaxdxi = csc_array((qs[1:-1],(qi[1:-1], qj[1:-1])), 
+                                   shape=(nelx, nelx))
+            """
+            print("lambda before update")    
+            print(lambda_vals)
+            print("dsmindx")
+            print(dsmindx)
+            """
+            # Update sensitivities
+            for k in np.arange(nSens):
+                dfx[i,:,k] = dsmindx * (dfxi[i,:,k] + lambda_vals[:,k])
+                lambda_vals[:,k] = ((dfxi[i,:,k] + lambda_vals[:,k]) * dsmindXi) @ dsmaxdxi
+            """
+            print("dfx")
+            print(dfx[i,:,k])
+            print("lambda")    
+            print(lambda_vals[:,k])
+            """
+        # base layer 
+        dfx[-1,:,:] = dfxi[-1,:,:]+lambda_vals[:,:]
+    if sensitivities is None:
+        # Rotate xi back to original orientation if rotated
+        return np.rot90(xi, -nRot)
+    else:
+        # Rotate sensitivities back to original orientation if rotated
+        #print("gradient before backrotation")
+        #print(dfx) 
+        return np.rot90(dfx, -nRot)
 
 # The real main driver
 if __name__ == "__main__":
@@ -809,7 +941,7 @@ if __name__ == "__main__":
     volfrac = 0.5  # 0.4
     rmin = 0.04*nelx  # 5.4
     penal = 3.0
-    ft = 1 # ft==0 -> sens, ft==1 -> dens
+    ft = 6 # ft==0 -> sens, ft==1 -> dens
     import sys
     if len(sys.argv) > 1:
         nelx = int(sys.argv[1])
@@ -826,7 +958,7 @@ if __name__ == "__main__":
     try:
         main(nelx, nely, volfrac, penal, rmin, ft,
              manufact = None,
-             passive=False,pde=False,solver="mma",
+             passive=False,pde=False,solver="oc",
              nouteriter=2000,
              ninneriter=0,
              debug=False)

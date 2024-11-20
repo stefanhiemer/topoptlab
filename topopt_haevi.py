@@ -690,8 +690,8 @@ def oc(nelx, nely, x, volfrac, dc, dv, g, pass_el,
             xPhys = xnew
         # passive element update
         if pass_el is not None:
-            xnew[pass_el==1] = 0
-            xnew[pass_el==2] = 1
+            xPhys[pass_el==1] = 0
+            xPhys[pass_el==2] = 1
         #
         gt = xPhys.sum() - volfrac * x.shape[0] #g+np.sum((dv*(xnew-x)))
         if gt > 0:
