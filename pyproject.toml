@@ -1,0 +1,31 @@
+[build-system]
+requires = ["flit_core>=3.2"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "topoptlab"
+description = "topology optimization for testing and demonstration uses."
+readme = "README.md"
+authors = [
+    { name = "Stefan Hiemer", email = "stefan.hiemer@unimi.it" },
+]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Programming Language :: Python",
+    "Private :: Do Not Upload",
+]
+
+requires-python = ">=3.12.7"
+dynamic = ["version"]
+dependencies = ["numpy",
+                "matplotlib",
+                "scipy",
+                "mmapy",
+                "meshio"]
+
+[project.optional-dependencies]
+tests = ['pytest']
+
+[tool.pytest.ini_options]
+addopts = "-v"
+testpaths = ["tests"]

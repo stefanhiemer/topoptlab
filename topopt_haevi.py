@@ -13,6 +13,7 @@ from matplotlib.colors import Normalize
 import matplotlib.pyplot as plt
 
 from output_designs import export_vtk
+from topoptlab.filters import find_eta
 
 message = "MMA module not found. Get it from https://github.com/arjendeetman/GCMMA-MMA-Python/tree/master .Copy mma.py in the same directory as this python file."
 try:
@@ -714,15 +715,6 @@ def oc(nelx, nely, x, volfrac, dc, dv, g, pass_el,
         return (xnew, gt)
     else:
         return (xnew, xTilde, xPhys, gt)
-
-def find_eta(eta,xTilde,beta,volfrac):
-    # Calculate the expression for given eta
-    xPhys = (np.tanh(beta * eta) + np.tanh(beta * (xTilde - eta))) / \
-           (np.tanh(beta * eta) + np.tanh(beta * (1 - eta)))
-    #grad = -beta * np.sinh(beta)**(-1) * np.cosh(beta * (xTilde - eta))**(-2) * \
-    #        np.sinh(xTilde * beta) * np.sinh((1 - xTilde) * beta)
-    return np.abs(np.mean(xPhys) - volfrac)**2, None#, grad.mean()
-           
 
 # The real main driver
 if __name__ == "__main__":
