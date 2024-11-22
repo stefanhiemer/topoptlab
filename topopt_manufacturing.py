@@ -132,6 +132,14 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         # filter needs the densities assembled to rectangular domain
         xPhys = AMfilter(xTilde.reshape((nelx, nely)).T, baseplate)
         xPhys = xPhys.T.flatten()
+    elif ft in [7]:
+        beta = 1
+        eta = 0.5
+        xTilde = x.copy()
+        xPrint = x.copy()
+        # filter needs the densities assembled to rectangular domain
+        xPhys = AMfilter(xTilde.reshape((nelx, nely)).T, baseplate)
+        xPhys = xPhys.T.flatten()
     # initialize solver
     if solver=="oc":
         # must be initialized to use the NGuyen/Paulino OC approach
@@ -161,6 +169,8 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         d = np.zeros((n_constr,1))
         if ft in [5,6]: 
             move = 0.1
+        elif ft in [7]:
+            move = 0.05
         else:
             move = 0.2
     elif solver == "gcmma":
@@ -187,6 +197,8 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         d = np.zeros((n_constr,1))
         if ft in [5,6]: 
             move = 0.1
+        elif ft in [7]:
+            move = 0.05
         else:
             move = 0.2
         #
@@ -209,7 +221,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     iK = np.kron(edofMat, np.ones((8, 1))).flatten()
     jK = np.kron(edofMat, np.ones((1, 8))).flatten()
     # Filter: Build (and assemble) the index+data vectors for the coo matrix format
-    if not pde and ft in [0,1,2,3,4,5,6]:
+    if not pde and ft in [0,1,2,3,4,5,6,7]:
         nfilter = int(nelx*nely*((2*(np.ceil(rmin)-1)+1)**2))
         iH = np.zeros(nfilter)
         jH = np.zeros(nfilter)
@@ -402,6 +414,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             dc[:] = np.asarray(H*((dc*dx)[np.newaxis].T/Hs))[:, 0] 
             dconstrs[:] = np.asarray(H*((dconstrs*dx[:,None])/Hs))
         elif ft in [6]:
+            # apply AM filter to sensitivities
             dc[:] = AMfilter(xTilde.reshape((nelx, nely)).T,
                             baseplate,
                             dc.reshape(nelx,nely).T[:,:,None]).T.flatten()
@@ -415,9 +428,31 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                        loop, 
                        np.max(dc),
                        np.min(dconstrs)))
+            # apply density filter to sensitivities
             dc[:] = np.asarray(H*(dc[np.newaxis].T/Hs))[:,0]
-            #print((dc[np.newaxis]/Hs).shape)
-            #print(dc)
+            dconstrs[:] = np.asarray(H*(dconstrs/Hs))
+        elif ft in [7]:
+            # apply eta projection filter to sensitivities
+            dx = beta * (1 - np.tanh(beta * (xPrint - eta))**2) /\
+                    (np.tanh(beta*eta)+np.tanh(beta*(1-eta)))
+            dc[:] = dc * dx 
+            dconstrs[:] = dconstrs * dx[:,None]
+            # apply AM filter to sensitivities
+            dc[:] = AMfilter(xTilde.reshape((nelx, nely)).T,
+                            baseplate,
+                            dc.reshape(nelx,nely).T[:,:,None]).T.flatten()
+            dconstrs = AMfilter(xTilde.reshape((nelx, nely)).T,
+                            baseplate,
+                            np.transpose(dconstrs.reshape(nelx,nely,n_constr),
+                                         (1,0,2)))
+            dconstrs = np.transpose(dconstrs,(1,0,2)).reshape(nelx*nely,n_constr)
+            if debug:
+                print("Intermediate-Sensitivity Filter: it.: {0}, dc: {1:.10f}, dconstrs: {2:.10f}".format(
+                       loop, 
+                       np.max(dc),
+                       np.min(dconstrs)))
+            # apply density filter to sensitivities
+            dc[:] = np.asarray(H*(dc[np.newaxis].T/Hs))[:,0]
             dconstrs[:] = np.asarray(H*(dconstrs/Hs))
         elif ft in [-1]:
             pass
@@ -570,6 +605,8 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         elif ft in [1] and pde:
             xPhys[:] = TF.T @ spsolve(KF,TF@x)
         elif ft in [5]:
+            xTilde = np.asarray(H*x[np.newaxis].T/Hs)[:, 0]
+            # get volume preserving eta
             result = minimize(find_eta, x0=eta,
                               bounds=[[0., 1.]], 
                               method='Nelder-Mead',jac=True,tol=1e-10,
@@ -578,8 +615,24 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                 eta = result.x
             else:
                 raise ValueError("volume conserving eta could not be found: ",result)
-            xTilde = np.asarray(H*x[np.newaxis].T/Hs)[:, 0]
             xPhys = (np.tanh(beta*eta)+np.tanh(beta * (xTilde - eta)))/\
+                    (np.tanh(beta*eta)+np.tanh(beta*(1-eta)))
+        elif ft in [7]:
+            xTilde = np.asarray(H*x[np.newaxis].T/Hs)[:, 0]
+            # filter needs the densities assembled to rectangular domain
+            xPrint = AMfilter(xTilde.reshape((nelx, nely)).T, baseplate)
+            xPrint = xPrint.T.flatten()
+            # get volume preserving eta
+            result = minimize(find_eta, x0=eta,
+                              bounds=[[0., 1.]], 
+                              method='Nelder-Mead',jac=True,tol=1e-10,
+                              args=(xPrint,beta,volfrac))
+            if result.success :
+                eta = result.x
+            else:
+                raise ValueError("volume conserving eta could not be found: ",result)
+            # eta projection
+            xPhys = (np.tanh(beta*eta)+np.tanh(beta * (xPrint - eta)))/\
                     (np.tanh(beta*eta)+np.tanh(beta*(1-eta)))
         # Compute the change by the inf. norm
         change = (np.abs(x-xold)).max()
@@ -603,12 +656,12 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         # convergence check and continuation
         if change < 0.01 and ft in filters:
             break
-        elif (ft in projections) and (beta < 512) and \
+        elif (ft in projections+[7]) and (beta < 512) and \
             (loopbeta >= 50 or change < 0.01):
             beta = 2 * beta
             loopbeta = 0
             logging.info(f"Parameter beta increased to {beta}")
-        elif (ft in projections) and (beta >= 512) and (change < 0.01):
+        elif (ft in projections+[7]) and (beta >= 512) and (change < 0.01):
             break
     # 
     plt.show()
@@ -802,12 +855,12 @@ def oc(nelx, nely, x, volfrac, dc, dv, g, baseplate, pass_el,
 # The real main driver
 if __name__ == "__main__":
     # Default input parameters
-    nelx = 60  # 180
-    nely = 20  # 60
+    nelx = 150  # 180
+    nely = int(nelx/3)  # 60
     volfrac = 0.5  # 0.4
     rmin = 2.  # 5.4
     penal = 3.0
-    ft = 6 # ft==0 -> sens, ft==1 -> dens
+    ft = 7 # ft==0 -> sens, ft==1 -> dens
     import sys
     if len(sys.argv) > 1:
         nelx = int(sys.argv[1])
@@ -824,7 +877,7 @@ if __name__ == "__main__":
     try:
         main(nelx, nely, volfrac, penal, rmin, ft,
              manufact = None,baseplate="S",
-             passive=False,pde=False,solver="oc",
+             passive=False,pde=False,solver="mma",
              nouteriter=2000,
              ninneriter=0,
              debug=False)

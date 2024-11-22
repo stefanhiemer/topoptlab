@@ -501,6 +501,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         elif ft in [1] and pde:
             xPhys[:] = TF.T @ spsolve(KF,TF@x)
         elif ft in [5]:
+            xTilde = np.asarray(H*x[np.newaxis].T/Hs)[:, 0]
             result = minimize(find_eta, x0=eta,
                               bounds=[[0., 1.]], 
                               method='Nelder-Mead',jac=True,tol=1e-10,
@@ -509,7 +510,6 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                 eta = result.x
             else:
                 raise ValueError("volume conserving eta could not be found: ",result)
-            xTilde = np.asarray(H*x[np.newaxis].T/Hs)[:, 0]
             xPhys = (np.tanh(beta*eta)+np.tanh(beta * (xTilde - eta)))/\
                     (np.tanh(beta*eta)+np.tanh(beta*(1-eta)))
         # Compute the change by the inf. norm

@@ -36,6 +36,7 @@ features in topopt.py
 - [x] Haevisde filter
 - [x] volume conserving eta projection
 - [x] include Method of Moving symptotes (MMA)
+- [ ] get rid of strange indexing for density/sensitivity filter
 - [ ] additive manufacturing filter by Langelaar
 - [ ] include Globally Convergent Method of Moving symptotes (GCMMA)
 - [ ] FEM with PETSC
