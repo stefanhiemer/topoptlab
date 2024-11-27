@@ -36,11 +36,13 @@ features in topopt.py
 - [x] Haevisde filter
 - [x] volume conserving eta projection
 - [x] include Method of Moving symptotes (MMA)
-- [ ] get rid of strange indexing for density/sensitivity filter
-- [ ] additive manufacturing filter by Langelaar
+- [x] additive manufacturing filter by Langelaar
+- [ ] clean up filter by Langelaar (vectorization etc. pp.)
 - [ ] include Globally Convergent Method of Moving symptotes (GCMMA)
 - [ ] FEM with PETSC
 - [ ] algebraic multigrid (AMG)
 - [ ] global stress constraints
+- [ ] get rid of strange indexing for density/sensitivity filter
+- [ ] kick out from __future__ import division
 - [ ] accelerated optimality criteria (aOC)
 - [ ] 3D

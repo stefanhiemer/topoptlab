@@ -1,4 +1,4 @@
-from numpy import array,eye,triu,loadtxt,savetxt
+from numpy import array,eye,triu,loadtxt
 from numpy.testing import assert_almost_equal
 
 import pytest
@@ -12,34 +12,45 @@ def test_eye_density(bplate):
     #
     x = (eye(5)[:,:4]+1)/2
     assert_almost_equal(AMfilter(x,bplate),
-                        loadtxt("./test_files/AMfilter_eye-density-"+str(bplate)+".csv",
+                        loadtxt("./tests/test_files/AMfilter_eye-density-"+str(bplate)+".csv",
                                 delimiter=",")) 
     return
+
+@pytest.mark.parametrize('bplate',
+                         [('N'),('E'),('S'),('W')])
 
 def test_eyetriu_density(bplate):
     #
     x = triu((eye(5)[:,:4]+1)/2)
     assert_almost_equal(AMfilter(x,bplate),
-                        loadtxt("./test_files/AMfilter_eyetriu-density-"+str(bplate)+".csv",
+                        loadtxt("./tests/test_files/AMfilter_eyetriu-density-"+str(bplate)+".csv",
                                 delimiter=",")) 
     return
 
+@pytest.mark.parametrize('bplate',
+                         [('N'),('E'),('S'),('W')])
 
 def test_eye_sensitivity(bplate):
     #
     x = (eye(5)[:,:4]+1)/2
     assert_almost_equal(AMfilter(x,bplate,x[:,:,None]),
-                        loadtxt("./test_files/AMfilter_eye-sensitivity-"+str(bplate)+".csv",
+                        loadtxt("./tests/test_files/AMfilter_eye-sensitivity-"+str(bplate)+".csv",
                                 delimiter=",")[:,:,None]) 
     return
+
+@pytest.mark.parametrize('bplate',
+                         [('N'),('E'),('S'),('W')])
 
 def test_eyetriu_sensitivity(bplate):
     #
     x = triu((eye(5)[:,:4]+1)/2)
     assert_almost_equal(AMfilter(x,bplate,x[:,:,None]),
-                        loadtxt("./test_files/AMfilter_eyetriu-sensitivity-"+str(bplate)+".csv",
+                        loadtxt("./tests/test_files/AMfilter_eyetriu-sensitivity-"+str(bplate)+".csv",
                                 delimiter=",")[:,:,None]) 
     return
+
+@pytest.mark.parametrize('bplate',
+                         [('N'),('E'),('S'),('W')])
 
 def test_random_density(bplate):
     
@@ -51,10 +62,13 @@ def test_random_density(bplate):
                ])
     
     assert_almost_equal(AMfilter(x,bplate), 
-                        loadtxt("./test_files/AMfilter_random-density-"+bplate+".csv",
+                        loadtxt("./tests/test_files/AMfilter_random-density-"+bplate+".csv",
                                 delimiter=","))
     
     return
+
+@pytest.mark.parametrize('bplate',
+                         [('N'),('E'),('S'),('W')])
 
 def test_random_sensitivity(bplate):
     
@@ -66,7 +80,7 @@ def test_random_sensitivity(bplate):
                ])
     
     assert_almost_equal(AMfilter(x,bplate,x[:,:,None])[:,:,0],
-                        loadtxt("./test_files/AMfilter_random-sensitivity-"+bplate+".csv",
+                        loadtxt("./tests/test_files/AMfilter_random-sensitivity-"+bplate+".csv",
                                 delimiter=","))
     return
 

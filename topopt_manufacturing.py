@@ -12,7 +12,7 @@ from scipy.sparse.linalg import spsolve
 from matplotlib.colors import Normalize
 import matplotlib.pyplot as plt
 
-from output_designs import export_vtk
+from topoptlab.output_designs import export_vtk
 from topoptlab.filters import AMfilter,find_eta
 
 message = "MMA module not found. Get it from https://github.com/arjendeetman/GCMMA-MMA-Python/tree/master .Copy mma.py in the same directory as this python file."
@@ -367,7 +367,10 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         # derivative of volume constraint
         if volfrac is not None:
             constrs.append(xPhys.mean() - volfrac)
-            dconstrs.append(np.ones(nely*nelx)/(x.shape[0]*volfrac))
+            if solver in ["mma",["gcmma"]]:
+                dconstrs.append(np.ones(nely*nelx)/(x.shape[0]*volfrac))
+            elif solver in ["oc"]:
+                dconstrs.append(np.ones(nely*nelx))
         # casting constraint for filling from top of y direction
         if manufact in [0]: 
             constrs.append(xPhys[i_cast] - xPhys[j_cast]) 
@@ -597,6 +600,14 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             xold2 = xold1.copy()
             xold1 = xval.copy()
             x = xmma.copy().flatten()
+        if debug:
+            print("Post Density Update: it.: {0}, dc: {1:.10f}, dconstrs {2:.10f}".format(
+                   loop, 
+                   np.max(dc),
+                   np.min(dconstrs)))
+            print("Post-Density Update: it.: {0} , x.: {1:.10f}, xPhys: {2:.10f},".format(
+                   loop+1, np.median(x),np.median(xPhys)), 
+                   "g: {0:.10f}".format(g))
         # Filter design variables
         if ft in [0,-1]:
             xPhys[:] = x
@@ -642,12 +653,12 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         plt.pause(0.01)
         # Write iteration history to screen (req. Python 2.6 or newer)
         if debug == 1:
-            if ft == 2:
-                print("it.: {0} , x.: {1:.10f}, xTilde: {2:.10f}, xPhys: {3:.10f},".format(
+            if ft in projections or ft in [7]:
+                print("Post-Density Filter: it.: {0} , x.: {1:.10f}, xTilde: {2:.10f}, xPhys: {3:.10f},".format(
                        loop+1, np.median(x),np.median(xTilde),np.median(xPhys)), 
                        "g: {0:.10f}".format(g))
             else:
-                print("it.: {0} , x.: {1:.10f}, xPhys: {2:.10f},".format(
+                print("Post-Density Filter: it.: {0} , x.: {1:.10f}, xPhys: {2:.10f},".format(
                        loop+1, np.median(x),np.median(xPhys)), 
                        "g: {0:.10f}".format(g))
         if verbose: 
@@ -670,7 +681,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     #
     if ft in [0,1]:
         xTilde=None
-    export_vtk(filename="topopt_haevi", 
+    export_vtk(filename="topopt_manufact", 
                nelx=nelx,nely=nely, 
                xPhys=xPhys,x=x, xTilde=xTilde,
                u=u,f=f,volfrac=volfrac)
@@ -795,20 +806,25 @@ def oc(nelx, nely, x, volfrac, dc, dv, g, baseplate, pass_el,
     """
     l1 = 0
     l2 = 1e9
-    move = 0.05
+    if ft is None or ft in [0,1]:
+        move = 0.2
+        tol = 1e-3
+    else:
+        move = 0.05
+        tol = 1e-5
     # reshape to perform vector operations
     xnew = np.zeros(nelx*nely)
     xTilde = np.zeros(nelx*nely)
     xPhys = np.zeros(nelx*nely)
     if debug:
         i = 0
-    while (l2-l1)/(l1+l2) > 1e-3:# and np.abs(l2-l1) > 1e-10:
+    while (l2-l1)/(l1+l2) > tol and np.abs(l2-l1) > 1e-10:
         lmid = 0.5*(l2+l1)
         xnew[:] = np.maximum(0.0, 
                              np.maximum(x-move, 
                                         np.minimum(1.0, 
                                                    np.minimum(x+move, 
-                                                              x*np.sqrt(-dc/(dv+1e-12)/lmid)))))
+                                                              x*np.sqrt(-dc/(dv)/lmid)))))
         #
         if ft in projections or ft in [6]:
             xTilde = np.asarray(H*xnew[np.newaxis].T/Hs)[:, 0]
@@ -830,7 +846,7 @@ def oc(nelx, nely, x, volfrac, dc, dv, g, baseplate, pass_el,
             xPhys[pass_el==1] = 0
             xPhys[pass_el==2] = 1
         #
-        gt = xPhys.sum() - volfrac * x.shape[0] #g+np.sum((dv*(xnew-x)))
+        gt=g+np.sum((dv*(xnew-x)))
         if gt > 0:
             l1 = lmid
         else:
@@ -839,9 +855,9 @@ def oc(nelx, nely, x, volfrac, dc, dv, g, baseplate, pass_el,
             i = i+1
             print("oc it.: {0} , l1: {1:.10f} l2: {2:.10f}, gt: {3:.10f}".format(
                    i, l1, l2, gt),
-                "x: {0:.10f} xTilde: {1:.10f} xPhys: {2:.10f}".format(
+                  "x: {0:.10f} xTilde: {1:.10f} xPhys: {2:.10f}".format(
                     np.median(x),np.median(xTilde),np.median(xPhys)),
-                "dc: {0:.10f} dv: {1:.10f}".format(
+                  "dc: {0:.10f} dv: {1:.10f}".format(
                     np.max(dc),np.min(dv)))
             if np.isnan(gt):
                 print()
@@ -858,7 +874,7 @@ if __name__ == "__main__":
     nelx = 150  # 180
     nely = int(nelx/3)  # 60
     volfrac = 0.5  # 0.4
-    rmin = 2.  # 5.4
+    rmin = 5  # 5.4
     penal = 3.0
     ft = 7 # ft==0 -> sens, ft==1 -> dens
     import sys
@@ -876,7 +892,7 @@ if __name__ == "__main__":
         ft = int(sys.argv[6])
     try:
         main(nelx, nely, volfrac, penal, rmin, ft,
-             manufact = None,baseplate="S",
+             manufact = None,baseplate="N",
              passive=False,pde=False,solver="mma",
              nouteriter=2000,
              ninneriter=0,

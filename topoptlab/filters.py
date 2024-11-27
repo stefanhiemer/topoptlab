@@ -82,18 +82,6 @@ def AMfilter(x, baseplate='S', sensitivities=None):
         dfxi = np.rot90(sensitivities, nRot)
         # filtered gradients/sensitivities
         dfx = np.zeros_like(dfxi)
-        """
-        print("x")
-        print(x)
-        print("Xi")
-        print(Xi)
-        print("xi")
-        print(xi)
-        print("dfxi")
-        print(dfxi)
-        print("dfx")
-        print(dfx)
-        """
         # precalculate indices later for fast multiplication via sparse matrix
         qi = np.repeat(np.arange(nelx), Ns)
         qj = np.tile([-1, 0, 1], nelx) + qi
@@ -114,30 +102,12 @@ def AMfilter(x, baseplate='S', sensitivities=None):
                 dmx[:,j] = (P/Q) * keep[i, :]**((1/Q) - 1) * cbr[np.arange(nelx)+j]**(P - 1)
             # Rearrange data for quick multiplication
             qs = dmx.flatten()
-            """
-            print("cbr")
-            print(cbr)
-            print("qs")
-            print(qs)
-            """
             dsmaxdxi = csc_array((qs[1:-1],(qi[1:-1], qj[1:-1])), 
                                    shape=(nelx, nelx))
-            """
-            print("lambda before update")    
-            print(lambda_vals)
-            print("dsmindx")
-            print(dsmindx)
-            """
             # Update sensitivities
             for k in np.arange(nSens):
                 dfx[i,:,k] = dsmindx * (dfxi[i,:,k] + lambda_vals[:,k])
                 lambda_vals[:,k] = ((dfxi[i,:,k] + lambda_vals[:,k]) * dsmindXi) @ dsmaxdxi
-            """
-            print("dfx")
-            print(dfx[i,:,k])
-            print("lambda")    
-            print(lambda_vals[:,k])
-            """
         # base layer 
         dfx[-1,:,:] = dfxi[-1,:,:]+lambda_vals[:,:]
     if sensitivities is None:

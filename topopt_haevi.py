@@ -12,7 +12,7 @@ from scipy.sparse.linalg import spsolve
 from matplotlib.colors import Normalize
 import matplotlib.pyplot as plt
 
-from output_designs import export_vtk
+from topoptlab.output_designs import export_vtk
 from topoptlab.filters import find_eta
 
 message = "MMA module not found. Get it from https://github.com/arjendeetman/GCMMA-MMA-Python/tree/master .Copy mma.py in the same directory as this python file."
@@ -274,7 +274,6 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                    labelleft=False)
     ax.axis("off")
     fig.show()
-    # optimization loop
     if debug:
         print("x: ", x)
         print("xPhys: ", xPhys)
@@ -282,7 +281,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             print("xTilde: ", xTilde)
         
     loopbeta = 0
-    if debug == 1:
+    if debug:
         if ft == 2:
             print("it.: {0} , x.: {1:.10f}, xTilde: {2:.10f}, xPhys: {3:.10f},".format(
                    0, np.median(x),np.median(xTilde),np.median(xPhys)), 
@@ -291,6 +290,10 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             print("it.: {0} , x.: {1:.10f}, xPhys: {2:.10f},".format(
                    0, np.median(x),np.median(xPhys)), 
                    "g: {0:.10f}".format(g))
+    # initialize gradients
+    dc = np.zeros(nelx*nely)
+    dv = np.ones(nelx*nely)
+    # optimization loop
     for loop in np.arange(nouteriter):
         #
         loopbeta += 1 
@@ -313,7 +316,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                 u[free, :] = spsolve(K, f[free, :])
             # Objective and sensitivity
             obj = 0
-            dc = 0
+            dc[:] = np.zeros(nelx*nely)
             for i in np.arange(f.shape[1]):
                 #ce = (np.dot(u[edofMat,i].reshape(nelx*nely, KE.shape[0]), KE)
                 #         * u[edofMat,i].reshape(nelx*nely, KE.shape[0])).sum(1)
@@ -321,8 +324,8 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                 ce = (np.dot(ui[edofMat].reshape(nelx*nely, KE.shape[0]), KE)
                          * ui[edofMat].reshape(nelx*nely, KE.shape[0])).sum(1)
                 obj += ((Emin+xPhys**penal*(Emax-Emin))*ce).sum()
-                dc -= penal*xPhys**(penal-1)*(Emax-Emin)*ce
-        dv = np.ones(nely*nelx) 
+                dc[:] -= penal*xPhys**(penal-1)*(Emax-Emin)*ce
+        dv[:] = np.ones(nelx*nely) 
         if debug:
             print("Pre-Sensitivity Filter: it.: {0}, dc: {1:.10f}, dv: {2:.10f}".format(
                    loop, 
@@ -363,9 +366,10 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         xold[:] = x
         # optimality criteria
         if solver=="oc" and ft in filters:
-             (x[:], g) = oc(nelx, nely, x, volfrac, dc, dv, g, 
-                            pass_el,
-                            None,None,None,None,None,debug)
+            (x[:], g) = oc(nelx, nely, x, volfrac, dc, dv, g, 
+                           pass_el,
+                           None,None,None,None,ft,
+                           debug)
         elif solver=="oc" and ft in projections:
             (x[:],xTilde[:],xPhys[:],g) = oc(nelx, nely, x, volfrac, dc, dv, g, 
                                              pass_el,
@@ -493,6 +497,14 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             xold2 = xold1.copy()
             xold1 = xval.copy()
             x = xmma.copy().flatten()
+        if debug:
+            print("Post Density Update: it.: {0}, dc: {1:.10f}, dv: {2:.10f}".format(
+                   loop, 
+                   np.max(dc),
+                   np.min(dv)))
+            print("Post-Density Update: it.: {0} , x.: {1:.10f}, xPhys: {2:.10f},".format(
+                   loop+1, np.median(x),np.median(xPhys)), 
+                   "g: {0:.10f}".format(g))
         # Filter design variables
         if ft in [0,-1]:
             xPhys[:] = x
@@ -520,12 +532,12 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         plt.pause(0.01)
         # Write iteration history to screen (req. Python 2.6 or newer)
         if debug == 1:
-            if ft == 2:
-                print("it.: {0} , x.: {1:.10f}, xTilde: {2:.10f}, xPhys: {3:.10f},".format(
+            if ft in projections:
+                print("Post-Density Filter: it.: {0} , x.: {1:.10f}, xTilde: {2:.10f}, xPhys: {3:.10f},".format(
                        loop+1, np.median(x),np.median(xTilde),np.median(xPhys)), 
                        "g: {0:.10f}".format(g))
             else:
-                print("it.: {0} , x.: {1:.10f}, xPhys: {2:.10f},".format(
+                print("Post-Density Filter: it.: {0} , x.: {1:.10f}, xPhys: {2:.10f},".format(
                        loop+1, np.median(x),np.median(xPhys)), 
                        "g: {0:.10f}".format(g))
         if verbose: 
@@ -663,14 +675,19 @@ def oc(nelx, nely, x, volfrac, dc, dv, g, pass_el,
     """
     l1 = 0
     l2 = 1e9
-    move = 0.1
+    if ft is None or ft in [0,1]:
+        move = 0.2
+        tol = 1e-3
+    else:
+        move = 0.05
+        tol = 1e-5
     # reshape to perform vector operations
     xnew = np.zeros(nelx*nely)
     xTilde = np.zeros(nelx*nely)
     xPhys = np.zeros(nelx*nely)
     if debug:
         i = 0
-    while (l2-l1)/(l1+l2) > 1e-5 and np.abs(l2-l1) > 1e-10:
+    while (l2-l1)/(l1+l2) > tol and np.abs(l2-l1) > 1e-10:
         lmid = 0.5*(l2+l1)
         xnew[:] = np.maximum(0.0, 
                              np.maximum(x-move, 
@@ -694,12 +711,12 @@ def oc(nelx, nely, x, volfrac, dc, dv, g, pass_el,
             xPhys[pass_el==1] = 0
             xPhys[pass_el==2] = 1
         #
-        gt = xPhys.sum() - volfrac * x.shape[0] #g+np.sum((dv*(xnew-x)))
+        gt = g+np.sum((dv*(xnew-x)))
         if gt > 0:
             l1 = lmid
         else:
             l2 = lmid
-        if debug:
+        if debug == 2:
             i = i+1
             print("oc it.: {0} , l1: {1:.10f} l2: {2:.10f}, gt: {3:.10f}".format(
                    i, l1, l2, gt),
@@ -712,7 +729,7 @@ def oc(nelx, nely, x, volfrac, dc, dv, g, pass_el,
                 import sys 
                 sys.exit()
     if beta is None:
-        return (xnew, gt)
+        return (xPhys, gt)
     else:
         return (xnew, xTilde, xPhys, gt)
 
@@ -721,10 +738,10 @@ if __name__ == "__main__":
     # Default input parameters
     nelx = 60  # 180
     nely = int(nelx/3)  # 60
-    volfrac = 0.4  # 0.4
-    rmin = 0.03*nelx  # 5.4
+    volfrac = 0.5  # 0.4
+    rmin = 0.04*nelx  # 5.4
     penal = 3.0
-    ft = 5 # ft==0 -> sens, ft==1 -> dens
+    ft = 1 # ft==0 -> sens, ft==1 -> dens
     import sys
     if len(sys.argv) > 1:
         nelx = int(sys.argv[1])
@@ -740,7 +757,7 @@ if __name__ == "__main__":
         ft = int(sys.argv[6])
     try:
         main(nelx, nely, volfrac, penal, rmin, ft, 
-             passive=False,pde=False,solver="mma",
+             passive=False,pde=False,solver="oc",
              nouteriter=2000,
              ninneriter=0,
              debug=False)

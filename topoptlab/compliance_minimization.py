@@ -10,7 +10,8 @@ from scipy.sparse.linalg import spsolve
 from matplotlib.colors import Normalize
 import matplotlib.pyplot as plt
 
-from output_designs import export_vtk
+from topoptlab.optimality_criterion import oc_top88
+from topoptlab.output_designs import export_vtk
 
 message = "MMA module not found. Get it from https://github.com/arjendeetman/GCMMA-MMA-Python/tree/master .Copy mma.py in the same directory as this python file."
 try:
@@ -23,7 +24,7 @@ except ModuleNotFoundError:
 def main(nelx, nely, volfrac, penal, rmin, ft, 
          pde=False, passive=False, solver="oc", 
          nouteriter=2000, ninneriter=15,
-         verbose=True):
+         display=True,export=True,write_log=True):
     """
     Topology optimization workflow with the SIMP method based on 
     the default direct solver of scipy sparse.
@@ -52,26 +53,38 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         solver options which are "oc", "mma" and "gcmma" for the optimality 
         criteria method, the method of moving asymptotes and the globally 
         covergent method of moving asymptotes.
+    nouteriter: int 
+        number of total TO iterations
+    ninneriter: int
+        number of inner iterations for GCMMA
+    display: bool
+        if True, plot design evolution to screen
+    export: bool
+        if True, export design as vtk file.
+    write_log: bool
+        if True, write a log file and display results to command line.
 
     Returns
     -------
     None.
 
     """
-    # check if log file exists and if true delete
-    if isfile("topopt.log"):
-        remove("topopt.log")
-    logging.basicConfig(level=logging.INFO,
-                    format='%(message)s',
-                    handlers=[
-                        logging.FileHandler("topopt.log"),
-                        logging.StreamHandler()])
-    #
-    logging.info(f"Minimum compliance problem with {solver}")
-    logging.info(f"nodes: {nelx} x {nely}")
-    logging.info(f"volfrac: {volfrac}, rmin: {rmin},  penal: {penal}")
-    logging.info("Filter method: " + ["Sensitivity based", "Density based",
-                               "Haeviside","No filter"][ft])
+    
+    if write_log:
+        # check if log file exists and if true delete
+        if isfile("topopt.log"):
+            remove("topopt.log")
+        logging.basicConfig(level=logging.INFO,
+                        format='%(message)s',
+                        handlers=[
+                            logging.FileHandler("topopt.log"),
+                            logging.StreamHandler()])
+        #
+        logging.info(f"Minimum compliance problem with {solver}")
+        logging.info(f"nodes: {nelx} x {nely}")
+        logging.info(f"volfrac: {volfrac}, rmin: {rmin},  penal: {penal}")
+        logging.info("Filter method: " + ["Sensitivity based", "Density based",
+                                          "No filter"][ft])
     # Max and min Young's modulus
     Emin = 1e-9
     Emax = 1.0
@@ -216,20 +229,22 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         pass_el = np.sqrt( (j+1-nely/2)**2 + (i+1-nelx/3)**2) < nely/3
     else:
         pass_el = None
-    # Initialize plot and plot the initial design
-    plt.ion()  # Ensure that redrawing is possible
-    fig, ax = plt.subplots(1,1)
-    im = ax.imshow(-xPhys.reshape((nelx, nely)).T, cmap='gray',
-                   interpolation='none', norm=Normalize(vmin=-1, vmax=0))
-    ax.tick_params(axis='both',
-                   which='both',
-                   bottom=False,
-                   left=False,
-                   labelbottom=False,
-                   labelleft=False)
-    fig.show()
-    # gradient for the volume constraint is constant regardless of iteration
-    dv = np.ones(nely*nelx)
+    if display:
+        # Initialize plot and plot the initial design
+        plt.ion()  # Ensure that redrawing is possible
+        fig, ax = plt.subplots(1,1)
+        im = ax.imshow(-xPhys.reshape((nelx, nely)).T, cmap='gray',
+                       interpolation='none', norm=Normalize(vmin=-1, vmax=0))
+        ax.tick_params(axis='both',
+                       which='both',
+                       bottom=False,
+                       left=False,
+                       labelbottom=False,
+                       labelleft=False)
+        fig.show()
+    # initialize gradients
+    dc = np.zeros(nelx*nely)
+    dv = np.ones(nelx*nely)
     # optimization loop
     for loop in np.arange(nouteriter):
         
@@ -252,7 +267,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                 u[free, :] = spsolve(K, f[free, :])
             # Objective and sensitivity
             obj = 0
-            dc = 0
+            dc[:] = np.zeros(nelx*nely)
             for i in np.arange(f.shape[1]):
                 #ce = (np.dot(u[edofMat,i].reshape(nelx*nely, KE.shape[0]), KE)
                 #         * u[edofMat,i].reshape(nelx*nely, KE.shape[0])).sum(1)
@@ -260,8 +275,8 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                 ce = (np.dot(ui[edofMat].reshape(nelx*nely, KE.shape[0]), KE)
                          * ui[edofMat].reshape(nelx*nely, KE.shape[0])).sum(1)
                 obj += ((Emin+xPhys**penal*(Emax-Emin))*ce).sum()
-                dc -= penal*xPhys**(penal-1)*(Emax-Emin)*ce
-        
+                dc[:] -= penal*xPhys**(penal-1)*(Emax-Emin)*ce
+        dv[:] = np.ones(nely*nelx)
         # Sensitivity filtering:
         if ft == 0 and not pde:
             dc[:] = np.asarray((H*(x*dc))[np.newaxis].T /
@@ -276,7 +291,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             dc[:] = TF.T @ spsolve(KF,TF@(dc*xPhys))/np.maximum(0.001, x)
         elif ft == 1 and not pde:
             dc[:] = np.asarray(H*(dc[np.newaxis].T/Hs))[:, 0]
-            dv[:] = np.asarray(H*(dv[np.newaxis].T/Hs))[:, 0] 
+            dv[:] = np.asarray(H*(dv[np.newaxis].T/Hs))[:, 0]
         # solve KF y = TF@dc, dc_updated = TF.T @ y
         # solve KF z = TF@dv, dv_updated = TF.T @ z
         elif ft == 1 and pde:
@@ -296,7 +311,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         xold[:] = x
         # optimality criteria
         if solver=="oc":
-            (x[:], g) = oc(nelx, nely, x, volfrac, dc, dv, g, pass_el)
+            (x[:], g) = oc_top88(nelx, nely, x, volfrac, dc, dv, g, pass_el)
         # method of moving asymptotes, implementation by Arjen Deetman
         elif solver=="mma":
             xval = x.copy()[np.newaxis].T
@@ -440,24 +455,27 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         # Compute the change by the inf. norm
         change = (np.abs(x-xold)).max()
         # Plot to screen
-        im.set_array(-xPhys.reshape((nelx, nely)).T)
-        fig.canvas.draw()
-        plt.pause(0.01)
+        if display:
+            im.set_array(-xPhys.reshape((nelx, nely)).T)
+            fig.canvas.draw()
+            plt.pause(0.01)
         # Write iteration history to screen (req. Python 2.6 or newer)
-        if verbose: 
-            logging.info("it.: {0} , obj.: {1:.3f} Vol.: {2:.3f}, ch.: {3:.3f}".format(
-                         loop, obj, xPhys.mean(), change))
+        if write_log: 
+            logging.info("it.: {0} , obj.: {1:.10f} Vol.: {2:.10f}, ch.: {3:.10f}".format(
+                         loop+1, obj, xPhys.mean(), change))
         # convergence check
         if change < 0.01:
             break
     #
-    plt.show()
-    input("Press any key...")
+    if display:
+        plt.show()
+        input("Press any key...")
     #
-    export_vtk(filename="topopt", 
-               nelx=nelx,nely=nely, 
-               xPhys=xPhys,x=x, 
-               u=u,f=f,volfrac=volfrac)
+    if export:
+        export_vtk(filename="topopt", 
+                   nelx=nelx,nely=nely, 
+                   xPhys=xPhys,x=x, 
+                   u=u,f=f,volfrac=volfrac)
     return x, obj
 
 
@@ -529,89 +547,3 @@ def update_mma(x,xold1,xold2,xPhys,obj,dc,dv,iteration,
     #raise ValueError
     return mmasub(m,x.shape[0],iteration,xval,xmin,xmax,xold1,xold2,f0val,df0dx,
                   fval,dfdx,low,upp,a0,a,c,d,move)
-    
-def oc(nelx, nely, x, volfrac, dc, dv, g, pass_el):
-    """
-    Optimality criteria method (section 2.2 in paper) for maximum/minimum 
-    stiffness/compliance. Heuristic updating scheme for the element densities 
-    to find the Lagrangian multiplier.
-    Usually more sophisticated methods are used like Sequential Linear/Quadratic
-    Programming or the Method of Moving Asymptotes.
-    
-    Parameters
-    ----------
-    nelx : int
-        number of elements in x direction.
-    nely : int
-        number of elements in y direction.
-    x : np.array, shape (nel)
-        element densities for topology optimization of the current iteration.
-    volfrac : float
-        volume fraction.
-    dc : np.array, shape (nel)
-        gradient of objective function/complicance with respect to element 
-        densities.
-    dv : np.array, shape (nel)
-        gradient of volume constraint with respect to element densities..
-    g : float
-        parameter for the heuristic updating scheme.
-    pass_el : None or np.array 
-        array who contains indices used for un/masking passive elements. 0 
-        means an active element that is part of the optimization, 1 and 2 
-        indicate empty and full elements which are not part of the 
-        optimization.
-
-    Returns
-    -------
-    xnew : np.array, shape (nel)
-        updatet element densities for topology optimization.
-    gt : float
-        updated parameter for the heuristic updating scheme..
-
-    """
-    l1 = 0
-    l2 = 1e9
-    move = 0.2
-    # reshape to perform vector operations
-    xnew = np.zeros(nelx*nely)
-    while (l2-l1)/(l1+l2) > 1e-3:
-        lmid = 0.5*(l2+l1)
-        xnew[:] = np.maximum(0.0, np.maximum(
-            x-move, np.minimum(1.0, np.minimum(x+move, x*np.sqrt(-dc/dv/lmid)))))
-        
-        # passive element update
-        if pass_el is not None:
-            xnew[pass_el==1] = 0
-            xnew[pass_el==2] = 1
-        gt = xnew.sum() - volfrac * x.shape[0] #g+np.sum((dv*(xnew-x)))
-        if gt > 0:
-            l1 = lmid
-        else:
-            l2 = lmid
-        
-    return (xnew, gt)
-
-# The real main driver
-if __name__ == "__main__":
-    # Default input parameters
-    nelx = 60  # 180
-    nely = int(nelx/3)  # 60
-    volfrac = 0.5  # 0.4
-    rmin = 0.04*nelx  # 5.4
-    penal = 3.0
-    ft = 1 # ft==0 -> sens, ft==1 -> dens
-    import sys
-    if len(sys.argv) > 1:
-        nelx = int(sys.argv[1])
-    if len(sys.argv) > 2:
-        nely = int(sys.argv[2])
-    if len(sys.argv) > 3:
-        volfrac = float(sys.argv[3])
-    if len(sys.argv) > 4:
-        rmin = float(sys.argv[4])
-    if len(sys.argv) > 5:
-        penal = float(sys.argv[5])
-    if len(sys.argv) > 6:
-        ft = int(sys.argv[6])
-    main(nelx, nely, volfrac, penal, rmin, ft, 
-         passive=False,pde=False,solver="mma",ninneriter=0)
