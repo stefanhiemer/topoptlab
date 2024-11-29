@@ -35,6 +35,8 @@ def export_vtk(filename,
                xPhys,
                x=None,
                u=None, f=None,
+               u_bw=None,
+               f_bw=None,
                xTilde=None,
                volfrac=None):
     """
@@ -58,6 +60,10 @@ def export_vtk(filename,
     f : np.ndarray, optional
         flow variable (forces, heat sources/sinks) which is usually the right 
         hand side of the generic matrix problem Ku=f
+    u_bw : np.ndarray, optional
+        field variable of the final black/white design. The default is None.
+    f_bw : np.ndarray, optional
+        flow variable of the final black/white design. The default is None.
     xTilde : np.ndarray, optional
         interemdiary densities by the density filter. So far they only occur 
         if Haeviside projections are used. The default is None.
@@ -83,11 +89,21 @@ def export_vtk(filename,
         for i in np.arange(u.shape[1]):
             node_data.update({f"u{i}": u[:,i].reshape(points.shape[0],
                                          int(u[:,i].shape[0]/points.shape[0]))})
+    if not u_bw is None:
+        # takes care of multiple load cases
+        for i in np.arange(u_bw.shape[1]):
+            node_data.update({f"u_bw{i}": u_bw[:,i].reshape(points.shape[0],
+                                         int(u_bw[:,i].shape[0]/points.shape[0]))})
     if not f is None:
         # takes care of multiple load cases
         for i in np.arange(u.shape[1]):
             node_data.update({f"f{i}": f[:,i].reshape(points.shape[0],
                                              int(f[:,i].shape[0]/points.shape[0]))})
+    if not f_bw is None:
+        # takes care of multiple load cases
+        for i in np.arange(f_bw.shape[1]):
+            node_data.update({f"f_bw{i}": f_bw[:,i].reshape(points.shape[0],
+                                             int(f_bw[:,i].shape[0]/points.shape[0]))})
     # assign node IDs to each cell. 
     elx,ely = np.arange(nelx)[:,None], np.arange(nely)[None,:]
     n1 = ((nely+1)*elx+ely).flatten()

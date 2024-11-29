@@ -14,12 +14,10 @@ import matplotlib.pyplot as plt
 
 from topoptlab.output_designs import export_vtk
 from topoptlab.filters import AMfilter,find_eta
+from topoptlab.fem import lk_linear_elast_2D, update_indices
+from topoptlab.mma_utils import update_mma
 
-message = "MMA module not found. Get it from https://github.com/arjendeetman/GCMMA-MMA-Python/tree/master .Copy mma.py in the same directory as this python file."
-try:
-    from mmapy import mmasub,gcmmasub,asymp,concheck,raaupdate
-except ModuleNotFoundError:
-    raise ModuleNotFoundError(message)
+from mmapy import gcmmasub,asymp,concheck,raaupdate
     
 projections = [2,3,4,5]
 filters = [0,1]
@@ -210,7 +208,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     else:
         raise ValueError("Unknown solver: ", solver)
     # FE: Build the index vectors for the for coo matrix format.
-    KE = lk()
+    KE = lk_linear_elast_2D()
     elx,ely = np.arange(nelx)[:,None], np.arange(nely)[None,:]
     el = np.arange(nelx*nely)
     n1 = ((nely+1)*elx+ely).flatten()
@@ -357,8 +355,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                 #ce = (np.dot(u[edofMat,i].reshape(nelx*nely, KE.shape[0]), KE)
                 #         * u[edofMat,i].reshape(nelx*nely, KE.shape[0])).sum(1)
                 ui = u[:,i]
-                ce = (np.dot(ui[edofMat].reshape(nelx*nely, KE.shape[0]), KE)
-                         * ui[edofMat].reshape(nelx*nely, KE.shape[0])).sum(1)
+                ce = (np.dot(ui[edofMat], KE) * ui[edofMat]).sum(1)
                 obj += ((Emin+xPhys**penal*(Emax-Emin))*ce).sum()
                 dc -= penal*xPhys**(penal-1)*(Emax-Emin)*ce
         # constraints and derivatives/sensitivities of constraints
@@ -367,7 +364,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         # derivative of volume constraint
         if volfrac is not None:
             constrs.append(xPhys.mean() - volfrac)
-            if solver in ["mma",["gcmma"]]:
+            if solver in ["mma","gcmma"]:
                 dconstrs.append(np.ones(nely*nelx)/(x.shape[0]*volfrac))
             elif solver in ["oc"]:
                 dconstrs.append(np.ones(nely*nelx))
@@ -686,82 +683,6 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                xPhys=xPhys,x=x, xTilde=xTilde,
                u=u,f=f,volfrac=volfrac)
     return x, obj
-
-
-def update_indices(indices,fixed,mask):
-    """
-    Update the indices for the stiffness matrix construction by kicking out
-    the fixed degrees of freedom and renumbering the indices.
-
-    Parameters
-    ----------
-    indices : np.array
-        indices of degrees of freedom used to construct the stiffness matrix.
-    fixed : np.array
-        indices of fixed degrees of freedom.
-    mask : np.array
-        mask to kick out fixed degrees of freedom.
-
-    Returns
-    -------
-    indices : np.arrays
-        updated indices.
-
-    """
-    val, ind = np.unique(indices,return_inverse=True)
-    
-    _mask = ~np.isin(val, fixed)
-    val[_mask] = np.arange(_mask.sum())
-    
-    return val[ind][mask]
-
-def lk():
-    """
-    Create element stiffness matrix.
-    
-    Returns
-    -------
-    Ke : np.array, shape (8,8)
-        element stiffness matrix.
-        
-    """
-    E = 1
-    nu = 0.3
-    k = np.array([1/2-nu/6, 1/8+nu/8, -1/4-nu/12, -1/8+3*nu /
-                 8, -1/4+nu/12, -1/8-nu/8, nu/6, 1/8-3*nu/8])
-    KE = E/(1-nu**2)*np.array([[k[0], k[1], k[2], k[3], k[4], k[5], k[6], k[7]],
-                               [k[1], k[0], k[7], k[6], k[5], k[4], k[3], k[2]],
-                               [k[2], k[7], k[0], k[5], k[6], k[3], k[4], k[1]],
-                               [k[3], k[6], k[5], k[0], k[7], k[2], k[1], k[4]],
-                               [k[4], k[5], k[6], k[7], k[0], k[1], k[2], k[3]],
-                               [k[5], k[4], k[3], k[2], k[1], k[0], k[7], k[6]],
-                               [k[6], k[3], k[4], k[1], k[2], k[7], k[0], k[5]],
-                               [k[7], k[2], k[1], k[4], k[3], k[6], k[5], k[0]]])
-    return (KE)
-
-def update_mma(x,xold1,xold2,xPhys,
-               obj,dc,constrs,dconstr,
-               iteration,
-               nconstr,xmin,xmax,low,upp,a0,a,c,d,move):
-    mu0 = 1.0 # Scale factor for objective function
-    mu1 = 1.0 # Scale factor for volume constraint function
-    f0val = mu0*obj 
-    df0dx = mu0*dc[np.newaxis].T
-    #fval = mu1*np.array([[xPhys.mean()-volfrac]])
-    #dfdx = mu1*(dconstr/(x.shape[0]*volfrac))
-    xval = x.copy()[np.newaxis].T 
-    #print(obj.shape, f0val.shape)
-    #print(df0dx.shape)
-    #print(constrs.shape)
-    #print(dconstr.T.shape)
-    #print(xval.shape)
-    #raise ValueError()
-    return mmasub(nconstr,x.shape[0],iteration,
-                  xval,xmin,xmax,
-                  xold1,xold2,f0val,df0dx,
-                  mu1*constrs[:,None],mu1*np.atleast_2d(dconstr.T),
-                  low,upp,
-                  a0,a,c,d,move)
     
 def oc(nelx, nely, x, volfrac, dc, dv, g, baseplate, pass_el,
        H,Hs,beta,eta,ft,
@@ -874,7 +795,7 @@ if __name__ == "__main__":
     nelx = 150  # 180
     nely = int(nelx/3)  # 60
     volfrac = 0.5  # 0.4
-    rmin = 5  # 5.4
+    rmin = 0.03*nelx  # 5.4
     penal = 3.0
     ft = 7 # ft==0 -> sens, ft==1 -> dens
     import sys
@@ -892,7 +813,7 @@ if __name__ == "__main__":
         ft = int(sys.argv[6])
     try:
         main(nelx, nely, volfrac, penal, rmin, ft,
-             manufact = None,baseplate="N",
+             manufact = None,baseplate="S",
              passive=False,pde=False,solver="mma",
              nouteriter=2000,
              ninneriter=0,

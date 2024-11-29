@@ -14,12 +14,10 @@ import matplotlib.pyplot as plt
 
 from topoptlab.output_designs import export_vtk
 from topoptlab.filters import find_eta
+from topoptlab.optimality_criterion import oc_haevi
+from topoptlab.fem import lk_linear_elast_2D,update_indices
 
-message = "MMA module not found. Get it from https://github.com/arjendeetman/GCMMA-MMA-Python/tree/master .Copy mma.py in the same directory as this python file."
-try:
-    from mmapy import mmasub,gcmmasub,asymp,concheck,raaupdate
-except ModuleNotFoundError:
-    raise ModuleNotFoundError(message)
+from mmapy import mmasub,gcmmasub,asymp,concheck,raaupdate
     
 projections = [2,3,4,5]
 filters = [0,1]
@@ -173,7 +171,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     else:
         raise ValueError("Unknown solver: ", solver)
     # FE: Build the index vectors for the for coo matrix format.
-    KE = lk()
+    KE = lk_linear_elast_2D()
     elx,ely = np.arange(nelx)[:,None], np.arange(nely)[None,:]
     el = np.arange(nelx*nely)
     n1 = ((nely+1)*elx+ely).flatten()
@@ -366,15 +364,15 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         xold[:] = x
         # optimality criteria
         if solver=="oc" and ft in filters:
-            (x[:], g) = oc(nelx, nely, x, volfrac, dc, dv, g, 
+            (x[:], g) = oc_haevi(nelx, nely, x, volfrac, dc, dv, g, 
                            pass_el,
                            None,None,None,None,ft,
                            debug)
         elif solver=="oc" and ft in projections:
-            (x[:],xTilde[:],xPhys[:],g) = oc(nelx, nely, x, volfrac, dc, dv, g, 
-                                             pass_el,
-                                             H,Hs,beta,eta,ft,
-                                             debug=debug) 
+            (x[:],xTilde[:],xPhys[:],g) = oc_haevi(nelx, nely, x, volfrac, dc, dv, g, 
+                                                   pass_el,
+                                                   H,Hs,beta,eta,ft,
+                                                   debug=debug) 
         # method of moving asymptotes, implementation by Arjen Deetman
         elif solver=="mma":
             xval = x.copy()[np.newaxis].T
@@ -566,58 +564,6 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                u=u,f=f,volfrac=volfrac)
     return x, obj
 
-
-def update_indices(indices,fixed,mask):
-    """
-    Update the indices for the stiffness matrix construction by kicking out
-    the fixed degrees of freedom and renumbering the indices.
-
-    Parameters
-    ----------
-    indices : np.array
-        indices of degrees of freedom used to construct the stiffness matrix.
-    fixed : np.array
-        indices of fixed degrees of freedom.
-    mask : np.array
-        mask to kick out fixed degrees of freedom.
-
-    Returns
-    -------
-    indices : np.arrays
-        updated indices.
-
-    """
-    val, ind = np.unique(indices,return_inverse=True)
-    
-    _mask = ~np.isin(val, fixed)
-    val[_mask] = np.arange(_mask.sum())
-    
-    return val[ind][mask]
-
-def lk():
-    """
-    Create element stiffness matrix.
-    
-    Returns
-    -------
-    Ke : np.array, shape (8,8)
-        element stiffness matrix.
-        
-    """
-    E = 1
-    nu = 0.3
-    k = np.array([1/2-nu/6, 1/8+nu/8, -1/4-nu/12, -1/8+3*nu /
-                 8, -1/4+nu/12, -1/8-nu/8, nu/6, 1/8-3*nu/8])
-    KE = E/(1-nu**2)*np.array([[k[0], k[1], k[2], k[3], k[4], k[5], k[6], k[7]],
-                               [k[1], k[0], k[7], k[6], k[5], k[4], k[3], k[2]],
-                               [k[2], k[7], k[0], k[5], k[6], k[3], k[4], k[1]],
-                               [k[3], k[6], k[5], k[0], k[7], k[2], k[1], k[4]],
-                               [k[4], k[5], k[6], k[7], k[0], k[1], k[2], k[3]],
-                               [k[5], k[4], k[3], k[2], k[1], k[0], k[7], k[6]],
-                               [k[6], k[3], k[4], k[1], k[2], k[7], k[0], k[5]],
-                               [k[7], k[2], k[1], k[4], k[3], k[6], k[5], k[0]]])
-    return (KE)
-
 def update_mma(x,xold1,xold2,xPhys,obj,dc,dv,iteration,
                m,xmin,xmax,low,upp,a0,a,c,d,move):
     mu0 = 1.0 # Scale factor for objective function
@@ -631,107 +577,6 @@ def update_mma(x,xold1,xold2,xPhys,obj,dc,dv,iteration,
     return mmasub(m,x.shape[0],iteration,xval,xmin,xmax,
                   xold1,xold2,f0val,df0dx,
                   fval,dfdx,low,upp,a0,a,c,d,move)
-    
-def oc(nelx, nely, x, volfrac, dc, dv, g, pass_el,
-       H,Hs,beta,eta,ft,
-       debug=False):
-    """
-    Optimality criteria method (section 2.2 in paper) for maximum/minimum 
-    stiffness/compliance. Heuristic updating scheme for the element densities 
-    to find the Lagrangian multiplier.
-    Usually more sophisticated methods are used like Sequential Linear/Quadratic
-    Programming or the Method of Moving Asymptotes.
-    
-    Parameters
-    ----------
-    nelx : int
-        number of elements in x direction.
-    nely : int
-        number of elements in y direction.
-    x : np.array, shape (nel)
-        element densities for topology optimization of the current iteration.
-    volfrac : float
-        volume fraction.
-    dc : np.array, shape (nel)
-        gradient of objective function/complicance with respect to element 
-        densities.
-    dv : np.array, shape (nel)
-        gradient of volume constraint with respect to element densities..
-    g : float
-        parameter for the heuristic updating scheme.
-    pass_el : None or np.array 
-        array who contains indices used for un/masking passive elements. 0 
-        means an active element that is part of the optimization, 1 and 2 
-        indicate empty and full elements which are not part of the 
-        optimization.
-
-    Returns
-    -------
-    xnew : np.array, shape (nel)
-        updatet element densities for topology optimization.
-    gt : float
-        updated parameter for the heuristic updating scheme..
-
-    """
-    l1 = 0
-    l2 = 1e9
-    if ft is None or ft in [0,1]:
-        move = 0.2
-        tol = 1e-3
-    else:
-        move = 0.05
-        tol = 1e-5
-    # reshape to perform vector operations
-    xnew = np.zeros(nelx*nely)
-    xTilde = np.zeros(nelx*nely)
-    xPhys = np.zeros(nelx*nely)
-    if debug:
-        i = 0
-    while (l2-l1)/(l1+l2) > tol and np.abs(l2-l1) > 1e-10:
-        lmid = 0.5*(l2+l1)
-        xnew[:] = np.maximum(0.0, 
-                             np.maximum(x-move, 
-                                        np.minimum(1.0, 
-                                                   np.minimum(x+move, 
-                                                              x*np.sqrt(-dc/(dv+1e-12)/lmid)))))
-        #
-        if ft in projections:
-            xTilde = np.asarray(H*xnew[np.newaxis].T/Hs)[:, 0]
-        if ft in [2]:
-            xPhys = 1 - np.exp(-beta*xTilde) + xTilde*np.exp(-beta)
-        elif ft in [3]:
-            xPhys = np.exp(-beta*(1-xTilde)) - (1-xTilde)*np.exp(-beta)
-        elif ft in [4]:
-            xPhys = (np.tanh(beta*eta)+np.tanh(beta * (xTilde - eta)))/\
-                    (np.tanh(beta*eta)+np.tanh(beta*(1-eta)))
-        else:
-            xPhys = xnew
-        # passive element update
-        if pass_el is not None:
-            xPhys[pass_el==1] = 0
-            xPhys[pass_el==2] = 1
-        #
-        gt = g+np.sum((dv*(xnew-x)))
-        if gt > 0:
-            l1 = lmid
-        else:
-            l2 = lmid
-        if debug == 2:
-            i = i+1
-            print("oc it.: {0} , l1: {1:.10f} l2: {2:.10f}, gt: {3:.10f}".format(
-                   i, l1, l2, gt),
-                "x: {0:.10f} xTilde: {1:.10f} xPhys: {2:.10f}".format(
-                    np.median(x),np.median(xTilde),np.median(xPhys)),
-                "dc: {0:.10f} dv: {1:.10f}".format(
-                    np.max(dc),np.min(dv)))
-            if np.isnan(gt):
-                print()
-                import sys 
-                sys.exit()
-    if beta is None:
-        return (xPhys, gt)
-    else:
-        return (xnew, xTilde, xPhys, gt)
 
 # The real main driver
 if __name__ == "__main__":
@@ -739,9 +584,9 @@ if __name__ == "__main__":
     nelx = 60  # 180
     nely = int(nelx/3)  # 60
     volfrac = 0.5  # 0.4
-    rmin = 0.04*nelx  # 5.4
+    rmin = 0.03*nelx  # 5.4
     penal = 3.0
-    ft = 1 # ft==0 -> sens, ft==1 -> dens
+    ft = 5 # ft==0 -> sens, ft==1 -> dens
     import sys
     if len(sys.argv) > 1:
         nelx = int(sys.argv[1])

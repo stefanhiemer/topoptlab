@@ -186,8 +186,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             #ce = (np.dot(u[edofMat,i].reshape(nelx*nely, 8), KE)
             #         * u[edofMat,i].reshape(nelx*nely, 8)).sum(1)
             ui = u[:,i]
-            ce = (np.dot(ui[edofMat].reshape(nelx*nely, 4), KE)
-                     * ui[edofMat].reshape(nelx*nely, 4)).sum(1)
+            ce = (np.dot(ui[edofMat], KE) * ui[edofMat]).sum(1)
             obj += ((kmin+xPhys**penal*(kmax-kmin))*ce).sum()
             dc -= penal*xPhys**(penal-1)*(kmax-kmin)*ce
         # Sensitivity filtering:

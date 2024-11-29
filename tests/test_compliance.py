@@ -4,23 +4,18 @@ import pytest
 
 from topoptlab.compliance_minimization import main 
 
-@pytest.mark.parametrize('ft',
-                         [(0),(1)])
+@pytest.mark.parametrize('ft, rmin, pde, obj_ref',
+                         [(0,2.4,False,216.81),
+                          (1,2.4,False,233.71),
+                          (0,2.4,True,218.79),
+                          (1,2.4,True,237.60),]) 
 
-def test_mbb_density_filter(ft):
+def test_mbb_filter(ft,rmin,pde,obj_ref):
     
     #
-    # Default input parameters
-    nelx = 60  # 180
-    nely = int(nelx/3)  # 60
-    volfrac = 0.5  # 0.4
-    rmin = 0.04*nelx
-    x, obj = main(nelx, nely, volfrac, penal=3.0, rmin=rmin, ft=ft, 
-                  passive=False,pde=False,solver="oc",
+    x, obj = main(nelx=60, nely=20, volfrac=0.5, penal=3.0, rmin=rmin, ft=ft, 
+                  passive=False,pde=pde,solver="oc",
                   display=False,export=False,write_log=False)
     #
-    if ft == 0:
-        assert_almost_equal(obj,216.81,decimal=2)
-    if ft == 1:
-        assert_almost_equal(obj,233.71,decimal=2) 
+    assert_almost_equal(obj,obj_ref,decimal=2)
     return 

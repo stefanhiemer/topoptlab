@@ -3,17 +3,22 @@ from __future__ import division
 import numpy as np
 
 from topoptlab.filters import AMfilter
-    
+
+projections = [2,3,4,5]
+filters = [0,1]
+
 def oc_top88(nelx, nely, x, volfrac, dc, dv, g, pass_el,
-             move = 0.2,l1=0.,l2=1e9):
+             move=0.2, l1=0.,l2=1e9):
     """
-    Optimality criteria method (section 2.2 in paper) for maximum/minimum 
-    stiffness/compliance. Heuristic updating scheme for the element densities 
-    to find the Lagrangian multiplier. Optimality criteria method (section 2.2 in paper) for maximum/minimum 
+    Optimality criteria method (section 2.2 in top88 paper) for maximum/minimum 
     stiffness/compliance. Heuristic updating scheme for the element densities 
     to find the Lagrangian multiplier. Overtaken and adapted from the 
     
     165 LINE TOPOLOGY OPTIMIZATION CODE BY NIELS AAGE AND VILLADS EGEDE JOHANSEN
+    
+    Only sufficient for pure sensitivity/density filter optionally with 
+    Helmholtz PDE. Haeviside projections or any filters that introduce a 
+    stronger nonlinearity cannot be dealt with.
     
     Parameters
     ----------
@@ -64,7 +69,176 @@ def oc_top88(nelx, nely, x, volfrac, dc, dv, g, pass_el,
         if pass_el is not None:
             xnew[pass_el==1] = 0
             xnew[pass_el==2] = 1
-        gt=g+np.sum((dv*(xnew-x))) #g+np.sum((dv*(xnew-x)))
+        gt=g+np.sum((dv*(xnew-x)))
+        if gt > 0:
+            l1 = lmid
+        else:
+            l2 = lmid
+        
+    return (xnew, gt)
+
+def oc_haevi(nelx, nely, x, volfrac, dc, dv, g, pass_el,
+             H,Hs,beta,eta,ft,
+             debug=False):
+    """
+    Optimality criteria method (section 2.2 in top88 paper) for maximum/minimum 
+    stiffness/compliance. Heuristic updating scheme for the element densities 
+    to find the Lagrangian multiplier. Overtaken and adapted from the 
+    
+    165 LINE TOPOLOGY OPTIMIZATION CODE BY NIELS AAGE AND VILLADS EGEDE JOHANSEN
+    
+    Only sufficient for pure sensitivity/density filter optionally with 
+    Helmholtz PDE. 
+    
+    Parameters
+    ----------
+    nelx : int
+        number of elements in x direction.
+    nely : int
+        number of elements in y direction.
+    x : np.array, shape (nel)
+        element densities for topology optimization of the current iteration.
+    volfrac : float
+        volume fraction.
+    dc : np.array, shape (nel)
+        gradient of objective function/complicance with respect to element 
+        densities.
+    dv : np.array, shape (nel)
+        gradient of volume constraint with respect to element densities..
+    g : float
+        parameter for the heuristic updating scheme.
+    pass_el : None or np.array 
+        array who contains indices used for un/masking passive elements. 0 
+        means an active element that is part of the optimization, 1 and 2 
+        indicate empty and full elements which are not part of the 
+        optimization.
+
+    Returns
+    -------
+    xnew : np.array, shape (nel)
+        updatet element densities for topology optimization.
+    gt : float
+        updated parameter for the heuristic updating scheme..
+
+    """
+    l1 = 0
+    l2 = 1e9
+    if ft is None or ft in [0,1]:
+        move = 0.2
+        tol = 1e-3
+    else:
+        move = 0.2
+        tol = 1e-3
+    # reshape to perform vector operations
+    xnew = np.zeros(nelx*nely)
+    xTilde = np.zeros(nelx*nely)
+    xPhys = np.zeros(nelx*nely)
+    if debug:
+        i = 0
+    while (l2-l1)/(l1+l2) > tol and np.abs(l2-l1) > 1e-10:
+        lmid = 0.5*(l2+l1)
+        xnew[:] = np.maximum(0.0, 
+                             np.maximum(x-move, 
+                                        np.minimum(1.0, 
+                                                   np.minimum(x+move, 
+                                                              x*np.sqrt(-dc/dv/lmid)))))
+        #
+        if ft in projections:
+            xTilde = np.asarray(H*xnew[np.newaxis].T/Hs)[:, 0]
+        if ft in [2]:
+            xPhys = 1 - np.exp(-beta*xTilde) + xTilde*np.exp(-beta)
+        elif ft in [3]:
+            xPhys = np.exp(-beta*(1-xTilde)) - (1-xTilde)*np.exp(-beta)
+        elif ft in [4]:
+            xPhys = (np.tanh(beta*eta)+np.tanh(beta * (xTilde - eta)))/\
+                    (np.tanh(beta*eta)+np.tanh(beta*(1-eta)))
+        else:
+            xPhys = xnew
+        # passive element update
+        if pass_el is not None:
+            xPhys[pass_el==1] = 0
+            xPhys[pass_el==2] = 1
+        #
+        if ft not in projections:
+            gt = g+np.sum((dv*(xnew-x)))
+        else:
+            gt = xPhys.mean() > volfrac
+        if gt > 0:
+            l1 = lmid
+        else:
+            l2 = lmid
+        if debug == 2:
+            i = i+1
+            print("oc it.: {0} , l1: {1:.10f} l2: {2:.10f}, gt: {3:.10f}".format(
+                   i, l1, l2, gt),
+                "x: {0:.10f} xTilde: {1:.10f} xPhys: {2:.10f}".format(
+                    np.median(x),np.median(xTilde),np.median(xPhys)),
+                "dc: {0:.10f} dv: {1:.10f}".format(
+                    np.max(dc),np.min(dv)))
+            if np.isnan(gt):
+                print()
+                import sys 
+                sys.exit()
+    if beta is None:
+        return (xPhys, gt)
+    else:
+        return (xnew, xTilde, xPhys, gt)
+    
+def oc_mechanism(nelx, nely, x, volfrac, dc, dv, g, pass_el):
+    """
+    Optimality criteria method for compliant mechnanism according to the 
+    standard textbook by Bendsoe and Sigmund. In general: can handle objective 
+    functions whose gradients change sign, but no guarantee of convergence or 
+    anything else is given.
+    
+    Parameters
+    ----------
+    nelx : int
+        number of elements in x direction.
+    nely : int
+        number of elements in y direction.
+    x : np.array, shape (nel)
+        element densities for topology optimization of the current iteration.
+    volfrac : float
+        volume fraction.
+    dc : np.array, shape (nel)
+        gradient of objective function/complicance with respect to element 
+        densities.
+    dv : np.array, shape (nel)
+        gradient of volume constraint with respect to element densities..
+    g : float
+        parameter for the heuristic updating scheme.
+    pass_el : None or np.array 
+        array who contains indices used for un/masking passive elements. 0 
+        means an active element that is part of the optimization, 1 and 2 
+        indicate empty and full elements which are not part of the 
+        optimization.
+
+    Returns
+    -------
+    xnew : np.array, shape (nel)
+        updatet element densities for topology optimization.
+    gt : float
+        updated parameter for the heuristic updating scheme..
+
+    """
+    l1 = 0
+    l2 = 1e9
+    move = 0.1
+    damp = 0.3
+    # reshape to perform vector operations
+    xnew = np.zeros(nelx*nely)
+    while (l2-l1)/(l1+l2) > 1e-4 and l2 > 1e-40:
+        lmid = 0.5*(l2+l1)
+        xnew[:] = np.maximum(0.0, np.maximum(
+            x-move, np.minimum(1.0, np.minimum(x+move, x*np.maximum(1e-10,
+                                                                    -dc/dv/lmid)**damp))))
+        
+        # passive element update
+        if pass_el is not None:
+            xnew[pass_el==1] = 0
+            xnew[pass_el==2] = 1
+        gt = xnew.sum() - volfrac * x.shape[0] #g+np.sum((dv*(xnew-x)))
         if gt > 0:
             l1 = lmid
         else:

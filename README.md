@@ -44,5 +44,6 @@ features in topopt.py
 - [ ] global stress constraints
 - [ ] get rid of strange indexing for density/sensitivity filter
 - [ ] kick out from __future__ import division
+- [ ] np.union1d for setting up K is expensive. check if necessary.
 - [ ] accelerated optimality criteria (aOC)
 - [ ] 3D

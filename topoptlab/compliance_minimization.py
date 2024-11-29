@@ -22,8 +22,8 @@ except ModuleNotFoundError:
 
 # MAIN DRIVER
 def main(nelx, nely, volfrac, penal, rmin, ft, 
-         pde=False, passive=False, solver="oc", 
-         nouteriter=2000, ninneriter=15,
+         pde=False, passive=False, 
+         solver="oc", nouteriter=2000, ninneriter=15,
          display=True,export=True,write_log=True):
     """
     Topology optimization workflow with the SIMP method based on 
@@ -241,6 +241,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                        left=False,
                        labelbottom=False,
                        labelleft=False)
+        ax.axis("off")
         fig.show()
     # initialize gradients
     dc = np.zeros(nelx*nely)
@@ -272,8 +273,8 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                 #ce = (np.dot(u[edofMat,i].reshape(nelx*nely, KE.shape[0]), KE)
                 #         * u[edofMat,i].reshape(nelx*nely, KE.shape[0])).sum(1)
                 ui = u[:,i]
-                ce = (np.dot(ui[edofMat].reshape(nelx*nely, KE.shape[0]), KE)
-                         * ui[edofMat].reshape(nelx*nely, KE.shape[0])).sum(1)
+                ce = (np.dot(ui[edofMat], KE)
+                         * ui[edofMat]).sum(1)
                 obj += ((Emin+xPhys**penal*(Emax-Emin))*ce).sum()
                 dc[:] -= penal*xPhys**(penal-1)*(Emax-Emin)*ce
         dv[:] = np.ones(nely*nelx)

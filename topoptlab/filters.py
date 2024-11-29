@@ -118,36 +118,3 @@ def AMfilter(x, baseplate='S', sensitivities=None):
         #print("gradient before backrotation")
         #print(dfx) 
         return np.rot90(dfx, -nRot)
-
-# The real main driver
-if __name__ == "__main__":
-    # Default input parameters
-    nelx = 60  # 180
-    nely = int(nelx/3)  # 60
-    volfrac = 0.5  # 0.4
-    rmin = 0.04*nelx  # 5.4
-    penal = 3.0
-    ft = 6 # ft==0 -> sens, ft==1 -> dens
-    import sys
-    if len(sys.argv) > 1:
-        nelx = int(sys.argv[1])
-    if len(sys.argv) > 2:
-        nely = int(sys.argv[2])
-    if len(sys.argv) > 3:
-        volfrac = float(sys.argv[3])
-    if len(sys.argv) > 4:
-        rmin = float(sys.argv[4])
-    if len(sys.argv) > 5:
-        penal = float(sys.argv[5])
-    if len(sys.argv) > 6:
-        ft = int(sys.argv[6])
-    try:
-        main(nelx, nely, volfrac, penal, rmin, ft,
-             manufact = None,
-             passive=False,pde=False,solver="oc",
-             nouteriter=2000,
-             ninneriter=0,
-             debug=False)
-    except Exception as e:
-        logging.error(traceback.format_exc())
-        logging.shutdown()

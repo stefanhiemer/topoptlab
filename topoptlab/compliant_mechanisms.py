@@ -11,10 +11,18 @@ from scipy.linalg import cholesky
 from matplotlib.colors import Normalize
 import matplotlib.pyplot as plt
 
-from output_designs import export_vtk,export_stl
+from topoptlab.output_designs import export_vtk,export_stl
+from topoptlab.fem import lk_linear_elast_2D, update_indices
+from topoptlab.optimality_criterion import oc_mechanism
+from topoptlab.mma_utils import update_mma
+
+from mmapy import gcmmasub,asymp,concheck,raaupdate
+
 # MAIN DRIVER
 def main(nelx, nely, volfrac, penal, rmin, ft, 
-         pde=False, passive=False, verbose=True):
+         pde=False, passive=False,
+         solver="oc", nouteriter=2000, ninneriter=15,
+         display=True, export=True, write_log=True):
     """
     Topology optimization workflow with the SIMP method based on 
     the default direct solver of scipy sparse.
@@ -39,26 +47,40 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         if true, Helmholtz filter is used
     passive: boolean
         if true, passive elements to form a cricle are created.
-
+    solver: str
+        solver options which are "oc", "mma" and "gcmma" for the optimality 
+        criteria method, the method of moving asymptotes and the globally 
+        covergent method of moving asymptotes.
+    nouteriter: int 
+        number of total TO iterations
+    ninneriter: int
+        number of inner iterations for GCMMA
+    display: bool
+        if True, plot design evolution to screen
+    export: bool
+        if True, export design as vtk file.
+    write_log: bool
+        if True, write a log file and display results to command line.
     Returns
     -------
     None.
 
     """
-    # check if log file exists and if true delete
-    if isfile("topoptm.log"):
-        remove("topoptm.log")
-    logging.basicConfig(level=logging.INFO,
-                    format='%(message)s',
-                    handlers=[
-                        logging.FileHandler("topoptm.log"),
-                        logging.StreamHandler()])
-    #
-    logging.info("Compliant mechanism problem with OC")
-    logging.info(f"nodes: {nelx} x {nely}")
-    logging.info(f"volfrac: {volfrac}, rmin: {rmin},  penal: {penal}")
-    logging.info("Filter method: " + ["Sensitivity based", "Density based",
-                               "Haeviside","No filter"][ft])
+    if write_log:
+        # check if log file exists and if true delete
+        if isfile("topoptm.log"):
+            remove("topoptm.log")
+        logging.basicConfig(level=logging.INFO,
+                        format='%(message)s',
+                        handlers=[
+                            logging.FileHandler("topoptm.log"),
+                            logging.StreamHandler()])
+        #
+        logging.info("Compliant mechanism problem with OC")
+        logging.info(f"nodes: {nelx} x {nely}")
+        logging.info(f"volfrac: {volfrac}, rmin: {rmin},  penal: {penal}")
+        logging.info("Filter method: " + ["Sensitivity based", "Density based",
+                                   "Haeviside","No filter"][ft])
     # Max and min stiffness
     Emin = 1e-9
     Emax = 1.0
@@ -71,9 +93,71 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     x = volfrac * np.ones(nely*nelx, dtype=float)
     xold = x.copy()
     xPhys = x.copy()
-    g = 0  # must be initialized to use the NGuyen/Paulino OC approach
+    # initialize solver
+    if solver=="oc":
+        # must be initialized to use the NGuyen/Paulino OC approach
+        g = 0
+        n_constr = 1
+    elif solver == "mma":
+        # number of constraints.
+        n_constr = 0
+        if volfrac is not None:
+            n_constr += 1 
+        # lower and upper bound for densities
+        xmin = np.zeros((x.shape[0],1))
+        xmax = np.ones((x.shape[0],1))
+        # densities of two previous iterations
+        xold1 = x.copy() 
+        xold2 = x.copy()
+        # initial lower and upper asymptotes
+        low = np.ones((x.shape[0],1))
+        upp = np.ones((x.shape[0],1))
+        #
+        a0 = 1.0 
+        a = np.zeros((n_constr,1)) 
+        c = 10000*np.ones((n_constr,1))
+        d = np.zeros((n_constr,1))
+        if ft in [5,6]: 
+            move = 0.1
+        elif ft in [7]:
+            move = 0.05
+        else:
+            move = 0.2
+    elif solver == "gcmma":
+        # number of constraints.
+        n_constr = 0
+        if volfrac is not None:
+            n_constr += 1 
+        # lower and upper bound for densities
+        xmin = np.zeros((x.shape[0],1))
+        xmax = np.ones((x.shape[0],1))
+        # densities of two previous iterations
+        xold1 = x.copy() 
+        xold2 = x.copy()
+        # lower and upper asymptotes
+        low = np.ones((x.shape[0],1))
+        upp = np.ones((x.shape[0],1))
+        #
+        a0 = 1.0 
+        a = np.zeros((n_constr,1)) 
+        c = 10000*np.ones((n_constr,1))
+        d = np.zeros((n_constr,1))
+        if ft in [5,6]: 
+            move = 0.1
+        elif ft in [7]:
+            move = 0.05
+        else:
+            move = 0.2
+        #
+        epsimin = 0.0000001
+        raa0 = 0.01
+        raa = 0.01*np.ones((n_constr,1))
+        raa0eps = 0.000001
+        raaeps = 0.000001*np.ones((n_constr,1))
+    else:
+        raise ValueError("Unknown solver: ", solver)
     # FE: Build the index vectors for the for coo matrix format.
-    KE = lk()
+    KE = lk_linear_elast_2D()
     elx,ely = np.arange(nelx)[:,None], np.arange(nely)[None,:]
     el = np.arange(nelx*nely)
     n1 = ((nely+1)*elx+ely).flatten()
@@ -136,20 +220,20 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                        np.arange(2*(nely+1)-4,2*(nely+1))) # bottom left bit
     din = 0
     dout = 2*nelx*(nely+1)
-    # general
-    free = np.setdiff1d(dofs, fixed)
     # Solution and RHS vectors
     f = np.zeros((ndof, 2))
     u = np.zeros((ndof, 2))
     # Set load
     f[din,0] = 1
     f[dout,1] = -1
+    # general
+    free = np.setdiff1d(dofs, fixed)
     # get rid of fixed degrees of freedom from stiffness matrix 
     mask = ~(np.isin(iK,fixed) | np.isin(jK,fixed))
     #
     _din, _dout = update_spring(np.array([din,dout]), fixed, 
                                 np.isin(np.array([din,dout]),fixed))
-    iK,jK = update_stiff(iK, fixed, mask),update_stiff(jK, fixed, mask)
+    iK,jK = update_indices(iK, fixed, mask),update_indices(jK, fixed, mask)
     ndof_free = ndof - fixed.shape[0]
     # passive elements
     if passive:
@@ -159,22 +243,22 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         pass_el = np.sqrt( (j+1-nely/2)**2 + (i+1-nelx/3)**2) < nely/3
     else:
         pass_el = None
-    # Initialize plot and plot the initial design
-    plt.ion()  # Ensure that redrawing is possible
-    fig, ax = plt.subplots(1,1)
-    im = ax.imshow(-xPhys.reshape((nelx, nely)).T, cmap='gray',
-                   interpolation='none', norm=Normalize(vmin=-1, vmax=0))
-    ax.tick_params(axis='both',
-                   which='both',
-                   bottom=False,
-                   left=False,
-                   labelbottom=False,
-                   labelleft=False)
-    fig.show()
+    if export:
+        # Initialize plot and plot the initial design
+        plt.ion()  # Ensure that redrawing is possible
+        fig, ax = plt.subplots(1,1)
+        im = ax.imshow(-xPhys.reshape((nelx, nely)).T, cmap='gray',
+                       interpolation='none', norm=Normalize(vmin=-1, vmax=0))
+        ax.tick_params(axis='both',
+                       which='both',
+                       bottom=False,
+                       left=False,
+                       labelbottom=False,
+                       labelleft=False)
+        fig.show()
     # gradient for the volume constraint is constant regardless of iteration
-    dv = np.ones(nely*nelx)
     # optimization loop
-    for loop in np.arange(2000):
+    for loop in np.arange(nouteriter):
         # Setup and solve FE problem
         sK = (KE.flatten()[:,None]*(Emin+(xPhys)
               ** penal*(Emax-Emin))).flatten(order='F')[mask]
@@ -186,8 +270,21 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         u[free, :] = spsolve(K, f[free, :])
         # Objective and sensitivity
         obj = u[dout,0].copy()
-        dc = penal*xPhys**(penal-1)*(Emax-Emin)*(np.dot(u[edofMat,1].reshape(nelx*nely, 8), KE)*\
-              u[edofMat,0].reshape(nelx*nely, 8)).sum(1)
+        dc = penal*xPhys**(penal-1)*(Emax-Emin)*(np.dot(u[edofMat,1], KE)*\
+              u[edofMat,0]).sum(1)
+        # constraints and derivatives/sensitivities of constraints
+        constrs = []
+        dconstrs = []
+        # derivative of volume constraint
+        if volfrac is not None:
+            constrs.append(xPhys.mean() - volfrac)
+            if solver in ["mma","gcmma"]:
+                dconstrs.append(np.ones(nely*nelx)/(x.shape[0]*volfrac))
+            elif solver in ["oc"]:
+                dconstrs.append(np.ones(nely*nelx))
+        # merge to np.array. squeeze is only there for consistency
+        constrs = np.hstack(constrs)
+        dconstrs = np.column_stack(dconstrs)
         # Sensitivity filtering:
         if ft == 0 and not pde:
             dc[:] = np.asarray((H*(x*dc))[np.newaxis].T /
@@ -202,7 +299,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             dc[:] = TF.T @ spsolve(KF,TF@(dc*xPhys))/np.maximum(0.001, x)
         elif ft == 1 and not pde:
             dc[:] = np.asarray(H*(dc[np.newaxis].T/Hs))[:, 0]
-            dv[:] = np.asarray(H*(dv[np.newaxis].T/Hs))[:, 0] 
+            dconstrs[:] = np.asarray(H*(dconstrs/Hs))
         # solve KF y = TF@dc, dc_updated = TF.T @ y
         # solve KF z = TF@dv, dv_updated = TF.T @ z
         elif ft == 1 and pde:
@@ -215,13 +312,24 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             #dc[:] = TF.T @ LU.solve(TF@dc)
             #dv[:] = TF.T @ LU.solve(TF@dv)
             dc[:] = TF.T @ spsolve(KF,TF@dc)
-            dv[:] = TF.T @ spsolve(KF,TF@dv)
+            dconstrs[:,:] = (TF.T @ spsolve(KF,TF@dconstrs)).reshape(dconstrs.shape)
         elif ft == -1:
             pass
         # Optimality criteria
-        xold[:] = x
-        (x[:], g) = oc(nelx, nely, x, volfrac, dc, dv, g, pass_el)
-        
+        if solver=="oc":
+            xold[:] = x 
+            (x[:], g) = oc_mechanism(nelx, nely, x, volfrac, dc, dconstrs[:,0], g, pass_el)
+        # method of moving asymptotes, implementation by Arjen Deetman
+        elif solver=="mma":
+            xval = x.copy()[np.newaxis].T
+            xmma,ymma,zmma,lam,xsi,eta_mma,mu,zet,s,low,upp = update_mma(x,xold1,xold2,xPhys,
+                                                                         obj,dc,constrs,dconstrs,loop,
+                                                                         n_constr,xmin,xmax,
+                                                                         low,upp,
+                                                                         a0,a,c,d,move)
+            xold2 = xold1.copy()
+            xold1 = xval.copy()
+            x = xmma.copy().flatten()
         # Filter design variables
         if ft == 0:
             xPhys[:] = x
@@ -234,60 +342,37 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             #xPhys[:] = TF.T @ LU.solve(TF@x)
             xPhys[:] = TF.T @ spsolve(KF,TF@x)
         elif ft == -1:
+            xPhys[:] = x
             pass
         # Compute the change by the inf. norm
         change = (np.abs(x-xold)).max()
-        # Plot to screen
-        im.set_array(-xPhys.reshape((nelx, nely)).T)
-        fig.canvas.draw()
-        plt.pause(0.01)
+        if display:
+            # Plot to screen
+            im.set_array(-xPhys.reshape((nelx, nely)).T)
+            fig.canvas.draw()
+            plt.pause(0.01)
         # Write iteration history to screen (req. Python 2.6 or newer)
-        if verbose: 
+        if write_log: 
             logging.info("it.: {0} , obj.: {1:.8f} Vol.: {2:.8f}, ch.: {3:.8f}".format(
             loop, obj, xPhys.mean(), change))
         # convergence check
         if change < 0.01:
             break 
-    #
-    plt.show()
-    input("Press any key...")
-    #
-    export_vtk(filename="topoptm", 
-               nelx=nelx,nely=nely, 
-               xPhys=xPhys,x=x, 
-               u=u,f=f,volfrac=volfrac)
-    export_stl(filename="topoptm", 
-               nelx=nelx,nely=nely, 
-               xPhys=xPhys,
-               volfrac=volfrac)
+    if display:
+        #
+        plt.show()
+        input("Press any key...")
+    if export:
+        #
+        export_vtk(filename="topoptm", 
+                   nelx=nelx,nely=nely, 
+                   xPhys=xPhys,x=x, 
+                   u=u,f=f,volfrac=volfrac)
+        export_stl(filename="topoptm", 
+                   nelx=nelx,nely=nely, 
+                   xPhys=xPhys,
+                   volfrac=volfrac)
     return x, obj
-
-def update_stiff(indices,fixed,mask):
-    """
-    Update the indices for the stiffness matrix construction by kicking out
-    the fixed degrees of freedom and renumbering the indices.
-
-    Parameters
-    ----------
-    indices : np.array
-        indices of degrees of freedom used to construct the stiffness matrix.
-    fixed : np.array
-        indices of fixed degrees of freedom.
-    mask : np.array
-        mask to kick out fixed degrees of freedom.
-
-    Returns
-    -------
-    indices : np.arrays
-        updated indices.
-
-    """
-    val, ind = np.unique(indices,return_inverse=True)
-    
-    _mask = ~np.isin(val, fixed)
-    val[_mask] = np.arange(_mask.sum())
-    
-    return val[ind][mask]
 
 def update_spring(inds,fixed,mask):
     """
@@ -311,114 +396,3 @@ def update_spring(inds,fixed,mask):
     inds = inds - np.bincount(np.digitize(fixed, inds))[:inds.shape[0]].cumsum()
     
     return inds
-
-def lk():
-    """
-    Create element stiffness matrix.
-    
-    Returns
-    -------
-    Ke : np.array, shape (8,8)
-        element stiffness matrix.
-        
-    """
-    E = 1
-    nu = 0.3
-    k = np.array([1/2-nu/6, 1/8+nu/8, -1/4-nu/12, -1/8+3*nu /
-                 8, -1/4+nu/12, -1/8-nu/8, nu/6, 1/8-3*nu/8])
-    KE = E/(1-nu**2)*np.array([[k[0], k[1], k[2], k[3], k[4], k[5], k[6], k[7]],
-                               [k[1], k[0], k[7], k[6], k[5], k[4], k[3], k[2]],
-                               [k[2], k[7], k[0], k[5], k[6], k[3], k[4], k[1]],
-                               [k[3], k[6], k[5], k[0], k[7], k[2], k[1], k[4]],
-                               [k[4], k[5], k[6], k[7], k[0], k[1], k[2], k[3]],
-                               [k[5], k[4], k[3], k[2], k[1], k[0], k[7], k[6]],
-                               [k[6], k[3], k[4], k[1], k[2], k[7], k[0], k[5]],
-                               [k[7], k[2], k[1], k[4], k[3], k[6], k[5], k[0]]])
-    return (KE)
-
-def oc(nelx, nely, x, volfrac, dc, dv, g, pass_el):
-    """
-    Optimality criteria method (section 2.2 in paper) for maximum/minimum 
-    stiffness/compliance. Heuristic updating scheme for the element densities 
-    to find the Lagrangian multiplier.
-    Usually more sophisticated methods are used like Sequential Linear/Quadratic
-    Programming or the Method of Moving Asymptotes.
-    
-    Parameters
-    ----------
-    nelx : int
-        number of elements in x direction.
-    nely : int
-        number of elements in y direction.
-    x : np.array, shape (nel)
-        element densities for topology optimization of the current iteration.
-    volfrac : float
-        volume fraction.
-    dc : np.array, shape (nel)
-        gradient of objective function/complicance with respect to element 
-        densities.
-    dv : np.array, shape (nel)
-        gradient of volume constraint with respect to element densities..
-    g : float
-        parameter for the heuristic updating scheme.
-    pass_el : None or np.array 
-        array who contains indices used for un/masking passive elements. 0 
-        means an active element that is part of the optimization, 1 and 2 
-        indicate empty and full elements which are not part of the 
-        optimization.
-
-    Returns
-    -------
-    xnew : np.array, shape (nel)
-        updatet element densities for topology optimization.
-    gt : float
-        updated parameter for the heuristic updating scheme..
-
-    """
-    l1 = 0
-    l2 = 1e9
-    move = 0.1
-    damp = 0.3
-    # reshape to perform vector operations
-    xnew = np.zeros(nelx*nely)
-    while (l2-l1)/(l1+l2) > 1e-4 and l2 > 1e-40:
-        lmid = 0.5*(l2+l1)
-        xnew[:] = np.maximum(0.0, np.maximum(
-            x-move, np.minimum(1.0, np.minimum(x+move, x*np.maximum(1e-10,
-                                                                    -dc/dv/lmid)**damp))))
-        
-        # passive element update
-        if pass_el is not None:
-            xnew[pass_el==1] = 0
-            xnew[pass_el==2] = 1
-        gt = xnew.sum() - volfrac * x.shape[0] #g+np.sum((dv*(xnew-x)))
-        if gt > 0:
-            l1 = lmid
-        else:
-            l2 = lmid
-        
-    return (xnew, gt)
-
-# The real main driver
-if __name__ == "__main__":
-    # Default input parameters
-    nelx = 40
-    nely = 20
-    volfrac = 0.3
-    rmin = 1.2#0.04*nelx  # 5.4
-    penal = 3.0
-    ft = 0 # ft==0 -> sens, ft==1 -> dens
-    import sys
-    if len(sys.argv) > 1:
-        nelx = int(sys.argv[1])
-    if len(sys.argv) > 2:
-        nely = int(sys.argv[2])
-    if len(sys.argv) > 3:
-        volfrac = float(sys.argv[3])
-    if len(sys.argv) > 4:
-        rmin = float(sys.argv[4])
-    if len(sys.argv) > 5:
-        penal = float(sys.argv[5])
-    if len(sys.argv) > 6:
-        ft = int(sys.argv[6])
-    main(nelx, nely, volfrac, penal, rmin, ft, passive=False,pde=False)
