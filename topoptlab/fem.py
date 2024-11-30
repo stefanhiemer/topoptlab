@@ -27,7 +27,7 @@ def update_indices(indices,fixed,mask):
     
     return val[ind][mask]
 
-def lk_linear_elast_2D():
+def lk_linear_elast_2D(E=1,nu=0.3):
     """
     Create element stiffness matrix for 2D linear elasticity with bilinear
     quadratic elements.
@@ -39,11 +39,9 @@ def lk_linear_elast_2D():
         element stiffness matrix.
         
     """
-    E = 1
-    nu = 0.3
     k = np.array([1/2-nu/6, 1/8+nu/8, -1/4-nu/12, -1/8+3*nu /
                  8, -1/4+nu/12, -1/8-nu/8, nu/6, 1/8-3*nu/8])
-    KE = E/(1-nu**2)*np.array([[k[0], k[1], k[2], k[3], k[4], k[5], k[6], k[7]],
+    Ke = E/(1-nu**2)*np.array([[k[0], k[1], k[2], k[3], k[4], k[5], k[6], k[7]],
                                [k[1], k[0], k[7], k[6], k[5], k[4], k[3], k[2]],
                                [k[2], k[7], k[0], k[5], k[6], k[3], k[4], k[1]],
                                [k[3], k[6], k[5], k[0], k[7], k[2], k[1], k[4]],
@@ -51,4 +49,32 @@ def lk_linear_elast_2D():
                                [k[5], k[4], k[3], k[2], k[1], k[0], k[7], k[6]],
                                [k[6], k[3], k[4], k[1], k[2], k[7], k[0], k[5]],
                                [k[7], k[2], k[1], k[4], k[3], k[6], k[5], k[0]]])
-    return (KE)
+    return (Ke)
+
+def lk_Poisson_2D():
+    """
+    Create element stiffness matrix for 2D Poisson with bilinear
+    quadratic elements. Taken from the standard Sigmund textbook.
+    
+    Returns
+    -------
+    Ke : np.array, shape (4,4)
+        element stiffness matrix.
+        
+    """
+    Ke = np.array([[2/3, -1/6, -1/3, -1/6,],
+                   [-1/6, 2/3, -1/6, -1/3],
+                   [-1/3, -1/6, 2/3, -1/6],
+                   [-1/6, -1/3, -1/6, 2/3]])
+    return (Ke)
+
+def lk_screened_Poisson_2D(Rmin):
+    Ke = (Rmin**2) * np.array([[4, -1, -2, -1],
+                                [-1, 4, -1, -2],
+                                [-2, -1, 4, -1],
+                                [-1, -2, -1, 4]])/6 + \
+                     np.array([[4, 2, 1, 2],
+                               [2, 4, 2, 1],
+                               [1, 2, 4, 2],
+                               [2, 1, 2, 4]])/36
+    return (Ke)

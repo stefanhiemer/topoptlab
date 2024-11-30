@@ -11,7 +11,8 @@ from scipy.linalg import cholesky
 from matplotlib.colors import Normalize
 import matplotlib.pyplot as plt
 
-from output_designs import export_vtk
+from topoptlab.output_designs import export_vtk
+from topoptlab.fem import lk_heat_conduction_2D
 
 # MAIN DRIVER
 def main(nelx, nely, volfrac, penal, rmin, ft, 
@@ -70,7 +71,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     xPhys = x.copy()
     g = 0  # must be initialized to use the NGuyen/Paulino OC approach
     # FE: Build the index vectors for the for coo matrix format.
-    KE = lk()
+    KE = lk_heat_conduction_2D()
     elx,ely = np.arange(nelx)[:,None], np.arange(nely)[None,:]
     el = np.arange(nelx*nely)
     n1 = ((nely+1)*elx+ely).flatten()
@@ -284,23 +285,7 @@ def update_indices(indices,fixed,mask):
     _mask = ~np.isin(val, fixed)
     val[_mask] = np.arange(_mask.sum())
     
-    return val[ind][mask]
-
-def lk():
-    """
-    Create element stiffness matrix.
-    
-    Returns
-    -------
-    Ke : np.array, shape (4,4)
-        element stiffness matrix.
-        
-    """
-    KE = np.array([[2/3, -1/6, -1/3, -1/6,],
-                   [-1/6, 2/3, -1/6, -1/3],
-                   [-1/3, -1/6, 2/3, -1/6],
-                   [-1/6, -1/3, -1/6, 2/3]])
-    return (KE)
+    return val[ind][mask] 
 
 def oc(nelx, nely, x, volfrac, dc, dv, g, pass_el):
     """

@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 
 from topoptlab.optimality_criterion import oc_top88
 from topoptlab.output_designs import export_vtk
+from topoptlab.fem import update_indices,lk_screened_Poisson_2D,lk_linear_elast_2D
 
 message = "MMA module not found. Get it from https://github.com/arjendeetman/GCMMA-MMA-Python/tree/master .Copy mma.py in the same directory as this python file."
 try:
@@ -143,7 +144,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     else:
         raise ValueError("Unknown solver: ", solver)
     # FE: Build the index vectors for the for coo matrix format.
-    KE = lk()
+    KE = lk_linear_elast_2D()
     elx,ely = np.arange(nelx)[:,None], np.arange(nely)[None,:]
     el = np.arange(nelx*nely)
     n1 = ((nely+1)*elx+ely).flatten()
@@ -151,8 +152,8 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     edofMat = np.column_stack((2*n1+2, 2*n1+3, 2*n2+2, 2*n2+3, 
                                2*n2, 2*n2+1, 2*n1, 2*n1+1))
     # Construct the index pointers for the coo format
-    iK = np.kron(edofMat, np.ones((8, 1))).flatten()
-    jK = np.kron(edofMat, np.ones((1, 8))).flatten()
+    iK = np.kron(edofMat, np.ones((KE.shape[0], 1))).flatten()
+    jK = np.kron(edofMat, np.ones((1, KE.shape[0]))).flatten()
     # Filter: Build (and assemble) the index+data vectors for the coo matrix format
     if not pde and ft in [0,1]:
         nfilter = int(nelx*nely*((2*(np.ceil(rmin)-1)+1)**2))
@@ -180,14 +181,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         Hs = H.sum(1)
     elif pde and ft in [0,1]:
         Rmin = rmin/(2*np.sqrt(3))
-        KEF = (Rmin**2) * np.array([[4, -1, -2, -1],
-                                    [-1, 4, -1, -2],
-                                    [-2, -1, 4, -1],
-                                    [-1, -2, -1, 4]])/6 + \
-                          np.array([[4, 2, 1, 2],
-                                    [2, 4, 2, 1],
-                                    [1, 2, 4, 2],
-                                    [2, 1, 2, 4]])/36
+        KEF = lk_screened_Poisson_2D(Rmin)
         ndofF = (nelx+1)*(nely+1)
         edofMatF = np.column_stack((n1, n2, n2 +1, n1 +1 ))
         iKF = np.kron(edofMatF, np.ones((4, 1))).flatten()
@@ -478,58 +472,6 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                    xPhys=xPhys,x=x, 
                    u=u,f=f,volfrac=volfrac)
     return x, obj
-
-
-def update_indices(indices,fixed,mask):
-    """
-    Update the indices for the stiffness matrix construction by kicking out
-    the fixed degrees of freedom and renumbering the indices.
-
-    Parameters
-    ----------
-    indices : np.array
-        indices of degrees of freedom used to construct the stiffness matrix.
-    fixed : np.array
-        indices of fixed degrees of freedom.
-    mask : np.array
-        mask to kick out fixed degrees of freedom.
-
-    Returns
-    -------
-    indices : np.arrays
-        updated indices.
-
-    """
-    val, ind = np.unique(indices,return_inverse=True)
-    
-    _mask = ~np.isin(val, fixed)
-    val[_mask] = np.arange(_mask.sum())
-    
-    return val[ind][mask]
-
-def lk():
-    """
-    Create element stiffness matrix.
-    
-    Returns
-    -------
-    Ke : np.array, shape (8,8)
-        element stiffness matrix.
-        
-    """
-    E = 1
-    nu = 0.3
-    k = np.array([1/2-nu/6, 1/8+nu/8, -1/4-nu/12, -1/8+3*nu /
-                 8, -1/4+nu/12, -1/8-nu/8, nu/6, 1/8-3*nu/8])
-    KE = E/(1-nu**2)*np.array([[k[0], k[1], k[2], k[3], k[4], k[5], k[6], k[7]],
-                               [k[1], k[0], k[7], k[6], k[5], k[4], k[3], k[2]],
-                               [k[2], k[7], k[0], k[5], k[6], k[3], k[4], k[1]],
-                               [k[3], k[6], k[5], k[0], k[7], k[2], k[1], k[4]],
-                               [k[4], k[5], k[6], k[7], k[0], k[1], k[2], k[3]],
-                               [k[5], k[4], k[3], k[2], k[1], k[0], k[7], k[6]],
-                               [k[6], k[3], k[4], k[1], k[2], k[7], k[0], k[5]],
-                               [k[7], k[2], k[1], k[4], k[3], k[6], k[5], k[0]]])
-    return (KE)
 
 def update_mma(x,xold1,xold2,xPhys,obj,dc,dv,iteration,
                m,xmin,xmax,low,upp,a0,a,c,d,move):
