@@ -12,7 +12,7 @@ from matplotlib.colors import Normalize
 import matplotlib.pyplot as plt
 
 from topoptlab.output_designs import export_vtk,export_stl,threshold
-from topoptlab.fem import lk_linear_elast_2D, update_indices
+from topoptlab.fem import lk_linear_elast_2d, update_indices
 from topoptlab.optimality_criterion import oc_mechanism
 from topoptlab.mma_utils import update_mma
 
@@ -156,7 +156,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     else:
         raise ValueError("Unknown solver: ", solver)
     # FE: Build the index vectors for the for coo matrix format.
-    KE = lk_linear_elast_2D()
+    KE = lk_linear_elast_2d()
     elx,ely = np.arange(nelx)[:,None], np.arange(nely)[None,:]
     el = np.arange(nelx*nely)
     n1 = ((nely+1)*elx+ely).flatten()

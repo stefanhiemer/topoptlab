@@ -12,7 +12,7 @@ from matplotlib.colors import Normalize
 import matplotlib.pyplot as plt
 
 from topoptlab.output_designs import export_vtk
-from topoptlab.fem import lk_heat_conduction_2D
+from topoptlab.fem import lk_poisson_2d
 
 # MAIN DRIVER
 def main(nelx, nely, volfrac, penal, rmin, ft, 
@@ -71,7 +71,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     xPhys = x.copy()
     g = 0  # must be initialized to use the NGuyen/Paulino OC approach
     # FE: Build the index vectors for the for coo matrix format.
-    KE = lk_heat_conduction_2D()
+    KE = lk_poisson_2d()
     elx,ely = np.arange(nelx)[:,None], np.arange(nely)[None,:]
     el = np.arange(nelx*nely)
     n1 = ((nely+1)*elx+ely).flatten()
@@ -347,32 +347,6 @@ def oc(nelx, nely, x, volfrac, dc, dv, g, pass_el):
             l2 = lmid
         
     return (xnew, gt)
-
-def threshold(xPhys, volfrac):
-    """
-    Threshold grey scale design to black and white design.
-
-    Parameters
-    ----------
-    xPhys : np.array, shape (nel)
-        element densities for topology optimization used for scaling the 
-        material properties. 
-    volfrac : float
-        volume fraction.
-
-    Returns
-    -------
-    xPhys : np.array, shape (nel)
-        thresholded element densities for topology optimization used for scaling the 
-        material properties. 
-
-    """
-    indices = np.flip(np.argsort(xPhys))
-    vt = np.floor(volfrac*xPhys.shape[0]).astype(int)
-    xPhys[indices[:vt]] = 1.
-    xPhys[indices[vt:]] = 0.
-    print("Thresholded Vol.: {0:.3f}".format(vt/xPhys.shape[0]))
-    return xPhys
 
 # The real main driver
 if __name__ == "__main__":

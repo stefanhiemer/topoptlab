@@ -70,6 +70,7 @@ def oc_top88(nelx, nely, x, volfrac, dc, dv, g, pass_el,
             xnew[pass_el==1] = 0
             xnew[pass_el==2] = 1
         gt=g+np.sum((dv*(xnew-x)))
+        #gt = xnew.mean() > volfrac
         if gt > 0:
             l1 = lmid
         else:

@@ -27,5 +27,8 @@ dependencies = ["numpy",
 tests = ['pytest']
 
 [tool.pytest.ini_options]
-addopts = "-v"
+addopts = "-v -m 'not slow'"
 testpaths = ["tests"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]

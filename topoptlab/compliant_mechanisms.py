@@ -12,9 +12,10 @@ from matplotlib.colors import Normalize
 import matplotlib.pyplot as plt
 
 from topoptlab.output_designs import export_vtk,export_stl
-from topoptlab.fem import lk_linear_elast_2D, update_indices
+from topoptlab.fem import lk_linear_elast_2d, update_indices
 from topoptlab.optimality_criterion import oc_mechanism
 from topoptlab.mma_utils import update_mma
+from topoptlab.objectives import var_maximization
 
 from mmapy import gcmmasub,asymp,concheck,raaupdate
 
@@ -157,7 +158,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     else:
         raise ValueError("Unknown solver: ", solver)
     # FE: Build the index vectors for the for coo matrix format.
-    KE = lk_linear_elast_2D()
+    KE = lk_linear_elast_2d()
     elx,ely = np.arange(nelx)[:,None], np.arange(nely)[None,:]
     el = np.arange(nelx*nely)
     n1 = ((nely+1)*elx+ely).flatten()
@@ -256,7 +257,8 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                        labelbottom=False,
                        labelleft=False)
         fig.show()
-    # gradient for the volume constraint is constant regardless of iteration
+    # initialize gradients
+    dc = np.zeros(nelx*nely)
     # optimization loop
     for loop in np.arange(nouteriter):
         # Setup and solve FE problem
@@ -267,11 +269,18 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         K[_din,_din] += kin # 
         K[_dout,_dout] += kout # 
         # Solve systems
-        u[free, :] = spsolve(K, f[free, :])
+        u[free, 0] = spsolve(K, f[free,0])# :])
         # Objective and sensitivity
-        obj = u[dout,0].copy()
-        dc = penal*xPhys**(penal-1)*(Emax-Emin)*(np.dot(u[edofMat,1], KE)*\
-              u[edofMat,0]).sum(1)
+        obj = 0
+        dc[:] = np.zeros(nelx*nely)
+        obj,dc[:] = var_maximization(xPhys=xPhys, u=u[:,0],
+                                     l=-f[:,1], free=free, inds_out=np.array([dout]),
+                                     K=K, KE=KE, edofMat=edofMat,
+                                     Amax=Emax, Amin=Emin, penal=penal,
+                                     obj=obj,dc=dc,f0=None)
+        #obj = u[dout,0].copy()
+        #dc = penal*xPhys**(penal-1)*(Emax-Emin)*(np.dot(u[edofMat,1], KE)*\
+        #      u[edofMat,0]).sum(1)
         # constraints and derivatives/sensitivities of constraints
         constrs = []
         dconstrs = []

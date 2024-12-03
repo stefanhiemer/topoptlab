@@ -27,7 +27,7 @@ def update_indices(indices,fixed,mask):
     
     return val[ind][mask]
 
-def lk_linear_elast_2D(E=1,nu=0.3):
+def lk_linear_elast_2d(E=1,nu=0.3):
     """
     Create element stiffness matrix for 2D linear elasticity with bilinear
     quadratic elements.
@@ -49,9 +49,9 @@ def lk_linear_elast_2D(E=1,nu=0.3):
                                [k[5], k[4], k[3], k[2], k[1], k[0], k[7], k[6]],
                                [k[6], k[3], k[4], k[1], k[2], k[7], k[0], k[5]],
                                [k[7], k[2], k[1], k[4], k[3], k[6], k[5], k[0]]])
-    return (Ke)
+    return Ke
 
-def lk_Poisson_2D():
+def lk_poisson_2d():
     """
     Create element stiffness matrix for 2D Poisson with bilinear
     quadratic elements. Taken from the standard Sigmund textbook.
@@ -66,15 +66,26 @@ def lk_Poisson_2D():
                    [-1/6, 2/3, -1/6, -1/3],
                    [-1/3, -1/6, 2/3, -1/6],
                    [-1/6, -1/3, -1/6, 2/3]])
-    return (Ke)
+    return Ke
 
-def lk_screened_Poisson_2D(Rmin):
-    Ke = (Rmin**2) * np.array([[4, -1, -2, -1],
-                                [-1, 4, -1, -2],
-                                [-2, -1, 4, -1],
-                                [-1, -2, -1, 4]])/6 + \
-                     np.array([[4, 2, 1, 2],
-                               [2, 4, 2, 1],
-                               [1, 2, 4, 2],
-                               [2, 1, 2, 4]])/36
-    return (Ke)
+def lk_screened_poisson_2d(rmin):
+    """
+    Create element stiffness matrix for 2D screened Poisson equation with 
+    bilinear quadratic elements. Taken from the 88 lines code and slightly 
+    modified.
+    
+    Returns
+    -------
+    Ke : np.array, shape (4,4)
+        element stiffness matrix.
+        
+    """
+    Ke = (rmin**2) * np.array([[2/3, -1/6, -1/3, -1/6],
+                               [-1/6, 2/3, -1/6, -1/3],
+                               [-1/3, -1/6, 2/3, -1/6],
+                               [-1/6, -1/3, -1/6, 2/3]]) + \
+                     np.array([[1/9, 1/18, 1/36, 1/18],
+                               [1/18, 1/9, 1/18, 1/36],
+                               [1/36, 1/18, 1/9, 1/18],
+                               [1/18, 1/36, 1/18, 1/9]])
+    return Ke
