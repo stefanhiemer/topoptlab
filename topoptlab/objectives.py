@@ -69,7 +69,7 @@ def var_maximization(xPhys,u,l,free,inds_out,
     free : np.array
         indices of free nodes.
     inds_out : np.array
-        indices of nodes where the displacement is to be maximized.
+        indices of nodes where the displacement is to be maximized. shape (nout)
     K : scipy.sparse matrix/array
         global stiffness matrix of shape (ndof).
     KE : np.array
@@ -114,7 +114,7 @@ def var_maximization(xPhys,u,l,free,inds_out,
                  (u[edofMat,0]-f0[None,:])).sum(1)
     return obj, dc
 
-def var_squarederror(xPhys,u,u0,l,free,inds_out,
+def var_squarederror(xPhys,u,u0,l,free,inds_contr,
                      K,KE,edofMat,
                      Amax,Amin,penal,
                      obj,dc,f0=None):
@@ -129,13 +129,15 @@ def var_squarederror(xPhys,u,u0,l,free,inds_out,
         SIMP densities of shape (nel).
     u : np.array
         state variable (displacement, temperature) of shape (ndof).
+    u0 : np.array
+        value that state variable is supposed to take. shape (ncontr). 
     l : np.array
         indicator vector for state variable of shape (ndof). Is 1 at output 
         nodes.
     free : np.array
         indices of free nodes.
-    inds_out : np.array
-        indices of nodes where the displacement is to be maximized.
+    inds_contr : np.array
+        indices of nodes where the displacement is to be controlled.
     K : scipy.sparse matrix/array
         global stiffness matrix of shape (ndof).
     KE : np.array
@@ -168,10 +170,10 @@ def var_squarederror(xPhys,u,u0,l,free,inds_out,
 
     """
     raise NotImplementedError()
-    obj += u[inds_out].sum()
+    obj += ((u[inds_contr] - u0)**2).sum()
     # solve adjoint problem
     h = np.zeros(l.shape)
-    h[free] = spsolve(K, -l[free])
+    h[free] = spsolve(K, (-2)*l[free]*(u[inds_contr]-u0).sum())
     #
     if f0 is None:
         dc[:] += penal*xPhys**(penal-1)*(Amax-Amin)*(np.dot(h[edofMat], KE)*\
