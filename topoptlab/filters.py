@@ -1,7 +1,182 @@
 import numpy as np
-from scipy.sparse import csc_array
+from scipy.sparse import csc_array,coo_matrix
+from scipy.optimize import minimize
 
-def find_eta(eta,xTilde,beta,volfrac):
+from topoptlab.fem import lk_screened_poisson_2d
+
+def assemble_matrix_filter(nelx,nely,rmin,el = None):
+    """
+    Assemble distance based filters as sparse matrix that is applied on to
+    densities/sensitivities by standard multiplication.
+    
+    Parameters
+    ----------
+    nelx : int
+        number of elements in x direction.
+    nely : int
+        number of elements in y direction.
+    volfrac : float
+        volume fraction. 
+    rmin : float
+        cutoff radius for the filter. Only elements within the element-center 
+        to element center distance are used for filtering. 
+    el: np.ndarray or None
+        sorted array of element indices.
+
+    Returns
+    -------
+    H : csc matrix
+        unnormalized filter.
+    Hs : np matrix
+        normalization factor.
+
+    """
+    
+    if el is None:
+        el = np.arange(nelx*nely)
+    
+    nfilter = int(nelx*nely*((2*(np.ceil(rmin)-1)+1)**2))
+    iH = np.zeros(nfilter)
+    jH = np.zeros(nfilter)
+    sH = np.zeros(nfilter)
+    i = np.floor(el/nely)
+    j = el%nely
+    kk1 = np.maximum(i-(np.ceil(rmin)-1), 0).astype(int)
+    kk2 = np.minimum(i+np.ceil(rmin), nelx).astype(int)
+    ll1 = np.maximum(j-(np.ceil(rmin)-1), 0).astype(int)
+    ll2 = np.minimum(j+np.ceil(rmin), nely).astype(int)
+    n_neigh = (kk2-kk1)*(ll2-ll1)
+    el,i,j = np.repeat(el, n_neigh),np.repeat(i, n_neigh),np.repeat(j, n_neigh)
+    cc = np.arange(el.shape[0])
+    k,l = np.hstack([np.stack([a.flatten() for a in \
+                     np.meshgrid(np.arange(k1,k2),np.arange(l1,l2))]) \
+                     for k1,k2,l1,l2 in zip(kk1,kk2,ll1,ll2)])
+    fac = rmin-np.sqrt(((i-k)**2+(j-l)**2))
+    iH[cc] = el # row
+    jH[cc] = k*nely+l #column
+    sH[cc] = np.maximum(0.0, fac)
+    # Finalize assembly and convert to csc format
+    H = coo_matrix((sH, (iH, jH)), shape=(nelx*nely, nelx*nely)).tocsc()
+    Hs = H.sum(1)
+    return H,Hs
+
+def assemble_helmholtz_filter(nelx,nely,rmin,
+                              el=None,n1=None,n2=None):
+    """
+    Assemble Helmholtz PDE based filter from "Efficient topology optimization 
+    in MATLAB using 88 lines of code".
+    
+    Parameters
+    ----------
+    nelx : int
+        number of elements in x direction.
+    nely : int
+        number of elements in y direction.
+    volfrac : float
+        volume fraction. 
+    rmin : float
+        cutoff radius for the filter. Only elements within the element-center 
+        to element center distance are used for filtering. 
+    el : np.ndarray or None
+        sorted array of element indices.
+    n1 : np.ndarray or None
+        index array to help constructing the stiffness matrix.
+    n2 : np.ndarray or None
+        index array to help constructing the stiffness matrix.
+
+    Returns
+    -------
+    KF : csc matrix
+        stiffness matrix.
+    TF : csc matrix
+        mapping (or in this special case averaging) operator that maps element
+        densities to nodes and its inverse maps nodal densities back to the 
+        elements.
+
+    """
+    # element indices
+    if el is None:
+        el = np.arange(nelx*nely)
+    # 
+    if n1 is None:
+        elx,ely = np.arange(nelx)[:,None], np.arange(nely)[None,:]
+        n1 = ((nely+1)*elx+ely).flatten()
+        n2 = ((nely+1)*(elx+1)+ely).flatten()
+    # conversion of filter radius via 1D Green's function
+    Rmin = rmin/(2*np.sqrt(3))
+    #
+    KEF = lk_screened_poisson_2d(Rmin)
+    ndofF = (nelx+1)*(nely+1)
+    edofMatF = np.column_stack((n1, n2, n2 +1, n1 +1 ))
+    iKF = np.kron(edofMatF, np.ones((4, 1))).flatten()
+    jKF = np.kron(edofMatF, np.ones((1, 4))).flatten()
+    sKF = np.tile(KEF.flatten(),nelx*nely)
+    KF = coo_matrix((sKF, (iKF, jKF)), shape=(ndofF, ndofF)).tocsc()
+    #LF = coo_matrix(cholesky(KF.toarray(),lower=True)).tocsc()
+    #LU = splu(KF)
+    iTF = edofMatF.flatten(order='F')
+    jTF = np.tile(el, 4)
+    sTF = np.full(4*nelx*nely,1/4)
+    TF = coo_matrix((sTF, (iTF, jTF)), shape=(ndofF,nelx*nely)).tocsc()
+    return KF,TF
+
+def find_eta(eta0,xTilde,beta,volfrac):
+    """
+    Find volume preserving eta for the relaxed Haeviside projection similar to 
+    what has been done in 
+    
+    Xu S, Cai Y, Cheng G (2010) Volume preserving nonlinear density filter based on Heaviside functions. Struct Multidiscip Optim 41:495–505
+    
+    Parameters
+    ----------
+    eta0 : float
+        initial guess for threshold value.
+    beta : np.ndarray
+        sharpness factor. The higher the more we approach the Haeviside 
+        function which si recovered in the limit of beta to infinity
+    rmin : float
+        filter radius. 
+    volfrac : float
+        volume fraction. 
+
+    Returns
+    -------
+    eta : float
+        unnormalized filter.
+
+    """
+    result = minimize(_eta_residual, x0=eta0,
+                      bounds=[[0., 1.]], 
+                      method='Nelder-Mead',jac=True,tol=1e-10,
+                      args=(xTilde,beta,volfrac))
+    if result.success:
+        return result.x
+    else:
+        raise ValueError("volume conserving eta could not be found: ",result)
+
+def _eta_residual(eta,xTilde,beta,volfrac):
+    """
+    Residual for findined the volume preserving eta for the relaxed Haeviside 
+    projection.
+    
+    Parameters
+    ----------
+    eta0 : float
+        initial guess for threshold value.
+    beta : np.ndarray
+        sharpness factor. The higher the more we approach the Haeviside 
+        function which si recovered in the limit of beta to infinity
+    rmin : float
+        filter radius. 
+    volfrac : float
+        volume fraction. 
+
+    Returns
+    -------
+    eta : float
+        unnormalized filter.
+
+    """
     # Calculate the expression for given eta
     xPhys = (np.tanh(beta * eta) + np.tanh(beta * (xTilde - eta))) / \
            (np.tanh(beta * eta) + np.tanh(beta * (1 - eta)))

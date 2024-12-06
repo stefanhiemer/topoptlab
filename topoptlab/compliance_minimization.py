@@ -11,10 +11,12 @@ from matplotlib.colors import Normalize
 import matplotlib.pyplot as plt
 
 from topoptlab.optimality_criterion import oc_top88
+from topoptlab.filters import assemble_matrix_filter,assemble_helmholtz_filter
 from topoptlab.output_designs import export_vtk
-from topoptlab.fem import update_indices,lk_screened_poisson_2d,lk_linear_elast_2d
+from topoptlab.fem import update_indices,lk_linear_elast_2d
 from topoptlab.objectives import compliance
 from topoptlab.example_cases import mbb_2d
+
 
 message = "MMA module not found. Get it from https://github.com/arjendeetman/GCMMA-MMA-Python/tree/master .Copy mma.py in the same directory as this python file."
 try:
@@ -25,7 +27,7 @@ except ModuleNotFoundError:
 
 # MAIN DRIVER
 def main(nelx, nely, volfrac, penal, rmin, ft, 
-         pde=False, passive=False, 
+         filter_mode="matrix", passive=False, 
          solver="oc", nouteriter=2000, ninneriter=15,
          bcs=mbb_2d,
          display=True,export=True,write_log=True,
@@ -50,8 +52,11 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     ft : int
         integer flag for the filter. 0 sensitivity filtering, 
         1 density filtering, -1 no filter.
-    pde: boolean
-        if true, Helmholtz filter is used
+    filter_mode: str
+        indicates how filtering is done. Possible values are "matrix" or 
+        "helmholtz". If "matrix", then density/sensitivity filters are 
+        implemented via a sparse matrix and applied by multiplying 
+        said matrix with the densities/sensitivities.
     passive: boolean
         if true, passive elements to form a cricle are created.
     solver: str
@@ -92,8 +97,13 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         logging.info(f"Minimum compliance problem with {solver}")
         logging.info(f"nodes: {nelx} x {nely}")
         logging.info(f"volfrac: {volfrac}, rmin: {rmin},  penal: {penal}")
-        logging.info("Filter method: " + ["Sensitivity based", "Density based",
-                                          "No filter"][ft])
+        logging.info("Filter: " + ["Sensitivity based", 
+                                   "Density based",
+                                   "Haeviside Guest",
+                                   "Haeviside complement Sigmund 2007",
+                                   "Haeviside eta projection",
+                                   "Volume Preserving eta projection",
+                                   "No filter"][ft])
     # Max and min Young's modulus
     Emin = 1e-9
     Emax = 1.0
@@ -164,51 +174,17 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     iK = np.kron(edofMat, np.ones((KE.shape[0], 1))).flatten()
     jK = np.kron(edofMat, np.ones((1, KE.shape[0]))).flatten()
     # Filter: Build (and assemble) the index+data vectors for the coo matrix format
-    if not pde and ft in [0,1]:
-        nfilter = int(nelx*nely*((2*(np.ceil(rmin)-1)+1)**2))
-        iH = np.zeros(nfilter)
-        jH = np.zeros(nfilter)
-        sH = np.zeros(nfilter)
-        i = np.floor(el/nely)
-        j = el%nely
-        kk1 = np.maximum(i-(np.ceil(rmin)-1), 0).astype(int)
-        kk2 = np.minimum(i+np.ceil(rmin), nelx).astype(int)
-        ll1 = np.maximum(j-(np.ceil(rmin)-1), 0).astype(int)
-        ll2 = np.minimum(j+np.ceil(rmin), nely).astype(int)
-        n_neigh = (kk2-kk1)*(ll2-ll1)
-        el,i,j = np.repeat(el, n_neigh),np.repeat(i, n_neigh),np.repeat(j, n_neigh)
-        cc = np.arange(el.shape[0])
-        k,l = np.hstack([np.stack([a.flatten() for a in \
-                         np.meshgrid(np.arange(k1,k2),np.arange(l1,l2))]) \
-                         for k1,k2,l1,l2 in zip(kk1,kk2,ll1,ll2)])
-        fac = rmin-np.sqrt(((i-k)**2+(j-l)**2))
-        iH[cc] = el # row
-        jH[cc] = k*nely+l #column
-        sH[cc] = np.maximum(0.0, fac)
-        # Finalize assembly and convert to csc format
-        H = coo_matrix((sH, (iH, jH)), shape=(nelx*nely, nelx*nely)).tocsc()
-        Hs = H.sum(1)
-    elif pde and ft in [0,1]:
-        Rmin = rmin/(2*np.sqrt(3))
-        KEF = lk_screened_poisson_2d(Rmin)
-        ndofF = (nelx+1)*(nely+1)
-        edofMatF = np.column_stack((n1, n2, n2 +1, n1 +1 ))
-        iKF = np.kron(edofMatF, np.ones((4, 1))).flatten()
-        jKF = np.kron(edofMatF, np.ones((1, 4))).flatten()
-        sKF = np.tile(KEF.flatten(),nelx*nely)
-        KF = coo_matrix((sKF, (iKF, jKF)), shape=(ndofF, ndofF)).tocsc()
-        #LF = coo_matrix(cholesky(KF.toarray(),lower=True)).tocsc()
-        #LU = splu(KF)
-        iTF = edofMatF.flatten(order='F')
-        jTF = np.tile(el, 4)
-        sTF = np.full(4*nelx*nely,1/4)
-        TF = coo_matrix((sTF, (iTF, jTF)), shape=(ndofF,nelx*nely)).tocsc()
+    if filter_mode == "matrix" and ft in [0,1]:
+        H,Hs = assemble_matrix_filter(nelx=nelx,nely=nely,rmin=rmin,el=el)
+    elif filter_mode == "helmholtz" and ft in [0,1]:
+        KF,TF = assemble_helmholtz_filter(nelx=nelx,nely=nely,rmin=rmin,
+                                          el=el,n1=n1,n2=n2)
     # BC's and support
     u,f,fixed,free = bcs(nelx=nelx,nely=nely,ndof=ndof)
     # get rid of fixed degrees of freedom from stiffness matrix 
     mask = ~(np.isin(iK,fixed) | np.isin(jK,fixed))
-    #
-    iK,jK = update_indices(iK, fixed, mask),update_indices(jK, fixed, mask)
+    iK = update_indices(iK, fixed, mask)
+    jK = update_indices(jK, fixed, mask)
     ndof_free = ndof - fixed.shape[0]
     # passive elements
     if passive:
@@ -275,23 +251,23 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                    np.max(dc),
                    np.min(dv)))
         # Sensitivity filtering:
-        if ft == 0 and not pde:
+        if ft == 0 and filter_mode == "matrix":
             dc[:] = np.asarray((H*(x*dc))[np.newaxis].T /
                                Hs)[:, 0] / np.maximum(0.001, x)
         # solve KF y = TF@(dc*xPhys), dc_updated = TF.T @ y
-        elif ft == 0 and pde:
+        elif ft == 0 and filter_mode == "helmholtz":
             #dc[:] = (TF.T@spsolve_triangular(LF.T, 
             #                (spsolve_triangular(LF,TF@(dc*xPhys))),
             #                lower=False)) \
             #         /np.maximum(0.001, x)
             #dc[:] = TF.T @ LU.solve(TF@(dc*xPhys))/np.maximum(0.001, x)
             dc[:] = TF.T @ spsolve(KF,TF@(dc*xPhys))/np.maximum(0.001, x)
-        elif ft == 1 and not pde:
+        elif ft == 1 and filter_mode == "matrix":
             dc[:] = np.asarray(H*(dc[np.newaxis].T/Hs))[:, 0]
             dv[:] = np.asarray(H*(dv[np.newaxis].T/Hs))[:, 0]
         # solve KF y = TF@dc, dc_updated = TF.T @ y
         # solve KF z = TF@dv, dv_updated = TF.T @ z
-        elif ft == 1 and pde:
+        elif ft == 1 and filter_mode == "helmholtz":
             #dc[:] = TF.T @ spsolve_triangular(LF.T, 
             #                                  (spsolve_triangular(LF, TF@dc)),
             #                                  lower=False)
@@ -345,9 +321,9 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             # Filter design variables
             if ft == 0:
                 xPhys[:] = xmma.copy().flatten()
-            elif ft == 1 and not pde:
+            elif ft == 1 and filter_mode == "matrix":
                 xPhys[:] = np.asarray(H*xmma.copy().flatten()[np.newaxis].T/Hs)[:, 0]
-            elif ft == 1 and pde:
+            elif ft == 1 and filter_mode == "helmholtz":
                 #xPhys[:] = TF.T @ spsolve_triangular(LF.T, 
                 #                                     (spsolve_triangular(LF, TF@x)),
                 #                                     lower=False)
@@ -397,9 +373,9 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                     # Filter design variables
                     if ft == 0:
                         xPhys[:] = xmma.copy().flatten()
-                    elif ft == 1 and not pde:
+                    elif ft == 1 and filter_mode == "matrix":
                         xPhys[:] = np.asarray(H*xmma.copy().flatten()[np.newaxis].T/Hs)[:, 0]
-                    elif ft == 1 and pde:
+                    elif ft == 1 and filter_mode == "helmholtz":
                         #xPhys[:] = TF.T @ spsolve_triangular(LF.T, 
                         #                                     (spsolve_triangular(LF, TF@x)),
                         #                                     lower=False)
@@ -448,9 +424,9 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         # Filter design variables
         if ft == 0:
             xPhys[:] = x
-        elif ft == 1 and not pde:
+        elif ft == 1 and filter_mode == "matrix":
             xPhys[:] = np.asarray(H*x[np.newaxis].T/Hs)[:, 0]
-        elif ft == 1 and pde:
+        elif ft == 1 and filter_mode == "helmholtz":
             #xPhys[:] = TF.T @ spsolve_triangular(LF.T, 
             #                                     (spsolve_triangular(LF, TF@x)),
             #                                     lower=False)
@@ -468,6 +444,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             im.set_array(-xPhys.reshape((nelx, nely)).T)
             fig.canvas.draw()
             plt.pause(0.01)
+        plt.savefig(fname=f"snapshot-{loop}.png",format="png",bbox_inches="tight")
         # Write iteration history to screen (req. Python 2.6 or newer)
         if write_log: 
             logging.info("it.: {0} , obj.: {1:.10f} Vol.: {2:.10f}, ch.: {3:.10f}".format(

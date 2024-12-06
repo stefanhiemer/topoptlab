@@ -68,12 +68,12 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     """
     if write_log:
         # check if log file exists and if true delete
-        if isfile("topoptm.log"):
-            remove("topoptm.log")
+        if isfile("folding.log"):
+            remove("folding.log")
         logging.basicConfig(level=logging.INFO,
                         format='%(message)s',
                         handlers=[
-                            logging.FileHandler("topoptm.log"),
+                            logging.FileHandler("folding.log"),
                             logging.StreamHandler()])
         #
         logging.info("Compliant mechanism problem with OC")
@@ -398,13 +398,13 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         input("Press any key...")
     if export:
         #
-        export_vtk(filename="topoptm", 
+        export_vtk(filename="folding", 
                    nelx=nelx,nely=nely, 
                    xPhys=xPhys,x=x, 
                    u=u,f=f,
                    u_bw=u_bw,f_bw=f_bw,
                    volfrac=volfrac)
-        export_stl(filename="topoptm", 
+        export_stl(filename="folding", 
                    nelx=nelx,nely=nely, 
                    xPhys=xPhys,
                    volfrac=volfrac)
@@ -432,15 +432,3 @@ def update_spring(inds,fixed,mask):
     inds = inds - np.bincount(np.digitize(fixed, inds))[:inds.shape[0]].cumsum()
     
     return inds
-
-if __name__ == "__main__":
-    # Default input parameters
-    nelx = 600
-    nely = int(nelx/10)
-    volfrac = 0.4
-    rmin = 5.0#0.04*nelx  # 5.4
-    penal = 5.0
-    ft = 1 # ft==0 -> sens, ft==1 -> dens
-    main(nelx=nelx, nely=nely, volfrac=volfrac, penal=penal, rmin=rmin, 
-         ft=ft, passive=2,pde=False,solver="oc",
-         nouteriter=100)

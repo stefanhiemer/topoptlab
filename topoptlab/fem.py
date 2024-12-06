@@ -29,9 +29,15 @@ def update_indices(indices,fixed,mask):
 
 def lk_linear_elast_2d(E=1,nu=0.3):
     """
-    Create element stiffness matrix for 2D linear elasticity with bilinear
-    quadratic elements.
+    Create element stiffness matrix for 2D isotropic linear elasticity with 
+    bilinear quadratic elements. (plain strain but need to check)
     
+    Parameters
+    ----------
+    E : float
+        Young's modulus.
+    nu : float
+        Poisson' ratio.
     
     Returns
     -------
@@ -74,6 +80,11 @@ def lk_screened_poisson_2d(rmin):
     bilinear quadratic elements. Taken from the 88 lines code and slightly 
     modified.
     
+    Parameters
+    ----------
+    rmin : float
+        filter radius.
+        
     Returns
     -------
     Ke : np.array, shape (4,4)

@@ -1,21 +1,69 @@
 import numpy as np
 
 def mbb_2d(nelx,nely,ndof):
+    """
+    This is the standard case from the 88 line code paper.
     
+    Parameters
+    ----------
+    nelx : int
+        number of elements in x direction.
+    nely : int
+        number of elements in y direction.
+    ndof : int
+        number of degrees of freedom.
+
+    Returns
+    -------
+    u : np.ndarray
+        array of zeros for state variable (displacement, temperature) to be 
+        filled of shape (ndof).
+    f : np.ndarray
+        array of zeros for state flow variables (forces, flow).
+    fixed : np.ndarray
+        indices of fixed dofs (nfixed).
+    free : np.ndarray
+        indices of free dofs (ndofs - nfixed).
+
+    """
     #
     dofs = np.arange(ndof)
     # Solution and RHS vectors
     f = np.zeros((ndof, 1))
     u = np.zeros((ndof, 1))
     # symmetry bc (fix x displacements to zero)
-    fixed = np.hstack((np.arange(0,2*(nely+1),2),#dofs[0:2*(nely+1):2], # symmetry 
+    fixed = np.hstack((np.arange(0,2*(nely+1),2), # symmetry 
                        np.array([2*(nelx+1)*(nely+1)-1]))) # fixation bottom right
     # force pushing down at left top
     f[1, 0] = -1
     return u,f,fixed,np.setdiff1d(dofs, fixed)
 
 def cantilever_2d(nelx,nely,ndof):
+    """
+    This is the corrected example 5.1 from the 88 line code paper.
     
+    Parameters
+    ----------
+    nelx : int
+        number of elements in x direction.
+    nely : int
+        number of elements in y direction.
+    ndof : int
+        number of degrees of freedom.
+
+    Returns
+    -------
+    u : np.ndarray
+        array of zeros for state variable (displacement, temperature) to be 
+        filled of shape (ndof).
+    f : np.ndarray
+        array of zeros for state flow variables (forces, flow).
+    fixed : np.ndarray
+        indices of fixed dofs (nfixed).
+    free : np.ndarray
+        indices of free dofs (ndofs - nfixed).
+
+    """
     #
     dofs = np.arange(ndof)
     # Solution and RHS vectors
@@ -29,9 +77,7 @@ def cantilever_2d(nelx,nely,ndof):
 
 def cantilever_2d_twoloads(nelx,nely,ndof):
     """
-    This is the example 5.1 from the 88 line code paper. It is actually wrong
-    as it misses out on fixing the last dof in y direction on the left wall. It
-    is here purely for testing.
+    This is the corrected example 5.2 from the 88 line code paper.
     
     Parameters
     ----------
@@ -44,7 +90,15 @@ def cantilever_2d_twoloads(nelx,nely,ndof):
 
     Returns
     -------
-    None.
+    u : np.ndarray
+        array of zeros for state variable (displacement, temperature) to be 
+        filled of shape (ndof).
+    f : np.ndarray
+        array of zeros for state flow variables (forces, flow).
+    fixed : np.ndarray
+        indices of fixed dofs (nfixed).
+    free : np.ndarray
+        indices of free dofs (ndofs - nfixed).
 
     """
     #
@@ -62,7 +116,7 @@ def cantilever_2d_twoloads(nelx,nely,ndof):
 
 def cantilever_2d_twoloads_wrong(nelx,nely,ndof):
     """
-    This is the example 5.1 from the 88 line code paper. It is actually wrong
+    This is the example 5.2 from the 88 line code paper. It is actually wrong
     as it misses out on fixing the last dof in y direction on the left wall. It
     is here purely for testing.
     
@@ -77,7 +131,15 @@ def cantilever_2d_twoloads_wrong(nelx,nely,ndof):
 
     Returns
     -------
-    None.
+    u : np.ndarray
+        array of zeros for state variable (displacement, temperature) to be 
+        filled of shape (ndof).
+    f : np.ndarray
+        array of zeros for state flow variables (forces, flow).
+    fixed : np.ndarray
+        indices of fixed dofs (nfixed).
+    free : np.ndarray
+        indices of free dofs (ndofs - nfixed).
 
     """
     #
@@ -110,7 +172,15 @@ def cantilever_2d_wrong(nelx,nely,ndof):
 
     Returns
     -------
-    None.
+    u : np.ndarray
+        array of zeros for state variable (displacement, temperature) to be 
+        filled of shape (ndof).
+    f : np.ndarray
+        array of zeros for state flow variables (forces, flow).
+    fixed : np.ndarray
+        indices of fixed dofs (nfixed).
+    free : np.ndarray
+        indices of free dofs (ndofs - nfixed).
 
     """
     
