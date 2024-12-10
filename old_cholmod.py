@@ -138,7 +138,7 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
 
 	# Make sure the plot stays and that the shell remains	
 	plt.show()
-	raw_input("Press any key...")
+	input("Press any key...")
     
 #element stiffness matrix
 def lk():

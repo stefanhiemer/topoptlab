@@ -27,9 +27,10 @@ except ModuleNotFoundError:
 
 # MAIN DRIVER
 def main(nelx, nely, volfrac, penal, rmin, ft, 
-         filter_mode="matrix", passive=False, 
-         solver="oc", nouteriter=2000, ninneriter=15,
+         filter_mode="matrix",
          bcs=mbb_2d,
+         el_flags=None,
+         solver="oc", nouteriter=2000, ninneriter=15,
          display=True,export=True,write_log=True,
          debug=0):
     """
@@ -52,13 +53,17 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     ft : int
         integer flag for the filter. 0 sensitivity filtering, 
         1 density filtering, -1 no filter.
-    filter_mode: str
+    filter_mode : str
         indicates how filtering is done. Possible values are "matrix" or 
         "helmholtz". If "matrix", then density/sensitivity filters are 
         implemented via a sparse matrix and applied by multiplying 
         said matrix with the densities/sensitivities.
-    passive: boolean
-        if true, passive elements to form a cricle are created.
+    bcs : str or function
+        returns the boundary conditions
+    el_flags : np.ndarray or None
+        array of flags/integers that switch behaviour of specific elements. 
+        Currently 1 marks the element as passive (zero at all times), while 2
+        marks it as active (1 at all time).
     solver: str
         solver options which are "oc", "mma" and "gcmma" for the optimality 
         criteria method, the method of moving asymptotes and the globally 
@@ -67,8 +72,6 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         number of total TO iterations
     ninneriter: int
         number of inner iterations for GCMMA
-    bcs : str or function
-        returns the boundary conditions
     display : bool
         if True, plot design evolution to screen
     export : bool
@@ -186,14 +189,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     iK = update_indices(iK, fixed, mask)
     jK = update_indices(jK, fixed, mask)
     ndof_free = ndof - fixed.shape[0]
-    # passive elements
-    if passive:
-        el = np.arange(nelx*nely)
-        i = np.floor(el/nely)
-        j = el%nely
-        pass_el = np.sqrt((j+1-nely/2)**2 + (i+1-nelx/3)**2) < nely/3
-    else:
-        pass_el = None
+    # passive elements 
     if display:
         # Initialize plot and plot the initial design
         plt.ion()  # Ensure that redrawing is possible
@@ -289,7 +285,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         xold[:] = x
         # optimality criteria
         if solver=="oc":
-            (x[:], g) = oc_top88(nelx, nely, x, volfrac, dc, dv, g, pass_el)
+            (x[:], g) = oc_top88(nelx, nely, x, volfrac, dc, dv, g, el_flags)
         # method of moving asymptotes, implementation by Arjen Deetman
         elif solver=="mma":
             xval = x.copy()[np.newaxis].T
@@ -444,7 +440,6 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             im.set_array(-xPhys.reshape((nelx, nely)).T)
             fig.canvas.draw()
             plt.pause(0.01)
-        plt.savefig(fname=f"snapshot-{loop}.png",format="png",bbox_inches="tight")
         # Write iteration history to screen (req. Python 2.6 or newer)
         if write_log: 
             logging.info("it.: {0} , obj.: {1:.10f} Vol.: {2:.10f}, ch.: {3:.10f}".format(

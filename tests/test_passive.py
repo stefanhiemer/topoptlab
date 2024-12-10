@@ -4,6 +4,7 @@ import pytest
 
 from topoptlab.compliance_minimization import main
 from topoptlab.example_cases import cantilever_2d,cantilever_2d_wrong 
+from topoptlab.geometries import sphere
 
 @pytest.mark.parametrize('nelx, nely, volfrac, ft, rmin, filter_mode, bcs, obj_ref',
                          [(60,20,0.5,0,2.4,"matrix",cantilever_2d,221.9720563724)])
@@ -14,8 +15,12 @@ def test_compliance_1(nelx, nely, volfrac, ft, rmin, filter_mode, bcs, obj_ref):
     slow tests in same file.
     """
     #
+    center = (nelx/3 - 1, nely/2 - 1)
+    radius = nely/3
+    pass_el = sphere(nelx, nely, center, radius)
+    #
     x, obj = main(nelx=nelx, nely=nely, volfrac=volfrac, penal=3.0, rmin=rmin, ft=ft, 
-                  passive=True,filter_mode=filter_mode,solver="oc",
+                  el_flags=pass_el,filter_mode=filter_mode,solver="oc",
                   bcs=bcs,
                   display=False,export=False,write_log=False)
     #
@@ -32,8 +37,12 @@ def test_compliance_2(nelx, nely, volfrac, ft, rmin, filter_mode, bcs, obj_ref):
     slow tests in same file.
     """
     #
+    center = (nelx/3 - 1, nely/2 - 1)
+    radius = nely/3
+    pass_el = sphere(nelx, nely, center, radius)
+    #
     x, obj = main(nelx=nelx, nely=nely, volfrac=volfrac, penal=3.0, rmin=rmin, ft=ft, 
-                  passive=True,filter_mode=filter_mode,solver="oc",
+                  el_flags=pass_el,filter_mode=filter_mode,solver="oc",
                   bcs=bcs,
                   display=False,export=False,write_log=False)
     #

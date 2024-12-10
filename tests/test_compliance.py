@@ -20,7 +20,7 @@ def test_compliance_1(nelx, nely, volfrac, ft, rmin, filter_mode, bcs, obj_ref):
     """
     #
     x, obj = main(nelx=nelx, nely=nely, volfrac=volfrac, penal=3.0, rmin=rmin, ft=ft, 
-                  passive=False,filter_mode=filter_mode,solver="oc",
+                  filter_mode=filter_mode,solver="oc",
                   bcs=bcs,
                   display=False,export=False,write_log=False)
     #
@@ -39,7 +39,7 @@ def test_compliance_2(nelx, nely, volfrac, ft, rmin, filter_mode, bcs, obj_ref):
     """
     #
     x, obj = main(nelx=nelx, nely=nely, volfrac=volfrac, penal=3.0, rmin=rmin, ft=ft, 
-                  passive=False,filter_mode=filter_mode,solver="oc",
+                  filter_mode=filter_mode,solver="oc",
                   bcs=bcs,
                   display=False,export=False,write_log=False)
     #

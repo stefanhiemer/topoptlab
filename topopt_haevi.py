@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 from topoptlab.output_designs import export_vtk
 from topoptlab.filters import find_eta
 from topoptlab.optimality_criterion import oc_haevi
-from topoptlab.fem import lk_linear_elast_2D,update_indices
+from topoptlab.fem import lk_linear_elast_2d,update_indices
 
 from mmapy import mmasub,gcmmasub,asymp,concheck,raaupdate
     
@@ -105,15 +105,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         if ft in [4]: 
             eta = 0.5
         elif ft in [5]:
-            result = minimize(find_eta, x0=0.5,
-                              bounds=[[0., 1.]], 
-                              method='Nelder-Mead',jac=True,tol=1e-10,
-                              args=(xTilde,beta,volfrac))
-            if result.success:
-                eta = result.x
-            else:
-                raise ValueError("volume conserving eta could not be found")
-            eta = 0.5
+            eta = find_eta(0.5, xTilde, beta, volfrac) 
         xPhys = (np.tanh(beta*eta)+np.tanh(beta*(xTilde - eta)))/\
                 (np.tanh(beta*eta)+np.tanh(beta*(1-eta)))
     # initialize solver
@@ -171,7 +163,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     else:
         raise ValueError("Unknown solver: ", solver)
     # FE: Build the index vectors for the for coo matrix format.
-    KE = lk_linear_elast_2D()
+    KE = lk_linear_elast_2d()
     elx,ely = np.arange(nelx)[:,None], np.arange(nely)[None,:]
     el = np.arange(nelx*nely)
     n1 = ((nely+1)*elx+ely).flatten()
@@ -511,14 +503,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             xPhys[:] = TF.T @ spsolve(KF,TF@x)
         elif ft in [5]:
             xTilde = np.asarray(H*x[np.newaxis].T/Hs)[:, 0]
-            result = minimize(find_eta, x0=eta,
-                              bounds=[[0., 1.]], 
-                              method='Nelder-Mead',jac=True,tol=1e-10,
-                              args=(xTilde,beta,volfrac))
-            if result.success :
-                eta = result.x
-            else:
-                raise ValueError("volume conserving eta could not be found: ",result)
+            eta = find_eta(eta, xTilde, beta, volfrac)
             xPhys = (np.tanh(beta*eta)+np.tanh(beta * (xTilde - eta)))/\
                     (np.tanh(beta*eta)+np.tanh(beta*(1-eta)))
         # Compute the change by the inf. norm
@@ -601,7 +586,7 @@ if __name__ == "__main__":
         ft = int(sys.argv[6])
     try:
         main(nelx, nely, volfrac, penal, rmin, ft, 
-             passive=False,pde=False,solver="oc",
+             passive=False,pde=False,solver="mma",
              nouteriter=2000,
              ninneriter=0,
              debug=False)

@@ -7,7 +7,7 @@ from topoptlab.filters import AMfilter
 projections = [2,3,4,5]
 filters = [0,1]
 
-def oc_top88(nelx, nely, x, volfrac, dc, dv, g, pass_el,
+def oc_top88(nelx, nely, x, volfrac, dc, dv, g, el_flags,
              move=0.2, l1=0.,l2=1e9):
     """
     Optimality criteria method (section 2.2 in top88 paper) for maximum/minimum 
@@ -37,11 +37,10 @@ def oc_top88(nelx, nely, x, volfrac, dc, dv, g, pass_el,
         gradient of volume constraint with respect to element densities..
     g : float
         parameter for the heuristic updating scheme.
-    pass_el : None or np.array 
-        array who contains indices used for un/masking passive elements. 0 
-        means an active element that is part of the optimization, 1 and 2 
-        indicate empty and full elements which are not part of the 
-        optimization.
+    el_flags : np.ndarray or None
+        array of flags/integers that switch behaviour of specific elements. 
+        Currently 1 marks the element as passive (zero at all times), while 2
+        marks it as active (1 at all time).
     move: float
         maximum change allowed in the density of a single element.
     l1: float
@@ -66,9 +65,9 @@ def oc_top88(nelx, nely, x, volfrac, dc, dv, g, pass_el,
             x-move, np.minimum(1.0, np.minimum(x+move, x*np.sqrt(-dc/dv/lmid)))))
         
         # passive element update
-        if pass_el is not None:
-            xnew[pass_el==1] = 0
-            xnew[pass_el==2] = 1
+        if el_flags is not None:
+            xnew[el_flags==1] = 0
+            xnew[el_flags==2] = 1
         gt=g+np.sum((dv*(xnew-x)))
         #gt = xnew.mean() > volfrac
         if gt > 0:

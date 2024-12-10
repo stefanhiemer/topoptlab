@@ -7,7 +7,7 @@ optimized for tasks like topology optimization while Python is a general
 purpose language, so you will likely see slower performance here than in 
 equivalent Matlab scripts.
 
-## Installation
+# Installation
 Basic installation and run tests by exectuing
 ```
 pip install .[tests]
@@ -16,6 +16,16 @@ in top directory. Editable installation (recommended if you want to edit
 something in the code) 
 ```
 pip install -e .[tests]
+```
+
+# Run tests
+Run fast tests (finish in under one minute)
+```
+pytest
+```
+Run slow tests (take a few minutes)
+```
+pytest -m slow
 ```
 
 # Things left to do:
@@ -41,7 +51,7 @@ features in topopt.py
 - [ ] include Globally Convergent Method of Moving symptotes (GCMMA)
 - [ ] FEM with PETSC
 - [ ] algebraic multigrid (AMG)
-- [ ] global stress constraints
+- [ ] stress constraints
 - [ ] get rid of strange indexing for density/sensitivity filter
 - [ ] kick out from __future__ import division
 - [ ] np.union1d for setting up K is expensive. check if necessary.

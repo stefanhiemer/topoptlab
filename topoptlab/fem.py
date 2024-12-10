@@ -16,7 +16,7 @@ def update_indices(indices,fixed,mask):
 
     Returns
     -------
-    indices : np.arrays
+    indices : np.ndarray
         updated indices.
 
     """
@@ -30,7 +30,7 @@ def update_indices(indices,fixed,mask):
 def lk_linear_elast_2d(E=1,nu=0.3):
     """
     Create element stiffness matrix for 2D isotropic linear elasticity with 
-    bilinear quadratic elements. (plain strain but need to check)
+    bilinear quadratic elements.
     
     Parameters
     ----------
@@ -41,7 +41,7 @@ def lk_linear_elast_2d(E=1,nu=0.3):
     
     Returns
     -------
-    Ke : np.array, shape (8,8)
+    Ke : np.ndarray, shape (8,8)
         element stiffness matrix.
         
     """
@@ -64,7 +64,7 @@ def lk_poisson_2d():
     
     Returns
     -------
-    Ke : np.array, shape (4,4)
+    Ke : np.ndarray, shape (4,4)
         element stiffness matrix.
         
     """
@@ -87,7 +87,7 @@ def lk_screened_poisson_2d(rmin):
         
     Returns
     -------
-    Ke : np.array, shape (4,4)
+    Ke : np.ndarray, shape (4,4)
         element stiffness matrix.
         
     """
@@ -100,3 +100,53 @@ def lk_screened_poisson_2d(rmin):
                                [1/36, 1/18, 1/9, 1/18],
                                [1/18, 1/36, 1/18, 1/9]])
     return Ke
+
+def shape_functions_bilinquad(x,y):
+    """
+    Shape functions for quadratic bilinear element. Coordinates bounded in 
+    [0,1].
+    
+    Parameters
+    ----------
+    x : np.ndarray
+        x coordinate of shape (ncoords).
+    y : np.ndarray
+        y coordinate of shape (ncoords).
+        
+    Returns
+    -------
+    shape_functions : np.ndarray, shape (4)
+        element stiffness matrix.
+        
+    """
+    return np.array([(1-x)*(1-y),
+                     (1+x)*(1-y),
+                     (1+x)*(1+y),
+                     (1-x)*(1+y)])
+
+def interpolate_2d(ue,x,y,
+                   shape_functions=shape_functions_bilinquad):
+    """
+    Interpolate state variable in each element.
+    
+    Parameters
+    ----------
+    ue : np.ndarray
+        shape (nels,nedof).
+    x : np.ndarray
+        x coordinate of shape (nels).
+    y : np.ndarray
+        y coordinate of shape (ncoords).
+        
+    Returns
+    -------
+    u : np.ndarray, shape (nels,nnodedof)
+        interpolated state variable.
+        
+    """
+    interpolation = shape_functions(x,y)
+    nshapef = interpolation.shape[1] 
+    nnodedof = int(ue.shape[1]/nshapef)
+    u = ue * np.repeat(interpolation, nnodedof)[None,:]
+    u = u.dot(np.tile(np.eye(nnodedof),(nshapef,1)))
+    return u

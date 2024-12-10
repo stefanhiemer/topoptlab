@@ -120,8 +120,8 @@ def var_squarederror(xPhys,u,u0,l,free,inds_contr,
                      obj,dc,f0=None):
     """
     Update objective and gradient for forcing a state variable to a specific 
-    values at certain points. The mechanic version of this is the compliant mechanism 
-    with maximized displacement.
+    values at certain points. The mechanic version of this is the compliant 
+    mechanism with controlled displacement.
 
     Parameters
     ----------
