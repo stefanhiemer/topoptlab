@@ -1,5 +1,36 @@
 import numpy as np
 
+def create_edofMat(nelx,nely,nnode_dof):
+    """
+    Create element degree of freedom matrix for bilinear elements.
+    
+    Parameters
+    ----------
+    nelx : int
+        number of elements in x direction.
+    nely : int
+        number of elements in y direction.
+    nnode_dof : int
+        number of node degrees of freedom.    
+
+    Returns
+    -------
+    edofMat : np.ndarray
+        element degree of freedom matrix
+    n1 : np.ndarray or None
+        index array to help constructing the stiffness matrix.
+    n2 : np.ndarray or None
+        index array to help constructing the stiffness matrix.
+    """
+    # create arrays for indexing
+    elx,ely = np.arange(nelx)[:,None], np.arange(nely)[None,:]
+    n1 = ((nely+1)*elx+ely).flatten()
+    n2 = ((nely+1)*(elx+1)+ely).flatten()
+    # 
+    edofMat = np.repeat(np.column_stack((n1+1, n2+1, n2, n1))*nnode_dof,nnode_dof,axis=1) 
+    edofMat = edofMat + np.tile(np.arange(nnode_dof),4)[None,:]
+    return edofMat, n1, n2
+
 def update_indices(indices,fixed,mask):
     """
     Update the indices for the stiffness matrix construction by kicking out

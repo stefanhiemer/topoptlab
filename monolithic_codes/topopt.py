@@ -1,5 +1,5 @@
 # A 165 LINE TOPOLOGY OPTIMIZATION CODE BY NIELS AAGE AND VILLADS EGEDE JOHANSEN, JANUARY 2013
-from __future__ import division
+# minor modifications by Stefan Hiemer (January 2025)
 import numpy as np
 from scipy.sparse import coo_matrix
 from scipy.sparse.linalg import spsolve
@@ -59,7 +59,8 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
     Hs = H.sum(1)
     # BC's and support
     dofs=np.arange(2*(nelx+1)*(nely+1))
-    fixed=np.union1d(dofs[0:2*(nely+1):2],np.array([2*(nelx+1)*(nely+1)-1]))
+    fixed = np.hstack((np.arange(0,2*(nely+1),2), # symmetry 
+                       np.array([2*(nelx+1)*(nely+1)-1]))) # fixation bottom right
     free=np.setdiff1d(dofs,fixed)
     # Solution and RHS vectors
     f=np.zeros((ndof,1))
@@ -106,12 +107,14 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
             dv[:] = np.asarray(H*(dv[np.newaxis].T/Hs))[:,0]
         # Optimality criteria
         xold[:]=x
-        (x[:],g)=oc(nelx,nely,x,volfrac,dc,dv,g)
+        x[:],g=oc(nelx,nely,x,volfrac,dc,dv,g)
         # Filter design variables
-        if ft==0:   xPhys[:]=x
-        elif ft==1:    xPhys[:]=np.asarray(H*x[np.newaxis].T/Hs)[:,0]
+        if ft==0:   
+            xPhys[:]=x
+        elif ft==1:    
+            xPhys[:]=np.asarray(H*x[np.newaxis].T/Hs)[:,0]
         # Compute the change by the inf. norm
-        change=np.linalg.norm(x.reshape(nelx*nely,1)-xold.reshape(nelx*nely,1),np.inf)
+        change=(x.reshape(nelx*nely,1)-xold.reshape(nelx*nely,1)).max()
         # Plot to screen
         im.set_array(-xPhys.reshape((nelx,nely)).T)
         fig.canvas.draw()
@@ -122,6 +125,7 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
     # Make sure the plot stays and that the shell remains    
     plt.show()
     input("Press any key...")
+    return
 #element stiffness matrix
 def lk():
     E=1
@@ -135,7 +139,7 @@ def lk():
     [k[5], k[4], k[3], k[2], k[1], k[0], k[7], k[6]],
     [k[6], k[3], k[4], k[1], k[2], k[7], k[0], k[5]],
     [k[7], k[2], k[1], k[4], k[3], k[6], k[5], k[0]] ]);
-    return (KE)
+    return KE
 # Optimality criterion
 def oc(nelx,nely,x,volfrac,dc,dv,g):
     l1=0
@@ -151,14 +155,14 @@ def oc(nelx,nely,x,volfrac,dc,dv,g):
             l1=lmid
         else:
             l2=lmid
-    return (xnew,gt)
+    return xnew,gt
 # The real main driver    
 if __name__ == "__main__":
     # Default input parameters
-    nelx=180
-    nely=60
-    volfrac=0.4
-    rmin=5.4
+    nelx=60
+    nely=20
+    volfrac=0.5
+    rmin=2.4
     penal=3.0
     ft=1 # ft==0 -> sens, ft==1 -> dens
     import sys

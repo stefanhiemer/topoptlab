@@ -13,17 +13,10 @@ import matplotlib.pyplot as plt
 from topoptlab.optimality_criterion import oc_top88
 from topoptlab.filters import assemble_matrix_filter,assemble_helmholtz_filter
 from topoptlab.output_designs import export_vtk
-from topoptlab.fem import update_indices,lk_linear_elast_2d
+from topoptlab.fem import update_indices,lk_linear_elast_2d,create_edofMat
 from topoptlab.objectives import compliance
 from topoptlab.example_cases import mbb_2d
-
-
-message = "MMA module not found. Get it from https://github.com/arjendeetman/GCMMA-MMA-Python/tree/master .Copy mma.py in the same directory as this python file."
-try:
-    from mmapy import mmasub,gcmmasub,asymp,concheck,raaupdate
-except ModuleNotFoundError:
-    raise ModuleNotFoundError(message)
-    
+from topoptlab.mma_utils import update_mma 
 
 # MAIN DRIVER
 def main(nelx, nely, volfrac, penal, rmin, ft, 
@@ -110,8 +103,6 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     # Max and min Young's modulus
     Emin = 1e-9
     Emax = 1.0
-    # dofs:
-    ndof = 2*(nelx+1)*(nely+1)
     # Allocate design variables (as array), initialize and allocate sens.
     x = volfrac * np.ones(nely*nelx, dtype=float)
     xold = x.copy()
@@ -166,13 +157,10 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     else:
         raise ValueError("Unknown solver: ", solver)
     # FE: Build the index vectors for the for coo matrix format.
+    ndof = 2*(nelx+1)*(nely+1)
     KE = lk_linear_elast_2d()
-    elx,ely = np.arange(nelx)[:,None], np.arange(nely)[None,:]
     el = np.arange(nelx*nely)
-    n1 = ((nely+1)*elx+ely).flatten()
-    n2 = ((nely+1)*(elx+1)+ely).flatten()
-    edofMat = np.column_stack((2*n1+2, 2*n1+3, 2*n2+2, 2*n2+3, 
-                               2*n2, 2*n2+1, 2*n1, 2*n1+1))
+    edofMat, n1, n2 = create_edofMat(nelx,nely,nnode_dof=int(KE.shape[0]/4))
     # Construct the index pointers for the coo format
     iK = np.kron(edofMat, np.ones((KE.shape[0], 1))).flatten()
     jK = np.kron(edofMat, np.ones((1, KE.shape[0]))).flatten()
@@ -296,123 +284,6 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             x = xmma.copy().flatten()
         # globally convergent method of moving asymptotes, implementation by 
         # Arjen Deetman
-        elif solver=="gcmma":
-            mu0 = 1.0 # Scale factor for objective function
-            mu1 = 1.0 # Scale factor for volume constraint function
-            f0val = mu0*obj 
-            df0dx = mu0*dc[np.newaxis].T
-            fval = mu1*np.array([[xPhys.sum()/x.shape[0]-volfrac]])
-            dfdx = mu1*(dv/(x.shape[0]*volfrac))[np.newaxis]
-            xval = x.copy()[np.newaxis].T
-            #
-            low,upp,raa0,raa= \
-                  asymp(loop,x.shape[0],xval,xold1,xold2,xmin,xmax,low,upp,
-                        raa0,raa,raa0eps,raaeps,df0dx,dfdx)
-            xmma,ymma,zmma,lam,xsi,eta,mu,zet,s,f0app,fapp= \
-                  gcmmasub(m,x.shape[0],loop,epsimin,xval,xmin,xmax,low,upp,
-                           raa0,raa,f0val,df0dx,fval,dfdx,a0,a,c,d)
-            # calculate objective- and constraint function values
-            # constraint functions at point xmma ( optimal solution of 
-            # the subproblem).
-            # Filter design variables
-            if ft == 0:
-                xPhys[:] = xmma.copy().flatten()
-            elif ft == 1 and filter_mode == "matrix":
-                xPhys[:] = np.asarray(H*xmma.copy().flatten()[np.newaxis].T/Hs)[:, 0]
-            elif ft == 1 and filter_mode == "helmholtz":
-                #xPhys[:] = TF.T @ spsolve_triangular(LF.T, 
-                #                                     (spsolve_triangular(LF, TF@x)),
-                #                                     lower=False)
-                #xPhys[:] = TF.T @ LU.solve(TF@x)
-                xPhys[:] = TF.T @ spsolve(KF,TF@xmma.copy().flatten())
-            elif ft == -1:
-                xPhys[:]  = xmma.copy().flatten()
-            # Setup and solve FE problem
-            sK = (KE.flatten()[:,None]*(Emin+(xPhys)
-                  ** penal*(Emax-Emin))).flatten(order='F')[mask]
-            K = coo_matrix((sK, (iK, jK)), shape=(ndof_free, ndof_free)).tocsc()
-            # Remove constrained dofs from matrix
-            #K = K[free, :][:, free]
-            # Solve system(s)
-            if u.shape[1] == 1:
-                u[free, 0] = spsolve(K, f[free, 0])
-            else:
-                u[free, :] = spsolve(K, f[free, :])
-            # Objective and sensitivity
-            obj = 0
-            for i in np.arange(f.shape[1]):
-                #ce = (np.dot(u[edofMat,i].reshape(nelx*nely, KE.shape[0]), KE)
-                #         * u[edofMat,i].reshape(nelx*nely, KE.shape[0])).sum(1)
-                ui = u[:,i]
-                ce = (np.dot(ui[edofMat].reshape(nelx*nely, KE.shape[0]), KE)
-                         * ui[edofMat].reshape(nelx*nely, KE.shape[0])).sum(1)
-                obj += ((Emin+xPhys**penal*(Emax-Emin))*ce).sum()
-            # constraint
-            constr = xPhys.mean() - volfrac
-            # check if approximations conservative
-            conserv = concheck(m,epsimin,f0app,obj,fapp,constr)
-            # inner iterations
-            if conserv == 0:
-                for innerit in np.arange(ninneriter):
-                    # update raa0 and raa
-                    raa0,raa = raaupdate(xmma,xval,xmin,xmax,low,upp,
-                                         obj,constr,f0app,fapp,raa0, 
-                                         raa,raa0eps,raaeps,epsimin)
-                    # solve subproblem with new raa0 and raa:
-                    xmma,ymma,zmma,lam,xsi,eta,mu,zet,s,f0app,fapp = gcmmasub(m,
-                                                    x.shape[0],loop,epsimin,xval,xmin, 
-                                                    xmax,low,upp,raa0,raa,f0val,
-                                                    df0dx,fval,dfdx,a0,a,c,d)
-                    # calculate objective- and constraint function values
-                    # constraint functions at point xmma ( optimal solution of 
-                    # the subproblem).
-                    # Filter design variables
-                    if ft == 0:
-                        xPhys[:] = xmma.copy().flatten()
-                    elif ft == 1 and filter_mode == "matrix":
-                        xPhys[:] = np.asarray(H*xmma.copy().flatten()[np.newaxis].T/Hs)[:, 0]
-                    elif ft == 1 and filter_mode == "helmholtz":
-                        #xPhys[:] = TF.T @ spsolve_triangular(LF.T, 
-                        #                                     (spsolve_triangular(LF, TF@x)),
-                        #                                     lower=False)
-                        #xPhys[:] = TF.T @ LU.solve(TF@x)
-                        xPhys[:] = TF.T @ spsolve(KF,TF@xmma.copy().flatten())
-                    elif ft == -1:
-                        xPhys[:]  = xmma.copy().flatten()
-                    # Setup and solve FE problem
-                    sK = (KE.flatten()[:,None]*(Emin+(xPhys)
-                          ** penal*(Emax-Emin))).flatten(order='F')[mask]
-                    K = coo_matrix((sK, (iK, jK)), shape=(ndof_free, ndof_free)).tocsc()
-                    # Remove constrained dofs from matrix
-                    #K = K[free, :][:, free]
-                    # Solve system(s)
-                    if u.shape[1] == 1:
-                        u[free, 0] = spsolve(K, f[free, 0])
-                    else:
-                        u[free, :] = spsolve(K, f[free, :])
-                    # objective function
-                    obj = 0
-                    for i in np.arange(f.shape[1]):
-                        #ce = (np.dot(u[edofMat,i].reshape(nelx*nely, KE.shape[0]), KE)
-                        #         * u[edofMat,i].reshape(nelx*nely, KE.shape[0])).sum(1)
-                        ui = u[:,i]
-                        ce = (np.dot(ui[edofMat].reshape(nelx*nely, KE.shape[0]), KE)
-                                 * ui[edofMat].reshape(nelx*nely, KE.shape[0])).sum(1)
-                        obj += ((Emin+xPhys**penal*(Emax-Emin))*ce).sum()
-                    # constraint
-                    constr = xPhys.mean() - volfrac
-                    # It is checked if the approximations have become conservative:
-                    conserv = concheck(m,epsimin,f0app,obj,fapp,constr)
-                    if conserv:
-                        break
-            # calculate gradients/sensitivity
-            dc = 0
-            for i in np.arange(f.shape[1]):
-                dc -= penal*xPhys**(penal-1)*(Emax-Emin)*ce
-            #
-            xold2 = xold1.copy()
-            xold1 = xval.copy()
-            x = xmma.copy().flatten()
         #
         if debug:
             print("Post Density Update: it.: {0}, max. dc: {1:.10f}, min. dv {2:.10f}, med. x.: {3:.10f}, med. xTilde: {4:.10f}, med. xPhys: {5:.10f}".format(
@@ -457,22 +328,4 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                    nelx=nelx,nely=nely, 
                    xPhys=xPhys,x=x, 
                    u=u,f=f,volfrac=volfrac)
-    return x, obj
-
-def update_mma(x,xold1,xold2,xPhys,obj,dc,dv,iteration,
-               m,xmin,xmax,low,upp,a0,a,c,d,move):
-    mu0 = 1.0 # Scale factor for objective function
-    mu1 = 1.0 # Scale factor for volume constraint function
-    f0val = mu0*obj 
-    df0dx = mu0*dc[np.newaxis].T
-    fval = mu1*np.array([[xPhys.mean()-volfrac]])
-    dfdx = mu1*(dv/(x.shape[0]*volfrac))[np.newaxis]
-    xval = x.copy()[np.newaxis].T 
-    #print(f0val.shape)
-    #print(df0dx.shape)
-    #print(fval.shape)
-    #print(dfdx.shape)
-    #print(xval.shape)
-    #raise ValueError
-    return mmasub(m,x.shape[0],iteration,xval,xmin,xmax,xold1,xold2,f0val,df0dx,
-                  fval,dfdx,low,upp,a0,a,c,d,move)
+    return x, obj 

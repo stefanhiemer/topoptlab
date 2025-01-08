@@ -12,13 +12,13 @@ def compliance(xPhys,u,KE,edofMat,
 
     Parameters
     ----------
-    xPhys : np.array
+    xPhys : np.ndarray
         SIMP densities of shape (nel).
-    u : np.array
+    u : np.ndarray
         state variable (displacement, temperature) of shape (ndof).
-    KE : np.array
+    KE : np.ndarray
         element stiffness matrix of shape (nedof).
-    edofMat : np.array
+    edofMat : np.ndarray
         element degree of freedom matrix of shape (nel,nedof)
     Amax : float
         maximum value for material property A
@@ -59,22 +59,22 @@ def var_maximization(xPhys,u,l,free,inds_out,
 
     Parameters
     ----------
-    xPhys : np.array
+    xPhys : np.ndarray
         SIMP densities of shape (nel).
-    u : np.array
+    u : np.ndarray
         state variable (displacement, temperature) of shape (ndof).
-    l : np.array
+    l : np.ndarray
         indicator vector for state variable of shape (ndof). Is 1 at output 
         nodes.
-    free : np.array
+    free : np.ndarray
         indices of free nodes.
-    inds_out : np.array
+    inds_out : np.ndarray
         indices of nodes where the displacement is to be maximized. shape (nout)
     K : scipy.sparse matrix/array
         global stiffness matrix of shape (ndof).
-    KE : np.array
+    KE : np.ndarray
         element stiffness matrix of shape (nedof).
-    edofMat : np.array
+    edofMat : np.ndarray
         element degree of freedom matrix of shape (nel,nedof)
     Amax : float
         maximum value for material property A
@@ -88,7 +88,7 @@ def var_maximization(xPhys,u,l,free,inds_out,
     dc : np.ndarray
         sensitivities/gradients of design variables with regards to objective 
         function. shape (ndesign)
-    f0: np.array
+    f0: np.ndarray
         if system is subjected to an affine transformation causing the loads, 
         this is the resulting load for an element of density one. shape (nedof)
 
@@ -125,24 +125,24 @@ def var_squarederror(xPhys,u,u0,l,free,inds_contr,
 
     Parameters
     ----------
-    xPhys : np.array
+    xPhys : np.ndarray
         SIMP densities of shape (nel).
-    u : np.array
+    u : np.ndarray
         state variable (displacement, temperature) of shape (ndof).
-    u0 : np.array
+    u0 : np.ndarray
         value that state variable is supposed to take. shape (ncontr). 
-    l : np.array
+    l : np.ndarray
         indicator vector for state variable of shape (ndof). Is 1 at output 
         nodes.
-    free : np.array
+    free : np.ndarray
         indices of free nodes.
-    inds_contr : np.array
+    inds_contr : np.ndarray
         indices of nodes where the displacement is to be controlled.
     K : scipy.sparse matrix/array
         global stiffness matrix of shape (ndof).
-    KE : np.array
+    KE : np.ndarray
         element stiffness matrix of shape (nedof).
-    edofMat : np.array
+    edofMat : np.ndarray
         element degree of freedom matrix of shape (nel,nedof)
     Amax : float
         maximum value for material property A
@@ -156,7 +156,7 @@ def var_squarederror(xPhys,u,u0,l,free,inds_contr,
     dc : np.ndarray
         sensitivities/gradients of design variables with regards to objective 
         function. shape (ndesign)
-    f0: np.array
+    f0: np.ndarray
         if system is subjected to an affine transformation causing the loads, 
         this is the resulting load for an element of density one. shape (nedof)
 

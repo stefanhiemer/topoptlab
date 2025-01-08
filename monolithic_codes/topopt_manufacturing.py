@@ -111,15 +111,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         if ft in [4]: 
             eta = 0.5
         elif ft in [5]:
-            result = minimize(find_eta, x0=0.5,
-                              bounds=[[0., 1.]], 
-                              method='Nelder-Mead',jac=True,tol=1e-10,
-                              args=(xTilde,beta,volfrac))
-            if result.success:
-                eta = result.x
-            else:
-                raise ValueError("volume conserving eta could not be found")
-            eta = 0.5
+            eta = find_eta(0.5, xTilde, beta, volfrac)
         xPhys = (np.tanh(beta*eta)+np.tanh(beta*(xTilde - eta)))/\
                 (np.tanh(beta*eta)+np.tanh(beta*(1-eta)))
     # additive manufacturing filter by Langelaar
@@ -615,14 +607,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         elif ft in [5]:
             xTilde = np.asarray(H*x[np.newaxis].T/Hs)[:, 0]
             # get volume preserving eta
-            result = minimize(find_eta, x0=eta,
-                              bounds=[[0., 1.]], 
-                              method='Nelder-Mead',jac=True,tol=1e-10,
-                              args=(xTilde,beta,volfrac))
-            if result.success :
-                eta = result.x
-            else:
-                raise ValueError("volume conserving eta could not be found: ",result)
+            eta = find_eta(eta, xTilde, beta, volfrac)
             xPhys = (np.tanh(beta*eta)+np.tanh(beta * (xTilde - eta)))/\
                     (np.tanh(beta*eta)+np.tanh(beta*(1-eta)))
         elif ft in [7]:
