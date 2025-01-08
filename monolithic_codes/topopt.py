@@ -7,6 +7,32 @@ from matplotlib import colors
 import matplotlib.pyplot as plt
 # MAIN DRIVER
 def main(nelx,nely,volfrac,penal,rmin,ft):
+    """
+    Topology optimization for maximum stiffness with the SIMP method based on 
+    the default direct solver of scipy sparse.
+    
+    Parameters
+    ----------
+    nelx : int
+        number of elements in x direction.
+    nely : int
+        number of elements in y direction.
+    volfrac : float
+        volume fraction.
+    penal : float
+        penalty exponent for the SIMP method.
+    rmin : float
+        cutoff radius for the filter. Only elements within the element-center 
+        to element center distance are used for filtering.
+    ft : int
+        integer flag for the filter. 0 sensitivity filtering, 
+        1 density filtering, -1 no filter.
+
+    Returns
+    -------
+    None.
+
+    """
     print("Minimum compliance problem with OC")
     print("ndes: " + str(nelx) + " x " + str(nely))
     print("volfrac: " + str(volfrac) + ", rmin: " + str(rmin) + ", penal: " + str(penal))
