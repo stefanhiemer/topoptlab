@@ -37,28 +37,31 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
     print("ndes: " + str(nelx) + " x " + str(nely))
     print("volfrac: " + str(volfrac) + ", rmin: " + str(rmin) + ", penal: " + str(penal))
     print("Filter method: " + ["Sensitivity based","Density based"][ft])
-    # Max and min stiffness
-    Emin=1e-9
-    Emax=1.0
+    # Max and min heat conduction
+    kmin = 1e-2
+    kmax = 1.0
+    dt = 1 # 1/(4 * kmax) is like a lower bound
+    nsteps = 100
     # dofs:
-    ndof = 2*(nelx+1)*(nely+1)
+    ndof = (nelx+1)*(nely+1)
     # Allocate design variables (as array), initialize and allocate sens.
     x=volfrac * np.ones(nely*nelx,dtype=float)
     xold=x.copy()
     xPhys=x.copy()
     g=0 # must be initialized to use the NGuyen/Paulino OC approach
     dc=np.zeros((nely,nelx), dtype=float)
+    # build stiffness matrix
     # FE: Build the index vectors for the for coo matrix format.
     KE = lk()
+    ME = lm()
     elx,ely = np.arange(nelx)[:,None], np.arange(nely)[None,:]
     el = np.arange(nelx*nely)
     n1 = ((nely+1)*elx+ely).flatten()
     n2 = ((nely+1)*(elx+1)+ely).flatten()
-    edofMat = np.column_stack((2*n1+2, 2*n1+3, 2*n2+2, 2*n2+3, 
-                               2*n2, 2*n2+1, 2*n1, 2*n1+1))
+    edofMat = np.column_stack((n1+1, n2+1, n2, n1))
     # Construct the index pointers for the coo format
-    iK = np.kron(edofMat, np.ones((8, 1))).flatten()
-    jK = np.kron(edofMat, np.ones((1, 8))).flatten()   
+    iE = np.kron(edofMat, np.ones((4, 1))).flatten()
+    jE = np.kron(edofMat, np.ones((1, 4))).flatten()
     # Filter: Build (and assemble) the index+data vectors for the coo matrix format
     nfilter = int(nelx*nely*((2*(np.ceil(rmin)-1)+1)**2))
     iH = np.zeros(nfilter)
@@ -83,28 +86,32 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
     # Finalize assembly and convert to csc format
     H = coo_matrix((sH, (iH, jH)), shape=(nelx*nely, nelx*nely)).tocsc()
     Hs = H.sum(1)
-    # BC's and support
-    dofs=np.arange(2*(nelx+1)*(nely+1))
-    fixed = np.hstack((np.arange(0,2*(nely+1),2), # symmetry 
-                       np.array([2*(nelx+1)*(nely+1)-1]))) # fixation bottom right
-    free=np.setdiff1d(dofs,fixed)
+    # BC's
+    dofs = np.arange(ndof)
+    # heat sink
+    fixed = []
+    #fixed = np.arange(int(nely / 2 + 1 - nely / 20), 
+    #                  int(nely / 2 + 1 + nely / 20) + 1)
+    # general
+    free = np.setdiff1d(dofs, fixed)
     # Solution and RHS vectors
-    f=np.zeros((ndof,1))
-    u=np.zeros((ndof,1))
-    # Set load
-    f[1,0]=-1
+    f = np.zeros((ndof, nsteps))
+    u = np.zeros((ndof, nsteps+1))
+    # load/source
+    u[0,0] = 100
+    #f[:, 0] = -1 # constant source
     # Initialize plot and plot the initial design
-    plt.ion() # Ensure that redrawing is possible
-    fig,ax = plt.subplots()
-    im = ax.imshow(-xPhys.reshape((nelx,nely)).T, cmap='gray',\
-                   interpolation='none',norm=colors.Normalize(vmin=-1,vmax=0))
-    ax.tick_params(axis='both',
-                   which='both',
-                   bottom=False,
-                   left=False,
-                   labelbottom=False,
-                   labelleft=False)
-    fig.show()
+    #plt.ion() # Ensure that redrawing is possible
+    #fig,ax = plt.subplots()
+    #im = ax.imshow(-xPhys.reshape((nelx,nely)).T, cmap='gray',\
+    #               interpolation='none',norm=colors.Normalize(vmin=-1,vmax=0))
+    #ax.tick_params(axis='both',
+    #               which='both',
+    #               bottom=False,
+    #               left=False,
+    #               labelbottom=False,
+    #               labelleft=False)
+    #fig.show()
     # Set loop counter and gradient vectors 
     loop=0
     change=1
@@ -113,17 +120,44 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
     ce = np.ones(nely*nelx)
     while change>0.01 and loop<2000:
         loop=loop+1
-        # Setup and solve FE problem
-        sK=((KE.flatten()[np.newaxis]).T*(Emin+(xPhys)**penal*(Emax-Emin))).flatten(order='F')
-        K = coo_matrix((sK,(iK,jK)),shape=(ndof,ndof)).tocsc()
+        # Setup stiffness and mass matrix
+        sK=((KE.flatten()[:,None])*(kmin+(xPhys)\
+                **penal*(kmax-kmin))).flatten(order='F')
+        K = coo_matrix((sK,(iE,jE)),shape=(ndof,ndof)).tocsc()
+        sM = sK=((ME.flatten()[np.newaxis]).T*(xPhys**penal)).flatten(order='F')
+        M = coo_matrix((sM,(iE,jE)),shape=(ndof,ndof)).tocsc()
         # Remove constrained dofs from matrix
         K = K[free,:][:,free]
-        # Solve system 
-        u[free,0]=spsolve(K,f[free,0])    
+        M = M[free,:][:,free]
+        # Solve system
+        """
+        plt.ion()
+        fig,ax = plt.subplots()
+        im = ax.imshow(u[:,0].reshape((nelx+1,nely+1)).T, cmap='gray',\
+                       interpolation='none',
+                       norm=colors.LogNorm(vmin=u[:,0].min(),vmax=u[:,0].max()))
+        ax.tick_params(axis='both',
+                       which='both',
+                       bottom=False,
+                       left=False,
+                       labelbottom=False,
+                       labelleft=False)
+        #fig.show()
+        """
+        for nt in np.arange(1,nsteps+1):
+            u[free,nt]=spsolve(M/dt + K,
+                               f[free,nt-1] + (M/dt).dot(u[free,nt-1]))
+            #im.set_array(u[:,nt].reshape((nelx+1,nely+1)).T+1e-6)
+            #fig.canvas.draw()
+            #plt.pause(0.01)
         # Objective and sensitivity
-        ce[:] = (np.dot(u[edofMat].reshape(nelx*nely,8),KE) * u[edofMat].reshape(nelx*nely,8) ).sum(1)
-        obj=( (Emin+xPhys**penal*(Emax-Emin))*ce ).sum()
-        dc[:]=(-penal*xPhys**(penal-1)*(Emax-Emin))*ce
+        ce[:] = 0
+        for nt in np.arange(1,nsteps+1):
+            ce[:] = ce[:] + (np.dot(u[edofMat,nt].reshape(nelx*nely,4),KE) * \
+                                    u[edofMat,nt].reshape(nelx*nely,4) ).sum(1)
+        obj=( (kmin+xPhys**penal*(kmax-kmin))*ce ).sum()
+        break
+        dc[:]=(-penal*xPhys**(penal-1)*(kmax-kmin))*ce
         dv[:] = np.ones(nely*nelx)
         # Sensitivity filtering:
         if ft==0:
@@ -146,27 +180,24 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
         fig.canvas.draw()
         plt.pause(0.01)
         # Write iteration history to screen (req. Python 2.6 or newer)
-        print("it.: {0} , obj.: {1:.3f} Vol.: {2:.3f}, ch.: {3:.3f}".format(\
-                    loop,obj,(g+volfrac*nelx*nely)/(nelx*nely),change))
+        print("it.: {0} , obj.: {1:.3f} Vol.: {2:.3f}, ch.: {3:.3f}"\
+              .format(loop,obj,(g+volfrac*nelx*nely)/(nelx*nely),change))
     # Make sure the plot stays and that the shell remains    
     plt.show()
     input("Press any key...")
     return
 #element stiffness matrix
 def lk():
-    E=1
-    nu=0.3
-    k=np.array([1/2-nu/6,1/8+nu/8,-1/4-nu/12,-1/8+3*nu/8,
-                -1/4+nu/12,-1/8-nu/8,nu/6,1/8-3*nu/8])
-    KE = E/(1-nu**2)*np.array([[k[0], k[1], k[2], k[3], k[4], k[5], k[6], k[7]],
-                               [k[1], k[0], k[7], k[6], k[5], k[4], k[3], k[2]],
-                               [k[2], k[7], k[0], k[5], k[6], k[3], k[4], k[1]],
-                               [k[3], k[6], k[5], k[0], k[7], k[2], k[1], k[4]],
-                               [k[4], k[5], k[6], k[7], k[0], k[1], k[2], k[3]],
-                               [k[5], k[4], k[3], k[2], k[1], k[0], k[7], k[6]],
-                               [k[6], k[3], k[4], k[1], k[2], k[7], k[0], k[5]],
-                               [k[7], k[2], k[1], k[4], k[3], k[6], k[5], k[0]]])
-    return KE
+    return np.array([[2/3, -1/6, -1/3, -1/6,],
+                     [-1/6, 2/3, -1/6, -1/3],
+                     [-1/3, -1/6, 2/3, -1/6],
+                     [-1/6, -1/3, -1/6, 2/3]])
+#element mass matrix
+def lm():
+    return np.array([[1/9, 1/18, 1/36, 1/18],
+                     [1/18, 1/9, 1/18, 1/36],
+                     [1/36, 1/18, 1/9, 1/18],
+                     [1/18, 1/36, 1/18, 1/9]])
 # Optimality criterion
 def oc(nelx,nely,x,volfrac,dc,dv,g):
     l1=0
@@ -186,11 +217,11 @@ def oc(nelx,nely,x,volfrac,dc,dv,g):
 # The real main driver    
 if __name__ == "__main__":
     # Default input parameters
-    nelx=60
-    nely=20
-    volfrac=0.5
-    rmin=2.4
-    penal=3.0
+    nelx = 40
+    nely = 40
+    volfrac = 1.0
+    rmin = 1.2
+    penal = 3.0
     ft=1 # ft==0 -> sens, ft==1 -> dens
     import sys
     if len(sys.argv)>1: nelx   =int(sys.argv[1])

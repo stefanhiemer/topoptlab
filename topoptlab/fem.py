@@ -105,11 +105,10 @@ def lk_poisson_2d():
                    [-1/6, -1/3, -1/6, 2/3]])
     return Ke
 
-def lk_screened_poisson_2d(rmin):
+def l_screened_poisson_2d(rmin):
     """
-    Create element stiffness matrix for 2D screened Poisson equation with 
-    bilinear quadratic elements. Taken from the 88 lines code and slightly 
-    modified.
+    Create matrix for 2D screened Poisson equation with bilinear quadratic 
+    elements. Taken from the 88 lines code and slightly modified.
     
     Parameters
     ----------
@@ -135,7 +134,7 @@ def lk_screened_poisson_2d(rmin):
 def shape_functions_bilinquad(x,y):
     """
     Shape functions for quadratic bilinear element. Coordinates bounded in 
-    [0,1].
+    [-1,1].
     
     Parameters
     ----------
@@ -150,10 +149,10 @@ def shape_functions_bilinquad(x,y):
         element stiffness matrix.
         
     """
-    return np.array([(1-x)*(1-y),
-                     (1+x)*(1-y),
-                     (1+x)*(1+y),
-                     (1-x)*(1+y)])
+    return 1/4 * np.array([(1-x)*(1-y),
+                           (1+x)*(1-y),
+                           (1+x)*(1+y),
+                           (1-x)*(1+y)])
 
 def interpolate_2d(ue,x,y,
                    shape_functions=shape_functions_bilinquad):
