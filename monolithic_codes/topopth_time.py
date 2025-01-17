@@ -40,8 +40,8 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
     # Max and min heat conduction
     kmin = 1e-2
     kmax = 1.0
-    dt = 1 # 1/(4 * kmax) is like a lower bound
-    nsteps = 100
+    dt = 1e0 # 1/(4 * kmax) is like a lower bound
+    nsteps = 1
     # dofs:
     ndof = (nelx+1)*(nely+1)
     # Allocate design variables (as array), initialize and allocate sens.
@@ -90,28 +90,28 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
     dofs = np.arange(ndof)
     # heat sink
     fixed = []
-    #fixed = np.arange(int(nely / 2 + 1 - nely / 20), 
-    #                  int(nely / 2 + 1 + nely / 20) + 1)
+    fixed = np.arange(int(nely / 2 + 1 - nely / 20), 
+                      int(nely / 2 + 1 + nely / 20) + 1)
     # general
     free = np.setdiff1d(dofs, fixed)
     # Solution and RHS vectors
     f = np.zeros((ndof, nsteps))
     u = np.zeros((ndof, nsteps+1))
     # load/source
-    u[0,0] = 100
-    #f[:, 0] = -1 # constant source
+    #u[0,0] = 100 # peak
+    f[:, :] = -1 # constant source
     # Initialize plot and plot the initial design
-    #plt.ion() # Ensure that redrawing is possible
-    #fig,ax = plt.subplots()
-    #im = ax.imshow(-xPhys.reshape((nelx,nely)).T, cmap='gray',\
-    #               interpolation='none',norm=colors.Normalize(vmin=-1,vmax=0))
-    #ax.tick_params(axis='both',
-    #               which='both',
-    #               bottom=False,
-    #               left=False,
-    #               labelbottom=False,
-    #               labelleft=False)
-    #fig.show()
+    plt.ion() # Ensure that redrawing is possible
+    fig,ax = plt.subplots()
+    im = ax.imshow(-xPhys.reshape((nelx,nely)).T, cmap='gray',\
+                   interpolation='none',norm=colors.Normalize(vmin=-1,vmax=0))
+    ax.tick_params(axis='both',
+                   which='both',
+                   bottom=False,
+                   left=False,
+                   labelbottom=False,
+                   labelleft=False)
+    fig.show()
     # Set loop counter and gradient vectors 
     loop=0
     change=1
@@ -124,12 +124,11 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
         sK=((KE.flatten()[:,None])*(kmin+(xPhys)\
                 **penal*(kmax-kmin))).flatten(order='F')
         K = coo_matrix((sK,(iE,jE)),shape=(ndof,ndof)).tocsc()
-        sM = sK=((ME.flatten()[np.newaxis]).T*(xPhys**penal)).flatten(order='F')
+        sM = ((ME.flatten()[np.newaxis]).T*(xPhys**penal)).flatten(order='F')
         M = coo_matrix((sM,(iE,jE)),shape=(ndof,ndof)).tocsc()
         # Remove constrained dofs from matrix
         K = K[free,:][:,free]
         M = M[free,:][:,free]
-        # Solve system
         """
         plt.ion()
         fig,ax = plt.subplots()
@@ -144,20 +143,80 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
                        labelleft=False)
         #fig.show()
         """
+        # Solve system
         for nt in np.arange(1,nsteps+1):
             u[free,nt]=spsolve(M/dt + K,
                                f[free,nt-1] + (M/dt).dot(u[free,nt-1]))
             #im.set_array(u[:,nt].reshape((nelx+1,nely+1)).T+1e-6)
             #fig.canvas.draw()
             #plt.pause(0.01)
-        # Objective and sensitivity
+        # Objective
         ce[:] = 0
-        for nt in np.arange(1,nsteps+1):
-            ce[:] = ce[:] + (np.dot(u[edofMat,nt].reshape(nelx*nely,4),KE) * \
-                                    u[edofMat,nt].reshape(nelx*nely,4) ).sum(1)
+        for nt in np.arange(nsteps):
+            ce[:] = ce[:] + (np.dot(u[edofMat,nt+1].reshape(nelx*nely,4),KE) * \
+                                    u[edofMat,nt+1].reshape(nelx*nely,4) ).sum(1)
         obj=( (kmin+xPhys**penal*(kmax-kmin))*ce ).sum()
-        break
-        dc[:]=(-penal*xPhys**(penal-1)*(kmax-kmin))*ce
+        # sensitivity of objective/constraints
+        # here the derivative of the cost function with regards to explicit 
+        # occurences of design variables/element densities in the obj. function 
+        # would occur. In this special case, design variables do not explicitly 
+        # appear in the obj. and are implicitly "hidden" in the state variables.
+        dc[:] = 0 
+        h = np.zeros((ndof,nsteps)) # adjoint vectors/Lagrangian multipliers
+        #h = np.zeros((ndof,1)) # adjoint vectors/Lagrangian multipliers
+        h[free,-1] = spsolve(M/dt + K, 
+                             -f[free,-1])
+        dc[:] = penal*xPhys**(penal-1)*\
+                 (((kmax-kmin)*np.dot(h[edofMat,-1], KE)*\
+                   u[edofMat,-1]).sum(1)+\
+                 (np.dot(h[edofMat,-1], ME)*\
+                  (u[edofMat,-1]-u[edofMat,-2])/dt).sum(1))
+        for nt in np.arange(nsteps-1)[-1::-1]: 
+            # adjoint problem
+            h[free,nt] = spsolve(M/dt + K,
+                                 -f[free,nt] - (M/dt).dot(h[free,nt+1]))
+            # update gradient
+            dc[:] += penal*xPhys**(penal-1)*\
+                     (((kmax-kmin)*np.dot(h[edofMat,nt], KE)*\
+                       u[edofMat,nt+1]).sum(1)+\
+                     (np.dot(h[edofMat,nt], ME)*\
+                      (u[edofMat,nt+1]-u[edofMat,nt])/dt).sum(1))
+        # finite differences test
+        dp = 1e-9
+        _dc = np.zeros(xPhys.shape)
+        _u = u = np.zeros((ndof, nsteps+1))
+        for i in np.arange(xPhys.shape[0]):
+            _xPhys = xPhys.copy()
+            _xPhys[i] += dp 
+            # Setup stiffness and mass matrix
+            _sK=((KE.flatten()[:,None])*(kmin+(_xPhys)\
+                    **penal*(kmax-kmin))).flatten(order='F')
+            _K = coo_matrix((_sK,(iE,jE)),shape=(ndof,ndof)).tocsc()
+            _sM = ((ME.flatten()[np.newaxis]).T*(_xPhys**penal)).flatten(order='F')
+            _M = coo_matrix((_sM,(iE,jE)),shape=(ndof,ndof)).tocsc()
+            # Remove constrained dofs from matrix
+            _K = _K[free,:][:,free]
+            _M = _M[free,:][:,free]
+            for nt in np.arange(1,nsteps+1):
+                _u[free,nt]=spsolve(_M/dt + _K,
+                                    f[free,nt-1] + (_M/dt).dot(u[free,nt-1]))
+                #im.set_array(u[:,nt].reshape((nelx+1,nely+1)).T+1e-6)
+                #fig.canvas.draw()
+                #plt.pause(0.01)
+            # Objective
+            _ce = np.zeros(ce.shape)
+            for nt in np.arange(1,nsteps+1):
+                _ce[:] = _ce[:] + (np.dot(_u[edofMat,nt].reshape(nelx*nely,4),KE) * \
+                                          _u[edofMat,nt].reshape(nelx*nely,4) ).sum(1)
+            _obj=( (kmin+_xPhys**penal*(kmax-kmin))*_ce ).sum()
+            _dc[i] = (_obj-obj)/dp
+        print(dc)
+        print(_dc)
+        import sys 
+        sys.exit()
+        #print(dc.min(),dc.max())
+        # sensitivity analysis of constraints that are unaffacted by time
+        # this means in 99.9 % of the cases constraints purely on the densities
         dv[:] = np.ones(nely*nelx)
         # Sensitivity filtering:
         if ft==0:
@@ -180,7 +239,7 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
         fig.canvas.draw()
         plt.pause(0.01)
         # Write iteration history to screen (req. Python 2.6 or newer)
-        print("it.: {0} , obj.: {1:.3f} Vol.: {2:.3f}, ch.: {3:.3f}"\
+        print("it.: {0} , obj.: {1:.8f} Vol.: {2:.8f}, ch.: {3:.8f}"\
               .format(loop,obj,(g+volfrac*nelx*nely)/(nelx*nely),change))
     # Make sure the plot stays and that the shell remains    
     plt.show()
@@ -202,24 +261,88 @@ def lm():
 def oc(nelx,nely,x,volfrac,dc,dv,g):
     l1=0
     l2=1e9
-    move=0.2
+    move = 0.1
+    damp = 0.3
     # reshape to perform vector operations
-    xnew=np.zeros(nelx*nely)
-    while (l2-l1)/(l1+l2)>1e-3:
-        lmid=0.5*(l2+l1)
-        xnew[:]= np.maximum(0.0,np.maximum(x-move,np.minimum(1.0,np.minimum(x+move,x*np.sqrt(-dc/dv/lmid)))))
+    xnew = np.zeros(nelx*nely)
+    while (l2-l1)/(l1+l2) > 1e-4 and l2 > 1e-40:
+        lmid = 0.5*(l2+l1)
+        xnew[:] = np.maximum(0.0, np.maximum(
+            x-move, np.minimum(1.0, np.minimum(x+move, x*np.maximum(1e-10,
+                                                                    -dc/dv/lmid)**damp))))
         gt=g+np.sum((dv*(xnew-x)))
         if gt>0 :
             l1=lmid
         else:
             l2=lmid
     return xnew,gt
+def oc_mechanism(nelx, nely, x, volfrac, dc, dv, g, pass_el):
+    """
+    Optimality criteria method for compliant mechnanism according to the 
+    standard textbook by Bendsoe and Sigmund. In general: can handle objective 
+    functions whose gradients change sign, but no guarantee of convergence or 
+    anything else is given.
+    
+    Parameters
+    ----------
+    nelx : int
+        number of elements in x direction.
+    nely : int
+        number of elements in y direction.
+    x : np.array, shape (nel)
+        element densities for topology optimization of the current iteration.
+    volfrac : float
+        volume fraction.
+    dc : np.array, shape (nel)
+        gradient of objective function/complicance with respect to element 
+        densities.
+    dv : np.array, shape (nel)
+        gradient of volume constraint with respect to element densities..
+    g : float
+        parameter for the heuristic updating scheme.
+    pass_el : None or np.array 
+        array who contains indices used for un/masking passive elements. 0 
+        means an active element that is part of the optimization, 1 and 2 
+        indicate empty and full elements which are not part of the 
+        optimization.
+
+    Returns
+    -------
+    xnew : np.array, shape (nel)
+        updatet element densities for topology optimization.
+    gt : float
+        updated parameter for the heuristic updating scheme..
+
+    """
+    l1 = 0
+    l2 = 1e9
+    move = 0.05
+    damp = 0.3
+    # reshape to perform vector operations
+    xnew = np.zeros(nelx*nely)
+    while (l2-l1)/(l1+l2) > 1e-4 and l2 > 1e-40:
+        lmid = 0.5*(l2+l1)
+        xnew[:] = np.maximum(0.0, np.maximum(
+            x-move, np.minimum(1.0, np.minimum(x+move, x*np.maximum(1e-10,
+                                                                    -dc/dv/lmid)**damp))))
+        
+        # passive element update
+        if pass_el is not None:
+            xnew[pass_el==1] = 0
+            xnew[pass_el==2] = 1
+        gt = xnew.sum() - volfrac * x.shape[0] #g+np.sum((dv*(xnew-x)))
+        if gt > 0:
+            l1 = lmid
+        else:
+            l2 = lmid
+        
+    return (xnew, gt)
 # The real main driver    
 if __name__ == "__main__":
     # Default input parameters
-    nelx = 40
-    nely = 40
-    volfrac = 1.0
+    nelx = 5
+    nely = 2
+    volfrac = 0.4
     rmin = 1.2
     penal = 3.0
     ft=1 # ft==0 -> sens, ft==1 -> dens
