@@ -41,7 +41,7 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
     kmin = 1e-2
     kmax = 1.0
     dt = 1e0 # 1/(4 * kmax) is like a lower bound
-    nsteps = 1
+    nsteps = 2
     # dofs:
     ndof = (nelx+1)*(nely+1)
     # Allocate design variables (as array), initialize and allocate sens.
@@ -151,11 +151,7 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
             #fig.canvas.draw()
             #plt.pause(0.01)
         # Objective
-        ce[:] = 0
-        for nt in np.arange(nsteps):
-            ce[:] = ce[:] + (np.dot(u[edofMat,nt+1].reshape(nelx*nely,4),KE) * \
-                                    u[edofMat,nt+1].reshape(nelx*nely,4) ).sum(1)
-        obj=( (kmin+xPhys**penal*(kmax-kmin))*ce ).sum()
+        obj = (f * u[:,1:]).sum()
         # sensitivity of objective/constraints
         # here the derivative of the cost function with regards to explicit 
         # occurences of design variables/element densities in the obj. function 
@@ -166,21 +162,20 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
         #h = np.zeros((ndof,1)) # adjoint vectors/Lagrangian multipliers
         h[free,-1] = spsolve(M/dt + K, 
                              -f[free,-1])
-        dc[:] = penal*xPhys**(penal-1)*\
-                 (((kmax-kmin)*np.dot(h[edofMat,-1], KE)*\
+        dc[:] += ((kmax-kmin)*np.dot(h[edofMat,-1], KE)*\
                    u[edofMat,-1]).sum(1)+\
                  (np.dot(h[edofMat,-1], ME)*\
-                  (u[edofMat,-1]-u[edofMat,-2])/dt).sum(1))
+                  (u[edofMat,-1]-u[edofMat,-2])/dt).sum(1)
         for nt in np.arange(nsteps-1)[-1::-1]: 
             # adjoint problem
             h[free,nt] = spsolve(M/dt + K,
                                  -f[free,nt] - (M/dt).dot(h[free,nt+1]))
             # update gradient
-            dc[:] += penal*xPhys**(penal-1)*\
-                     (((kmax-kmin)*np.dot(h[edofMat,nt], KE)*\
+            dc[:] += ((kmax-kmin)*np.dot(h[edofMat,nt], KE)*\
                        u[edofMat,nt+1]).sum(1)+\
                      (np.dot(h[edofMat,nt], ME)*\
-                      (u[edofMat,nt+1]-u[edofMat,nt])/dt).sum(1))
+                      (u[edofMat,nt+1]-u[edofMat,nt])/dt).sum(1)
+        dc[:] *= penal*xPhys**(penal-1)
         # finite differences test
         dp = 1e-9
         _dc = np.zeros(xPhys.shape)
@@ -204,11 +199,7 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
                 #fig.canvas.draw()
                 #plt.pause(0.01)
             # Objective
-            _ce = np.zeros(ce.shape)
-            for nt in np.arange(1,nsteps+1):
-                _ce[:] = _ce[:] + (np.dot(_u[edofMat,nt].reshape(nelx*nely,4),KE) * \
-                                          _u[edofMat,nt].reshape(nelx*nely,4) ).sum(1)
-            _obj=( (kmin+_xPhys**penal*(kmax-kmin))*_ce ).sum()
+            _obj= (f*_u[:,1:]).sum()
             _dc[i] = (_obj-obj)/dp
         print(dc)
         print(_dc)
