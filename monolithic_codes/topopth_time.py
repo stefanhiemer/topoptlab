@@ -2,14 +2,18 @@
 # minor modifications by Stefan Hiemer (January 2025)
 import numpy as np
 from scipy.sparse import coo_matrix
-from scipy.sparse.linalg import spsolve
+from scipy.sparse.linalg import spsolve,factorized
 from matplotlib import colors
 import matplotlib.pyplot as plt
 # MAIN DRIVER
-def main(nelx,nely,volfrac,penal,rmin,ft):
+def main(nelx,nely,
+         nsteps,dt, 
+         solver,
+         volfrac,penal,rmin,ft):
     """
-    Topology optimization for maximum stiffness with the SIMP method based on 
-    the default direct solver of scipy sparse.
+    Topology optimization with transient heat conduction to minimize 
+    sum_{i=1}^{N_{t}} f_{i}^T u_{i}. At the moment this function is purely for
+    demonstration purposes and the objective is not intended to be sensible.
     
     Parameters
     ----------
@@ -17,6 +21,14 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
         number of elements in x direction.
     nely : int
         number of elements in y direction.
+    nsteps : int
+        number of timesteps.
+    dt : float
+        timestep. With default arguments, values above 0.25 should be fine. If 
+        one goes much larger than that, one should check for stability/sensible
+        solutions.
+    solver : str
+        either "direct" or "lu".
     volfrac : float
         volume fraction.
     penal : float
@@ -40,8 +52,6 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
     # Max and min heat conduction
     kmin = 1e-2
     kmax = 1.0
-    dt = 1e0 # 1/(4 * kmax) is like a lower bound
-    nsteps = 2
     # dofs:
     ndof = (nelx+1)*(nely+1)
     # Allocate design variables (as array), initialize and allocate sens.
@@ -117,7 +127,6 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
     change=1
     dv = np.ones(nely*nelx)
     dc = np.ones(nely*nelx)
-    ce = np.ones(nely*nelx)
     while change>0.01 and loop<2000:
         loop=loop+1
         # Setup stiffness and mass matrix
@@ -144,9 +153,14 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
         #fig.show()
         """
         # Solve system
+        if solver == "lu":
+            lu = factorized(M/dt + K) # LU decomposition. returns a function
         for nt in np.arange(1,nsteps+1):
-            u[free,nt]=spsolve(M/dt + K,
-                               f[free,nt-1] + (M/dt).dot(u[free,nt-1]))
+            if solver == "lu":
+                u[free,nt]=lu(f[free,nt-1] + (M/dt).dot(u[free,nt-1]))
+            elif solver == "direct":
+                u[free,nt]=spsolve(M/dt + K,
+                                   f[free,nt-1] + (M/dt).dot(u[free,nt-1]))
             #im.set_array(u[:,nt].reshape((nelx+1,nely+1)).T+1e-6)
             #fig.canvas.draw()
             #plt.pause(0.01)
@@ -160,16 +174,21 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
         dc[:] = 0 
         h = np.zeros((ndof,nsteps)) # adjoint vectors/Lagrangian multipliers
         #h = np.zeros((ndof,1)) # adjoint vectors/Lagrangian multipliers
-        h[free,-1] = spsolve(M/dt + K, 
-                             -f[free,-1])
+        if solver == "lu":
+            h[free,-1] = lu(-f[free,-1])
+        elif solver == "direct":
+            h[free,-1] = spsolve(M/dt + K, -f[free,-1])
         dc[:] += ((kmax-kmin)*np.dot(h[edofMat,-1], KE)*\
                    u[edofMat,-1]).sum(1)+\
                  (np.dot(h[edofMat,-1], ME)*\
                   (u[edofMat,-1]-u[edofMat,-2])/dt).sum(1)
         for nt in np.arange(nsteps-1)[-1::-1]: 
             # adjoint problem
-            h[free,nt] = spsolve(M/dt + K,
-                                 -f[free,nt] - (M/dt).dot(h[free,nt+1]))
+            if solver == "lu":
+                h[free,nt] = lu(-f[free,nt] + (M/dt).dot(h[free,nt+1]))
+            elif solver == "direct":
+                h[free,nt] = spsolve(M/dt + K,
+                                     -f[free,nt] + (M/dt).dot(h[free,nt+1]))
             # update gradient
             dc[:] += ((kmax-kmin)*np.dot(h[edofMat,nt], KE)*\
                        u[edofMat,nt+1]).sum(1)+\
@@ -177,6 +196,7 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
                       (u[edofMat,nt+1]-u[edofMat,nt])/dt).sum(1)
         dc[:] *= penal*xPhys**(penal-1)
         # finite differences test
+        """
         dp = 1e-9
         _dc = np.zeros(xPhys.shape)
         _u = u = np.zeros((ndof, nsteps+1))
@@ -205,7 +225,7 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
         print(_dc)
         import sys 
         sys.exit()
-        #print(dc.min(),dc.max())
+        """
         # sensitivity analysis of constraints that are unaffacted by time
         # this means in 99.9 % of the cases constraints purely on the densities
         dv[:] = np.ones(nely*nelx)
@@ -252,91 +272,34 @@ def lm():
 def oc(nelx,nely,x,volfrac,dc,dv,g):
     l1=0
     l2=1e9
-    move = 0.1
-    damp = 0.3
+    move = 0.1#0.1
+    #damp = 0.3
     # reshape to perform vector operations
     xnew = np.zeros(nelx*nely)
     while (l2-l1)/(l1+l2) > 1e-4 and l2 > 1e-40:
         lmid = 0.5*(l2+l1)
-        xnew[:] = np.maximum(0.0, np.maximum(
-            x-move, np.minimum(1.0, np.minimum(x+move, x*np.maximum(1e-10,
-                                                                    -dc/dv/lmid)**damp))))
+        xnew[:]= np.maximum(0.0,np.maximum(x-move,np.minimum(1.0,np.minimum(x+move,x*np.sqrt(-dc/dv/lmid)))))
+        #xnew[:] = np.maximum(0.0, np.maximum(
+        #    x-move, np.minimum(1.0, np.minimum(x+move, x*np.maximum(1e-10,
+        #                                                           -dc/dv/lmid)**damp))))
         gt=g+np.sum((dv*(xnew-x)))
         if gt>0 :
             l1=lmid
         else:
             l2=lmid
     return xnew,gt
-def oc_mechanism(nelx, nely, x, volfrac, dc, dv, g, pass_el):
-    """
-    Optimality criteria method for compliant mechnanism according to the 
-    standard textbook by Bendsoe and Sigmund. In general: can handle objective 
-    functions whose gradients change sign, but no guarantee of convergence or 
-    anything else is given.
-    
-    Parameters
-    ----------
-    nelx : int
-        number of elements in x direction.
-    nely : int
-        number of elements in y direction.
-    x : np.array, shape (nel)
-        element densities for topology optimization of the current iteration.
-    volfrac : float
-        volume fraction.
-    dc : np.array, shape (nel)
-        gradient of objective function/complicance with respect to element 
-        densities.
-    dv : np.array, shape (nel)
-        gradient of volume constraint with respect to element densities..
-    g : float
-        parameter for the heuristic updating scheme.
-    pass_el : None or np.array 
-        array who contains indices used for un/masking passive elements. 0 
-        means an active element that is part of the optimization, 1 and 2 
-        indicate empty and full elements which are not part of the 
-        optimization.
-
-    Returns
-    -------
-    xnew : np.array, shape (nel)
-        updatet element densities for topology optimization.
-    gt : float
-        updated parameter for the heuristic updating scheme..
-
-    """
-    l1 = 0
-    l2 = 1e9
-    move = 0.05
-    damp = 0.3
-    # reshape to perform vector operations
-    xnew = np.zeros(nelx*nely)
-    while (l2-l1)/(l1+l2) > 1e-4 and l2 > 1e-40:
-        lmid = 0.5*(l2+l1)
-        xnew[:] = np.maximum(0.0, np.maximum(
-            x-move, np.minimum(1.0, np.minimum(x+move, x*np.maximum(1e-10,
-                                                                    -dc/dv/lmid)**damp))))
-        
-        # passive element update
-        if pass_el is not None:
-            xnew[pass_el==1] = 0
-            xnew[pass_el==2] = 1
-        gt = xnew.sum() - volfrac * x.shape[0] #g+np.sum((dv*(xnew-x)))
-        if gt > 0:
-            l1 = lmid
-        else:
-            l2 = lmid
-        
-    return (xnew, gt)
 # The real main driver    
 if __name__ == "__main__":
     # Default input parameters
-    nelx = 5
-    nely = 2
+    nelx = 40
+    nely = 40
     volfrac = 0.4
     rmin = 1.2
     penal = 3.0
     ft=1 # ft==0 -> sens, ft==1 -> dens
+    dt = 4e0 # 1/(4 * kmax) is a lower bound
+    nsteps = 250
+    solver="lu"
     import sys
     if len(sys.argv)>1: nelx   =int(sys.argv[1])
     if len(sys.argv)>2: nely   =int(sys.argv[2])
@@ -344,4 +307,7 @@ if __name__ == "__main__":
     if len(sys.argv)>4: rmin   =float(sys.argv[4])
     if len(sys.argv)>5: penal  =float(sys.argv[5])
     if len(sys.argv)>6: ft     =int(sys.argv[6])
-    main(nelx,nely,volfrac,penal,rmin,ft)
+    if len(sys.argv)>7: dt     =int(sys.argv[7])
+    if len(sys.argv)>8: nsteps =int(sys.argv[8])
+    if len(sys.argv)>9: solver =int(sys.argv[9])
+    main(nelx,nely,nsteps,dt,solver,volfrac,penal,rmin,ft)
