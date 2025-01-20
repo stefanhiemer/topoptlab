@@ -1,5 +1,3 @@
-# A 165 LINE TOPOLOGY OPTIMIZATION CODE BY NIELS AAGE AND VILLADS EGEDE JOHANSEN, JANUARY 2013
-# minor modifications by Stefan Hiemer (January 2025)
 import numpy as np
 from scipy.sparse import coo_matrix
 from scipy.sparse.linalg import spsolve,factorized
@@ -13,7 +11,7 @@ def main(nelx,nely,
     """
     Topology optimization with transient heat conduction to minimize 
     sum_{i=1}^{N_{t}} f_{i}^T u_{i}. At the moment this function is purely for
-    demonstration purposes and the objective is not intended to be sensible.
+    demonstration purposes and the objective is not intended to be sensible. 
     
     Parameters
     ----------

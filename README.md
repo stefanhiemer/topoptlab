@@ -12,8 +12,8 @@ equivalent Matlab scripts.
 In the monolithic_code directory, you can find codes that are self contained 
 and do not use the topoptlab module written here (at the moment not true). 
 These codes are purely there to either test new frameworks (e. g. JAX or PETSC)
-or for teaching purposes. If you are completely new to topology optimization,
-this is where you start and I suggest to start with the topopt.py.
+or for teaching/demonstration purposes. If you are completely new to topology 
+optimization, this is where you start and I suggest to start with the topopt.py.
 
 # Installation
 Basic installation and run tests by exectuing
