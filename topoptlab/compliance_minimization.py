@@ -7,11 +7,12 @@ import logging
 import numpy as np
 from scipy.sparse import coo_matrix
 from scipy.sparse.linalg import spsolve,factorized
+from scipy.ndimage import convolve
 from matplotlib.colors import Normalize
 import matplotlib.pyplot as plt
 
 from topoptlab.optimality_criterion import oc_top88
-from topoptlab.filters import assemble_matrix_filter,assemble_helmholtz_filter
+from topoptlab.filters import assemble_matrix_filter,assemble_convolution_filter,assemble_helmholtz_filter
 from topoptlab.output_designs import export_vtk
 from topoptlab.fem import update_indices,lk_linear_elast_2d,create_edofMat
 from topoptlab.objectives import compliance
@@ -20,7 +21,7 @@ from topoptlab.mma_utils import update_mma
 
 # MAIN DRIVER
 def main(nelx, nely, volfrac, penal, rmin, ft, 
-         filter_mode="matrix",
+         filter_mode="matrix",ndim=2,
          bcs=mbb_2d,
          el_flags=None,
          solver="oc", nouteriter=2000, ninneriter=15,
@@ -51,6 +52,8 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         "helmholtz". If "matrix", then density/sensitivity filters are 
         implemented via a sparse matrix and applied by multiplying 
         said matrix with the densities/sensitivities.
+    ndim : int 
+        number of dimensions
     bcs : str or function
         returns the boundary conditions
     el_flags : np.ndarray or None
@@ -62,7 +65,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         criteria method, the method of moving asymptotes and the globally 
         covergent method of moving asymptotes.
     nouteriter: int 
-        number of total TO iterations
+        number of TO iterations
     ninneriter: int
         number of inner iterations for GCMMA
     display : bool
@@ -90,16 +93,17 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                             logging.FileHandler("topopt.log"),
                             logging.StreamHandler()])
         #
-        logging.info(f"Minimum compliance problem with {solver}")
+        logging.info(f"minimum compliance problem with {solver}")
         logging.info(f"nodes: {nelx} x {nely}")
         logging.info(f"volfrac: {volfrac}, rmin: {rmin},  penal: {penal}")
-        logging.info("Filter: " + ["Sensitivity based", 
+        logging.info("filter: " + ["Sensitivity based", 
                                    "Density based",
                                    "Haeviside Guest",
                                    "Haeviside complement Sigmund 2007",
                                    "Haeviside eta projection",
                                    "Volume Preserving eta projection",
                                    "No filter"][ft])
+        logging.info(f"filter mode: {filter_mode}")
     # Max and min Young's modulus
     Emin = 1e-9
     Emax = 1.0
@@ -165,14 +169,18 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     iK = np.kron(edofMat, np.ones((KE.shape[0], 1))).flatten()
     jK = np.kron(edofMat, np.ones((1, KE.shape[0]))).flatten()
     # Filter: Build (and assemble) the index+data vectors for the coo matrix format
-    if filter_mode == "matrix" and ft in [0,1]:
+    if filter_mode == "matrix":
         H,Hs = assemble_matrix_filter(nelx=nelx,nely=nely,
-                                      rmin=rmin,el=el)
+                                      rmin=rmin,el=el,ndim=ndim)
+    elif filter_mode == "convolution":
+        h,hs = assemble_convolution_filter(nelx=nelx,nely=nely, 
+                                           rmin=rmin,ndim=ndim)
     elif filter_mode == "helmholtz" and ft in [0,1]:
         KF,TF = assemble_helmholtz_filter(nelx=nelx,nely=nely,
-                                          rmin=rmin,
+                                          rmin=rmin,ndim=ndim,
                                           el=el,n1=n1,n2=n2)
-        lu = factorized(KF) # LU decomposition. returns a function
+        # LU decomposition. returns a function for solving, not the matrices
+        lu_solve = factorized(KF)
     # BC's and support
     u,f,fixed,free = bcs(nelx=nelx,nely=nely,ndof=ndof)
     # get rid of fixed degrees of freedom from stiffness matrix 
@@ -231,42 +239,41 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                     print("FEM: it.: {0}, problem: {1}, min. u: {2:.10f}, med. u: {3:.10f}, max. u: {4:.10f}".format(
                            loop,i,np.min(u[:,i]),np.median(u[:,i]),np.max(u[:,i])))
         # Constraints and constraint gradients
-        dv[:] = np.ones(nely*nelx)
+        dv[:] = np.ones(nelx*nely)
         if debug:
             print("Pre-Sensitivity Filter: it.: {0}, dc: {1:.10f}, dv: {2:.10f}".format(
                    loop, 
                    np.max(dc),
                    np.min(dv)))
+            #print(dc)
         # Sensitivity filtering:
         if ft == 0 and filter_mode == "matrix":
             dc[:] = np.asarray((H*(x*dc))[np.newaxis].T /
                                Hs)[:, 0] / np.maximum(0.001, x)
-        # solve KF y = TF@(dc*xPhys), dc_updated = TF.T @ y
+        elif ft == 0 and filter_mode == "convolution":
+            dc[:] = convolve((x*dc).reshape((nelx, nely)).T,
+                             h,
+                             mode="constant",
+                             cval=0).T.flatten() / hs / np.maximum(0.001, x)
         elif ft == 0 and filter_mode == "helmholtz":
-            #dc[:] = (TF.T@spsolve_triangular(LF.T, 
-            #                (spsolve_triangular(LF,TF@(dc*xPhys))),
-            #                lower=False)) \
-            #         /np.maximum(0.001, x)
-            #dc[:] = TF.T @ LU.solve(TF@(dc*xPhys))/np.maximum(0.001, x)
-            dc[:] = TF.T @ spsolve(KF,TF@(dc*xPhys))/np.maximum(0.001, x)
+            dc[:] = TF.T @ lu_solve(TF@(dc*xPhys))/np.maximum(0.001, x)
         elif ft == 1 and filter_mode == "matrix":
             dc[:] = np.asarray(H*(dc[np.newaxis].T/Hs))[:, 0]
             dv[:] = np.asarray(H*(dv[np.newaxis].T/Hs))[:, 0]
-        # solve KF y = TF@dc, dc_updated = TF.T @ y
-        # solve KF z = TF@dv, dv_updated = TF.T @ z
+            #print("matrix filter: ",H.toarray(),"\n",np.array(Hs))
+        elif ft == 1 and filter_mode == "convolution":
+            dc[:] = convolve(dc.reshape((nelx, nely)).T,
+                             h,
+                             mode="constant",
+                             cval=0).T.flatten() / hs
+            dv[:] = convolve(dv.reshape((nelx, nely)).T,
+                             h,
+                             mode="constant",
+                             cval=0).T.flatten() / hs
+            #print("conv. filter: ",h,"\n",hs)
         elif ft == 1 and filter_mode == "helmholtz":
-            #dc[:] = TF.T @ spsolve_triangular(LF.T, 
-            #                                  (spsolve_triangular(LF, TF@dc)),
-            #                                  lower=False)
-            #dv[:] = TF.T @ spsolve_triangular(LF.T, 
-            #                                  (spsolve_triangular(LF, TF@dv)),
-            #                                  lower=False)
-            #dc[:] = TF.T @ LU.solve(TF@dc)
-            #dv[:] = TF.T @ LU.solve(TF@dv)
-            #dc[:] = TF.T @ spsolve(KF,TF@dc)
-            #dv[:] = TF.T @ spsolve(KF,TF@dv)
-            dc[:] = TF.T @ lu(TF@dc)
-            dv[:] = TF.T @ lu(TF@dv)
+            dc[:] = TF.T @ lu_solve(TF@dc)
+            dv[:] = TF.T @ lu_solve(TF@dv)
         elif ft == -1:
             pass
         if debug:
@@ -274,6 +281,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                    loop, 
                    np.max(dc),
                    np.min(dv)))
+            print(dc)
         # density update by solver
         xold[:] = x
         # optimality criteria
@@ -287,29 +295,27 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             xold2 = xold1.copy()
             xold1 = xval.copy()
             x = xmma.copy().flatten()
-        # globally convergent method of moving asymptotes, implementation by 
-        # Arjen Deetman
         #
         if debug:
-            print("Post Density Update: it.: {0}, max. dc: {1:.10f}, min. dv {2:.10f}, med. x.: {3:.10f}, med. xTilde: {4:.10f}, med. xPhys: {5:.10f}".format(
-                   loop, np.max(dc), np.min(dv),np.median(x),np.median(xTilde),np.median(xPhys)))
+            print("Post Density Update: it.: {0}, med. x.: {1:.10f}, med. xTilde: {2:.10f}, med. xPhys: {3:.10f}".format(
+                   loop, np.median(x),np.median(xTilde),np.median(xPhys)))
         # Filter design variables
         if ft == 0:
             xPhys[:] = x
         elif ft == 1 and filter_mode == "matrix":
             xPhys[:] = np.asarray(H*x[np.newaxis].T/Hs)[:, 0]
+        elif ft == 1 and filter_mode == "convolution":
+            xPhys[:] = convolve(x.reshape((nelx, nely)).T,
+                                h,
+                                mode="constant",
+                                cval=0).T.flatten() / hs
         elif ft == 1 and filter_mode == "helmholtz":
-            #xPhys[:] = TF.T @ spsolve_triangular(LF.T, 
-            #                                     (spsolve_triangular(LF, TF@x)),
-            #                                     lower=False)
-            #xPhys[:] = TF.T @ LU.solve(TF@x)
-            #xPhys[:] = TF.T @ spsolve(KF,TF@x)
-            xPhys[:] = TF.T @ lu(TF@x)
+            xPhys[:] = TF.T @ lu_solve(TF@x)
         elif ft == -1:
             xPhys[:]  = x
         if debug:
-            print("Post Density Filter: it.: {0}, max. dc: {1:.10f}, min. dv {2:.10f}, med. x.: {3:.10f}, med. xTilde: {4:.10f}, med. xPhys: {5:.10f}".format(
-                   loop, np.max(dc), np.min(dv),np.median(x),np.median(xTilde),np.median(xPhys)))
+            print("Post Density Filter: it.: {0}, med. x.: {1:.10f}, med. xTilde: {2:.10f}, med. xPhys: {3:.10f}".format(
+                   loop, np.median(x),np.median(xTilde),np.median(xPhys)))
         # Compute the change by the inf. norm
         change = (np.abs(x-xold)).max()
         # Plot to screen

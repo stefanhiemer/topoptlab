@@ -1,10 +1,12 @@
 import numpy as np
 from scipy.sparse import csc_array,coo_matrix
 from scipy.optimize import minimize
+from scipy.ndimage import convolve
 
 from topoptlab.fem import lk_screened_poisson_2d
 
-def assemble_matrix_filter(nelx,nely,rmin,el = None):
+def assemble_matrix_filter(nelx,nely,rmin,el = None,
+                           ndim=2):
     """
     Assemble distance based filters as sparse matrix that is applied on to
     densities/sensitivities by standard multiplication.
@@ -20,8 +22,10 @@ def assemble_matrix_filter(nelx,nely,rmin,el = None):
     rmin : float
         cutoff radius for the filter. Only elements within the element-center 
         to element center distance are used for filtering. 
-    el: np.ndarray or None
+    el : np.ndarray or None
         sorted array of element indices.
+    ndim : int 
+        number of dimensions
 
     Returns
     -------
@@ -51,6 +55,7 @@ def assemble_matrix_filter(nelx,nely,rmin,el = None):
     k,l = np.hstack([np.stack([a.flatten() for a in \
                      np.meshgrid(np.arange(k1,k2),np.arange(l1,l2))]) \
                      for k1,k2,l1,l2 in zip(kk1,kk2,ll1,ll2)])
+    # hat function
     fac = rmin-np.sqrt(((i-k)**2+(j-l)**2))
     iH[cc] = el # row
     jH[cc] = k*nely+l #column
@@ -60,11 +65,39 @@ def assemble_matrix_filter(nelx,nely,rmin,el = None):
     Hs = H.sum(1)
     return H,Hs
 
-def assemble_helmholtz_filter(nelx,nely,rmin,
+def assemble_convolution_filter(nelx,nely,rmin,
+                                nelz=None,ndim=2):
+    # filter radius in number of elements
+    nfilter = int(2*np.floor(rmin)+1)
+    #
+    x = np.arange(-np.floor(rmin),rmin)
+    #x = np.tile(x,tuple([nfilter])*(ndim-1) + tuple([1]))
+    #
+    
+    if ndim == 2:
+        x = np.tile(x,(nfilter,1))
+        y = np.rot90(x)
+        # hat function
+        kernel = np.maximum(0.0,rmin - np.sqrt(x**2 + y**2))
+        # normalization constant
+        hs = convolve(np.ones((nelx, nely)).T,
+                      kernel,
+                      mode="constant",
+                      cval=0).T.flatten()
+        return kernel,hs
+    else:
+        raise NotImplementedError("3D not yet implemented")
+
+def assemble_helmholtz_filter(nelx,nely,rmin,ndim=2,
                               el=None,n1=None,n2=None):
     """
     Assemble Helmholtz PDE based filter from "Efficient topology optimization 
     in MATLAB using 88 lines of code".
+    
+    This filter works by mappinging the element densities to nodes via the 
+    operator TF, then performing the actual filter operation by solving a 
+    Helmholtz / screened Poisson PDE in the standard FEM style with subsequent 
+    back-mapping of the nodal (filtered) densities to the elements. 
     
     Parameters
     ----------
@@ -77,6 +110,8 @@ def assemble_helmholtz_filter(nelx,nely,rmin,
     rmin : float
         cutoff radius for the filter. Only elements within the element-center 
         to element center distance are used for filtering. 
+    ndim : int 
+        number of dimensions
     el : np.ndarray or None
         sorted array of element indices.
     n1 : np.ndarray or None
@@ -94,6 +129,8 @@ def assemble_helmholtz_filter(nelx,nely,rmin,
         elements.
 
     """
+    if ndim != 2:
+        raise NotImplementedError()
     # element indices
     if el is None:
         el = np.arange(nelx*nely)
@@ -112,8 +149,6 @@ def assemble_helmholtz_filter(nelx,nely,rmin,
     jKF = np.kron(edofMatF, np.ones((1, 4))).flatten()
     sKF = np.tile(KEF.flatten(),nelx*nely)
     KF = coo_matrix((sKF, (iKF, jKF)), shape=(ndofF, ndofF)).tocsc()
-    #LF = coo_matrix(cholesky(KF.toarray(),lower=True)).tocsc()
-    #LU = splu(KF)
     iTF = edofMatF.flatten(order='F')
     jTF = np.tile(el, 4)
     sTF = np.full(4*nelx*nely,1/4)
