@@ -105,7 +105,7 @@ def lk_poisson_2d():
                    [-1/6, -1/3, -1/6, 2/3]])
     return Ke
 
-def l_screened_poisson_2d(rmin):
+def lk_screened_poisson_2d(rmin):
     """
     Create matrix for 2D screened Poisson equation with bilinear quadratic 
     elements. Taken from the 88 lines code and slightly modified.

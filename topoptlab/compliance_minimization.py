@@ -6,7 +6,7 @@ import logging
 
 import numpy as np
 from scipy.sparse import coo_matrix
-from scipy.sparse.linalg import spsolve
+from scipy.sparse.linalg import spsolve,factorized
 from matplotlib.colors import Normalize
 import matplotlib.pyplot as plt
 
@@ -166,10 +166,13 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     jK = np.kron(edofMat, np.ones((1, KE.shape[0]))).flatten()
     # Filter: Build (and assemble) the index+data vectors for the coo matrix format
     if filter_mode == "matrix" and ft in [0,1]:
-        H,Hs = assemble_matrix_filter(nelx=nelx,nely=nely,rmin=rmin,el=el)
+        H,Hs = assemble_matrix_filter(nelx=nelx,nely=nely,
+                                      rmin=rmin,el=el)
     elif filter_mode == "helmholtz" and ft in [0,1]:
-        KF,TF = assemble_helmholtz_filter(nelx=nelx,nely=nely,rmin=rmin,
+        KF,TF = assemble_helmholtz_filter(nelx=nelx,nely=nely,
+                                          rmin=rmin,
                                           el=el,n1=n1,n2=n2)
+        lu = factorized(KF) # LU decomposition. returns a function
     # BC's and support
     u,f,fixed,free = bcs(nelx=nelx,nely=nely,ndof=ndof)
     # get rid of fixed degrees of freedom from stiffness matrix 
@@ -260,8 +263,10 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             #                                  lower=False)
             #dc[:] = TF.T @ LU.solve(TF@dc)
             #dv[:] = TF.T @ LU.solve(TF@dv)
-            dc[:] = TF.T @ spsolve(KF,TF@dc)
-            dv[:] = TF.T @ spsolve(KF,TF@dv)
+            #dc[:] = TF.T @ spsolve(KF,TF@dc)
+            #dv[:] = TF.T @ spsolve(KF,TF@dv)
+            dc[:] = TF.T @ lu(TF@dc)
+            dv[:] = TF.T @ lu(TF@dv)
         elif ft == -1:
             pass
         if debug:
@@ -298,7 +303,8 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             #                                     (spsolve_triangular(LF, TF@x)),
             #                                     lower=False)
             #xPhys[:] = TF.T @ LU.solve(TF@x)
-            xPhys[:] = TF.T @ spsolve(KF,TF@x)
+            #xPhys[:] = TF.T @ spsolve(KF,TF@x)
+            xPhys[:] = TF.T @ lu(TF@x)
         elif ft == -1:
             xPhys[:]  = x
         if debug:

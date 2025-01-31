@@ -16,7 +16,7 @@ or for teaching/demonstration purposes. If you are completely new to topology
 optimization, this is where you start and I suggest to start with the topopt.py.
 
 # Installation
-Basic installation and run tests by exectuing
+Basic installation and run tests by executing
 ```
 pip install .[tests]
 ```
