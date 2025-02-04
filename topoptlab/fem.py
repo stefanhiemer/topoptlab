@@ -1,8 +1,11 @@
+from warnings import warn
+
 import numpy as np
 
 def create_edofMat(nelx,nely,nnode_dof):
     """
-    Create element degree of freedom matrix for bilinear elements.
+    Create element degree of freedom matrix for bilinear elements in a regular
+    mesh.
     
     Parameters
     ----------
@@ -34,7 +37,8 @@ def create_edofMat(nelx,nely,nnode_dof):
 def update_indices(indices,fixed,mask):
     """
     Update the indices for the stiffness matrix construction by kicking out
-    the fixed degrees of freedom and renumbering the indices.
+    the fixed degrees of freedom and renumbering the indices. This is useful 
+    only if just one set of boundary conditions need to be solved.
 
     Parameters
     ----------
@@ -58,115 +62,171 @@ def update_indices(indices,fixed,mask):
     
     return val[ind][mask]
 
-def lk_linear_elast_2d(E=1,nu=0.3):
+def shape_functions_bilinquad(xi,eta):
     """
-    Create element stiffness matrix for 2D isotropic linear elasticity with 
-    bilinear quadratic elements.
+    Shape functions for bilinear quadrilateral Lagrangian element in reference 
+    domain. Coordinates bounded in [-1,1].
     
     Parameters
     ----------
-    E : float
-        Young's modulus.
-    nu : float
-        Poisson' ratio.
-    
-    Returns
-    -------
-    Ke : np.ndarray, shape (8,8)
-        element stiffness matrix.
-        
-    """
-    k = np.array([1/2-nu/6, 1/8+nu/8, -1/4-nu/12, -1/8+3*nu /
-                 8, -1/4+nu/12, -1/8-nu/8, nu/6, 1/8-3*nu/8])
-    Ke = E/(1-nu**2)*np.array([[k[0], k[1], k[2], k[3], k[4], k[5], k[6], k[7]],
-                               [k[1], k[0], k[7], k[6], k[5], k[4], k[3], k[2]],
-                               [k[2], k[7], k[0], k[5], k[6], k[3], k[4], k[1]],
-                               [k[3], k[6], k[5], k[0], k[7], k[2], k[1], k[4]],
-                               [k[4], k[5], k[6], k[7], k[0], k[1], k[2], k[3]],
-                               [k[5], k[4], k[3], k[2], k[1], k[0], k[7], k[6]],
-                               [k[6], k[3], k[4], k[1], k[2], k[7], k[0], k[5]],
-                               [k[7], k[2], k[1], k[4], k[3], k[6], k[5], k[0]]])
-    return Ke
-
-def lk_poisson_2d():
-    """
-    Create element stiffness matrix for 2D Poisson with bilinear
-    quadratic elements. Taken from the standard Sigmund textbook.
-    
-    Returns
-    -------
-    Ke : np.ndarray, shape (4,4)
-        element stiffness matrix.
-        
-    """
-    Ke = np.array([[2/3, -1/6, -1/3, -1/6,],
-                   [-1/6, 2/3, -1/6, -1/3],
-                   [-1/3, -1/6, 2/3, -1/6],
-                   [-1/6, -1/3, -1/6, 2/3]])
-    return Ke
-
-def lk_screened_poisson_2d(rmin):
-    """
-    Create matrix for 2D screened Poisson equation with bilinear quadratic 
-    elements. Taken from the 88 lines code and slightly modified.
-    
-    Parameters
-    ----------
-    rmin : float
-        filter radius.
-        
-    Returns
-    -------
-    Ke : np.ndarray, shape (4,4)
-        element stiffness matrix.
-        
-    """
-    Ke = (rmin**2) * np.array([[2/3, -1/6, -1/3, -1/6],
-                               [-1/6, 2/3, -1/6, -1/3],
-                               [-1/3, -1/6, 2/3, -1/6],
-                               [-1/6, -1/3, -1/6, 2/3]]) + \
-                     np.array([[1/9, 1/18, 1/36, 1/18],
-                               [1/18, 1/9, 1/18, 1/36],
-                               [1/36, 1/18, 1/9, 1/18],
-                               [1/18, 1/36, 1/18, 1/9]])
-    return Ke
-
-def shape_functions_bilinquad(x,y):
-    """
-    Shape functions for quadratic bilinear element. Coordinates bounded in 
-    [-1,1].
-    
-    Parameters
-    ----------
-    x : np.ndarray
-        x coordinate of shape (ncoords).
-    y : np.ndarray
-        y coordinate of shape (ncoords).
+    xi : np.ndarray
+        x coordinate in the reference domain of shape (ncoords).
+    eta : np.ndarray
+        y coordinate in the reference domain of shape (ncoords). Coordinates are assumed to be
+        in the reference domain.
         
     Returns
     -------
     shape_functions : np.ndarray, shape (4)
-        element stiffness matrix.
+        values of shape functions at specified coordinate(s).
         
     """
-    return 1/4 * np.array([(1-x)*(1-y),
-                           (1+x)*(1-y),
-                           (1+x)*(1+y),
-                           (1-x)*(1+y)])
+    return 1/4 * np.array([(1-xi)*(1-eta),
+                           (1+xi)*(1-eta),
+                           (1+xi)*(1+eta),
+                           (1-xi)*(1+eta)])
 
-def interpolate_2d(ue,x,y,
+def shape_functions_dxi_bilinquad(xi,eta):
+    """
+    Gradient of shape functions for bilinear quadrilateral Lagrangian element. 
+    The derivative is taken with regards to the reference coordinates, not the 
+    physical coordinates.
+    
+    Parameters
+    ----------
+    xi : np.ndarray
+        x coordinate in the reference domain of shape (ncoords).
+    eta : np.ndarray
+        y coordinate in the reference domain of shape (ncoords). Coordinates are assumed to be
+        in the reference domain.
+        
+    Returns
+    -------
+    shape_functions_dxi : np.ndarray, shape (4,2)
+        gradient of shape functions at specified coordinate(s).
+        
+    """
+    return 1/4 * np.array([[(-1)*(1-eta),(-1)*(1-xi)],
+                           [(1-eta),(-1)*(1+xi)],
+                           [1+eta,1+xi],
+                           [(-1)*(1+eta),1-xi]])
+
+def jacobian_bilinquad(xe,xi,eta):
+    """
+    Jacobian for quadratic bilinear Lagrangian element. 
+    
+    Parameters
+    ----------
+    xe : np.ndarray
+        coordinates of element nodes shape (nels,4,2). Please look at the 
+        definition/function of the shape function, then the node ordering is 
+        clear.
+    xi : np.ndarray
+        x coordinate in the reference domain of shape (ncoords).
+    eta : np.ndarray
+        y coordinate in the reference domain of shape (ncoords). Coordinates are assumed to be
+        in the reference domain.
+        
+    Returns
+    -------
+    J : np.ndarray, shape (4,4)
+        Jacobian.
+        
+    """
+    return shape_functions_dxi_bilinquad(xi,eta).T @ xe 
+
+def invjacobian_bilinquad(xe,xi,eta):
+    """
+    Inverse Jacobian for bilinear quadrilateral Lagrangian element. 
+    
+    Parameters
+    ----------
+    xe : np.ndarray
+        coordinates of element nodes shape (nels,4,2). Please look at the 
+        definition/function of the shape function, then the node ordering is 
+        clear.
+    xi : np.ndarray
+        x coordinate in the reference domain of shape (ncoords).
+    eta : np.ndarray
+        y coordinate in the reference domain of shape (ncoords). Coordinates are assumed to be
+        in the reference domain.
+        
+    Returns
+    -------
+    J : np.ndarray, shape (4,4)
+        Jacobian.
+        
+    """
+    # jacobian
+    J = jacobian_bilinquad(xe,xi,eta)
+    # determinant
+    det = (J[:,0,0]*J[:,1,1]) - (J[:,1,0]*J[:,0,1])
+    # raise warning if determinant close to zero
+    if np.any(np.isclose(det, 0)):
+        warn("Determinant of element numerically close to zero.")
+    elif np.any(J<0):
+        raise ValueError("Determinant of Jacobian negative.")
+    # adjungate matrix
+    adj = np.empty_like(J)
+    adj[:, 0, 0], adj[:, 1, 1] = J[:, 1, 1], J[:, 0, 0]
+    adj[:, 0, 1], adj[:, 1, 0] = -J[:, 0, 1], -J[:, 1, 0]
+    # return inverse
+    return adj/det
+
+def jacobian_bilinquad_rectangle(a,b):
+    """
+    Jacobian for rectangular quadratic bilinear Lagrangian element. 
+    
+    Parameters
+    ----------
+    a : float
+        length of rectangle in x direction.
+    b : float
+        length of rectangle in y direction.
+        
+    Returns
+    -------
+    J : np.ndarray, shape (4,4)
+        Jacobian.
+        
+    """
+    return 1/2 * np.array([[a,0],[0,b]])
+
+def invjacobian_bilinquad_rectangle(a,b):
+    """
+    Inverse Jacobian for rectangular quadratic bilinear Lagrangian element. 
+    
+    Parameters
+    ----------
+    a : float
+        length of rectangle in x direction.
+    b : float
+        length of rectangle in y direction.
+        
+    Returns
+    -------
+    J : np.ndarray, shape (4,4)
+        Jacobian.
+        
+    """ 
+    return 2 * np.array([[1/a,0],[0,1/b]])
+
+def interpolate_2d(ue,xi,eta,
                    shape_functions=shape_functions_bilinquad):
     """
-    Interpolate state variable in each element.
+    Interpolate state variable in each element. Coordinates are assumed to be
+    in the reference domain.
     
     Parameters
     ----------
     ue : np.ndarray
         shape (nels,nedof).
-    x : np.ndarray
-        x coordinate of shape (nels).
-    y : np.ndarray
-        y coordinate of shape (ncoords).
+    xi : np.ndarray
+        x coordinate of shape (nels). Coordinates are assumed to be
+        in the reference domain.
+    eta : np.ndarray
+        y coordinate of shape (ncoords). Coordinates are assumed to be
+        in the reference domain.
         
     Returns
     -------
@@ -174,7 +234,9 @@ def interpolate_2d(ue,x,y,
         interpolated state variable.
         
     """
-    interpolation = shape_functions(x,y)
+    # interpolate
+    interpolation = shape_functions(xi,eta)
+    # get parameters for reshaping to desired end shape
     nshapef = interpolation.shape[1] 
     nnodedof = int(ue.shape[1]/nshapef)
     u = ue * np.repeat(interpolation, nnodedof)[None,:]

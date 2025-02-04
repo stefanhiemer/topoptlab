@@ -14,7 +14,8 @@ import matplotlib.pyplot as plt
 from topoptlab.optimality_criterion import oc_top88
 from topoptlab.filters import assemble_matrix_filter,assemble_convolution_filter,assemble_helmholtz_filter
 from topoptlab.output_designs import export_vtk
-from topoptlab.fem import update_indices,lk_linear_elast_2d,create_edofMat
+from topoptlab.fem import update_indices,create_edofMat
+from topoptlab.elements.linear_elasticity_2d import lk_linear_elast_2d
 from topoptlab.objectives import compliance
 from topoptlab.example_cases import mbb_2d
 from topoptlab.mma_utils import update_mma 
