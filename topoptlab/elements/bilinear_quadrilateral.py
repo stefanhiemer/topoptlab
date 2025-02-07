@@ -1,0 +1,349 @@
+from warnings import warn
+
+import numpy as np
+
+def create_edofMat(nelx,nely,nnode_dof):
+    """
+    Create element degree of freedom matrix for bilinear Lagrangian elements in 
+    a regular mesh.
+    
+    Parameters
+    ----------
+    nelx : int
+        number of elements in x direction.
+    nely : int
+        number of elements in y direction.
+    nnode_dof : int
+        number of node degrees of freedom.    
+
+    Returns
+    -------
+    edofMat : np.ndarray
+        element degree of freedom matrix
+    n1 : np.ndarray or None
+        index array to help constructing the stiffness matrix.
+    n2 : np.ndarray or None
+        index array to help constructing the stiffness matrix.
+    """
+    # create arrays for indexing
+    elx,ely = np.arange(nelx)[:,None], np.arange(nely)[None,:]
+    n1 = ((nely+1)*elx+ely).flatten()
+    n2 = ((nely+1)*(elx+1)+ely).flatten()
+    # 
+    edofMat = np.repeat(np.column_stack((n1+1, n2+1, n2, n1))*nnode_dof,nnode_dof,axis=1) 
+    edofMat = edofMat + np.tile(np.arange(nnode_dof),4)[None,:]
+    return edofMat, n1, n2
+
+def check_inputs(xi,eta,xe=None,all_elems=False):
+    """
+    Check coordinates and provided element node information to be consistent. 
+    If necessary transform inputs to make them consistent.
+    
+    Parameters
+    ----------
+    xi : float or np.ndarray
+        x coordinate in the reference domain of shape (ncoords).
+    eta : float or np.ndarray
+        y coordinate in the reference domain of shape (ncoords). Coordinates are assumed to be
+        in the reference domain.
+    xe : np.ndarray
+        coordinates of element nodes shape (nels,4,2). nels must be either 1, 
+        ncoords/4 or the same as ncoords. The two exceptions are if 
+        ncoords = 1 or all_elems is True. Please look at the 
+        definition/function of the shape function, then the node ordering is clear.
+    all_elems : bool
+        if True, coordinates are evaluated for all elements. Useful for 
+        creating elements etc.
+        
+    Returns
+    -------
+    if xe is None
+    ncoords : int
+        number of coordinates
+    if xe is not None
+    xi : float or np.ndarray
+        x coordinate in the reference domain of shape (n).
+    eta : float or np.ndarray
+        y coordinate in the reference domain of shape (n). 
+    xe : np.ndarray
+        coordinates of element nodes shape (n,4,2).
+    """
+    #
+    if isinstance(xi,np.ndarray) and isinstance(eta,np.ndarray):
+        #
+        if len(xi.shape) != 1 or len(eta.shape) != 1:
+            raise ValueError("xi and eta must be 1D: ", 
+                             xi.shape,eta.shape)
+        elif xi.shape[0] != eta.shape[0]:
+            raise ValueError("xi and eta must have same shape: ", 
+                             xi.shape,eta.shape)
+        else:
+            ncoords = xi.shape[0]
+    elif (isinstance(xi,int) and isinstance(eta,int)) or\
+         (isinstance(xi,float) and isinstance(eta,float)):
+        ncoords = 1
+    else:
+        raise ValueError("Datatypes of xi and eta inconsistent.")
+    if xe is not None:
+        #
+        xe_shape = xe.shape
+        if len(xe_shape) == 2:
+            xe = xe[None,:,:]
+            xe_shape = xe.shape
+        nels = xe.shape[0]
+        if not all_elems and all([nels != ncoords,4*nels != ncoords,
+                                  nels != 1,ncoords!=1]):
+            raise ValueError("shapes of nels and ncoords incompatible.")
+        elif all_elems:
+            xi = np.tile(xi,nels)
+            eta = np.tile(eta,nels)
+            xe = np.repeat(xe,repeats=ncoords,axis=0)
+        elif 4*nels == ncoords:
+            xe = np.repeat(xe,repeats=4,axis=0)
+        return xi,eta,xe
+    else:
+        return ncoords
+
+def shape_functions(xi,eta):
+    """
+    Shape functions for bilinear quadrilateral Lagrangian element in reference 
+    domain. Coordinates bounded in [-1,1].
+    
+    Parameters
+    ----------
+    xi : float or np.ndarray
+        x coordinate in the reference domain of shape (ncoords).
+    eta : float or np.ndarray
+        y coordinate in the reference domain of shape (ncoords). Coordinates are assumed to be
+        in the reference domain.
+        
+    Returns
+    -------
+    shape_functions : np.ndarray, shape (ncoords,4)
+        values of shape functions at specified coordinate(s).
+        
+    """
+    return 1/4 * np.column_stack(((1-xi)*(1-eta),
+                                  (1+xi)*(1-eta),
+                                  (1+xi)*(1+eta),
+                                  (1-xi)*(1+eta)))
+
+def shape_functions_dxi(xi,eta):
+    """
+    Gradient of shape functions for bilinear quadrilateral Lagrangian element. 
+    The derivative is taken with regards to the reference coordinates, not the 
+    physical coordinates.
+    
+    Parameters
+    ----------
+    xi : float or np.ndarray
+        x coordinate in the reference domain of shape (ncoords).
+    eta : float or np.ndarray
+        y coordinate in the reference domain of shape (ncoords). Coordinates are assumed to be
+        in the reference domain.
+        
+    Returns
+    -------
+    shape_functions_dxi : np.ndarray, shape (ncoords,4,2)
+        gradient of shape functions at specified coordinate(s).
+        
+    """
+    dx = 1/4 * np.column_stack(((-1)*(1-eta),(-1)*(1-xi),
+                                 (1-eta),(-1)*(1+xi),
+                                 1+eta,1+xi,
+                                 (-1)*(1+eta),1-xi))
+    return dx.reshape(int(np.prod(dx.shape)/8),4,2)
+
+def jacobian(xi,eta,xe,all_elems=False):
+    """
+    Jacobian for quadratic bilinear Lagrangian element. 
+    
+    Parameters
+    ----------
+    xi : float or np.ndarray
+        x coordinate in the reference domain of shape (ncoords).
+    eta : float or np.ndarray
+        y coordinate in the reference domain of shape (ncoords). Coordinates are assumed to be
+        in the reference domain.
+    xe : np.ndarray
+        coordinates of element nodes shape (nels,4,2). nels must be either 1, 
+        ncoords/4 or the same as ncoords. The two exceptions are if 
+        ncoords = 1 or all_elems is True. 
+        Please look at the definition/function of the shape function, then the 
+        node ordering is clear.
+    all_elems : bool
+        if True, coordinates are evaluated for all elements. Useful for 
+        creating elements etc.
+        
+    Returns
+    -------
+    J : np.ndarray, shape (ncoords,2,2) or (nels,2,2)
+        Jacobian.
+        
+    """
+    # check coordinates and node data for consistency
+    xi,eta,xe = check_inputs(xi,eta,xe,all_elems)
+    return shape_functions_dxi(xi,eta).transpose([0,2,1]) @ xe 
+
+def invjacobian(xi,eta,xe,all_elems=False):
+    """
+    Inverse Jacobian for bilinear quadrilateral Lagrangian element. 
+    
+    Parameters
+    ----------
+    xi : np.ndarray
+        x coordinate in the reference domain of shape (ncoords).
+    eta : np.ndarray
+        y coordinate in the reference domain of shape (ncoords). Coordinates are assumed to be
+        in the reference domain.
+    xe : np.ndarray
+        coordinates of element nodes shape (nels,4,2). nels must be either 1, 
+        ncoords/4 or the same as ncoords. The two exceptions are if 
+        ncoords = 1 or all_elems is True. 
+        Please look at the definition/function of the shape function, then the 
+        node ordering is clear.
+    all_elems : bool
+        if True, coordinates are evaluated for all elements. Useful for 
+        creating elements etc.
+        
+    Returns
+    -------
+    Jinv : np.ndarray, shape (ncoords,2,2) or (nels,2,2)
+           Jacobian.
+        
+    """
+    # jacobian
+    J = jacobian(xi,eta,xe,all_elems=all_elems)
+    # determinant
+    det = (J[:,0,0]*J[:,1,1]) - (J[:,1,0]*J[:,0,1])
+    # raise warning if determinant close to zero
+    if np.any(np.isclose(det, 0)):
+        warn("Determinant of element numerically close to zero.")
+    elif np.any(det<0):
+        raise ValueError("Determinant of Jacobian negative.")
+    # adjungate matrix
+    adj = np.empty_like(J)
+    adj[:, 0, 0], adj[:, 1, 1] = J[:, 1, 1], J[:, 0, 0]
+    adj[:, 0, 1], adj[:, 1, 0] = -J[:, 0, 1], -J[:, 1, 0]
+    # return inverse
+    return adj/det[:,None,None]
+
+def jacobian_rectangle(a,b):
+    """
+    Jacobian for rectangular quadratic bilinear Lagrangian element. 
+    
+    Parameters
+    ----------
+    a : float
+        length of rectangle in x direction.
+    b : float
+        length of rectangle in y direction.
+        
+    Returns
+    -------
+    J : np.ndarray, shape (2,2)
+        Jacobian.
+        
+    """
+    return 1/2 * np.array([[a,0],[0,b]])
+
+def invjacobian_rectangle(a,b):
+    """
+    Inverse Jacobian for rectangular quadratic bilinear Lagrangian element. 
+    
+    Parameters
+    ----------
+    a : float
+        length of rectangle in x direction.
+    b : float
+        length of rectangle in y direction.
+        
+    Returns
+    -------
+    J : np.ndarray, shape (2,2)
+        Jacobian.
+        
+    """ 
+    return 2 * np.array([[1/a,0],[0,1/b]])
+
+def bmatrix(xi,eta,xe,all_elems=False):
+    """
+    B matrix for bilinear quadrilateral Lagrangian element to calculate
+    to calculate strains, stresses etc. from nodal values
+    
+    Parameters
+    ----------
+    xi : np.ndarray
+        x coordinate in the reference domain of shape (ncoords).
+    eta : np.ndarray
+        y coordinate in the reference domain of shape (ncoords). Coordinates are assumed to be
+        in the reference domain.
+    xe : np.ndarray
+        coordinates of element nodes shape (nels,4,2). nels must be either 1, 
+        ncoords/4 or the same as ncoords. The two exceptions are if 
+        ncoords = 1 or all_elems is True. 
+        Please look at the definition/function of the shape function, then the 
+        node ordering is clear.
+    all_elems : bool
+        if True, coordinates are evaluated for all elements. Useful for 
+        creating elements etc.
+        
+        
+    Returns
+    -------
+    B : np.ndarray, shape (ncoords,3,8) or (nels,3,8)
+        B matrix.
+        
+    """
+    # check coordinates and node data for consistency
+    xi,eta,xe = check_inputs(xi,eta,xe,all_elems) 
+    # collect inverse jacobians
+    invJ = invjacobian(xi,eta,xe)
+    # helper array to collect shape function derivatives
+    helper = np.zeros((invJ.shape[0],4,8))
+    shp = shape_functions_dxi(xi,eta).transpose([0,2,1])
+    helper[:,:2,::2] = shp
+    helper[:,2:,1::2] = shp.copy() # copy to avoid np.views
+    #
+    B = np.array([[1,0,0,0],
+                  [0,0,0,1],
+                  [0,1,1,0]])@np.kron(np.eye(2),invJ)@helper
+    return B
+
+def bmatrix_rectangle(xi,eta,a,b):
+    """
+    B matrix for bilinear quadrilateral Lagrangian element to calculate
+    to calculate strains, stresses etc. from nodal values
+    
+    Parameters
+    ----------
+    xi : np.ndarray
+        x coordinate in the reference domain of shape (ncoords).
+    eta : np.ndarray
+        y coordinate in the reference domain of shape (ncoords). Coordinates are assumed to be
+        in the reference domain.
+    a : float
+        length of rectangle in x direction.
+    b : float
+        length of rectangle in y direction.
+        
+    Returns
+    -------
+    B : np.ndarray, shape (ncoords,3,8)
+        B matrix.
+        
+    """
+    # check coordinates for consistency
+    ncoords = check_inputs(xi, eta)
+    # collect inverse jacobians
+    invJ = invjacobian_rectangle(a,b)
+    # helper array to collect shape function derivatives
+    helper = np.zeros((ncoords,4,8))
+    shp = shape_functions_dxi(xi,eta).transpose([0,2,1])
+    helper[:,:2,::2] = shp
+    helper[:,2:,1::2] = shp.copy() # copy to avoid np.views
+    #
+    B = np.array([[1,0,0,0],
+                  [0,0,0,1],
+                  [0,1,1,0]])@np.kron(np.eye(2),invJ)@helper
+    return B

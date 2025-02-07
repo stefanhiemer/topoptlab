@@ -2,15 +2,10 @@ from topoptlab.elements.poisson_2d import lk_poisson_2d
 
 import numpy as np
 
-def mass_2d(rmin):
+def mass_2d():
     """
     Create mass matrix for 2D with bilinear quadrilateral Lagrangian 
     elements. Taken from the 88 lines code and slightly modified.
-    
-    Parameters
-    ----------
-    rmin : float
-        filter radius.
         
     Returns
     -------

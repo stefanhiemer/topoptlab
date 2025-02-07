@@ -1,5 +1,54 @@
 import numpy as np
 
+from topoptlab.fem import get_integrpoints
+from topoptlab.elements.trilinear_hexahedron import bmatrix
+
+def _lk_linear_elast_3d(xe,c,
+                        quadr_method="gauss-legendre"):
+    """
+    Create element stiffness matrix for 2D isotropic linear elasticity with 
+    bilinear quadrilateral Lagrangian elements in plane stress.
+    
+    Parameters
+    ----------
+    xe : np.ndarray, shape (nels,8,2)
+        coordinates of element nodes. Please look at the 
+        definition/function of the shape function, then the node ordering is 
+        clear.
+    c : np.ndarray, shape (nels,9,9) or 
+        stiffness tensor.
+    quadr_method: str or callable
+        name of quadrature method or function/callable that returns coordinates of 
+        quadrature points and weights. Check function get_integrpoints for 
+        available options. 
+    Returns
+    -------
+    Ke : np.ndarray, shape (nels,24,24)
+        element stiffness matrix.
+        
+    """
+    #
+    if len(c.shape) == 2:
+        c = c[None,:,:]
+    #
+    if len(xe.shape) == 2:
+        xe = xe[None,:,:]
+    #
+    x,w=get_integrpoints(ndim=3,nq=2,method=quadr_method)
+    #
+    xi,eta,zeta = [_x[:,0] for _x in np.split(x, 3,axis=1)]
+    #
+    nel = xe.shape[0]
+    nq =w.shape[0]
+    # 
+    B = bmatrix(xi, eta, zeta, xe, all_elems=True)
+    B = B.reshape(nel, nq,  B.shape[-2], B.shape[-1])
+    #
+    integral = B.transpose([0,1,3,2])@c[:,None,:,:]@B
+    #
+    Ke = (w[:,None,None]*integral).sum(axis=1)
+    return Ke
+
 def lk_linear_elast_3d(E=1,nu=0.3):
     """
     Create element stiffness matrix for 3D isotropic linear elasticity with 

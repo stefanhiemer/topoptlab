@@ -3,7 +3,7 @@ from scipy.sparse import csc_array,coo_matrix
 from scipy.optimize import minimize
 from scipy.ndimage import convolve
 
-from topoptlab.fem import lk_screened_poisson_2d
+from topoptlab.elements.screenedpoisson_2d import lk_screened_poisson_2d
 
 def assemble_matrix_filter(nelx,nely,rmin,el = None,
                            ndim=2):
@@ -142,7 +142,7 @@ def assemble_helmholtz_filter(nelx,nely,rmin,ndim=2,
     # conversion of filter radius via 1D Green's function
     Rmin = rmin/(2*np.sqrt(3))
     #
-    KEF = lk_screened_poisson_2d(Rmin)
+    KEF = lk_screened_poisson_2d(k=Rmin**2)
     ndofF = (nelx+1)*(nely+1)
     edofMatF = np.column_stack((n1, n2, n2 +1, n1 +1 ))
     iKF = np.kron(edofMatF, np.ones((4, 1))).flatten()

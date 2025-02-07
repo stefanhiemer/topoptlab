@@ -1,9 +1,58 @@
 import numpy as np 
 
-def lk_linear_elast_2d(E=1,nu=0.3):
+from topoptlab.elements.bilinear_quadrilateral import bmatrix
+from topoptlab.fem import get_integrpoints
+
+def _lk_linear_elast_2d(xe,c,
+                        quadr_method="gauss-legendre"):
     """
     Create element stiffness matrix for 2D isotropic linear elasticity with 
     bilinear quadrilateral Lagrangian elements in plane stress.
+    
+    Parameters
+    ----------
+    xe : np.ndarray, shape (nels,4,2)
+        coordinates of element nodes. Please look at the 
+        definition/function of the shape function, then the node ordering is 
+        clear.
+    c : np.ndarray, shape (nels,3,3) or 
+        stiffness tensor.
+    quadr_method: str or callable
+        name of quadrature method or function/callable that returns coordinates of 
+        quadrature points and weights. Check function get_integrpoints for 
+        available options. 
+    Returns
+    -------
+    Ke : np.ndarray, shape (nels,8,8)
+        element stiffness matrix.
+        
+    """
+    #
+    if len(c.shape) == 2:
+        c = c[None,:,:]
+    #
+    if len(xe.shape) == 2:
+        xe = xe[None,:,:]
+    #
+    x,w=get_integrpoints(ndim=2,nq=2,method=quadr_method)
+    #
+    xi,eta = [_x[:,0] for _x in np.split(x, 2,axis=1)]
+    #
+    nel = xe.shape[0]
+    nq =w.shape[0]
+    # 
+    B = bmatrix(xi, eta, xe, all_elems=True)
+    B = B.reshape(nel, nq,  B.shape[-2], B.shape[-1])
+    #
+    integral = B.transpose([0,1,3,2])@c[:,None,:,:]@B
+    #
+    Ke = (w[:,None,None]*integral).sum(axis=1)
+    return Ke
+
+def lk_linear_elast_2d(E=1,nu=0.3):
+    """
+    Create element stiffness matrix for 2D isotropic linear elasticity with 
+    bilinear quadrilateral Lagrangian elements in plane stress. 
     
     Parameters
     ----------
@@ -33,7 +82,7 @@ def lk_linear_elast_2d(E=1,nu=0.3):
 def lk_linear_elast_aniso_2d(c):
     """
     Create element stiffness matrix for 2D anisotropic linear elasticity with 
-    bilinear quadrilateral elements.
+    bilinear quadrilateral elements. 
     
     Parameters
     ----------
