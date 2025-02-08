@@ -80,6 +80,7 @@ if __name__ == "__main__":
     Ke = _lk_linear_elast_3d(xe,isotropic_3d(1.0,0.3))
     
     #
+    from topoptlab.fem import get_integrpoints
     x,w=get_integrpoints(ndim=3,nq=2)
     print(Ke_rect[0]/Ke)
     print(Ke)
