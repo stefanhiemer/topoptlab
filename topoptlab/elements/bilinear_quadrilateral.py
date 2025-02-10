@@ -30,7 +30,8 @@ def create_edofMat(nelx,nely,nnode_dof):
     n1 = ((nely+1)*elx+ely).flatten()
     n2 = ((nely+1)*(elx+1)+ely).flatten()
     # 
-    edofMat = np.repeat(np.column_stack((n1+1, n2+1, n2, n1))*nnode_dof,nnode_dof,axis=1) 
+    edofMat = np.column_stack((n1+1,n2+1,n2,n1))*nnode_dof
+    edofMat = np.repeat(edofMat,nnode_dof,axis=1) 
     edofMat = edofMat + np.tile(np.arange(nnode_dof),4)[None,:]
     return edofMat, n1, n2
 
