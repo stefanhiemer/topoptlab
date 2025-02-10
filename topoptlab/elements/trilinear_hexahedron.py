@@ -22,13 +22,25 @@ def create_edofMat(nelx,nely,nelz,nnode_dof):
     -------
     edofMat : np.ndarray
         element degree of freedom matrix
-    n1 : np.ndarray or None
+    n1 : np.ndarray
         index array to help constructing the stiffness matrix.
-    n2 : np.ndarray or None
+    n2 : np.ndarray
         index array to help constructing the stiffness matrix.
     """
-    raise NotImplementedError()
-    return edofMat, n1, n2
+    # create arrays for indexing
+    elx = np.arange(nelx)[None,:,None]
+    ely = np.arange(nely)[None,None,:]
+    elz = np.arange(nelz)[:,None,None]
+    n1 = ((nelx+1)*(nely+1)*elz + (nely+1)*elx + ely).flatten()
+    n2 = ((nelx+1)*(nely+1)*elz + (nely+1)*(elx+1) + ely).flatten()
+    n3 = ((nelx+1)*(nely+1)*(elz+1) + (nely+1)*elx + ely).flatten()
+    n4 = ((nelx+1)*(nely+1)*(elz+1) + (nely+1)*(elx+1) + ely).flatten()
+    # 
+    edofMat = np.column_stack((n1+1,n2+1,n2,n1,
+                               n3+1,n4+1,n4,n3))*nnode_dof
+    edofMat = np.repeat(edofMat,nnode_dof,axis=1)
+    edofMat = edofMat + np.tile(np.arange(nnode_dof),8)[None,:]
+    return edofMat, n1, n2, n3, n4
 
 def check_inputs(xi,eta,zeta,xe=None,all_elems=False):
     """

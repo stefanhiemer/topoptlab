@@ -20,9 +20,9 @@ def create_edofMat(nelx,nely,nnode_dof):
     -------
     edofMat : np.ndarray
         element degree of freedom matrix
-    n1 : np.ndarray or None
+    n1 : np.ndarray
         index array to help constructing the stiffness matrix.
-    n2 : np.ndarray or None
+    n2 : np.ndarray
         index array to help constructing the stiffness matrix.
     """
     # create arrays for indexing
