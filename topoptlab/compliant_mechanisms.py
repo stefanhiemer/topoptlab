@@ -288,7 +288,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         # Optimality criteria
         if solver=="oc":
             xold[:] = x 
-            (x[:], g) = oc_mechanism(nelx, nely, x, volfrac, dc, dconstrs[:,0], g, pass_el)
+            (x[:], g) = oc_mechanism(x, volfrac, dc, dconstrs[:,0], g, pass_el)
         # method of moving asymptotes, implementation by Arjen Deetman
         elif solver=="mma":
             xval = x.copy()[np.newaxis].T

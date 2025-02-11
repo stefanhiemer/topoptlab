@@ -56,7 +56,7 @@ def test_anisotrop_linelast_2d(c,xe):
                         Kes)
     return
 
-def test_isotrop_linelast_3d(Es,nus,c,xe):
+def isotrop_linelast_3d(Es,nus,c,xe):
     
     #
     Kes = stack([lk_linear_elast_2d(E,nu) for E,nu in zip(Es,nus)])

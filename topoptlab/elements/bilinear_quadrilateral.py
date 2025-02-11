@@ -2,7 +2,7 @@ from warnings import warn
 
 import numpy as np
 
-def create_edofMat(nelx,nely,nnode_dof):
+def create_edofMat(nelx,nely,nnode_dof,**kwargs):
     """
     Create element degree of freedom matrix for bilinear Lagrangian elements in 
     a regular mesh.
@@ -24,6 +24,10 @@ def create_edofMat(nelx,nely,nnode_dof):
         index array to help constructing the stiffness matrix.
     n2 : np.ndarray
         index array to help constructing the stiffness matrix.
+    n3 :  None
+        purely there for compatibility with 3 dimensions
+    n4 :  None
+        purely there for compatibility with 3 dimensions
     """
     # create arrays for indexing
     elx,ely = np.arange(nelx)[:,None], np.arange(nely)[None,:]
@@ -33,7 +37,7 @@ def create_edofMat(nelx,nely,nnode_dof):
     edofMat = np.column_stack((n1+1,n2+1,n2,n1))*nnode_dof
     edofMat = np.repeat(edofMat,nnode_dof,axis=1) 
     edofMat = edofMat + np.tile(np.arange(nnode_dof),4)[None,:]
-    return edofMat, n1, n2
+    return edofMat, n1, n2, None, None
 
 def check_inputs(xi,eta,xe=None,all_elems=False):
     """

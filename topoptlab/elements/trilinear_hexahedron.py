@@ -26,6 +26,10 @@ def create_edofMat(nelx,nely,nelz,nnode_dof):
         index array to help constructing the stiffness matrix.
     n2 : np.ndarray
         index array to help constructing the stiffness matrix.
+    n3 : np.ndarray
+        index array to help constructing the stiffness matrix.
+    n4 : np.ndarray
+        index array to help constructing the stiffness matrix.
     """
     # create arrays for indexing
     elx = np.arange(nelx)[None,:,None]

@@ -43,7 +43,7 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
     # dofs:
     ndof = 2*(nelx+1)*(nely+1)
     # Allocate design variables (as array), initialize and allocate sens.
-    x=volfrac * np.ones(nely*nelx,dtype=float)
+    x=volfrac * np.ones(nely*nelx,dtype=float,order="F")
     xold=x.copy()
     xPhys=x.copy()
     g=0 # must be initialized to use the NGuyen/Paulino OC approach
@@ -57,8 +57,8 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
     edofMat = np.column_stack((2*n1+2, 2*n1+3, 2*n2+2, 2*n2+3, 
                                2*n2, 2*n2+1, 2*n1, 2*n1+1))
     # Construct the index pointers for the coo format
-    iK = np.kron(edofMat, np.ones((8, 1))).flatten()
-    jK = np.kron(edofMat, np.ones((1, 8))).flatten()   
+    iK = np.tile(edofMat,KE.shape[0]).flatten()
+    jK = np.repeat(edofMat,KE.shape[0]).flatten()   
     # Filter: Build (and assemble) the index+data vectors for the coo matrix format
     nfilter = int(nelx*nely*((2*(np.ceil(rmin)-1)+1)**2))
     iH = np.zeros(nfilter)
@@ -76,7 +76,7 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
     k,l = np.hstack([np.stack([a.flatten() for a in \
                      np.meshgrid(np.arange(k1,k2),np.arange(l1,l2))]) \
                      for k1,k2,l1,l2 in zip(kk1,kk2,ll1,ll2)])
-    fac = rmin-np.sqrt(((i-k)**2+(j-l)**2))
+    fac = rmin-np.sqrt((i-k)**2+(j-l)**2)
     iH[cc] = el # row
     jH[cc] = k*nely+l #column
     sH[cc] = np.maximum(0.0, fac)
@@ -96,7 +96,7 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
     # Initialize plot and plot the initial design
     plt.ion() # Ensure that redrawing is possible
     fig,ax = plt.subplots()
-    im = ax.imshow(-xPhys.reshape((nelx,nely)).T, cmap='gray',\
+    im = ax.imshow(-xPhys.reshape((nely,nelx),order="F"), cmap='gray',
                    interpolation='none',norm=colors.Normalize(vmin=-1,vmax=0))
     ax.tick_params(axis='both',
                    which='both',
@@ -142,7 +142,7 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
         # Compute the change by the inf. norm
         change=(x.reshape(nelx*nely,1)-xold.reshape(nelx*nely,1)).max()
         # Plot to screen
-        im.set_array(-xPhys.reshape((nelx,nely)).T)
+        im.set_array(-xPhys.reshape((nely,nelx),order="F"))
         fig.canvas.draw()
         plt.pause(0.01)
         # Write iteration history to screen (req. Python 2.6 or newer)
@@ -176,7 +176,11 @@ def oc(nelx,nely,x,volfrac,dc,dv,g):
     xnew=np.zeros(nelx*nely)
     while (l2-l1)/(l1+l2)>1e-3:
         lmid=0.5*(l2+l1)
-        xnew[:]= np.maximum(0.0,np.maximum(x-move,np.minimum(1.0,np.minimum(x+move,x*np.sqrt(-dc/dv/lmid)))))
+        xnew[:]= np.maximum(0.0,
+                            np.maximum(x-move,
+                                       np.minimum(1.0,
+                                                  np.minimum(x+move,
+                                                             x*np.sqrt(-dc/dv/lmid)))))
         gt=g+np.sum((dv*(xnew-x)))
         if gt>0 :
             l1=lmid

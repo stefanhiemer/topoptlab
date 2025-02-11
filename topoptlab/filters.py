@@ -5,7 +5,7 @@ from scipy.ndimage import convolve
 
 from topoptlab.elements.screenedpoisson_2d import lk_screened_poisson_2d
 
-def assemble_matrix_filter(nelx,nely,rmin,el = None,
+def assemble_matrix_filter(nelx,nely,rmin,nelz=None,el = None,
                            ndim=2):
     """
     Assemble distance based filters as sparse matrix that is applied on to
@@ -17,11 +17,11 @@ def assemble_matrix_filter(nelx,nely,rmin,el = None,
         number of elements in x direction.
     nely : int
         number of elements in y direction.
-    volfrac : float
-        volume fraction. 
     rmin : float
         cutoff radius for the filter. Only elements within the element-center 
         to element center distance are used for filtering. 
+    nelz : int or None
+        number of elements in z direction. Ignored if ndim < 3.
     el : np.ndarray or None
         sorted array of element indices.
     ndim : int 
@@ -35,33 +35,67 @@ def assemble_matrix_filter(nelx,nely,rmin,el = None,
         normalization factor.
 
     """
-    
-    if el is None:
-        el = np.arange(nelx*nely)
-    
-    nfilter = int(nelx*nely*((2*(np.ceil(rmin)-1)+1)**2))
+    # number of elements/densities
+    if ndim == 2:
+        n = nelx*nely
+    elif ndim == 3:
+        n = nelx*nely*nelz
+    # index array of densities/elements
+    if el is None: 
+        el = np.arange(n)
+    # filter size
+    nfilter = int(n*((2*(np.ceil(rmin)-1)+1)**ndim))
+    # create empty arrays for indices and values of final filter 
     iH = np.zeros(nfilter)
     jH = np.zeros(nfilter)
     sH = np.zeros(nfilter)
-    i = np.floor(el/nely)
-    j = el%nely
-    kk1 = np.maximum(i-(np.ceil(rmin)-1), 0).astype(int)
-    kk2 = np.minimum(i+np.ceil(rmin), nelx).astype(int)
-    ll1 = np.maximum(j-(np.ceil(rmin)-1), 0).astype(int)
-    ll2 = np.minimum(j+np.ceil(rmin), nely).astype(int)
+    # find coordinates of each element/density
+    if ndim == 2:
+        x,y = np.divmod(el,nely) # same as np.floor(el/nely),el%nely
+    elif ndim == 3:
+        z,rest = np.divmod(el,nelx*nely)
+        x,y = np.divmod(rest,nely)
+    # find coordinates of neighbours for each element
+    kk1 = np.maximum(x-(np.ceil(rmin)-1), 0).astype(int)
+    kk2 = np.minimum(x+np.ceil(rmin), nelx).astype(int)
+    ll1 = np.maximum(y-(np.ceil(rmin)-1), 0).astype(int)
+    ll2 = np.minimum(y+np.ceil(rmin), nely).astype(int)
+    if ndim == 3:
+        mm1 = np.maximum(z-(np.ceil(rmin)-1), 0).astype(int)
+        mm2 = np.minimum(z+np.ceil(rmin), nelz).astype(int)
     n_neigh = (kk2-kk1)*(ll2-ll1)
-    el,i,j = np.repeat(el, n_neigh),np.repeat(i, n_neigh),np.repeat(j, n_neigh)
+    if ndim ==3:
+        n_neigh = n_neigh * (mm2-mm1)
+    el = np.repeat(el, n_neigh)
+    x = np.repeat(x, n_neigh)
+    y = np.repeat(y, n_neigh)
+    if ndim == 3:
+        z = np.repeat(z, n_neigh)
     cc = np.arange(el.shape[0])
-    k,l = np.hstack([np.stack([a.flatten() for a in \
-                     np.meshgrid(np.arange(k1,k2),np.arange(l1,l2))]) \
-                     for k1,k2,l1,l2 in zip(kk1,kk2,ll1,ll2)])
-    # hat function
-    fac = rmin-np.sqrt(((i-k)**2+(j-l)**2))
+    if ndim == 2:
+        k,l = np.hstack([np.stack([a.flatten() for a in \
+                         np.meshgrid(np.arange(k1,k2),np.arange(l1,l2))]) \
+                         for k1,k2,l1,l2 in zip(kk1,kk2,ll1,ll2)])
+        # hat function
+        fac = rmin-np.sqrt((x-k)**2+(y-l)**2)
+    elif ndim == 3:
+        k,l,m = np.hstack([np.stack([a.flatten() for a in \
+                           np.meshgrid(np.arange(k1,k2),
+                                       np.arange(l1,l2),
+                                       np.arange(m1,m2))]) \
+                           for k1,k2,l1,l2,m1,m2 in \
+                           zip(kk1,kk2,ll1,ll2,mm1,mm2)])
+        # hat function
+        fac = rmin-np.sqrt((x-k)**2+(y-l)**2+(z-m)**2)
     iH[cc] = el # row
-    jH[cc] = k*nely+l #column
+    if ndim == 2:
+        jH[cc] = nely*k+l #column
+    elif ndim == 3:
+        jH[cc] = (m*nelx + k)*nely + l
     sH[cc] = np.maximum(0.0, fac)
     # Finalize assembly and convert to csc format
-    H = coo_matrix((sH, (iH, jH)), shape=(nelx*nely, nelx*nely)).tocsc()
+    H = coo_matrix((sH, (iH, jH)), shape=(n, n)).tocsc()
+    # normalization factor
     Hs = H.sum(1)
     return H,Hs
 
@@ -70,17 +104,31 @@ def assemble_convolution_filter(nelx,nely,rmin,
     # filter radius in number of elements
     nfilter = int(2*np.floor(rmin)+1)
     #
-    x = np.arange(-np.floor(rmin),rmin)
+    x = np.arange(-np.floor(rmin),np.floor(rmin)+1)
     #x = np.tile(x,tuple([nfilter])*(ndim-1) + tuple([1]))
     #
     
     if ndim == 2:
+        #
         x = np.tile(x,(nfilter,1))
         y = np.rot90(x)
         # hat function
         kernel = np.maximum(0.0,rmin - np.sqrt(x**2 + y**2))
         # normalization constant
-        hs = convolve(np.ones((nelx, nely)).T,
+        hs = convolve(np.ones((nely, nelx)),
+                      kernel,
+                      mode="constant",
+                      cval=0).T.flatten()
+        return kernel,hs
+    elif ndim == 3:
+        #
+        x = np.tile(x,(nfilter,nfilter,1))
+        y = x.transpose((0,2,1))
+        z = x.transpose((2,1,0))
+        # hat function
+        kernel = np.maximum(0.0,rmin - np.sqrt(x**2 + y**2 + z**2))
+        # normalization constant
+        hs = convolve(np.ones((nelz,nelx, nely)).transpose((0,2,1)),
                       kernel,
                       mode="constant",
                       cval=0).T.flatten()
@@ -88,8 +136,8 @@ def assemble_convolution_filter(nelx,nely,rmin,
     else:
         raise NotImplementedError("3D not yet implemented")
 
-def assemble_helmholtz_filter(nelx,nely,rmin,ndim=2,
-                              el=None,n1=None,n2=None):
+def assemble_helmholtz_filter(nelx,nely,rmin,nelz=None,ndim=2,
+                              el=None,n1=None,n2=None,n3=None,n4=None):
     """
     Assemble Helmholtz PDE based filter from "Efficient topology optimization 
     in MATLAB using 88 lines of code".
@@ -110,6 +158,8 @@ def assemble_helmholtz_filter(nelx,nely,rmin,ndim=2,
     rmin : float
         cutoff radius for the filter. Only elements within the element-center 
         to element center distance are used for filtering. 
+    nely : int or None
+        number of elements in z direction.
     ndim : int 
         number of dimensions
     el : np.ndarray or None
@@ -117,6 +167,10 @@ def assemble_helmholtz_filter(nelx,nely,rmin,ndim=2,
     n1 : np.ndarray or None
         index array to help constructing the stiffness matrix.
     n2 : np.ndarray or None
+        index array to help constructing the stiffness matrix.
+    n3 : np.ndarray or None
+        index array to help constructing the stiffness matrix.
+    n4 : np.ndarray or None
         index array to help constructing the stiffness matrix.
 
     Returns

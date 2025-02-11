@@ -1,4 +1,3 @@
-# A 165 LINE TOPOLOGY OPTIMIZATION CODE BY NIELS AAGE AND VILLADS EGEDE JOHANSEN, JANUARY 2013
 from __future__ import division
 from os.path import isfile
 from os import remove
@@ -15,14 +14,18 @@ from topoptlab.optimality_criterion import oc_top88
 from topoptlab.filters import assemble_matrix_filter,assemble_convolution_filter,assemble_helmholtz_filter
 from topoptlab.output_designs import export_vtk
 from topoptlab.fem import update_indices
-from topoptlab.elements.bilinear_quadrilateral import create_edofMat
+from topoptlab.elements.bilinear_quadrilateral import create_edofMat as create_edofMat2d
+from topoptlab.elements.trilinear_hexahedron import create_edofMat as create_edofMat3d
 from topoptlab.elements.linear_elasticity_2d import lk_linear_elast_2d
+from topoptlab.elements.linear_elasticity_3d import lk_linear_elast_3d
+from topoptlab.elements.poisson_2d import lk_poisson_2d
 from topoptlab.objectives import compliance
 from topoptlab.example_cases import mbb_2d
 from topoptlab.mma_utils import update_mma 
 
 # MAIN DRIVER
 def main(nelx, nely, volfrac, penal, rmin, ft, 
+         nelz=None,
          filter_mode="matrix",ndim=2,
          bcs=mbb_2d,
          el_flags=None,
@@ -49,6 +52,8 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     ft : int
         integer flag for the filter. 0 sensitivity filtering, 
         1 density filtering, -1 no filter.
+    nelz : int or None
+        number of elements in z direction. Only important if ndim is 3.
     filter_mode : str
         indicates how filtering is done. Possible values are "matrix" or 
         "helmholtz". If "matrix", then density/sensitivity filters are 
@@ -96,7 +101,11 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                             logging.StreamHandler()])
         #
         logging.info(f"minimum compliance problem with {solver}")
-        logging.info(f"nodes: {nelx} x {nely}")
+        logging.info(f"number of spatial dimensions: {ndim}")
+        if ndim == 2:
+            logging.info(f"elements: {nelx} x {nely}")
+        elif ndim == 3:
+            logging.info(f"elements: {nelx} x {nely} x (nelz)")
         logging.info(f"volfrac: {volfrac}, rmin: {rmin},  penal: {penal}")
         logging.info("filter: " + ["Sensitivity based", 
                                    "Density based",
@@ -106,11 +115,16 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                                    "Volume Preserving eta projection",
                                    "No filter"][ft])
         logging.info(f"filter mode: {filter_mode}")
+    #
+    if ndim == 2:
+        n = nelx * nely
+    elif ndim == 3:
+        n = nelx * nely * nelz
     # Max and min Young's modulus
     Emin = 1e-9
     Emax = 1.0
     # Allocate design variables (as array), initialize and allocate sens.
-    x = volfrac * np.ones(nely*nelx, dtype=float)
+    x = volfrac * np.ones(n, dtype=float,order='F')
     xold = x.copy()
     xTilde = x.copy()
     xPhys = x.copy()
@@ -162,29 +176,49 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         raaeps = 0.000001*np.ones((m,1))
     else:
         raise ValueError("Unknown solver: ", solver)
-    # FE: Build the index vectors for the for coo matrix format.
-    ndof = 2*(nelx+1)*(nely+1)
-    KE = lk_linear_elast_2d()
-    el = np.arange(nelx*nely)
-    edofMat, n1, n2 = create_edofMat(nelx,nely,nnode_dof=int(KE.shape[0]/4))
+    # dimensions
+    if ndim == 2:
+        # get element stiffness matrix
+        KE = lk_linear_elast_2d() #lk_poisson_2d()#
+        # infer nodal degrees of freedom assuming that we have 4/8 nodes in 2/3 
+        n_ndof = int(KE.shape[0]/4)
+        # number of degrees of freedom
+        ndof = (nelx+1)*(nely+1)*n_ndof
+    elif ndim == 3:
+        # get element stiffness matrix
+        KE = lk_linear_elast_3d()
+        # infer nodal degrees of freedom assuming that we have 4/8 nodes in 2/3 
+        n_ndof = int(KE.shape[0]/8)
+        # number of degrees of freedom
+        ndof = (nelx+1)*(nely+1)*(nelz+1)*n_ndof
+    # el. indices
+    el = np.arange(n)
+    # element degree of freedom matrix plus some helper indices
+    if ndim == 2:
+        edofMat, n1, n2, n3, n4 = create_edofMat2d(nelx=nelx,nely=nely,nelz=nelz,
+                                                   nnode_dof=n_ndof)
+    elif ndim == 3:
+        edofMat, n1, n2, n3, n4 = create_edofMat3d(nelx=nelx,nely=nely,nelz=nelz,
+                                                   nnode_dof=n_ndof)
     # Construct the index pointers for the coo format
-    iK = np.kron(edofMat, np.ones((KE.shape[0], 1))).flatten()
-    jK = np.kron(edofMat, np.ones((1, KE.shape[0]))).flatten()
+    iK = np.tile(edofMat,KE.shape[0]).flatten()
+    jK = np.repeat(edofMat,KE.shape[0]).flatten()
     # Filter: Build (and assemble) the index+data vectors for the coo matrix format
     if filter_mode == "matrix":
-        H,Hs = assemble_matrix_filter(nelx=nelx,nely=nely,
+        H,Hs = assemble_matrix_filter(nelx=nelx,nely=nely,nelz=nelz,
                                       rmin=rmin,el=el,ndim=ndim)
     elif filter_mode == "convolution":
-        h,hs = assemble_convolution_filter(nelx=nelx,nely=nely, 
+        h,hs = assemble_convolution_filter(nelx=nelx,nely=nely,nelz=nelz,
                                            rmin=rmin,ndim=ndim)
     elif filter_mode == "helmholtz" and ft in [0,1]:
-        KF,TF = assemble_helmholtz_filter(nelx=nelx,nely=nely,
+        KF,TF = assemble_helmholtz_filter(nelx=nelx,nely=nely,nelz=nelz,
                                           rmin=rmin,ndim=ndim,
-                                          el=el,n1=n1,n2=n2)
+                                          el=el,n1=n1,n2=n2,n3=n3,n4=n4)
         # LU decomposition. returns a function for solving, not the matrices
         lu_solve = factorized(KF)
     # BC's and support
-    u,f,fixed,free = bcs(nelx=nelx,nely=nely,ndof=ndof)
+    u,f,fixed,free = bcs(nelx=nelx,nely=nely,nelz=nelz,
+                         ndof=ndof)
     # get rid of fixed degrees of freedom from stiffness matrix 
     mask = ~(np.isin(iK,fixed) | np.isin(jK,fixed))
     iK = update_indices(iK, fixed, mask)
@@ -195,7 +229,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         # Initialize plot and plot the initial design
         plt.ion()  # Ensure that redrawing is possible
         fig, ax = plt.subplots(1,1)
-        im = ax.imshow(-xPhys.reshape((nelx, nely)).T, cmap='gray',
+        im = ax.imshow(-xPhys.reshape((nely,nelx),order="F"), cmap='gray',
                        interpolation='none', norm=Normalize(vmin=-1, vmax=0))
         ax.tick_params(axis='both',
                        which='both',
@@ -206,8 +240,8 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         ax.axis("off")
         fig.show()
     # initialize gradients
-    dc = np.zeros(nelx*nely)
-    dv = np.ones(nelx*nely)
+    dc = np.zeros(x.shape[0])
+    dv = np.ones(x.shape[0])
     # optimization loop
     for loop in np.arange(nouteriter):
         
@@ -216,7 +250,6 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         if solver in ["oc","mma"] or\
            (solver in ["gcmma"] and ninneriter==0) or\
            loop==0:
-            
             # Setup and solve FE problem
             sK = (KE.flatten()[:,None]*(Emin+(xPhys)
                   ** penal*(Emax-Emin))).flatten(order='F')[mask]
@@ -231,7 +264,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                 u[free, :] = spsolve(K, f[free, :])
             # Objective and objective gradient
             obj = 0
-            dc[:] = np.zeros(nelx*nely)
+            dc[:] = np.zeros(x.shape[0])
             for i in np.arange(f.shape[1]):
                 obj,dc[:] = compliance(xPhys=xPhys,u=u[:,i],
                                        KE=KE,edofMat=edofMat,
@@ -241,7 +274,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                     print("FEM: it.: {0}, problem: {1}, min. u: {2:.10f}, med. u: {3:.10f}, max. u: {4:.10f}".format(
                            loop,i,np.min(u[:,i]),np.median(u[:,i]),np.max(u[:,i])))
         # Constraints and constraint gradients
-        dv[:] = np.ones(nelx*nely)
+        dv[:] = np.ones(x.shape[0])
         if debug:
             print("Pre-Sensitivity Filter: it.: {0}, dc: {1:.10f}, dv: {2:.10f}".format(
                    loop, 
@@ -283,12 +316,11 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                    loop, 
                    np.max(dc),
                    np.min(dv)))
-            print(dc)
         # density update by solver
         xold[:] = x
         # optimality criteria
         if solver=="oc":
-            (x[:], g) = oc_top88(nelx, nely, x, volfrac, dc, dv, g, el_flags)
+            (x[:], g) = oc_top88(x, volfrac, dc, dv, g, el_flags)
         # method of moving asymptotes, implementation by Arjen Deetman
         elif solver=="mma":
             xval = x.copy()[np.newaxis].T
@@ -322,7 +354,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         change = (np.abs(x-xold)).max()
         # Plot to screen
         if display:
-            im.set_array(-xPhys.reshape((nelx, nely)).T)
+            im.set_array(-xPhys.reshape((nely,nelx),order="F"))
             fig.canvas.draw()
             plt.pause(0.01)
         # Write iteration history to screen (req. Python 2.6 or newer)

@@ -14,6 +14,9 @@ Changes are
 - insertion of plt.pause() as otherwise the figure appears only at the end
 - deletion of unnecessary uses of tuples, indices, etc. pp.
 - construct fixed bc without use of union to make it a little more efficient
+- for constructing indices of stiffness matrix exchange Kronecker product with 
+  repeat() and tile(). I guess it is faster (did not check), but more 
+  importantly more clear in its meaning.
 
 topopt_cholmod.py
 

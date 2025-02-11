@@ -7,7 +7,7 @@ from topoptlab.filters import AMfilter
 projections = [2,3,4,5]
 filters = [0,1]
 
-def oc_top88(nelx, nely, x, volfrac, dc, dv, g, el_flags,
+def oc_top88(x, volfrac, dc, dv, g, el_flags,
              move=0.2, l1=0.,l2=1e9):
     """
     Optimality criteria method (section 2.2 in top88 paper) for maximum/minimum 
@@ -22,10 +22,6 @@ def oc_top88(nelx, nely, x, volfrac, dc, dv, g, el_flags,
     
     Parameters
     ----------
-    nelx : int
-        number of elements in x direction.
-    nely : int
-        number of elements in y direction.
     x : np.array, shape (nel)
         element densities for topology optimization of the current iteration.
     volfrac : float
@@ -58,7 +54,7 @@ def oc_top88(nelx, nely, x, volfrac, dc, dv, g, el_flags,
     """
     
     # reshape to perform vector operations
-    xnew = np.zeros(nelx*nely)
+    xnew = np.zeros(x.shape)
     while (l2-l1)/(l1+l2) > 1e-3:
         lmid = 0.5*(l2+l1)
         xnew[:] = np.maximum(0.0, np.maximum(
@@ -77,7 +73,7 @@ def oc_top88(nelx, nely, x, volfrac, dc, dv, g, el_flags,
         
     return (xnew, gt)
 
-def oc_haevi(nelx, nely, x, volfrac, dc, dv, g, pass_el,
+def oc_haevi(x, volfrac, dc, dv, g, pass_el,
              H,Hs,beta,eta,ft,
              debug=False):
     """
@@ -92,10 +88,6 @@ def oc_haevi(nelx, nely, x, volfrac, dc, dv, g, pass_el,
     
     Parameters
     ----------
-    nelx : int
-        number of elements in x direction.
-    nely : int
-        number of elements in y direction.
     x : np.array, shape (nel)
         element densities for topology optimization of the current iteration.
     volfrac : float
@@ -130,9 +122,9 @@ def oc_haevi(nelx, nely, x, volfrac, dc, dv, g, pass_el,
         move = 0.2
         tol = 1e-3
     # reshape to perform vector operations
-    xnew = np.zeros(nelx*nely)
-    xTilde = np.zeros(nelx*nely)
-    xPhys = np.zeros(nelx*nely)
+    xnew = np.zeros(x.shape)
+    xTilde = xnew.copy()
+    xPhys = xnew.copy()
     if debug:
         i = 0
     while (l2-l1)/(l1+l2) > tol and np.abs(l2-l1) > 1e-10:
@@ -184,7 +176,7 @@ def oc_haevi(nelx, nely, x, volfrac, dc, dv, g, pass_el,
     else:
         return (xnew, xTilde, xPhys, gt)
     
-def oc_mechanism(nelx, nely, x, volfrac, dc, dv, g, pass_el):
+def oc_mechanism(x, volfrac, dc, dv, g, pass_el):
     """
     Optimality criteria method for compliant mechnanism according to the 
     standard textbook by Bendsoe and Sigmund. In general: can handle objective 
@@ -193,10 +185,6 @@ def oc_mechanism(nelx, nely, x, volfrac, dc, dv, g, pass_el):
     
     Parameters
     ----------
-    nelx : int
-        number of elements in x direction.
-    nely : int
-        number of elements in y direction.
     x : np.array, shape (nel)
         element densities for topology optimization of the current iteration.
     volfrac : float
@@ -227,7 +215,7 @@ def oc_mechanism(nelx, nely, x, volfrac, dc, dv, g, pass_el):
     move = 0.1
     damp = 0.3
     # reshape to perform vector operations
-    xnew = np.zeros(nelx*nely)
+    xnew = np.zeros(x.shape)
     while (l2-l1)/(l1+l2) > 1e-4 and l2 > 1e-40:
         lmid = 0.5*(l2+l1)
         xnew[:] = np.maximum(0.0, np.maximum(

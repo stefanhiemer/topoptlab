@@ -60,8 +60,8 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
     edofMat = np.column_stack((2*n1+2, 2*n1+3, 2*n2+2, 2*n2+3, 
                                2*n2, 2*n2+1, 2*n1, 2*n1+1))
     # Construct the index pointers for the coo format
-    iK = np.kron(edofMat, np.ones((8, 1))).flatten()
-    jK = np.kron(edofMat, np.ones((1, 8))).flatten()   
+    iK = np.tile(edofMat,KE.shape[0]).flatten()
+    jK = np.repeat(edofMat,KE.shape[0]).flatten()    
     # Filter: Build (and assemble) the index+data vectors for the coo matrix format
     nfilter = int(nelx*nely*((2*(np.ceil(rmin)-1)+1)**2))
     iH = np.zeros(nfilter)

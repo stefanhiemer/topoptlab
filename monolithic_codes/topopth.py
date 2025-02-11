@@ -12,7 +12,6 @@ from matplotlib.colors import Normalize
 import matplotlib.pyplot as plt
 
 from topoptlab.output_designs import export_vtk
-from topoptlab.fem import lk_poisson_2d
 
 # MAIN DRIVER
 def main(nelx, nely, volfrac, penal, rmin, ft, 
@@ -66,20 +65,20 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     # dofs:
     ndof = (nelx+1)*(nely+1)
     # Allocate design variables (as array), initialize and allocate sens.
-    x = volfrac * np.ones(nely*nelx, dtype=float)
+    x = volfrac * np.ones(nely*nelx, dtype=float,order='F')
     xold = x.copy()
     xPhys = x.copy()
     g = 0  # must be initialized to use the NGuyen/Paulino OC approach
     # FE: Build the index vectors for the for coo matrix format.
-    KE = lk_poisson_2d()
+    KE = lk()
     elx,ely = np.arange(nelx)[:,None], np.arange(nely)[None,:]
     el = np.arange(nelx*nely)
     n1 = ((nely+1)*elx+ely).flatten()
     n2 = ((nely+1)*(elx+1)+ely).flatten()
     edofMat = np.column_stack((n1+1, n2+1, n2, n1))
     # Construct the index pointers for the coo format
-    iK = np.kron(edofMat, np.ones((4, 1))).flatten()
-    jK = np.kron(edofMat, np.ones((1, 4))).flatten()
+    iK = np.tile(edofMat,KE.shape[0]).flatten()
+    jK = np.repeat(edofMat,KE.shape[0]).flatten()  
     # Filter: Build (and assemble) the index+data vectors for the coo matrix format
     if not pde and ft in [0,1]:
         nfilter = int(nelx*nely*((2*(np.ceil(rmin)-1)+1)**2))
@@ -155,7 +154,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     # Initialize plot and plot the initial design
     plt.ion()  # Ensure that redrawing is possible
     fig, ax = plt.subplots(1,1)
-    im = ax.imshow(-xPhys.reshape((nelx, nely)).T, cmap='gray',
+    im = ax.imshow(-xPhys.reshape((nely,nelx),order="F"), cmap='gray',
                    interpolation='none', norm=Normalize(vmin=-1, vmax=0))
     ax.tick_params(axis='both',
                    which='both',
@@ -239,13 +238,13 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         # Compute the change by the inf. norm
         change = (np.abs(x-xold)).max()
         # Plot to screen
-        im.set_array(-xPhys.reshape((nelx, nely)).T)
+        im.set_array(-xPhys.reshape((nely,nelx),order="F"))
         fig.canvas.draw()
         plt.pause(0.01)
         # Write iteration history to screen (req. Python 2.6 or newer)
         if verbose: 
-            logging.info("it.: {0} , obj.: {1:.3f} Vol.: {2:.3f}, ch.: {3:.3f}".format(
-            loop, obj, xPhys.mean(), change))
+            logging.info("it.: {0} , obj.: {1:.10f} Vol.: {2:.10f}, ch.: {3:.10f}".format(
+            loop+1, obj, xPhys.mean(), change))
         # convergence check
         if change < 0.01:
             break
@@ -346,6 +345,22 @@ def oc(nelx, nely, x, volfrac, dc, dv, g, pass_el):
             l2 = lmid
         
     return (xnew, gt)
+
+def lk():
+    """
+    Create element stiffness matrix for 2D Poisson with bilinear
+    quadrilateral elements. Taken from the standard Sigmund textbook.
+    
+    Returns
+    -------
+    Ke : np.ndarray, shape (4,4)
+        element stiffness matrix.
+        
+    """
+    return np.array([[2/3, -1/6, -1/3, -1/6],
+                     [-1/6, 2/3, -1/6, -1/3],
+                     [-1/3, -1/6, 2/3, -1/6],
+                     [-1/6, -1/3, -1/6, 2/3]])
 
 # The real main driver
 if __name__ == "__main__":
