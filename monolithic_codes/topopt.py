@@ -146,7 +146,7 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
         fig.canvas.draw()
         plt.pause(0.01)
         # Write iteration history to screen (req. Python 2.6 or newer)
-        print("it.: {0} , obj.: {1:.3f} Vol.: {2:.3f}, ch.: {3:.3f}".format(\
+        print("it.: {0} , obj.: {1:.10f} Vol.: {2:.10f}, ch.: {3:.10f}".format(\
                     loop,obj,(g+volfrac*nelx*nely)/(nelx*nely),change))
     # Make sure the plot stays and that the shell remains    
     plt.show()

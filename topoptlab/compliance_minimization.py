@@ -2,6 +2,7 @@ from __future__ import division
 from os.path import isfile
 from os import remove
 import logging 
+from functools import partial
 
 import numpy as np
 from scipy.sparse import coo_matrix
@@ -10,18 +11,27 @@ from scipy.ndimage import convolve
 from matplotlib.colors import Normalize
 import matplotlib.pyplot as plt
 
-from topoptlab.optimality_criterion import oc_top88
+
+# functions to create filters
 from topoptlab.filters import assemble_matrix_filter,assemble_convolution_filter,assemble_helmholtz_filter
-from topoptlab.output_designs import export_vtk
+# default application case that provides boundary conditions, etc.
+from topoptlab.example_cases import mbb_2d
+# set up finite element problem
 from topoptlab.fem import update_indices
 from topoptlab.elements.bilinear_quadrilateral import create_edofMat as create_edofMat2d
 from topoptlab.elements.trilinear_hexahedron import create_edofMat as create_edofMat3d
+# different elements/physics
 from topoptlab.elements.linear_elasticity_2d import lk_linear_elast_2d
 from topoptlab.elements.linear_elasticity_3d import lk_linear_elast_3d
 from topoptlab.elements.poisson_2d import lk_poisson_2d
-from topoptlab.objectives import compliance
-from topoptlab.example_cases import mbb_2d
+# constrained optimizers
+from topoptlab.optimality_criterion import oc_top88
 from topoptlab.mma_utils import update_mma 
+from topoptlab.objectives import compliance
+# output final design to a Paraview readable format
+from topoptlab.output_designs import export_vtk
+# map element data to img/voxel
+from topoptlab.utils import map_toimg,map_tovoxel
 
 # MAIN DRIVER
 def main(nelx, nely, volfrac, penal, rmin, ft, 
@@ -105,7 +115,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         if ndim == 2:
             logging.info(f"elements: {nelx} x {nely}")
         elif ndim == 3:
-            logging.info(f"elements: {nelx} x {nely} x (nelz)")
+            logging.info(f"elements: {nelx} x {nely} x {nelz}")
         logging.info(f"volfrac: {volfrac}, rmin: {rmin},  penal: {penal}")
         logging.info("filter: " + ["Sensitivity based", 
                                    "Density based",
@@ -115,14 +125,11 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                                    "Volume Preserving eta projection",
                                    "No filter"][ft])
         logging.info(f"filter mode: {filter_mode}")
-    #
+    # total number of design variables/elements
     if ndim == 2:
         n = nelx * nely
     elif ndim == 3:
         n = nelx * nely * nelz
-    # Max and min Young's modulus
-    Emin = 1e-9
-    Emax = 1.0
     # Allocate design variables (as array), initialize and allocate sens.
     x = volfrac * np.ones(n, dtype=float,order='F')
     xold = x.copy()
@@ -176,16 +183,17 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         raaeps = 0.000001*np.ones((m,1))
     else:
         raise ValueError("Unknown solver: ", solver)
-    # dimensions
+    # Max and min Young's modulus
+    Emin = 1e-9
+    Emax = 1.0
+    # get element stiffness matrix
     if ndim == 2:
-        # get element stiffness matrix
         KE = lk_linear_elast_2d() #lk_poisson_2d()#
         # infer nodal degrees of freedom assuming that we have 4/8 nodes in 2/3 
         n_ndof = int(KE.shape[0]/4)
         # number of degrees of freedom
         ndof = (nelx+1)*(nely+1)*n_ndof
     elif ndim == 3:
-        # get element stiffness matrix
         KE = lk_linear_elast_3d()
         # infer nodal degrees of freedom assuming that we have 4/8 nodes in 2/3 
         n_ndof = int(KE.shape[0]/8)
@@ -224,13 +232,27 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     iK = update_indices(iK, fixed, mask)
     jK = update_indices(jK, fixed, mask)
     ndof_free = ndof - fixed.shape[0]
+    # function to convert densities, etc. to images for plotting, etc.
+    if ndim == 2:
+        mapping = partial(map_toimg,nelx=nelx, nely=nely)
+    elif ndim == 3:
+        mapping = partial(map_tovoxel,nelx=nelx, nely=nely, nelz=nelz)
     # passive elements 
     if display:
         # Initialize plot and plot the initial design
         plt.ion()  # Ensure that redrawing is possible
-        fig, ax = plt.subplots(1,1)
-        im = ax.imshow(-xPhys.reshape((nely,nelx),order="F"), cmap='gray',
-                       interpolation='none', norm=Normalize(vmin=-1, vmax=0))
+        if ndim == 2:
+            fig,ax = plt.subplots(1,1)
+            im = ax.imshow(mapping(-xPhys), cmap='gray',
+                           interpolation='none', norm=Normalize(vmin=-1, vmax=0))
+            plotfunc = im.set_array
+        elif ndim == 3:
+            fig, ax = plt.subplots(1,1,subplot_kw={"projection": "3d"})
+            im = ax.voxels(mapping(np.ones(xPhys.shape,dtype=bool)),
+                           facecolors = -xPhys, 
+                           cmap='gray', edgecolor=None,#interpolation='none', 
+                           norm=Normalize(vmin=-1, vmax=0))
+            plotfunc = im[0].set_facecolors
         ax.tick_params(axis='both',
                        which='both',
                        bottom=False,
@@ -239,12 +261,11 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                        labelleft=False)
         ax.axis("off")
         fig.show()
-    # initialize gradients
+    # initialize arrays for gradients
     dc = np.zeros(x.shape[0])
     dv = np.ones(x.shape[0])
     # optimization loop
     for loop in np.arange(nouteriter):
-        
         # solve FEM, calculate obj. func. and gradients.
         # for 
         if solver in ["oc","mma"] or\
@@ -295,17 +316,15 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         elif ft == 1 and filter_mode == "matrix":
             dc[:] = np.asarray(H*(dc[np.newaxis].T/Hs))[:, 0]
             dv[:] = np.asarray(H*(dv[np.newaxis].T/Hs))[:, 0]
-            #print("matrix filter: ",H.toarray(),"\n",np.array(Hs))
         elif ft == 1 and filter_mode == "convolution":
-            dc[:] = convolve(dc.reshape((nelx, nely)).T,
+            dc[:] = convolve(mapping(dc),
                              h,
                              mode="constant",
                              cval=0).T.flatten() / hs
-            dv[:] = convolve(dv.reshape((nelx, nely)).T,
+            dv[:] = convolve(mapping(dv),
                              h,
                              mode="constant",
                              cval=0).T.flatten() / hs
-            #print("conv. filter: ",h,"\n",hs)
         elif ft == 1 and filter_mode == "helmholtz":
             dc[:] = TF.T @ lu_solve(TF@dc)
             dv[:] = TF.T @ lu_solve(TF@dv)
@@ -339,7 +358,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         elif ft == 1 and filter_mode == "matrix":
             xPhys[:] = np.asarray(H*x[np.newaxis].T/Hs)[:, 0]
         elif ft == 1 and filter_mode == "convolution":
-            xPhys[:] = convolve(x.reshape((nelx, nely)).T,
+            xPhys[:] = convolve(mapping(x),
                                 h,
                                 mode="constant",
                                 cval=0).T.flatten() / hs
@@ -354,7 +373,10 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         change = (np.abs(x-xold)).max()
         # Plot to screen
         if display:
-            im.set_array(-xPhys.reshape((nely,nelx),order="F"))
+            if ndim == 2:
+                plotfunc(mapping(-xPhys))
+            elif ndim == 3:
+                im.set_array(mapping(-xPhys))
             fig.canvas.draw()
             plt.pause(0.01)
         # Write iteration history to screen (req. Python 2.6 or newer)
@@ -371,7 +393,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     #
     if export:
         export_vtk(filename="topopt", 
-                   nelx=nelx,nely=nely, 
+                   nelx=nelx,nely=nely,nelz=nelz,
                    xPhys=xPhys,x=x, 
                    u=u,f=f,volfrac=volfrac)
     return x, obj 

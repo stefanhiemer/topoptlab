@@ -72,10 +72,15 @@ def mbb_3d(nelx,nely,nelz,ndof,**kwargs):
     f = np.zeros((ndof, 1))
     u = np.zeros((ndof, 1))
     # symmetry bc (fix x displacements to zero)
-    fixed = np.hstack((np.arange(0,3*(nelx+1)*(nely+1),3), # symmetry in x 
-                       np.arange((nelx+1)*(nely+1)*3,
-                                 ndof+1,
-                                 (nelx+1)*(nely+1)*3),) ) # fixation bottom right
+    xsymmetry = np.arange(0,3*(nely+1),3)
+    xsymmetry = np.tile(xsymmetry,nelz+1)+\
+                np.repeat(np.arange(0,ndof,3*(nelx+1)*(nely+1)),nely+1)
+    # fix y dofs at support position
+    fixation = np.arange((nelx+1)*(nely+1)*3 - 2,ndof,(nelx+1)*(nely+1)*3)
+    #
+    fixed = np.hstack((xsymmetry, 
+                       fixation,
+                       fixation+1)) # z fixation
     # force pushing down in y direction on top of symmetry plane
     f[np.arange(1,(nelx+1)*(nely+1)*(nelz+1)*3,(nelx+1)*(nely+1)*3), 0] = -1
     return u,f,fixed,np.setdiff1d(dofs, fixed)

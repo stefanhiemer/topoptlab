@@ -128,7 +128,7 @@ def assemble_convolution_filter(nelx,nely,rmin,
         # hat function
         kernel = np.maximum(0.0,rmin - np.sqrt(x**2 + y**2 + z**2))
         # normalization constant
-        hs = convolve(np.ones((nelz,nelx, nely)).transpose((0,2,1)),
+        hs = convolve(np.ones((nelz,nelx,nely)).transpose((0,2,1)),
                       kernel,
                       mode="constant",
                       cval=0).T.flatten()

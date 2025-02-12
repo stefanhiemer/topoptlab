@@ -34,6 +34,7 @@ def threshold(xPhys,
 def export_vtk(filename, 
                nelx,nely, 
                xPhys,
+               nelz=None,
                x=None,
                u=None, f=None,
                u_bw=None,
@@ -53,6 +54,8 @@ def export_vtk(filename,
         number of elements in y direction.
     xPhys : np.ndarray
         densities used to scale the material properties.
+    nelz : int
+        number of elements in y direction.
     x : np.ndarray, optional
         interemdiary densities as (usually) returned by the optimizer.
     u : np.ndarray, optional
@@ -79,10 +82,22 @@ def export_vtk(filename,
     """
     
     # construct node positions for meshio 
-    _x,_y = np.meshgrid(np.linspace(0,nelx,nelx+1),
-                        np.linspace(0,nely,nely+1)[-1::-1])
-    points = np.column_stack((_x.flatten("F"),
-                              _y.flatten("F"))) 
+    if nelz is None:
+        _x,_y = np.meshgrid(np.linspace(0,nelx,nelx+1),
+                            np.linspace(nely,0,nely+1))
+        points = np.column_stack((_x.flatten("F"),
+                                  _y.flatten("F"))) 
+    else:
+        #
+        xcoords = np.linspace(0,nelx,nelx+1)
+        ycoords = np.linspace(nely,0,nely+1)
+        zcoords = np.linspace(0,nelz,nelz+1)
+        #
+        _x = np.tile(np.repeat(xcoords,nely+1),nelz+1).flatten()
+        _y = np.tile(ycoords,(nelx+1)*(nelz+1)).flatten()
+        _z = np.repeat(zcoords,(nelx+1)*(nely+1))
+        #
+        points = np.column_stack((_x,_y,_z)) 
     # insert data for nodes
     node_data = {}
     if not u is None:
@@ -106,10 +121,21 @@ def export_vtk(filename,
             node_data.update({f"f_bw{i}": f_bw[:,i].reshape(points.shape[0],
                                              int(f_bw[:,i].shape[0]/points.shape[0]))})
     # assign node IDs to each cell. 
-    elx,ely = np.arange(nelx)[:,None], np.arange(nely)[None,:]
-    n1 = ((nely+1)*elx+ely).flatten()
-    n2 = ((nely+1)*(elx+1)+ely).flatten()
-    idMat = np.column_stack((n1+1, n2+1, n2, n1))
+    if nelz is None:
+        elx,ely = np.arange(nelx)[:,None], np.arange(nely)[None,:]
+        n1 = ((nely+1)*elx+ely).flatten()
+        n2 = ((nely+1)*(elx+1)+ely).flatten()
+        idMat = np.column_stack((n1+1, n2+1, n2, n1))
+    else:
+        elx = np.arange(nelx)[None,:,None]
+        ely = np.arange(nely)[None,None,:]
+        elz = np.arange(nelz)[:,None,None]
+        n1 = ((nelx+1)*(nely+1)*elz + (nely+1)*elx + ely).flatten()
+        n2 = ((nelx+1)*(nely+1)*elz + (nely+1)*(elx+1) + ely).flatten()
+        n3 = ((nelx+1)*(nely+1)*(elz+1) + (nely+1)*elx + ely).flatten()
+        n4 = ((nelx+1)*(nely+1)*(elz+1) + (nely+1)*(elx+1) + ely).flatten()
+        idMat = np.column_stack((n1+1,n2+1,n2,n1,
+                                 n3+1,n4+1,n4,n3))
     # insert data for elements
     el_data = {}
     el_data.update({"xPhys": [xPhys]})
@@ -120,10 +146,16 @@ def export_vtk(filename,
     if not volfrac is None:
         el_data.update({"xThresh": [threshold(xPhys,volfrac)]})
     #
-    Mesh(points,
-         [("quad", idMat)],
-         point_data=node_data, 
-         cell_data=el_data).write(filename+".vtk")
+    if nelz is None:
+        Mesh(points,
+             [("quad", idMat)],
+             point_data=node_data,
+             cell_data=el_data).write(filename+".vtk")
+    else:
+        Mesh(points,
+             [("hexahedron", idMat)],
+             point_data=node_data,
+             cell_data=el_data).write(filename+".vtk")
     return
 
 def export_stl(filename, 
