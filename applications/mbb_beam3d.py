@@ -1,5 +1,5 @@
 from topoptlab.compliance_minimization import main
-from topoptlab.example_cases import mbb_3d
+from topoptlab.example_cases import mbb_2d,mbb_3d
 
 # The real main driver
 if __name__ == "__main__":
@@ -14,5 +14,10 @@ if __name__ == "__main__":
     main(nelx=nelx, nely=nely, nelz=nelz, volfrac=volfrac, penal=penal, rmin=rmin, 
          ft=ft, filter_mode="matrix", solver="oc",nouteriter=1000,
          bcs=mbb_3d,
-         debug=False,ndim=3,display=True,
-         export=True)
+         debug=False,display=False,
+         export=False)
+    main(nelx=nelx, nely=nely, nelz=nelz, volfrac=volfrac, penal=penal, rmin=rmin, 
+         ft=ft, filter_mode="convolution", solver="oc",nouteriter=1000,
+         bcs=mbb_3d,
+         debug=False,display=False,
+         export=False)

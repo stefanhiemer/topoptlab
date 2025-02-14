@@ -140,7 +140,7 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
         elif ft==1:    
             xPhys[:]=np.asarray(H*x[np.newaxis].T/Hs)[:,0]
         # Compute the change by the inf. norm
-        change=(x.reshape(nelx*nely,1)-xold.reshape(nelx*nely,1)).max()
+        change=np.abs(x-xold).max()
         # Plot to screen
         im.set_array(-xPhys.reshape((nely,nelx),order="F"))
         fig.canvas.draw()

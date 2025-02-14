@@ -19,50 +19,115 @@ def rotation_matrix(theta):
                             np.sin(theta),np.cos(theta)))\
           .reshape((theta.shape[0],2,2))
           
-def map_toimg(quant,nelx,nely,**kwargs):
+def map_eltoimg(quant,nelx,nely,**kwargs):
     """
-    Map densities located on the standard regular grid to an image.
+    Map quantity located on elements on the usual regular grid to an image.
 
     Parameters
     ----------
-    quant : np.ndarray, shape (n)
+    quant : np.ndarray, shape (n,nchannel)
         some quantity defined on each element (e. g. element density).
-
+    nelx : int
+        number of elements in x direction.
+    nely : int
+        number of elements in y direction.
+        
     Returns
     -------
-    img : np.ndarray shape (nely,nelx)
+    img : np.ndarray, shape (nely,nelx,nchannel)
         quantity mapped to image.
 
     """
-    
-    return quant.reshape((nelx, nely)).T 
+    #
+    shape = (nely,nelx)+quant.shape[1:]
+    return quant.reshape(shape,order="F")
 
-def map_tovoxel(quant,nelx,nely,nelz,**kwargs):
+def map_imgtoel(img,nelx,nely,**kwargs):
     """
-    Map densities located on the standard regular grid to a voxel graphic.
+    Map image of quantity back to 1D np.ndarray with correct (!) ordering.
 
     Parameters
     ----------
-    quant : np.ndarray, shape (n)
-        some quantity defined on each element (e. g. element density).
+    img : np.ndarray, shape (nely,nelx)
+        image of quantity (e. g. of element densities).
+    nelx : int
+        number of elements in x direction.
+    nely : int
+        number of elements in y direction.
 
     Returns
     -------
-    img : np.ndarray shape (nely,nelx)
-        quantity mapped to image.
+    quant : np.ndarray, shape (n)
+        quantity mapped back to 1D np.ndarray with hopefully correct ordering.
 
     """
-    
-    return quant.reshape(nelz,nelx, nely).transpose(0,2,1)
+    shape = tuple([nelx*nely])+img.shape[2:]
+    return img.reshape(shape,order="F")
+
+def map_eltovoxel(quant,nelx,nely,nelz,**kwargs):
+    """
+    Map quantity located on elements on the usual regular grid to a voxels.
+
+    Parameters
+    ----------
+    quant : np.ndarray, shape (n,nchannel)
+        some quantity defined on each element (e. g. element density).
+    nelx : int
+        number of elements in x direction.
+    nely : int
+        number of elements in y direction.
+    nelz : int or None
+        number of elements in z direction.
+
+    Returns
+    -------
+    voxel : np.ndarray shape (nelz,nely,nelx,nchannel)
+        quantity mapped to voxels.
+
+    """
+    #
+    shape = (nelz,nelx,nely)+quant.shape[1:]
+    return quant.reshape(shape).transpose((0,2,1)+tuple(range(3,len(shape))))
+
+def map_voxeltoel(voxel,nelx,nely,nelz,**kwargs):
+    """
+    Map voxels of quantity back to on elements on the usual regular grid.
+
+    Parameters
+    ----------
+    voxel : np.ndarray, shape (nelz,nely,nelx,nchannel)
+        voxels of quantity (e. g. of element densities).
+    nelx : int
+        number of elements in x direction.
+    nely : int
+        number of elements in y direction.
+    nelz : int or None
+        number of elements in z direction.
+
+    Returns
+    -------
+    quant : np.ndarray, shape (n,nchannel)
+        quantity mapped back to 1D np.ndarray with hopefully correct ordering.
+
+    """
+    shape = tuple([nelx*nely*nelz])+voxel.shape[3:]
+    voxel = voxel.transpose((0,2,1)+tuple(range(3,len(voxel.shape))))
+    return voxel.reshape(shape)
 
 def elid_to_coords(el,nelx,nely,nelz=None,**kwargs):
     """
-    Map densities located on the standard regular grid to a voxel graphic.
+    Map element ids to cartesian coordinates in the usual regular grid.
 
     Parameters
     ----------
-    quant : np.ndarray, shape (n)
-        some quantity defined on each element (e. g. element density).
+    el : np.ndarray, shape (n)
+        elment IDs.
+    nelx : int
+        number of elements in x direction.
+    nely : int
+        number of elements in y direction.
+    nelz : int or None
+        number of elements in z direction.
 
     Returns
     -------
@@ -73,7 +138,8 @@ def elid_to_coords(el,nelx,nely,nelz=None,**kwargs):
     # find coordinates of each element/density
     if nelz is None:
         x,y = np.divmod(el,nely) # same as np.floor(el/nely),el%nely
+        return x,y
     else:
         z,rest = np.divmod(el,nelx*nely)
         x,y = np.divmod(rest,nely)
-    return 
+        return x,y,z

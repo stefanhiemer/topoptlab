@@ -1,17 +1,14 @@
-from __future__ import division
 from os.path import isfile
 from os import remove
 import logging 
 from functools import partial
-
+#
 import numpy as np
-from scipy.sparse import coo_matrix
+from scipy.sparse import coo_matrix,coo_array
 from scipy.sparse.linalg import spsolve,factorized
 from scipy.ndimage import convolve
 from matplotlib.colors import Normalize
 import matplotlib.pyplot as plt
-
-
 # functions to create filters
 from topoptlab.filters import assemble_matrix_filter,assemble_convolution_filter,assemble_helmholtz_filter
 # default application case that provides boundary conditions, etc.
@@ -31,12 +28,12 @@ from topoptlab.objectives import compliance
 # output final design to a Paraview readable format
 from topoptlab.output_designs import export_vtk
 # map element data to img/voxel
-from topoptlab.utils import map_toimg,map_tovoxel
+from topoptlab.utils import map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel
 
 # MAIN DRIVER
 def main(nelx, nely, volfrac, penal, rmin, ft, 
          nelz=None,
-         filter_mode="matrix",ndim=2,
+         filter_mode="matrix",
          bcs=mbb_2d,
          el_flags=None,
          solver="oc", nouteriter=2000, ninneriter=15,
@@ -68,9 +65,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         indicates how filtering is done. Possible values are "matrix" or 
         "helmholtz". If "matrix", then density/sensitivity filters are 
         implemented via a sparse matrix and applied by multiplying 
-        said matrix with the densities/sensitivities.
-    ndim : int 
-        number of dimensions
+        said matrix with the densities/sensitivities. 
     bcs : str or function
         returns the boundary conditions
     el_flags : np.ndarray or None
@@ -99,9 +94,13 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     None.
 
     """
-    
+    if nelz is None:
+        ndim = 2
+    else:
+        ndim = 3
+    #
     if write_log:
-        # check if log file exists and if true delete
+        # check if log file exists and if True delete
         if isfile("topopt.log"):
             remove("topopt.log")
         logging.basicConfig(level=logging.INFO,
@@ -211,13 +210,30 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     # Construct the index pointers for the coo format
     iK = np.tile(edofMat,KE.shape[0]).flatten()
     jK = np.repeat(edofMat,KE.shape[0]).flatten()
+    # function to convert densities, etc. to images/voxels for plotting or the
+    # convolution filter.
+    if ndim == 2:
+        mapping = partial(map_eltoimg,
+                          nelx=nelx,nely=nely)
+    elif ndim == 3:
+        mapping = partial(map_eltovoxel,
+                          nelx=nelx,nely=nely,nelz=nelz)
+    # prepare functions to invert this mapping if we use the convolution filter
+    if filter_mode == "convolution" and ndim == 2:
+        invmapping = partial(map_imgtoel,
+                             nelx=nelx,nely=nely)
+    elif filter_mode == "convolution" and ndim == 3:
+        invmapping = partial(map_voxeltoel,
+                             nelx=nelx,nely=nely,nelz=nelz)
     # Filter: Build (and assemble) the index+data vectors for the coo matrix format
     if filter_mode == "matrix":
         H,Hs = assemble_matrix_filter(nelx=nelx,nely=nely,nelz=nelz,
                                       rmin=rmin,el=el,ndim=ndim)
     elif filter_mode == "convolution":
-        h,hs = assemble_convolution_filter(nelx=nelx,nely=nely,nelz=nelz,
-                                           rmin=rmin,ndim=ndim)
+        h,hs = assemble_convolution_filter(nelx=nelx,nely=nely,nelz=nelz, 
+                                           rmin=rmin,
+                                           mapping=mapping,
+                                           invmapping=invmapping)
     elif filter_mode == "helmholtz" and ft in [0,1]:
         KF,TF = assemble_helmholtz_filter(nelx=nelx,nely=nely,nelz=nelz,
                                           rmin=rmin,ndim=ndim,
@@ -232,11 +248,6 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     iK = update_indices(iK, fixed, mask)
     jK = update_indices(jK, fixed, mask)
     ndof_free = ndof - fixed.shape[0]
-    # function to convert densities, etc. to images for plotting, etc.
-    if ndim == 2:
-        mapping = partial(map_toimg,nelx=nelx, nely=nely)
-    elif ndim == 3:
-        mapping = partial(map_tovoxel,nelx=nelx, nely=nely, nelz=nelz)
     # passive elements 
     if display:
         # Initialize plot and plot the initial design
@@ -247,10 +258,11 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                            interpolation='none', norm=Normalize(vmin=-1, vmax=0))
             plotfunc = im.set_array
         elif ndim == 3:
+            raise NotImplementedError("Plotting in 3D not yet implemented.")
             fig, ax = plt.subplots(1,1,subplot_kw={"projection": "3d"})
             im = ax.voxels(mapping(np.ones(xPhys.shape,dtype=bool)),
                            facecolors = -xPhys, 
-                           cmap='gray', edgecolor=None,#interpolation='none', 
+                           cmap='gray', edgecolor=None,
                            norm=Normalize(vmin=-1, vmax=0))
             plotfunc = im[0].set_facecolors
         ax.tick_params(axis='both',
@@ -262,8 +274,8 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         ax.axis("off")
         fig.show()
     # initialize arrays for gradients
-    dc = np.zeros(x.shape[0])
-    dv = np.ones(x.shape[0])
+    dc = np.zeros(x.shape[0],order="F")
+    dv = np.ones(x.shape[0],order="F")
     # optimization loop
     for loop in np.arange(nouteriter):
         # solve FEM, calculate obj. func. and gradients.
@@ -304,27 +316,30 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             #print(dc)
         # Sensitivity filtering:
         if ft == 0 and filter_mode == "matrix":
-            dc[:] = np.asarray((H*(x*dc))[np.newaxis].T /
+            dc[:] = np.asarray((H*(x*dc))[None].T /
                                Hs)[:, 0] / np.maximum(0.001, x)
+            #dc[:] = dc[:] = H @ (dc*x) / Hs / np.maximum(0.001, x)
         elif ft == 0 and filter_mode == "convolution":
-            dc[:] = convolve((x*dc).reshape((nelx, nely)).T,
-                             h,
-                             mode="constant",
-                             cval=0).T.flatten() / hs / np.maximum(0.001, x)
+            dc[:] = invmapping(convolve(mapping(dc/hs),
+                               h,
+                               mode="constant",
+                               cval=0)) / np.maximum(0.001, x)
         elif ft == 0 and filter_mode == "helmholtz":
             dc[:] = TF.T @ lu_solve(TF@(dc*xPhys))/np.maximum(0.001, x)
         elif ft == 1 and filter_mode == "matrix":
-            dc[:] = np.asarray(H*(dc[np.newaxis].T/Hs))[:, 0]
-            dv[:] = np.asarray(H*(dv[np.newaxis].T/Hs))[:, 0]
+            dc[:] = np.asarray(H*(dc[None].T/Hs))[:, 0]
+            dv[:] = np.asarray(H*(dv[None].T/Hs))[:, 0]
+            #dc[:] = H @ (dc/Hs)
+            #dv[:] = H @ (dv/Hs)
         elif ft == 1 and filter_mode == "convolution":
-            dc[:] = convolve(mapping(dc),
-                             h,
-                             mode="constant",
-                             cval=0).T.flatten() / hs
-            dv[:] = convolve(mapping(dv),
-                             h,
-                             mode="constant",
-                             cval=0).T.flatten() / hs
+            dc[:] = invmapping(convolve(mapping(dc/hs),
+                                        h,
+                                        mode="constant",
+                                        cval=0))
+            dv[:] = invmapping(convolve(mapping(dv/hs),
+                                        h,
+                                        mode="constant",
+                                        cval=0))
         elif ft == 1 and filter_mode == "helmholtz":
             dc[:] = TF.T @ lu_solve(TF@dc)
             dv[:] = TF.T @ lu_solve(TF@dv)
@@ -342,7 +357,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             (x[:], g) = oc_top88(x, volfrac, dc, dv, g, el_flags)
         # method of moving asymptotes, implementation by Arjen Deetman
         elif solver=="mma":
-            xval = x.copy()[np.newaxis].T
+            xval = x.copy()[None].T
             xmma,ymma,zmma,lam,xsi,eta,mu,zet,s,low,upp = update_mma(x,xold1,xold2,xPhys,obj,dc,dv,loop,
                                                                      m,xmin,xmax,low,upp,a0,a,c,d,move)
             xold2 = xold1.copy()
@@ -356,12 +371,13 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         if ft == 0:
             xPhys[:] = x
         elif ft == 1 and filter_mode == "matrix":
-            xPhys[:] = np.asarray(H*x[np.newaxis].T/Hs)[:, 0]
+            xPhys[:] = np.asarray(H*x[None].T/Hs)[:, 0]
+            #xPhys[:] = H @ x / Hs
         elif ft == 1 and filter_mode == "convolution":
-            xPhys[:] = convolve(mapping(x),
-                                h,
-                                mode="constant",
-                                cval=0).T.flatten() / hs
+            xPhys[:] = invmapping(convolve(mapping(x),
+                                  h,
+                                  mode="constant",
+                                  cval=0)) / hs
         elif ft == 1 and filter_mode == "helmholtz":
             xPhys[:] = TF.T @ lu_solve(TF@x)
         elif ft == -1:
@@ -370,7 +386,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             print("Post Density Filter: it.: {0}, med. x.: {1:.10f}, med. xTilde: {2:.10f}, med. xPhys: {3:.10f}".format(
                    loop, np.median(x),np.median(xTilde),np.median(xPhys)))
         # Compute the change by the inf. norm
-        change = (np.abs(x-xold)).max()
+        change = np.abs(x-xold).max()
         # Plot to screen
         if display:
             if ndim == 2:

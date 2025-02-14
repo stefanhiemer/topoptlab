@@ -11,8 +11,8 @@ if __name__ == "__main__":
     penal = 3.0
     ft = 1 # ft==0 -> sens, ft==1 -> dens
     main(nelx=nelx, nely=nely, volfrac=volfrac, penal=penal, rmin=rmin, 
-         ft=ft, filter_mode="convolution", solver="oc",nouteriter=1000,
+         ft=ft, filter_mode="matrix", solver="oc",nouteriter=1000,
          bcs=mbb_2d,debug=False,display=True,export=False)
-    #main(nelx=nelx, nely=nely, volfrac=volfrac, penal=penal, rmin=rmin, 
-    #     ft=ft, filter_mode="convolution", solver="oc",nouteriter=1,
-    #     bcs=mbb_2d,debug=True)
+   #main(nelx=nelx, nely=nely, volfrac=volfrac, penal=penal, rmin=rmin, 
+   #      ft=ft, filter_mode="convolution", solver="oc",nouteriter=1000,
+   #      bcs=mbb_2d,debug=False,export=False)

@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.sparse import csc_array,coo_matrix
+from scipy.sparse import csc_array,coo_array,coo_matrix
 from scipy.optimize import minimize
 from scipy.ndimage import convolve
 
@@ -95,46 +95,68 @@ def assemble_matrix_filter(nelx,nely,rmin,nelz=None,el = None,
     sH[cc] = np.maximum(0.0, fac)
     # Finalize assembly and convert to csc format
     H = coo_matrix((sH, (iH, jH)), shape=(n, n)).tocsc()
-    # normalization factor
+    # normalization constants
     Hs = H.sum(1)
     return H,Hs
 
 def assemble_convolution_filter(nelx,nely,rmin,
-                                nelz=None,ndim=2):
+                                mapping,invmapping,
+                                nelz=None):
+    """
+    Assemble distance based filter as image/voxel convolution filter. Returns
+    the kernel and the normalization constants
+    
+    Parameters
+    ----------
+    nelx : int
+        number of elements in x direction.
+    nely : int
+        number of elements in y direction.
+    rmin : float
+        cutoff radius for the filter. Only elements within the element-center 
+        to element center distance are used for filtering. 
+    mapping : callable,
+        converts property from 1D np.ndarray to image/voxel.
+    invmapping : callable,
+        converts property from image/voxel to 1D np.ndarray in correct order.
+    nelz : int or None
+        number of elements in z direction.
+
+    Returns
+    -------
+    h : np.ndarray, shape (nfilter,nfilter) or (nfilter,nfilter,nfilter) 
+        convolution kernel.
+    hs : np.ndarray, shape (n)
+        normalization constants.
+
+    """
     # filter radius in number of elements
     nfilter = int(2*np.floor(rmin)+1)
     #
     x = np.arange(-np.floor(rmin),np.floor(rmin)+1)
-    #x = np.tile(x,tuple([nfilter])*(ndim-1) + tuple([1]))
-    #
-    
-    if ndim == 2:
+    if nelz is None:
+        # 
+        n = nelx*nely
         #
         x = np.tile(x,(nfilter,1))
         y = np.rot90(x)
         # hat function
         kernel = np.maximum(0.0,rmin - np.sqrt(x**2 + y**2))
-        # normalization constant
-        hs = convolve(np.ones((nely, nelx)),
-                      kernel,
-                      mode="constant",
-                      cval=0).T.flatten()
-        return kernel,hs
-    elif ndim == 3:
+    else:
+        # 
+        n = nelx*nely*nelz
         #
         x = np.tile(x,(nfilter,nfilter,1))
         y = x.transpose((0,2,1))
         z = x.transpose((2,1,0))
         # hat function
         kernel = np.maximum(0.0,rmin - np.sqrt(x**2 + y**2 + z**2))
-        # normalization constant
-        hs = convolve(np.ones((nelz,nelx,nely)).transpose((0,2,1)),
-                      kernel,
-                      mode="constant",
-                      cval=0).T.flatten()
-        return kernel,hs
-    else:
-        raise NotImplementedError("3D not yet implemented")
+    # normalization constants
+    hs = invmapping(convolve(mapping(np.ones(n,dtype=np.float64)),
+                    kernel,
+                    mode="constant",
+                    cval=0))
+    return kernel,hs
 
 def assemble_helmholtz_filter(nelx,nely,rmin,nelz=None,ndim=2,
                               el=None,n1=None,n2=None,n3=None,n4=None):
@@ -158,7 +180,7 @@ def assemble_helmholtz_filter(nelx,nely,rmin,nelz=None,ndim=2,
     rmin : float
         cutoff radius for the filter. Only elements within the element-center 
         to element center distance are used for filtering. 
-    nely : int or None
+    nelz : int or None
         number of elements in z direction.
     ndim : int 
         number of dimensions
@@ -184,7 +206,7 @@ def assemble_helmholtz_filter(nelx,nely,rmin,nelz=None,ndim=2,
 
     """
     if ndim != 2:
-        raise NotImplementedError()
+        raise NotImplementedError("3D not yet implemented.")
     # element indices
     if el is None:
         el = np.arange(nelx*nely)

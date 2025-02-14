@@ -1,55 +1,113 @@
-import numpy as np
+from functools import partial
+from numpy import ones,asarray
+from numpy.random import seed,rand
 from numpy.testing import assert_almost_equal
 from scipy.ndimage import convolve
+from scipy.sparse import spmatrix,sparray
 
 import pytest
 
 from topoptlab.filters import assemble_convolution_filter,assemble_matrix_filter
+from topoptlab.utils import map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel
 
-@pytest.mark.parametrize('nelx, nely, rmin, filter_mode, ndim',
-                         [(10,10,2.4,"matrix",2),
-                          (10,10,2.4,"convolution",2),])
 
-def test_normalization(nelx,nely,rmin,filter_mode,ndim):
-    np.random.seed(0)
-    x = np.ones(nelx*nely)
+@pytest.mark.parametrize('nelx, nely, nelz, rmin, filter_mode',
+                         [(10,10,None,2.4,"matrix"),
+                          (10,10,None,2.4,"convolution"),
+                          (10,10,10,2.4,"matrix"),
+                          (10,10,10,2.4,"convolution"),])
+
+def test_normalization(nelx,nely,nelz,rmin,filter_mode):
+    #
+    if nelz is None:
+        ndim = 2
+        n = nelx*nely
+    else:
+        ndim = 3
+        n = nelx*nely*nelz
+    #
+    if ndim == 2:
+        mapping = partial(map_eltoimg,
+                          nelx=nelx,nely=nely)
+        invmapping = partial(map_imgtoel,
+                             nelx=nelx,nely=nely)
+    elif ndim == 3:
+        mapping = partial(map_eltovoxel,
+                          nelx=nelx,nely=nely,nelz=nelz)
+        invmapping = partial(map_voxeltoel,
+                             nelx=nelx,nely=nely,nelz=nelz)
+    #
+    x = ones(n,order="F")
     #
     desired = x.sum()
     if filter_mode == "matrix":
-        H,Hs = assemble_matrix_filter(nelx=nelx,nely=nely,
+        H,Hs = assemble_matrix_filter(nelx=nelx,nely=nely,nelz=nelz,
                                       rmin=rmin,ndim=ndim)
-        actual =np.asarray(H*x[np.newaxis].T/Hs)[:, 0].sum()
+        if isinstance(H,spmatrix):
+            actual = asarray(H*x[None].T/Hs)[:, 0] 
+        elif isinstance(H,sparray):
+            actual = H @ x / Hs
     elif filter_mode == "convolution":
-        h,hs = assemble_convolution_filter(nelx=nelx,nely=nely, 
-                                           rmin=rmin,ndim=ndim)
-        actual = (convolve(x.reshape((nelx, nely)).T,
-                           h,
-                           mode="constant",
-                           cval=0).T.flatten() / hs).sum()
+        h,hs = assemble_convolution_filter(nelx=nelx,nely=nely,nelz=nelz, 
+                                           rmin=rmin,
+                                           mapping=mapping,
+                                           invmapping=invmapping)
+        actual = invmapping(convolve(mapping(x),
+                                     h,
+                                     mode="constant",
+                                     cval=0)) /hs
+    actual = actual.sum()
     #
     assert_almost_equal(actual, desired)
     return
 
-@pytest.mark.parametrize('nelx, nely, rmin, ndim',
-                         [(10,10,2.4,2),
-                          (20,10,2.4,2),
-                          (10,20,2.4,2),])
+@pytest.mark.parametrize('nelx, nely, nelz, rmin',
+                         [(10,10,None,2.4),
+                          (20,10,None,2.4),
+                          (10,20,None,2.4),
+                          (10,10,10,2.4),
+                          (20,10,10,2.4),
+                          (10,20,10,2.4),])
 
-def test_consistency(nelx,nely,rmin,ndim):
-    np.random.seed(0)
-    x = np.random.rand(nelx,nely).flatten()
-    
+def test_consistency(nelx,nely,nelz,rmin):
+    #
+    if nelz is None:
+        ndim = 2
+        n = nelx*nely
+    else:
+        ndim = 3
+        n = nelx*nely*nelz
+    #
+    if ndim == 2:
+        mapping = partial(map_eltoimg,
+                          nelx=nelx,nely=nely)
+        invmapping = partial(map_imgtoel,
+                             nelx=nelx,nely=nely)
+    elif ndim == 3:
+        mapping = partial(map_eltovoxel,
+                          nelx=nelx,nely=nely,nelz=nelz)
+        invmapping = partial(map_voxeltoel,
+                             nelx=nelx,nely=nely,nelz=nelz)
+    #
+    seed(0)
+    x = rand(n).flatten(order="F")
     # matrix filter
-    H,Hs = assemble_matrix_filter(nelx=nelx,nely=nely,
+    H,Hs = assemble_matrix_filter(nelx=nelx,nely=nely,nelz=nelz,
                                   rmin=rmin,ndim=ndim)
-    desired =np.asarray(H*x[np.newaxis].T/Hs)[:, 0]
+    
+    if isinstance(H,spmatrix):
+        desired = asarray(H*x[None].T/Hs)[:, 0] 
+    elif isinstance(H,sparray):
+        desired = H @ x / Hs
     # convolution filter
-    h,hs = assemble_convolution_filter(nelx=nelx,nely=nely, 
-                                       rmin=rmin,ndim=ndim)
-    actual = (convolve(x.reshape((nelx, nely)).T,
-                       h,
-                       mode="constant",
-                       cval=0).T.flatten() / hs)
+    h,hs = assemble_convolution_filter(nelx=nelx,nely=nely,nelz=nelz, 
+                                       rmin=rmin,
+                                       mapping=mapping,
+                                       invmapping=invmapping)
+    actual = invmapping(convolve(mapping(x),
+                                 h,
+                                 mode="constant",
+                                 cval=0))/hs
     #
     assert_almost_equal(actual, desired)
     return
