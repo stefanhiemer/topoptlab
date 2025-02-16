@@ -1,6 +1,6 @@
 from os.path import isfile
 from os import remove
-import logging 
+import logging
 from functools import partial
 #
 import numpy as np
@@ -23,7 +23,7 @@ from topoptlab.elements.linear_elasticity_3d import lk_linear_elast_3d
 from topoptlab.elements.poisson_2d import lk_poisson_2d
 # constrained optimizers
 from topoptlab.optimality_criterion import oc_top88
-from topoptlab.mma_utils import update_mma 
+from topoptlab.mma_utils import update_mma
 from topoptlab.objectives import compliance
 # output final design to a Paraview readable format
 from topoptlab.output_designs import export_vtk
@@ -31,7 +31,7 @@ from topoptlab.output_designs import export_vtk
 from topoptlab.utils import map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel
 
 # MAIN DRIVER
-def main(nelx, nely, volfrac, penal, rmin, ft, 
+def main(nelx, nely, volfrac, penal, rmin, ft,
          nelz=None,
          filter_mode="matrix",
          bcs=mbb_2d,
@@ -40,9 +40,9 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
          display=True,export=True,write_log=True,
          debug=0):
     """
-    Topology optimization workflow with the SIMP method based on 
+    Topology optimization workflow with the SIMP method based on
     the default direct solver of scipy sparse.
-    
+
     Parameters
     ----------
     nelx : int
@@ -54,29 +54,29 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     penal : float
         penalty exponent for the SIMP method.
     rmin : float
-        cutoff radius for the filter. Only elements within the element-center 
+        cutoff radius for the filter. Only elements within the element-center
         to element center distance are used for filtering.
     ft : int
-        integer flag for the filter. 0 sensitivity filtering, 
+        integer flag for the filter. 0 sensitivity filtering,
         1 density filtering, -1 no filter.
     nelz : int or None
         number of elements in z direction. Only important if ndim is 3.
     filter_mode : str
-        indicates how filtering is done. Possible values are "matrix" or 
-        "helmholtz". If "matrix", then density/sensitivity filters are 
-        implemented via a sparse matrix and applied by multiplying 
-        said matrix with the densities/sensitivities. 
+        indicates how filtering is done. Possible values are "matrix" or
+        "helmholtz". If "matrix", then density/sensitivity filters are
+        implemented via a sparse matrix and applied by multiplying
+        said matrix with the densities/sensitivities.
     bcs : str or function
         returns the boundary conditions
     el_flags : np.ndarray or None
-        array of flags/integers that switch behaviour of specific elements. 
+        array of flags/integers that switch behaviour of specific elements.
         Currently 1 marks the element as passive (zero at all times), while 2
         marks it as active (1 at all time).
     solver: str
-        solver options which are "oc", "mma" and "gcmma" for the optimality 
-        criteria method, the method of moving asymptotes and the globally 
+        solver options which are "oc", "mma" and "gcmma" for the optimality
+        criteria method, the method of moving asymptotes and the globally
         covergent method of moving asymptotes.
-    nouteriter: int 
+    nouteriter: int
         number of TO iterations
     ninneriter: int
         number of inner iterations for GCMMA
@@ -116,7 +116,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         elif ndim == 3:
             logging.info(f"elements: {nelx} x {nely} x {nelz}")
         logging.info(f"volfrac: {volfrac}, rmin: {rmin},  penal: {penal}")
-        logging.info("filter: " + ["Sensitivity based", 
+        logging.info("filter: " + ["Sensitivity based",
                                    "Density based",
                                    "Haeviside Guest",
                                    "Haeviside complement Sigmund 2007",
@@ -137,40 +137,40 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     # initialize solver
     if solver=="oc":
         # must be initialized to use the NGuyen/Paulino OC approach
-        g = 0  
+        g = 0
     elif solver == "mma":
         # number of constraints.
-        m = 1 
+        m = 1
         # lower and upper bound for densities
         xmin = np.zeros((x.shape[0],1))
         xmax = np.ones((x.shape[0],1))
         # densities of two previous iterations
-        xold1 = x.copy() 
+        xold1 = x.copy()
         xold2 = x.copy()
         # initial lower and upper asymptotes
         low = np.ones((x.shape[0],1))
         upp = np.ones((x.shape[0],1))
         #
-        a0 = 1.0 
-        a = np.zeros((m,1)) 
+        a0 = 1.0
+        a = np.zeros((m,1))
         c = 10000*np.ones((m,1))
         d = np.zeros((m,1))
         move = 0.2
     elif solver == "gcmma":
         # number of constraints.
-        m = 1 
+        m = 1
         # lower and upper bound for densities
         xmin = np.zeros((x.shape[0],1))
         xmax = np.ones((x.shape[0],1))
         # densities of two previous iterations
-        xold1 = x.copy() 
+        xold1 = x.copy()
         xold2 = x.copy()
         # lower and upper asymptotes
         low = np.ones((x.shape[0],1))
         upp = np.ones((x.shape[0],1))
         #
-        a0 = 1.0 
-        a = np.zeros((m,1)) 
+        a0 = 1.0
+        a = np.zeros((m,1))
         c = 10000*np.ones((m,1))
         d = np.zeros((m,1))
         move = 0.2
@@ -188,13 +188,13 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     # get element stiffness matrix
     if ndim == 2:
         KE = lk_linear_elast_2d() #lk_poisson_2d()#
-        # infer nodal degrees of freedom assuming that we have 4/8 nodes in 2/3 
+        # infer nodal degrees of freedom assuming that we have 4/8 nodes in 2/3
         n_ndof = int(KE.shape[0]/4)
         # number of degrees of freedom
         ndof = (nelx+1)*(nely+1)*n_ndof
     elif ndim == 3:
         KE = lk_linear_elast_3d()
-        # infer nodal degrees of freedom assuming that we have 4/8 nodes in 2/3 
+        # infer nodal degrees of freedom assuming that we have 4/8 nodes in 2/3
         n_ndof = int(KE.shape[0]/8)
         # number of degrees of freedom
         ndof = (nelx+1)*(nely+1)*(nelz+1)*n_ndof
@@ -230,7 +230,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         H,Hs = assemble_matrix_filter(nelx=nelx,nely=nely,nelz=nelz,
                                       rmin=rmin,el=el,ndim=ndim)
     elif filter_mode == "convolution":
-        h,hs = assemble_convolution_filter(nelx=nelx,nely=nely,nelz=nelz, 
+        h,hs = assemble_convolution_filter(nelx=nelx,nely=nely,nelz=nelz,
                                            rmin=rmin,
                                            mapping=mapping,
                                            invmapping=invmapping)
@@ -243,12 +243,12 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     # BC's and support
     u,f,fixed,free = bcs(nelx=nelx,nely=nely,nelz=nelz,
                          ndof=ndof)
-    # get rid of fixed degrees of freedom from stiffness matrix 
+    # get rid of fixed degrees of freedom from stiffness matrix
     mask = ~(np.isin(iK,fixed) | np.isin(jK,fixed))
     iK = update_indices(iK, fixed, mask)
     jK = update_indices(jK, fixed, mask)
     ndof_free = ndof - fixed.shape[0]
-    # passive elements 
+    # passive elements
     if display:
         # Initialize plot and plot the initial design
         plt.ion()  # Ensure that redrawing is possible
@@ -261,7 +261,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             raise NotImplementedError("Plotting in 3D not yet implemented.")
             fig, ax = plt.subplots(1,1,subplot_kw={"projection": "3d"})
             im = ax.voxels(mapping(np.ones(xPhys.shape,dtype=bool)),
-                           facecolors = -xPhys, 
+                           facecolors = -xPhys,
                            cmap='gray', edgecolor=None,
                            norm=Normalize(vmin=-1, vmax=0))
             plotfunc = im[0].set_facecolors
@@ -279,7 +279,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     # optimization loop
     for loop in np.arange(nouteriter):
         # solve FEM, calculate obj. func. and gradients.
-        # for 
+        # for
         if solver in ["oc","mma"] or\
            (solver in ["gcmma"] and ninneriter==0) or\
            loop==0:
@@ -310,7 +310,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         dv[:] = np.ones(x.shape[0])
         if debug:
             print("Pre-Sensitivity Filter: it.: {0}, dc: {1:.10f}, dv: {2:.10f}".format(
-                   loop, 
+                   loop,
                    np.max(dc),
                    np.min(dv)))
             #print(dc)
@@ -347,7 +347,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             pass
         if debug:
             print("Post-Sensitivity Filter: it.: {0}, max. dc: {1:.10f}, min. dv: {2:.10f}".format(
-                   loop, 
+                   loop,
                    np.max(dc),
                    np.min(dv)))
         # density update by solver
@@ -363,6 +363,27 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             xold2 = xold1.copy()
             xold1 = xval.copy()
             x = xmma.copy().flatten()
+        #
+        # Anderson acceleration every q steps after q0 iterations
+        #if (loop-q0) % q == 0:
+        #    # assemble to adequate matrix
+        #    xhist = np.column_stack(xhist)
+        #    rhist = np.column_stack(rhist)
+        #    # differences of x and residuals
+        #    dx = xhist[:,1:] - xhist[,:-1]
+        #    dr = rhist[:,1:] - rhist[,:-1]
+        #    # Solve for optimal update
+        #    gamma = lsq_linear(r,np.zeros(n))
+        #    # Anderson update
+        #    if gamma.success:
+        #        x = history_x[-1] - (F[-1] @ gamma).reshape(x.shape)
+        #
+        # update history
+        #else:
+        #    xhist.append(x)
+        #    rhist.append(x-xold)
+        #    # boils effectively down to standard mixing
+        #    x += alpha * rhist[-1]
         #
         if debug:
             print("Post Density Update: it.: {0}, med. x.: {1:.10f}, med. xTilde: {2:.10f}, med. xPhys: {3:.10f}".format(
@@ -396,7 +417,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             fig.canvas.draw()
             plt.pause(0.01)
         # Write iteration history to screen (req. Python 2.6 or newer)
-        if write_log: 
+        if write_log:
             logging.info("it.: {0} , obj.: {1:.10f} Vol.: {2:.10f}, ch.: {3:.10f}".format(
                          loop+1, obj, xPhys.mean(), change))
         # convergence check
@@ -408,8 +429,8 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         input("Press any key...")
     #
     if export:
-        export_vtk(filename="topopt", 
+        export_vtk(filename="topopt",
                    nelx=nelx,nely=nely,nelz=nelz,
-                   xPhys=xPhys,x=x, 
+                   xPhys=xPhys,x=x,
                    u=u,f=f,volfrac=volfrac)
-    return x, obj 
+    return x, obj
