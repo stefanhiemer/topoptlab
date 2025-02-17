@@ -2,7 +2,7 @@ from warnings import warn
 
 import numpy as np
 
-def create_edofMat(nelx,nely,nelz,nnode_dof):
+def create_edofMat(nelx,nely,nelz,nnode_dof,dtype=np.int32):
     """
     Create element degree of freedom matrix for trilinear elements in a regular
     mesh.
@@ -32,9 +32,9 @@ def create_edofMat(nelx,nely,nelz,nnode_dof):
         index array to help constructing the stiffness matrix.
     """
     # create arrays for indexing
-    elx = np.arange(nelx)[None,:,None]
-    ely = np.arange(nely)[None,None,:]
-    elz = np.arange(nelz)[:,None,None]
+    elx = np.arange(nelx, dtype=dtype)[None,:,None]
+    ely = np.arange(nely, dtype=dtype)[None,None,:]
+    elz = np.arange(nelz, dtype=dtype)[:,None,None]
     n1 = ((nelx+1)*(nely+1)*elz + (nely+1)*elx + ely).flatten()
     n2 = ((nelx+1)*(nely+1)*elz + (nely+1)*(elx+1) + ely).flatten()
     n3 = ((nelx+1)*(nely+1)*(elz+1) + (nely+1)*elx + ely).flatten()

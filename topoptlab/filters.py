@@ -3,7 +3,12 @@ from scipy.sparse import csc_array,coo_array,coo_matrix
 from scipy.optimize import minimize
 from scipy.ndimage import convolve
 
+from topoptlab.fem import create_matrixinds
 from topoptlab.elements.screenedpoisson_2d import lk_screened_poisson_2d
+from topoptlab.elements.screenedpoisson_3d import lk_screened_poisson_3d
+from topoptlab.elements.bilinear_quadrilateral import create_edofMat as create_edofMat2d
+from topoptlab.elements.trilinear_hexahedron import create_edofMat as create_edofMat3d
+
 
 def assemble_matrix_filter(nelx,nely,rmin,nelz=None,el = None,
                            ndim=2):
@@ -158,7 +163,7 @@ def assemble_convolution_filter(nelx,nely,rmin,
                     cval=0))
     return kernel,hs
 
-def assemble_helmholtz_filter(nelx,nely,rmin,nelz=None,ndim=2,
+def assemble_helmholtz_filter(nelx,nely,rmin,nelz=None,
                               el=None,n1=None,n2=None,n3=None,n4=None):
     """
     Assemble Helmholtz PDE based filter from "Efficient topology optimization 
@@ -182,8 +187,6 @@ def assemble_helmholtz_filter(nelx,nely,rmin,nelz=None,ndim=2,
         to element center distance are used for filtering. 
     nelz : int or None
         number of elements in z direction.
-    ndim : int 
-        number of dimensions
     el : np.ndarray or None
         sorted array of element indices.
     n1 : np.ndarray or None
@@ -205,8 +208,8 @@ def assemble_helmholtz_filter(nelx,nely,rmin,nelz=None,ndim=2,
         elements.
 
     """
-    if ndim != 2:
-        raise NotImplementedError("3D not yet implemented.")
+    if nelz is not None:
+        raise NotImplementedError("3D not yet completely implemented.")
     # element indices
     if el is None:
         el = np.arange(nelx*nely)
@@ -218,17 +221,32 @@ def assemble_helmholtz_filter(nelx,nely,rmin,nelz=None,ndim=2,
     # conversion of filter radius via 1D Green's function
     Rmin = rmin/(2*np.sqrt(3))
     #
-    KEF = lk_screened_poisson_2d(k=Rmin**2)
-    ndofF = (nelx+1)*(nely+1)
-    edofMatF = np.column_stack((n1, n2, n2 +1, n1 +1 ))
-    iKF = np.kron(edofMatF, np.ones((4, 1))).flatten()
-    jKF = np.kron(edofMatF, np.ones((1, 4))).flatten()
-    sKF = np.tile(KEF.flatten(),nelx*nely)
-    KF = coo_matrix((sKF, (iKF, jKF)), shape=(ndofF, ndofF)).tocsc()
-    iTF = edofMatF.flatten(order='F')
+    if nelz is None:
+        # collect element stiffness matrix
+        KE = lk_screened_poisson_2d(k=Rmin**2)
+        # total number of degrees of freedom
+        ndof = (nelx+1)*(nely+1) 
+        # element degree of freedom matrix
+        edofMat, n1, n2, n3, n4 = create_edofMat2d(nelx=nelx,nely=nely,nelz=nelz,
+                                                   nnode_dof=1)
+    else:
+        # collect element stiffness matrix
+        KE = lk_screened_poisson_3d(k=Rmin**2)
+        # total number of degrees of freedom
+        ndof = (nelx+1)*(nely+1)*(nelz+1) 
+        # element degree of freedom matrix
+        edofMat, n1, n2, n3, n4 = create_edofMat3d(nelx=nelx,nely=nely,nelz=nelz,
+                                                   nnode_dof=1)
+    #iKF = np.kron(edofMatF, np.ones((4, 1))).flatten()
+    #jKF = np.kron(edofMatF, np.ones((1, 4))).flatten()
+    iM,jM = create_matrixinds(edofMat,mode="full")
+    sM = np.tile(KE.flatten(),nelx*nely)
+    KF = coo_matrix((sM, (iM, jM)), shape=(ndof, ndof)).tocsc()
+    # operator that maps element densities to nodes
+    iTF = edofMat.flatten(order='F')
     jTF = np.tile(el, 4)
     sTF = np.full(4*nelx*nely,1/4)
-    TF = coo_matrix((sTF, (iTF, jTF)), shape=(ndofF,nelx*nely)).tocsc()
+    TF = coo_matrix((sTF, (iTF, jTF)), shape=(ndof,nelx*nely)).tocsc()
     return KF,TF
 
 def find_eta(eta0,xTilde,beta,volfrac):

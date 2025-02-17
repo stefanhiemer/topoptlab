@@ -15,5 +15,5 @@ if __name__ == "__main__":
     radius = nely/3
     pass_el = sphere(nelx, nely, center, radius)
     main(nelx=nelx, nely=nely, volfrac=volfrac, penal=penal, rmin=rmin, 
-         ft=ft, el_flags = pass_el ,filter_mode = "matrix",solver="oc",
+         ft=ft, el_flags = pass_el ,filter_mode = "matrix",optimizer="oc",
          bcs=cantilever_2d,debug=False,display=True)

@@ -18,7 +18,38 @@ def rotation_matrix(theta):
     return np.column_stack((np.cos(theta),-np.sin(theta),
                             np.sin(theta),np.cos(theta)))\
           .reshape((theta.shape[0],2,2))
-          
+
+def unique_sort(iM,jM,combine=False):
+    """
+    Sort first according to iM, then sort values of equal value iM according 
+    to jM.
+
+    Parameters
+    ----------
+    iM : np.ndarray, shape (n)
+        first array.
+    jM : np.ndarray, shape (n)
+        second array.
+    combine : scalar bool
+        if True, stack both to to a column array of shape (n,2) 
+
+    Returns
+    -------
+    iM : np.ndarray shape (n)
+        if not combine returns sorted iM
+    jM : np.ndarray shape (n)
+        if not combine returns sorted jM
+    M : np.ndarray shape (n,2)
+        if combine returns column stack of sort iM and jM.
+
+    """
+    
+    inds = np.lexsort((jM,iM))
+    if combine:
+        return np.column_stack((iM[inds],jM[inds])) 
+    else:
+        return iM[inds],jM[inds]
+
 def map_eltoimg(quant,nelx,nely,**kwargs):
     """
     Map quantity located on elements on the usual regular grid to an image.

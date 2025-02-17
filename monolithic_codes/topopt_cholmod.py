@@ -191,9 +191,9 @@ def oc(nelx,nely,x,volfrac,dc,dv,g):
 def deleterowcol(A, delrow, delcol):
 	# Assumes that matrix is in symmetric csc form !
 	m = A.shape[0]
-	keep = np.delete (np.arange(0, m), delrow)
+	keep = np.delete(np.arange(0, m), delrow)
 	A = A[keep, :]
-	keep = np.delete (np.arange(0, m), delcol)
+	keep = np.delete(np.arange(0, m), delcol)
 	A = A[:, keep]
 	return A   
 # The real main driver    

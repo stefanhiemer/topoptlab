@@ -2,7 +2,7 @@ from warnings import warn
 
 import numpy as np
 
-def create_edofMat(nelx,nely,nnode_dof,**kwargs):
+def create_edofMat(nelx,nely,nnode_dof,dtype=np.int32,**kwargs):
     """
     Create element degree of freedom matrix for bilinear Lagrangian elements in 
     a regular mesh.
@@ -30,7 +30,8 @@ def create_edofMat(nelx,nely,nnode_dof,**kwargs):
         purely there for compatibility with 3 dimensions
     """
     # create arrays for indexing
-    elx,ely = np.arange(nelx)[:,None], np.arange(nely)[None,:]
+    elx = np.arange(nelx, dtype=dtype)[:,None]
+    ely = np.arange(nely, dtype=dtype)[None,:]
     n1 = ((nely+1)*elx+ely).flatten()
     n2 = ((nely+1)*(elx+1)+ely).flatten()
     # 

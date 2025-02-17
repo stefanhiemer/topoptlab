@@ -1,21 +1,112 @@
 from itertools import product
 
 import numpy as np
+from scipy.sparse import coo_matrix
+from scipy.sparse.linalg import spsolve
+
+from cvxopt import spmatrix,matrix
+from cvxopt.cholmod import linsolve
 
 from topoptlab.elements.bilinear_quadrilateral import shape_functions
 
-def create_matrixinds(edofMat,mode="full"):
+def assemble_matrix(sK,iK,jK,ndof,solver):
+    #
+    K = coo_matrix((sK, (iK, jK)), shape=(ndof, ndof)).tocsc()
+    if "cvxopt" in solver:
+        # Solve system  
+        K = spmatrix(K.data,K.row.astype(np.int32),K.col.astype(np.int32))
+    return K
 
+def assemble_rhs(f0,solver):
+    if "cvxopt" in solver:
+        f = matrix(f0)
+        return f
+    else:
+        return f0
+
+def deleterowcol(A, delrow, delcol):
+    """
+    Stolen from the topopt_cholmod.py code by Niels Aage AND Villads Egede.
+
+    Parameters
+    ----------
+    A : scipy.sparse.csc_matrix (nodf,ndof)
+        element degree of freedom matrix.
+    delrow : np.ndarray
+        rows to delete .
+
+    Returns
+    -------
+    iM : np.ndarray shape (N)
+        row indices for matrix construction.
+    jM : np.ndarray shape (N)
+        column indices for matrix construction.
+
+    """ 
+    # Assumes that matrix is in symmetric csc form  
+    m = A.shape[0] 
+    keep = np.delete(np.arange(0, m), delrow) 
+    A = A[keep, :] 
+    keep = np.delete(np.arange(0, m), delcol) 
+    A = A[:, keep] 
+    return A 
+
+def apply_bc(K,solver,free=None,fixed=None):
+    if "scipy" in solver:
+        #
+        K = K[free, :][:, free] 
+    if "cvxopt" in solver:
+        # Remove constrained dofs from matrix and convert to coo
+        K = deleterowcol(K,fixed,fixed).tocoo()
+    return K
+
+def solve_lin(K,rhs,solver):
+    if solver == "scipy-direct":
+        if rhs.shape[1] == 1:
+            return spsolve(K, rhs)
+        else:
+            return spsolve(K, rhs)
+    elif solver == "cvxopt-cholmod":
+        K = spmatrix(K.data,K.row.astype(int),K.col.astype(int))
+        B = matrix(rhs)
+        linsolve(K,B)
+        return np.array(B) 
+
+def create_matrixinds(edofMat,mode="full"):
+    """
+    Create matrix indices to set up FE linear system / matrix.
+
+    Parameters
+    ----------
+    edofMat : np.ndarray (nel,n_nodedof)
+        element degree of freedom matrix.
+    mode : str
+        construct .
+
+    Returns
+    -------
+    iM : np.ndarray shape (N)
+        row indices for matrix construction.
+    jM : np.ndarray shape (N)
+        column indices for matrix construction.
+
+    """
+    
     #
     ne = edofMat.shape[1]
     if mode == "full":
         iM = np.tile(edofMat,ne)
         jM = np.repeat(edofMat,ne)
-    elif mode == "half":
+    elif mode == "lower":
+        #
         iM = [edofMat[:,i:] for i in np.arange(ne)]
         iM = np.column_stack(iM)
+        #
         jM = np.repeat(edofMat,np.arange(ne,0,-1),axis=1)
-    return iM.flatten(),jM.flatten()
+        # sort
+        mask = iM < jM
+        iM[mask],jM[mask] = jM[mask],iM[mask]
+    return iM.flatten(),jM.flatten() 
 
 def update_indices(indices,fixed,mask):
     """
@@ -25,11 +116,11 @@ def update_indices(indices,fixed,mask):
 
     Parameters
     ----------
-    indices : np.array
+    indices : np.ndarray
         indices of degrees of freedom used to construct the stiffness matrix.
-    fixed : np.array
+    fixed : np.ndarray
         indices of fixed degrees of freedom.
-    mask : np.array
+    mask : np.ndarray
         mask to kick out fixed degrees of freedom.
 
     Returns

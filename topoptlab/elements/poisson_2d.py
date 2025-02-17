@@ -19,7 +19,7 @@ def lk_poisson_2d():
 def lk_poisson_aniso_2d(k):
     """
     Create element stiffness matrix for anisotropic 2D Poisson with bilinear
-    quadrilateral elements. Taken from the standard Sigmund textbook.
+    quadrilateral elements. 
     
     Parameters
     ----------

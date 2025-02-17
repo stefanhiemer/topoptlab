@@ -11,5 +11,5 @@ if __name__ == "__main__":
     penal = 3.0
     ft = 0 # ft==0 -> sens, ft==1 -> dens
     main(nelx=nelx, nely=nely, volfrac=volfrac, penal=penal, rmin=rmin, 
-         ft=ft, passive=False,filter_mode = "matrix",solver="oc",
+         ft=ft, passive=False,filter_mode = "matrix",optimizer="oc",
          bcs=cantilever_2d_twoloads_wrong,debug=False,display=True)

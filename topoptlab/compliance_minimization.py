@@ -14,13 +14,15 @@ from topoptlab.filters import assemble_matrix_filter,assemble_convolution_filter
 # default application case that provides boundary conditions, etc.
 from topoptlab.example_cases import mbb_2d
 # set up finite element problem
-from topoptlab.fem import update_indices
+from topoptlab.fem import update_indices,create_matrixinds
 from topoptlab.elements.bilinear_quadrilateral import create_edofMat as create_edofMat2d
 from topoptlab.elements.trilinear_hexahedron import create_edofMat as create_edofMat3d
 # different elements/physics
 from topoptlab.elements.linear_elasticity_2d import lk_linear_elast_2d
 from topoptlab.elements.linear_elasticity_3d import lk_linear_elast_3d
 from topoptlab.elements.poisson_2d import lk_poisson_2d
+# generic functions for solving phys. problem
+from topoptlab.fem import assemble_matrix,assemble_rhs,apply_bc,solve_lin
 # constrained optimizers
 from topoptlab.optimality_criterion import oc_top88
 from topoptlab.mma_utils import update_mma
@@ -34,9 +36,11 @@ from topoptlab.utils import map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel
 def main(nelx, nely, volfrac, penal, rmin, ft,
          nelz=None,
          filter_mode="matrix",
+         solver="scipy-direct",
+         assembly_mode="full",
          bcs=mbb_2d,
          el_flags=None,
-         solver="oc", nouteriter=2000, ninneriter=15,
+         optimizer="oc", nouteriter=2000, ninneriter=15,
          display=True,export=True,write_log=True,
          debug=0):
     """
@@ -66,13 +70,19 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         "helmholtz". If "matrix", then density/sensitivity filters are
         implemented via a sparse matrix and applied by multiplying
         said matrix with the densities/sensitivities.
+    solver : str
+        solver for linear systems. Currently only "scipy-direct" and "scipy-lu"
+        available.
+    assembly_mode : str
+        whether full or only lower triangle of linear system / matrix is 
+        created.
     bcs : str or function
         returns the boundary conditions
     el_flags : np.ndarray or None
         array of flags/integers that switch behaviour of specific elements.
         Currently 1 marks the element as passive (zero at all times), while 2
         marks it as active (1 at all time).
-    solver: str
+    optimizer: str
         solver options which are "oc", "mma" and "gcmma" for the optimality
         criteria method, the method of moving asymptotes and the globally
         covergent method of moving asymptotes.
@@ -109,7 +119,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                             logging.FileHandler("topopt.log"),
                             logging.StreamHandler()])
         #
-        logging.info(f"minimum compliance problem with {solver}")
+        logging.info(f"minimum compliance problem with {optimizer}")
         logging.info(f"number of spatial dimensions: {ndim}")
         if ndim == 2:
             logging.info(f"elements: {nelx} x {nely}")
@@ -135,10 +145,10 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     xTilde = x.copy()
     xPhys = x.copy()
     # initialize solver
-    if solver=="oc":
+    if optimizer=="oc":
         # must be initialized to use the NGuyen/Paulino OC approach
         g = 0
-    elif solver == "mma":
+    elif optimizer == "mma":
         # number of constraints.
         m = 1
         # lower and upper bound for densities
@@ -156,7 +166,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         c = 10000*np.ones((m,1))
         d = np.zeros((m,1))
         move = 0.2
-    elif solver == "gcmma":
+    elif optimizer == "gcmma":
         # number of constraints.
         m = 1
         # lower and upper bound for densities
@@ -181,7 +191,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         raa0eps = 0.000001
         raaeps = 0.000001*np.ones((m,1))
     else:
-        raise ValueError("Unknown solver: ", solver)
+        raise ValueError("Unknown optimizer: ", optimizer)
     # Max and min Young's modulus
     Emin = 1e-9
     Emax = 1.0
@@ -208,8 +218,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         edofMat, n1, n2, n3, n4 = create_edofMat3d(nelx=nelx,nely=nely,nelz=nelz,
                                                    nnode_dof=n_ndof)
     # Construct the index pointers for the coo format
-    iK = np.tile(edofMat,KE.shape[0]).flatten()
-    jK = np.repeat(edofMat,KE.shape[0]).flatten()
+    iK,jK = create_matrixinds(edofMat,mode=assembly_mode)
     # function to convert densities, etc. to images/voxels for plotting or the
     # convolution filter.
     if ndim == 2:
@@ -236,7 +245,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                                            invmapping=invmapping)
     elif filter_mode == "helmholtz" and ft in [0,1]:
         KF,TF = assemble_helmholtz_filter(nelx=nelx,nely=nely,nelz=nelz,
-                                          rmin=rmin,ndim=ndim,
+                                          rmin=rmin,
                                           el=el,n1=n1,n2=n2,n3=n3,n4=n4)
         # LU decomposition. returns a function for solving, not the matrices
         lu_solve = factorized(KF)
@@ -244,11 +253,10 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     u,f,fixed,free = bcs(nelx=nelx,nely=nely,nelz=nelz,
                          ndof=ndof)
     # get rid of fixed degrees of freedom from stiffness matrix
-    mask = ~(np.isin(iK,fixed) | np.isin(jK,fixed))
-    iK = update_indices(iK, fixed, mask)
-    jK = update_indices(jK, fixed, mask)
-    ndof_free = ndof - fixed.shape[0]
-    # passive elements
+    #mask = ~(np.isin(iK,fixed) | np.isin(jK,fixed))
+    #iK = update_indices(iK, fixed, mask)
+    #jK = update_indices(jK, fixed, mask)
+    #ndof_free = ndof - fixed.shape[0]
     if display:
         # Initialize plot and plot the initial design
         plt.ion()  # Ensure that redrawing is possible
@@ -280,21 +288,33 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     for loop in np.arange(nouteriter):
         # solve FEM, calculate obj. func. and gradients.
         # for
-        if solver in ["oc","mma"] or\
-           (solver in ["gcmma"] and ninneriter==0) or\
+        if optimizer in ["oc","mma"] or\
+           (optimizer in ["gcmma"] and ninneriter==0) or\
            loop==0:
+            # update physical properties of the elements and thus the entries 
+            # of the elements
+            if assembly_mode == "full":
+                sK = (KE.flatten()[:,None]*(Emin+(xPhys)
+                       ** penal*(Emax-Emin))).flatten(order='F')#[mask]
             # Setup and solve FE problem
-            sK = (KE.flatten()[:,None]*(Emin+(xPhys)
-                  ** penal*(Emax-Emin))).flatten(order='F')[mask]
-            K = coo_matrix((sK, (iK, jK)), shape=(ndof_free, ndof_free)).tocsc()
+            #K = coo_matrix((sK, (iK, jK)), shape=(ndof_free, ndof_free)).tocsc()
             #K = coo_matrix((sK, (iK, jK)), shape=(ndof, ndof)).tocsc()
-            # Remove constrained dofs from matrix
+            K = assemble_matrix(sK=sK,iK=iK,jK=jK,
+                                ndof=ndof,solver=solver)
+            #
+            rhs = assemble_rhs(f0=f,solver=solver)
+            # apply boundary conditions to stiffness matrix
             #K = K[free, :][:, free]
+            K = apply_bc(K=K,solver=solver,free=free,fixed=fixed)
             # Solve system(s)
+            #if u.shape[1] == 1:
+            #    u[free, 0] = spsolve(K, f[free, 0])
+            #else:
+            #    u[free, :] = spsolve(K, f[free, :])
             if u.shape[1] == 1:
-                u[free, 0] = spsolve(K, f[free, 0])
+                u[free,0] = solve_lin(K, rhs=rhs[free], solver=solver)
             else:
-                u[free, :] = spsolve(K, f[free, :])
+                u[free, :] = solve_lin(K, rhs=rhs[free], solver=solver) 
             # Objective and objective gradient
             obj = 0
             dc[:] = np.zeros(x.shape[0])
@@ -353,10 +373,10 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         # density update by solver
         xold[:] = x
         # optimality criteria
-        if solver=="oc":
+        if optimizer=="oc":
             (x[:], g) = oc_top88(x, volfrac, dc, dv, g, el_flags)
         # method of moving asymptotes, implementation by Arjen Deetman
-        elif solver=="mma":
+        elif optimizer=="mma":
             xval = x.copy()[None].T
             xmma,ymma,zmma,lam,xsi,eta,mu,zet,s,low,upp = update_mma(x,xold1,xold2,xPhys,obj,dc,dv,loop,
                                                                      m,xmin,xmax,low,upp,a0,a,c,d,move)

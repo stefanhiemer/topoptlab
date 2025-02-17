@@ -12,12 +12,12 @@ if __name__ == "__main__":
     penal = 3.0
     ft = 1 # ft==0 -> sens, ft==1 -> dens
     main(nelx=nelx, nely=nely, nelz=nelz, volfrac=volfrac, penal=penal, rmin=rmin, 
-         ft=ft, filter_mode="matrix", solver="oc",nouteriter=1000,
+         ft=ft, filter_mode="matrix", optimizer="oc",nouteriter=1000,
          bcs=mbb_3d,
          debug=False,display=False,
          export=False)
     main(nelx=nelx, nely=nely, nelz=nelz, volfrac=volfrac, penal=penal, rmin=rmin, 
-         ft=ft, filter_mode="convolution", solver="oc",nouteriter=1000,
+         ft=ft, filter_mode="convolution", optimizer="oc",nouteriter=1000,
          bcs=mbb_3d,
          debug=False,display=False,
          export=False)
