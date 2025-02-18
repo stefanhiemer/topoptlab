@@ -10,8 +10,10 @@ if __name__ == "__main__":
     rmin = 2.4  # 5.4
     penal = 3.0
     ft = 1 # ft==0 -> sens, ft==1 -> dens
-    main(nelx=nelx, nely=nely, volfrac=volfrac, penal=penal, rmin=rmin, 
-         ft=ft, filter_mode="matrix", optimizer="oc",nouteriter=1000,
+    main(nelx=nelx, nely=nely, volfrac=volfrac, penal=penal, 
+         rmin=rmin, ft=ft, filter_mode="matrix", 
+         optimizer="oc", solver="cvxopt-cholmod",
+         nouteriter=1000,
          bcs=mbb_2d,debug=False,display=True,export=False)
    #main(nelx=nelx, nely=nely, volfrac=volfrac, penal=penal, rmin=rmin, 
    #      ft=ft, filter_mode="convolution", optimizer="oc",nouteriter=1000,

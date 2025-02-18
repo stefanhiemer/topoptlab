@@ -22,9 +22,10 @@ from topoptlab.elements.linear_elasticity_2d import lk_linear_elast_2d
 from topoptlab.elements.linear_elasticity_3d import lk_linear_elast_3d
 from topoptlab.elements.poisson_2d import lk_poisson_2d
 # generic functions for solving phys. problem
-from topoptlab.fem import assemble_matrix,assemble_rhs,apply_bc,solve_lin
+from topoptlab.fem import assemble_matrix,assemble_rhs,apply_bc
+from topoptlab.solve_linsystem import solve_lin
 # constrained optimizers
-from topoptlab.optimality_criterion import oc_top88
+from topoptlab.optimality_criterion import oc_top88,oc_mechanism
 from topoptlab.mma_utils import update_mma
 from topoptlab.objectives import compliance
 # output final design to a Paraview readable format
@@ -36,9 +37,9 @@ from topoptlab.utils import map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel
 def main(nelx, nely, volfrac, penal, rmin, ft,
          nelz=None,
          filter_mode="matrix",
-         solver="scipy-direct",
+         solver="scipy-direct", preconditioner=None,
          assembly_mode="full",
-         bcs=mbb_2d,
+         bcs=mbb_2d, obj_func=compliance,obj_kw=dict(),
          el_flags=None,
          optimizer="oc", nouteriter=2000, ninneriter=15,
          display=True,export=True,write_log=True,
@@ -71,13 +72,24 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         implemented via a sparse matrix and applied by multiplying
         said matrix with the densities/sensitivities.
     solver : str
-        solver for linear systems. Currently only "scipy-direct" and "scipy-lu"
-        available.
+        solver for linear systems. Check function lin solve for available 
+        options.
+    preconditioner : str or None
+        preconditioner for linear systems. 
     assembly_mode : str
         whether full or only lower triangle of linear system / matrix is 
         created.
-    bcs : str or function
+    bcs : str or callable
         returns the boundary conditions
+    obj_func : callable
+        objective function. Should update the objective value, the rhs of the
+        the adjoint problem (currently only for stationary lin. problems) and 
+        a flag indicating whether the objective is self adjoint.
+    obj_kw : dict
+        keywords needed for the objective function. E. g. for a compliant 
+        mechanism and maximization of the displacement it would be the 
+        indicator array for output nodes. Check the objective for the necessary
+        entries.
     el_flags : np.ndarray or None
         array of flags/integers that switch behaviour of specific elements.
         Currently 1 marks the element as passive (zero at all times), while 2
@@ -144,8 +156,11 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     xold = x.copy()
     xTilde = x.copy()
     xPhys = x.copy()
+    # initialize arrays for gradients
+    dc = np.zeros(x.shape[0],order="F")
+    dv = np.ones(x.shape[0],order="F")
     # initialize solver
-    if optimizer=="oc":
+    if optimizer in ["oc","ocm"]:
         # must be initialized to use the NGuyen/Paulino OC approach
         g = 0
     elif optimizer == "mma":
@@ -250,8 +265,9 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         # LU decomposition. returns a function for solving, not the matrices
         lu_solve = factorized(KF)
     # BC's and support
-    u,f,fixed,free = bcs(nelx=nelx,nely=nely,nelz=nelz,
-                         ndof=ndof)
+    u,f,fixed,free,springs = bcs(nelx=nelx,nely=nely,nelz=nelz,
+                                 ndof=ndof)
+    f0 = None
     # get rid of fixed degrees of freedom from stiffness matrix
     #mask = ~(np.isin(iK,fixed) | np.isin(jK,fixed))
     #iK = update_indices(iK, fixed, mask)
@@ -281,9 +297,6 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                        labelleft=False)
         ax.axis("off")
         fig.show()
-    # initialize arrays for gradients
-    dc = np.zeros(x.shape[0],order="F")
-    dv = np.ones(x.shape[0],order="F")
     # optimization loop
     for loop in np.arange(nouteriter):
         # solve FEM, calculate obj. func. and gradients.
@@ -295,34 +308,48 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             # of the elements
             if assembly_mode == "full":
                 sK = (KE.flatten()[:,None]*(Emin+(xPhys)
-                       ** penal*(Emax-Emin))).flatten(order='F')#[mask]
+                       ** penal*(Emax-Emin))).flatten(order='F')
             # Setup and solve FE problem
-            #K = coo_matrix((sK, (iK, jK)), shape=(ndof_free, ndof_free)).tocsc()
-            #K = coo_matrix((sK, (iK, jK)), shape=(ndof, ndof)).tocsc()
+            # To Do: loop over boundary conditions if incompatible
+            # assemble system matrix
             K = assemble_matrix(sK=sK,iK=iK,jK=jK,
-                                ndof=ndof,solver=solver)
-            #
+                                ndof=ndof,solver=solver,
+                                springs=springs)
+            # assemble right hand side
             rhs = assemble_rhs(f0=f,solver=solver)
-            # apply boundary conditions to stiffness matrix
-            #K = K[free, :][:, free]
-            K = apply_bc(K=K,solver=solver,free=free,fixed=fixed)
-            # Solve system(s)
-            #if u.shape[1] == 1:
-            #    u[free, 0] = spsolve(K, f[free, 0])
-            #else:
-            #    u[free, :] = spsolve(K, f[free, :])
-            if u.shape[1] == 1:
-                u[free,0] = solve_lin(K, rhs=rhs[free], solver=solver)
-            else:
-                u[free, :] = solve_lin(K, rhs=rhs[free], solver=solver) 
+            # apply boundary conditions to matrix
+            K = apply_bc(K=K,solver=solver,
+                         free=free,fixed=fixed)
+            # solve linear system. fact is a factorization and precond a preconditioner
+            u[free, :], fact, precond, = solve_lin(K=K, rhs=rhs[free], 
+                                                   solver=solver,
+                                                   preconditioner=preconditioner)
             # Objective and objective gradient
             obj = 0
             dc[:] = np.zeros(x.shape[0])
             for i in np.arange(f.shape[1]):
-                obj,dc[:] = compliance(xPhys=xPhys,u=u[:,i],
-                                       KE=KE,edofMat=edofMat,
-                                       Amax=Emax,Amin=Emin,penal=penal,
-                                       obj=obj,dc=dc)
+                # obj. value, selfadjoint variables, self adjoint flag
+                obj,rhs_adj,self_adj = obj_func(obj=obj, 
+                                                xPhys=xPhys,u=u[:,i],
+                                                KE=KE,edofMat=edofMat,
+                                                Amax=Emax,Amin=Emin,
+                                                penal=penal,
+                                                **obj_kw)
+                # if problem not self adjoint, solve for adjoint variables
+                if self_adj:
+                    dc[:] += rhs_adj
+                else:
+                    h = np.zeros(f.shape)
+                    h[free],_,_ = solve_lin(K, rhs=rhs_adj[free],
+                                            solver=solver,P=precond,
+                                            preconditioner = preconditioner)
+                    if f0 is None:
+                        dc += penal*xPhys**(penal-1)*(Emax-Emin)*\
+                              (np.dot(h[edofMat,i], KE)*u[edofMat,i]).sum(1) 
+                    else:
+                        dc += penal*xPhys**(penal-1)*(Emax-Emin)*\
+                              (np.dot(h[edofMat,i], KE)*\
+                               (u[edofMat,i]-f0[:])).sum(1)
                 if debug:
                     print("FEM: it.: {0}, problem: {1}, min. u: {2:.10f}, med. u: {3:.10f}, max. u: {4:.10f}".format(
                            loop,i,np.min(u[:,i]),np.median(u[:,i]),np.max(u[:,i])))
@@ -374,8 +401,14 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         xold[:] = x
         # optimality criteria
         if optimizer=="oc":
-            (x[:], g) = oc_top88(x, volfrac, dc, dv, g, el_flags)
-        # method of moving asymptotes, implementation by Arjen Deetman
+            (x[:], g) = oc_top88(x=x, volfrac=volfrac, 
+                                 dc=dc, dv=dv, g=g, 
+                                 el_flags=el_flags)
+        elif optimizer=="ocm":
+            (x[:], g) = oc_mechanism(x=x, volfrac=volfrac, 
+                                     dc=dc, dv=dv, g=g, 
+                                     el_flags=el_flags)
+        # method of moving asymptotes
         elif optimizer=="mma":
             xval = x.copy()[None].T
             xmma,ymma,zmma,lam,xsi,eta,mu,zet,s,low,upp = update_mma(x,xold1,xold2,xPhys,obj,dc,dv,loop,

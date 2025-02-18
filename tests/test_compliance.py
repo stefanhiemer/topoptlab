@@ -6,10 +6,10 @@ from topoptlab.compliance_minimization import main
 from topoptlab.example_cases import mbb_2d,cantilever_2d,cantilever_2d_wrong,cantilever_2d_twoloads,cantilever_2d_twoloads_wrong
 
 @pytest.mark.parametrize('nelx, nely, volfrac, ft, rmin, filter_mode, bcs, obj_ref',
-                         [(60,20,0.5,0,2.4,"matrix",mbb_2d,216.81),
-                          (60,20,0.5,1,2.4,"matrix",mbb_2d,233.71),
-                          (60,20,0.5,0,2.4,"helmholtz",mbb_2d,218.79),
-                          (60,20,0.5,1,2.4,"helmholtz",mbb_2d,237.60),
+                         [(60,20,0.5,0,2.4,"matrix",mbb_2d,216.81366),
+                          (60,20,0.5,1,2.4,"matrix",mbb_2d,233.71457),
+                          (60,20,0.5,0,2.4,"helmholtz",mbb_2d,218.79281),
+                          (60,20,0.5,1,2.4,"helmholtz",mbb_2d,237.59964),
                           (60,20,0.5,0,2.4,"matrix",cantilever_2d_twoloads,510.3727841006),
                           (60,20,0.5,0,2.4,"matrix",cantilever_2d,208.4429354360)])
 
@@ -19,12 +19,13 @@ def test_compliance_1(nelx, nely, volfrac, ft, rmin, filter_mode, bcs, obj_ref):
     slow tests in same file.
     """
     #
-    x, obj = main(nelx=nelx, nely=nely, volfrac=volfrac, penal=3.0, rmin=rmin, ft=ft, 
-                  filter_mode=filter_mode,optimizer="oc",
+    x, obj = main(nelx=nelx, nely=nely, volfrac=volfrac, penal=3.0, 
+                  rmin=rmin, ft=ft, filter_mode=filter_mode,
+                  optimizer="oc",
                   bcs=bcs,
                   display=False,export=False,write_log=False)
     #
-    assert_almost_equal(obj,obj_ref,decimal=2)
+    assert_almost_equal(obj,obj_ref,decimal=5)
     return 
 
 @pytest.mark.slow

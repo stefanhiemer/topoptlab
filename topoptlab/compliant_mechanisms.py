@@ -16,7 +16,6 @@ from topoptlab.fem import update_indices
 from topoptlab.elements.linear_elasticity_2d import lk_linear_elast_2d
 from topoptlab.optimality_criterion import oc_mechanism
 from topoptlab.mma_utils import update_mma
-from topoptlab.objectives import var_maximization,var_squarederror
 from topoptlab.filters import assemble_matrix_filter,assemble_helmholtz_filter
 
 from mmapy import gcmmasub,asymp,concheck,raaupdate
@@ -205,7 +204,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         pass_el = np.sqrt( (j+1-nely/2)**2 + (i+1-nelx/3)**2) < nely/3
     else:
         pass_el = None
-    if export:
+    if display:
         # Initialize plot and plot the initial design
         plt.ion()  # Ensure that redrawing is possible
         fig, ax = plt.subplots(1,1)
@@ -235,7 +234,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         obj = 0
         dc[:] = np.zeros(nelx*nely)
         obj,dc[:] = var_maximization(xPhys=xPhys, u=u[:,0],
-                                     l=-f[:,1], free=free, inds_out=np.array([dout]),
+                                     l=f[:,1], free=free, inds_out=np.array([dout]),
                                      K=K, KE=KE, edofMat=edofMat,
                                      Amax=Emax, Amin=Emin, penal=penal,
                                      obj=obj,dc=dc,f0=None)
@@ -288,7 +287,8 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         # Optimality criteria
         if solver=="oc":
             xold[:] = x 
-            (x[:], g) = oc_mechanism(x, volfrac, dc, dconstrs[:,0], g, pass_el)
+            (x[:], g) = oc_mechanism(x, volfrac, dc, dconstrs[:,0], g, 
+                                     el_flags=pass_el)
         # method of moving asymptotes, implementation by Arjen Deetman
         elif solver=="mma":
             xval = x.copy()[np.newaxis].T
@@ -366,3 +366,69 @@ def update_spring(inds,fixed,mask):
     inds = inds - np.bincount(np.digitize(fixed, inds))[:inds.shape[0]].cumsum()
     
     return inds
+
+def var_maximization(xPhys,u,l,free,inds_out,
+                     K,KE,edofMat,
+                     Amax,Amin,penal,
+                     obj,dc,f0=None,**kwargs):
+    """
+    Update objective and gradient for maximization of state variable in 
+    specified points. The mechanic version of this is the compliant mechanism 
+    with maximized displacement.
+
+    Parameters
+    ----------
+    xPhys : np.ndarray
+        SIMP densities of shape (nel).
+    u : np.ndarray
+        state variable (displacement, temperature) of shape (ndof).
+    l : np.ndarray
+        indicator vector for state variable of shape (ndof). Is 1 at output 
+        nodes.
+    free : np.ndarray
+        indices of free nodes.
+    inds_out : np.ndarray
+        indices of nodes where the displacement is to be maximized. shape (nout)
+    K : scipy.sparse matrix/array
+        global stiffness matrix of shape (ndof).
+    KE : np.ndarray
+        element stiffness matrix of shape (nedof).
+    edofMat : np.ndarray
+        element degree of freedom matrix of shape (nel,nedof)
+    Amax : float
+        maximum value for material property A
+    Amin : float
+        minimum value for material property A. Should be small compared to Amax
+        but not zero and Amax + Amin should recover the property A of the material
+    penal: float
+        penalty exponent for the SIMP method.
+    obj : float
+        objective function.
+    dc : np.ndarray
+        sensitivities/gradients of design variables with regards to objective 
+        function. shape (ndesign)
+    f0: np.ndarray
+        if system is subjected to an affine expansion causing the loads, 
+        this is the resulting load for an element of density one. shape (nedof)
+
+    Returns
+    -------
+    obj : float
+        updated objective function.
+    dc : np.ndarray
+        updated sensitivities/gradients of design variables with regards to 
+        objective function. shape (ndesign)
+
+    """
+    obj += u[inds_out].sum()
+    # solve adjoint problem
+    h = np.zeros(l.shape)
+    h[free] = spsolve(K, l[free])
+    #
+    if f0 is None:
+        dc[:] += penal*xPhys**(penal-1)*(Amax-Amin)*(np.dot(h[edofMat], KE)*\
+                 u[edofMat]).sum(1)
+    else:
+        dc[:] += penal*xPhys**(penal-1)*(Amax-Amin)*(np.dot(h, KE)*\
+                 (u[edofMat,0]-f0[None,:])).sum(1)
+    return obj, dc

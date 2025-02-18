@@ -176,7 +176,7 @@ def oc_haevi(x, volfrac, dc, dv, g, pass_el,
     else:
         return (xnew, xTilde, xPhys, gt)
     
-def oc_mechanism(x, volfrac, dc, dv, g, pass_el):
+def oc_mechanism(x, volfrac, dc, dv, g, el_flags):
     """
     Optimality criteria method for compliant mechnanism according to the 
     standard textbook by Bendsoe and Sigmund. In general: can handle objective 
@@ -196,7 +196,7 @@ def oc_mechanism(x, volfrac, dc, dv, g, pass_el):
         gradient of volume constraint with respect to element densities..
     g : float
         parameter for the heuristic updating scheme.
-    pass_el : None or np.array 
+    el_flags : None or np.array 
         array who contains indices used for un/masking passive elements. 0 
         means an active element that is part of the optimization, 1 and 2 
         indicate empty and full elements which are not part of the 
@@ -223,9 +223,9 @@ def oc_mechanism(x, volfrac, dc, dv, g, pass_el):
                                                                     -dc/dv/lmid)**damp))))
         
         # passive element update
-        if pass_el is not None:
-            xnew[pass_el==1] = 0
-            xnew[pass_el==2] = 1
+        if el_flags is not None:
+            xnew[el_flags==1] = 0
+            xnew[el_flags==2] = 1
         gt = xnew.sum() - volfrac * x.shape[0] #g+np.sum((dv*(xnew-x)))
         if gt > 0:
             l1 = lmid

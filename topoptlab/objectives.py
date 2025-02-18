@@ -4,7 +4,7 @@ from scipy.sparse.linalg import spsolve
 
 def compliance(xPhys,u,KE,edofMat,
                Amax,Amin,penal,
-               obj,dc):
+               obj,**kwargs):
     """
     Update objective and gradient for stiffness maximization / compliance 
     minimization. The mechanic version of this is the compliant mechanism  with 
@@ -29,29 +29,28 @@ def compliance(xPhys,u,KE,edofMat,
         penalty exponent for the SIMP method.
     obj : float
         objective function.
-    dc : np.ndarray
-        sensitivities/gradients of design variables with regards to objective 
-        function. shape (ndesign)
 
     Returns
     -------
     obj : float
         updated objective function.
-    dc : np.ndarray
-        updated sensitivities/gradients of design variables with regards to 
-        objective function. shape (ndesign)
+    rhs_adj : np.ndarray
+        right hand side of the adjoint problem. if problem is self adjoint, 
+        this is already the solution to the self-adjoint problem.
+    selfadjoint : bool, True
+        obj. is selfadjoint, so no adjoint problem has to be solved
 
     """
     ce = (np.dot(u[edofMat], KE)
              * u[edofMat]).sum(1)
     obj += ((Amin+xPhys**penal*(Amax-Amin))*ce).sum()
-    dc[:] -= penal*xPhys**(penal-1)*(Amax-Amin)*ce
-    return obj, dc
+    dc = (-1) * penal*xPhys**(penal-1)*(Amax-Amin)*ce
+    return obj, dc, True
 
-def var_maximization(xPhys,u,l,free,inds_out,
-                     K,KE,edofMat,
+def var_maximization(xPhys,u,l,#free,inds_out,
+                     KE,edofMat,
                      Amax,Amin,penal,
-                     obj,dc,f0=None):
+                     obj,f0=None,**kwargs):
     """
     Update objective and gradient for maximization of state variable in 
     specified points. The mechanic version of this is the compliant mechanism 
@@ -89,7 +88,7 @@ def var_maximization(xPhys,u,l,free,inds_out,
         sensitivities/gradients of design variables with regards to objective 
         function. shape (ndesign)
     f0: np.ndarray
-        if system is subjected to an affine transformation causing the loads, 
+        if system is subjected to an affine expansion causing the loads, 
         this is the resulting load for an element of density one. shape (nedof)
 
     Returns
@@ -99,20 +98,22 @@ def var_maximization(xPhys,u,l,free,inds_out,
     dc : np.ndarray
         updated sensitivities/gradients of design variables with regards to 
         objective function. shape (ndesign)
+    selfadjoint : bool, False
+        obj. is not selfadjoint, so adjoint problem has to be solved
 
     """
-    obj += u[inds_out].sum()
+    obj += u[l[:,0]!=0].sum()
     # solve adjoint problem
-    h = np.zeros(l.shape)
-    h[free] = spsolve(K, -l[free])
+    #h = np.zeros(l.shape)
+    #h[free] = spsolve(K, -l[free])
     #
-    if f0 is None:
-        dc[:] += penal*xPhys**(penal-1)*(Amax-Amin)*(np.dot(h[edofMat], KE)*\
-                 u[edofMat]).sum(1)
-    else:
-        dc[:] += penal*xPhys**(penal-1)*(Amax-Amin)*(np.dot(h, KE)*\
-                 (u[edofMat,0]-f0[None,:])).sum(1)
-    return obj, dc
+    #if f0 is None:
+    #    dc[:] += penal*xPhys**(penal-1)*(Amax-Amin)*(np.dot(h[edofMat], KE)*\
+    #             u[edofMat]).sum(1)
+    #else:
+    #    dc[:] += penal*xPhys**(penal-1)*(Amax-Amin)*(np.dot(h, KE)*\
+    #             (u[edofMat,0]-f0[None,:])).sum(1)
+    return obj, l, False
 
 def var_squarederror(xPhys,u,u0,l,free,inds_contr,
                      K,KE,edofMat,
@@ -157,7 +158,7 @@ def var_squarederror(xPhys,u,u0,l,free,inds_contr,
         sensitivities/gradients of design variables with regards to objective 
         function. shape (ndesign)
     f0: np.ndarray
-        if system is subjected to an affine transformation causing the loads, 
+        if system is subjected to an affine expansion causing the loads, 
         this is the resulting load for an element of density one. shape (nedof)
 
     Returns

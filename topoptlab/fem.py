@@ -2,31 +2,29 @@ from itertools import product
 
 import numpy as np
 from scipy.sparse import coo_matrix
-from scipy.sparse.linalg import spsolve
+from scipy.sparse.linalg import spsolve,cg, spilu, LinearOperator, factorized
 
 from cvxopt import spmatrix,matrix
 from cvxopt.cholmod import linsolve
 
 from topoptlab.elements.bilinear_quadrilateral import shape_functions
 
-def assemble_matrix(sK,iK,jK,ndof,solver):
+def assemble_matrix(sK,iK,jK,ndof,solver,springs):
     #
     K = coo_matrix((sK, (iK, jK)), shape=(ndof, ndof)).tocsc()
-    if "cvxopt" in solver:
-        # Solve system  
-        K = spmatrix(K.data,K.row.astype(np.int32),K.col.astype(np.int32))
+    # attach springs to dofs if there
+    if springs:
+        inds,spring_const = springs
+        for i,k in zip(inds,spring_const):
+            K[i,i] += k
     return K
 
 def assemble_rhs(f0,solver):
-    if "cvxopt" in solver:
-        f = matrix(f0)
-        return f
-    else:
-        return f0
+    return f0
 
 def deleterowcol(A, delrow, delcol):
     """
-    Stolen from the topopt_cholmod.py code by Niels Aage AND Villads Egede.
+    Stolen from the topopt_cholmod.py code by Niels Aage and Villads Egede.
 
     Parameters
     ----------
@@ -41,7 +39,6 @@ def deleterowcol(A, delrow, delcol):
         row indices for matrix construction.
     jM : np.ndarray shape (N)
         column indices for matrix construction.
-
     """ 
     # Assumes that matrix is in symmetric csc form  
     m = A.shape[0] 
@@ -49,7 +46,7 @@ def deleterowcol(A, delrow, delcol):
     A = A[keep, :] 
     keep = np.delete(np.arange(0, m), delcol) 
     A = A[:, keep] 
-    return A 
+    return A.tocoo()
 
 def apply_bc(K,solver,free=None,fixed=None):
     if "scipy" in solver:
@@ -58,19 +55,10 @@ def apply_bc(K,solver,free=None,fixed=None):
     if "cvxopt" in solver:
         # Remove constrained dofs from matrix and convert to coo
         K = deleterowcol(K,fixed,fixed).tocoo()
+        #
+        # Solve system  
+        K = spmatrix(K.data,K.row,K.col)
     return K
-
-def solve_lin(K,rhs,solver):
-    if solver == "scipy-direct":
-        if rhs.shape[1] == 1:
-            return spsolve(K, rhs)
-        else:
-            return spsolve(K, rhs)
-    elif solver == "cvxopt-cholmod":
-        K = spmatrix(K.data,K.row.astype(int),K.col.astype(int))
-        B = matrix(rhs)
-        linsolve(K,B)
-        return np.array(B) 
 
 def create_matrixinds(edofMat,mode="full"):
     """

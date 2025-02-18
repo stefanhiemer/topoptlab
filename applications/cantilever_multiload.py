@@ -10,6 +10,9 @@ if __name__ == "__main__":
     rmin = 6  # 5.4
     penal = 3.0
     ft = 0 # ft==0 -> sens, ft==1 -> dens
-    main(nelx=nelx, nely=nely, volfrac=volfrac, penal=penal, rmin=rmin, 
-         ft=ft, passive=False,filter_mode = "matrix",optimizer="oc",
-         bcs=cantilever_2d_twoloads_wrong,debug=False,display=True)
+    #
+    main(nelx=nelx, nely=nely, volfrac=volfrac, penal=penal, 
+         rmin=rmin, ft=ft, filter_mode = "matrix",
+         optimizer="oc",solver="cvxopt-cholmod",
+         bcs=cantilever_2d_twoloads_wrong,
+         debug=False,display=False,export=False)
