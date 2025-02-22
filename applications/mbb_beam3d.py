@@ -16,6 +16,7 @@ if __name__ == "__main__":
          optimizer="oc", solver = "cvxopt-cholmod",
          nouteriter=1000,
          bcs=mbb_3d,
+         file="mbb_3d",
          debug=False,display=False,
          export=False)
     #main(nelx=nelx, nely=nely, nelz=nelz, volfrac=volfrac, penal=penal, rmin=rmin, 

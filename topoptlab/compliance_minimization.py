@@ -42,6 +42,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
          bcs=mbb_2d, obj_func=compliance,obj_kw=dict(),
          el_flags=None,
          optimizer="oc", nouteriter=2000, ninneriter=15,
+         file="topopt",
          display=True,export=True,write_log=True,
          debug=0):
     """
@@ -104,6 +105,8 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         number of inner iterations for GCMMA
     display : bool
         if True, plot design evolution to screen
+    file : str
+        name of output files
     export : bool
         if True, export design as vtk file.
     write_log : bool
@@ -123,21 +126,29 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     #
     if write_log:
         # check if log file exists and if True delete
-        if isfile("topopt.log"):
-            remove("topopt.log")
-        logging.basicConfig(level=logging.INFO,
-                        format='%(message)s',
-                        handlers=[
-                            logging.FileHandler("topopt.log"),
-                            logging.StreamHandler()])
+        if isfile(".".join([file,"log"])):
+            remove(".".join([file,"log"])) 
+        # check if any previous loggers exist and close them properly, 
+        # otherwise you start writing the same information in a single huge 
+        # file
+        logger = logging.getLogger()
+        if logger.hasHandlers():
+            for handler in logger.handlers[:]:
+                logger.removeHandler(handler)
+                handler.close()  
         #
-        logging.info(f"minimum compliance problem with {optimizer}")
+        logging.basicConfig(level=logging.INFO,
+                            format='%(message)s',
+                            handlers=[logging.FileHandler(".".join([file,"log"])),
+                                      logging.StreamHandler()])
+        #
+        logging.info(f"minimum compliance problem with optimizer {optimizer}")
         logging.info(f"number of spatial dimensions: {ndim}")
         if ndim == 2:
             logging.info(f"elements: {nelx} x {nely}")
         elif ndim == 3:
             logging.info(f"elements: {nelx} x {nely} x {nelz}")
-        logging.info(f"volfrac: {volfrac}, rmin: {rmin},  penal: {penal}")
+        logging.info(f"volfrac: {volfrac} rmin: {rmin}  penal: {penal}")
         logging.info("filter: " + ["Sensitivity based",
                                    "Density based",
                                    "Haeviside Guest",
@@ -471,7 +482,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             plt.pause(0.01)
         # Write iteration history to screen (req. Python 2.6 or newer)
         if write_log:
-            logging.info("it.: {0} , obj.: {1:.10f} Vol.: {2:.10f}, ch.: {3:.10f}".format(
+            logging.info("it.: {0} obj.: {1:.10f} vol.: {2:.10f} ch.: {3:.10f}".format(
                          loop+1, obj, xPhys.mean(), change))
         # convergence check
         if change < 0.01:
@@ -482,7 +493,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         input("Press any key...")
     #
     if export:
-        export_vtk(filename="topopt",
+        export_vtk(filename=file,
                    nelx=nelx,nely=nely,nelz=nelz,
                    xPhys=xPhys,x=x,
                    u=u,f=f,volfrac=volfrac)

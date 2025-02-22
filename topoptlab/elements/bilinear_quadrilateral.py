@@ -191,7 +191,8 @@ def jacobian(xi,eta,xe,all_elems=False):
     xi,eta,xe = check_inputs(xi,eta,xe,all_elems)
     return shape_functions_dxi(xi,eta).transpose([0,2,1]) @ xe 
 
-def invjacobian(xi,eta,xe,all_elems=False):
+def invjacobian(xi,eta,xe,
+                all_elems=False,return_det=False):
     """
     Inverse Jacobian for bilinear quadrilateral Lagrangian element. 
     
@@ -216,6 +217,8 @@ def invjacobian(xi,eta,xe,all_elems=False):
     -------
     Jinv : np.ndarray, shape (ncoords,2,2) or (nels,2,2)
            Jacobian.
+    det : np.ndarray, shape (ncoords) or (nels)
+           determinant of Jacobian.
         
     """
     # jacobian
@@ -232,7 +235,10 @@ def invjacobian(xi,eta,xe,all_elems=False):
     adj[:, 0, 0], adj[:, 1, 1] = J[:, 1, 1], J[:, 0, 0]
     adj[:, 0, 1], adj[:, 1, 0] = -J[:, 0, 1], -J[:, 1, 0]
     # return inverse
-    return adj/det[:,None,None]
+    if not return_det:
+        return adj/det[:,None,None]
+    else:
+        return adj/det[:,None,None], det
 
 def jacobian_rectangle(a,b):
     """
@@ -272,7 +278,9 @@ def invjacobian_rectangle(a,b):
     """ 
     return 2 * np.array([[1/a,0],[0,1/b]])
 
-def bmatrix(xi,eta,xe,all_elems=False):
+def bmatrix(xi,eta,xe,
+            all_elems=False,
+            return_detJ=False):
     """
     B matrix for bilinear quadrilateral Lagrangian element to calculate
     to calculate strains, stresses etc. from nodal values
@@ -293,18 +301,24 @@ def bmatrix(xi,eta,xe,all_elems=False):
     all_elems : bool
         if True, coordinates are evaluated for all elements. Useful for 
         creating elements etc.
-        
+    return_detJ : bool
+        if True, return determinant of jacobian.
         
     Returns
     -------
     B : np.ndarray, shape (ncoords,3,8) or (nels,3,8)
         B matrix.
+    detJ : np.ndarray, shape (ncoords) or (nels)
+           determinant of Jacobian.
         
     """
     # check coordinates and node data for consistency
     xi,eta,xe = check_inputs(xi,eta,xe,all_elems) 
     # collect inverse jacobians
-    invJ = invjacobian(xi,eta,xe)
+    if not return_detJ:
+        invJ = invjacobian(xi,eta,xe,return_det=return_detJ)
+    else:
+        invJ,detJ = invjacobian(xi,eta,xe,return_det=return_detJ)
     # helper array to collect shape function derivatives
     helper = np.zeros((invJ.shape[0],4,8))
     shp = shape_functions_dxi(xi,eta).transpose([0,2,1])
@@ -314,7 +328,10 @@ def bmatrix(xi,eta,xe,all_elems=False):
     B = np.array([[1,0,0,0],
                   [0,0,0,1],
                   [0,1,1,0]])@np.kron(np.eye(2),invJ)@helper
-    return B
+    if not return_detJ:
+        return B
+    else:
+        return B, detJ
 
 def bmatrix_rectangle(xi,eta,a,b):
     """

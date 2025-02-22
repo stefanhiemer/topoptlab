@@ -12,4 +12,6 @@ if __name__ == "__main__":
     ft = 0 # ft==0 -> sens, ft==1 -> dens
     main(nelx=nelx, nely=nely, volfrac=volfrac, penal=penal, rmin=rmin, 
          ft=ft, filter_mode="matrix", optimizer="oc",nouteriter=1000,
-         bcs=heatplate_2d,debug=False)
+         bcs=heatplate_2d,
+         file = "heatplate2d",
+         debug=False,export=False)

@@ -5,7 +5,7 @@ from topoptlab.example_cases import mbb_2d
 if __name__ == "__main__":
     # Default input parameters
     nelx = 60
-    nely = 20#int(nelx/3)
+    nely = int(nelx/3)
     volfrac = 0.5
     rmin = 2.4  # 5.4
     penal = 3.0
@@ -13,7 +13,7 @@ if __name__ == "__main__":
     main(nelx=nelx, nely=nely, volfrac=volfrac, penal=penal, 
          rmin=rmin, ft=ft, filter_mode="matrix", 
          optimizer="oc", solver="cvxopt-cholmod",
-         nouteriter=1000,
+         nouteriter=1000,file="mbb_2d",
          bcs=mbb_2d,debug=False,display=True,export=False)
    #main(nelx=nelx, nely=nely, volfrac=volfrac, penal=penal, rmin=rmin, 
    #      ft=ft, filter_mode="convolution", optimizer="oc",nouteriter=1000,

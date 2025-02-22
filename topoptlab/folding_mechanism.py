@@ -12,7 +12,8 @@ from matplotlib.colors import Normalize
 import matplotlib.pyplot as plt
 
 from topoptlab.output_designs import export_vtk,export_stl,threshold
-from topoptlab.fem import lk_linear_elast_2d, update_indices
+from topoptlab.elements.linear_elasticity_2d import lk_linear_elast_2d
+from topoptlab.fem import update_indices
 from topoptlab.optimality_criterion import oc_mechanism
 from topoptlab.mma_utils import update_mma
 
@@ -22,6 +23,7 @@ from mmapy import gcmmasub,asymp,concheck,raaupdate
 def main(nelx, nely, volfrac, penal, rmin, ft, 
          pde=False, passive=False,
          solver="oc", nouteriter=2000, ninneriter=15,
+         expansion=0.05,file="folding",
          display=True, export=True, write_log=True):
     """
     Topology optimization workflow with the SIMP method based on 
@@ -68,15 +70,24 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     """
     if write_log:
         # check if log file exists and if true delete
-        if isfile("folding.log"):
-            remove("folding.log")
-        logging.basicConfig(level=logging.INFO,
-                        format='%(message)s',
-                        handlers=[
-                            logging.FileHandler("folding.log"),
-                            logging.StreamHandler()])
+        if isfile(".".join([file,"log"])):
+            remove(".".join([file,"log"]))   
+        # check if any previous loggers exist and close them properly, 
+        # otherwise you start writing the same information in a single huge 
+        # file
+        logger = logging.getLogger()
+        if logger.hasHandlers():
+            for handler in logger.handlers[:]:
+                logger.removeHandler(handler)
+                handler.close()  
         #
-        logging.info("Compliant mechanism problem with OC")
+        logging.basicConfig(level=logging.INFO,
+                            format='%(message)s',
+                            handlers=[
+                                logging.FileHandler(".".join([file,"log"])),
+                                logging.StreamHandler()])
+        #
+        logging.info(f"Compliant mechanism problem with {solver}")
         logging.info(f"nodes: {nelx} x {nely}")
         logging.info(f"volfrac: {volfrac}, rmin: {rmin},  penal: {penal}")
         logging.info("Filter method: " + ["Sensitivity based", "Density based",
@@ -146,7 +157,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         elif ft in [7]:
             move = 0.05
         else:
-            move = 0.2
+            move = 0.1
         #
         epsimin = 0.0000001
         raa0 = 0.01
@@ -222,7 +233,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     f = np.zeros((ndof, 2))
     u = np.zeros((ndof, 2))
     # Set load
-    f0 = KE.dot(np.array([-0.5,-0.5,0.5,-0.5,0.5,0.5,-0.5,0.5]))
+    f0 = KE.dot(expansion/2*np.array([-1.,-1.,1.,-1.,1.,1.,-1.,1.]))
     f[dout,1] = 1
     # general
     free = np.setdiff1d(dofs, fixed)
@@ -249,7 +260,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         pass_el[inds] = 2
     else:
         pass_el = None
-    if export:
+    if display:
         # Initialize plot and plot the initial design
         plt.ion()  # Ensure that redrawing is possible
         fig, ax = plt.subplots(1,1)
@@ -330,7 +341,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         # Optimality criteria
         if solver=="oc":
             xold[:] = x 
-            (x[:], g) = oc_mechanism(nelx, nely, x, volfrac, dc, dconstrs[:,0], g, pass_el)
+            (x[:], g) = oc_mechanism(x, volfrac, dc, dconstrs[:,0], g, pass_el)
         # method of moving asymptotes, implementation by Arjen Deetman
         elif solver=="mma":
             xval = x.copy()[np.newaxis].T
@@ -379,7 +390,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     K = coo_matrix((sK, (iK, jK)), shape=(ndof_free, ndof_free)).tocsc()
     # add springs to stiffness matrix
     #K[_din,_din] += kin # 
-    K[_dout,_dout] += kout #
+    #K[_dout,_dout] += kout #
     # set up forces
     f_bw = np.zeros((ndof,1))
     np.add.at(f_bw[:,0],
@@ -388,23 +399,27 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     # Solve systems
     u_bw = np.zeros((ndof,1))
     u_bw[free,0] = spsolve(K, f_bw[free])
-    print()
-    print("output",u_bw[dout])
-    # Objective and sensitivity
     obj = -u[dout,0].copy()
+    # final output
+    logging.info("final: obj.: {0:.8f} Vol.: {1:.8f}".format(obj,xThresh.mean()))
+    #
     if display:
+        # Plot to screen
+        im.set_array(-xThresh.reshape((nelx, nely)).T)
+        fig.canvas.draw()
+        plt.pause(0.01)
         #
         plt.show()
         input("Press any key...")
     if export:
         #
-        export_vtk(filename="folding", 
+        export_vtk(filename=file, 
                    nelx=nelx,nely=nely, 
                    xPhys=xPhys,x=x, 
                    u=u,f=f,
                    u_bw=u_bw,f_bw=f_bw,
                    volfrac=volfrac)
-        export_stl(filename="folding", 
+        export_stl(filename=file, 
                    nelx=nelx,nely=nely, 
                    xPhys=xPhys,
                    volfrac=volfrac)
