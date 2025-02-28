@@ -48,7 +48,7 @@ def main(nelx,nely,
     print("volfrac: " + str(volfrac) + ", rmin: " + str(rmin) + ", penal: " + str(penal))
     print("Filter method: " + ["Sensitivity based","Density based"][ft])
     # Max and min heat conduction
-    kmin = 1e-2
+    kmin = 1e-5
     kmax = 1.0
     # dofs:
     ndof = (nelx+1)*(nely+1)
@@ -136,20 +136,6 @@ def main(nelx,nely,
         # Remove constrained dofs from matrix
         K = K[free,:][:,free]
         M = M[free,:][:,free]
-        """
-        plt.ion()
-        fig,ax = plt.subplots()
-        im = ax.imshow(u[:,0].reshape((nelx+1,nely+1)).T, cmap='gray',\
-                       interpolation='none',
-                       norm=colors.LogNorm(vmin=u[:,0].min(),vmax=u[:,0].max()))
-        ax.tick_params(axis='both',
-                       which='both',
-                       bottom=False,
-                       left=False,
-                       labelbottom=False,
-                       labelleft=False)
-        #fig.show()
-        """
         # Solve system
         if solver == "lu":
             lu = factorized(M/dt + K) # LU decomposition. returns a function
@@ -289,10 +275,10 @@ def oc(nelx,nely,x,volfrac,dc,dv,g):
 # The real main driver    
 if __name__ == "__main__":
     # Default input parameters
-    nelx = 40
-    nely = 40
+    nelx = 100
+    nely = 100
     volfrac = 0.4
-    rmin = 1.2
+    rmin = 2.4
     penal = 3.0
     ft=1 # ft==0 -> sens, ft==1 -> dens
     dt = 4e0 # 1/(4 * kmax) is a lower bound

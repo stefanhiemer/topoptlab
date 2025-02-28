@@ -1,0 +1,95 @@
+! Simple script to provide test cases for elment stiffness matrices etc.
+
+Check Keywords "Warn"
+
+Header
+  Mesh DB "." "beam1d"
+End
+
+Simulation
+  Max Output Level = 7
+  Coordinate System = Cartesian
+  Simulation Type = Steady state
+  Steady State Max Iterations = 5 !1000
+  Output Intervals = 0
+
+  Post File = a.vtu 
+  vtu: Save Bulk Only = Logical True
+  vtu: ascii output = logical True
+
+  Mesh Levels = 1
+End
+
+Body 1
+  Target Bodies(1) = 1
+  Name = "Body Property 1"
+  Equation = 1
+  Material = 1
+  Initial Condition = 1
+End
+
+Initial Condition 1
+  Name = "Guess"
+  topo rho = Real $Vfrac
+  topo mult = Real $Vfrac^pexp
+End
+
+Solver 1
+  Equation = LinearElasticity
+  Procedure = "StressSolve" "StressSolver"
+  Variable = -dofs 2 Displacement
+
+  Nonlinear System Max Iterations = 1
+
+  Linear System Solver = Direct
+  Linear System Direct Method = umfpack
+ 
+  Local Matrix Identical = Logical False
+  Local Matrix Storage = Logical True  
+
+  Matrix Multiplier Name = String "topo mult"
+
+  Optimize Bandwidth = False
+  Solver Timing = True
+
+  Steady State Convergence Tolerance = 1.0e-4
+  Displace Mesh = False
+  
+  ! At which slot should the linear system be saved
+  ! Choices are {bulk assembly, boundary assembly, assembly, solve} 
+  Linear System Save Slot = String "bulk assembly"
+End
+
+Equation 1
+  Name = "Elast"
+!  Calculate Stresses = True
+  Active Solvers(2) = 1 2
+
+! This has been checked!
+  Plane Stress = True
+End
+
+Material 1
+  Name = "PlaneStuff"
+  Youngs modulus = 1.0
+  Poisson ratio = 0.3
+End
+
+Boundary Condition 1
+  Target Boundaries(1) = 1
+  Name = "Symmetry"
+  Displacement 1 = 0.0
+End
+
+Boundary Condition 2
+  Target Coordinates(1,2) = 0.0 $H$
+  Name = "PointLoad"
+  Displacement 2 Load = Real -1.0
+End
+
+Boundary Condition 3
+  Target Coordinates(1,2) = $L$ 0.0 
+  Name = "Fix"
+!  Displacement 1 = 0.0
+  Displacement 2 = 0.0
+End

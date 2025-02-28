@@ -3,6 +3,7 @@ from symfem.functions import VectorFunction
 import symfem
 from symfem.symbols import x
 
+from topoptlab.symfem_utils import multiply_vecT_symmat,generate_constMatrix
 if __name__ == "__main__":
     # Define the vertived and triangles of the mesh
     vertices = [(-1, -1), (1, -1), (1, 1), (-1, 1)]
@@ -12,7 +13,7 @@ if __name__ == "__main__":
     # Create a matrix of zeros with the correct shape
     matrix = [[0 for i in range(4)] for j in range(4)]
     # anisotropic heat conductivity or equivalent
-    k11,k12,k21,k22 = symbols("k11 k12 k21 k22")
+    K = generate_constMatrix(2,2,"k")
     # Get the vertices of the triangle
     vs = tuple(vertices[i] for i in rectangle)
     # Create a reference cell with these vertices: this will be used
@@ -30,10 +31,11 @@ if __name__ == "__main__":
             #integrand = test_f.grad(2).dot(trial_f.grad(2))
             f = test_f.grad(2) 
             g = trial_f.grad(2)
-            f = VectorFunction([f.dot(VectorFunction([k11,k21])),
-                                f.dot(VectorFunction([k12,k22]))])
+            #f = VectorFunction([f.dot(VectorFunction([k11,k21])),
+            #                    f.dot(VectorFunction([k12,k22]))])
+            f = multiply_vecT_symmat(f,K)
             integrand = f.dot(g)
-            print(integrand)
+            #print(integrand)
             matrix[test_i][trial_i] += integrand.integral(ref, x)
     
     print(matrix)

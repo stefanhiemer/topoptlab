@@ -7,8 +7,12 @@ import numpy as np
 from scipy.sparse import coo_matrix,coo_array
 from scipy.sparse.linalg import spsolve,factorized
 from scipy.ndimage import convolve
+#
 from matplotlib.colors import Normalize
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+#
+from skimage.measure import marching_cubes
 # functions to create filters
 from topoptlab.filters import assemble_matrix_filter,assemble_convolution_filter,assemble_helmholtz_filter
 # default application case that provides boundary conditions, etc.
@@ -294,7 +298,14 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             plotfunc = im.set_array
         elif ndim == 3:
             raise NotImplementedError("Plotting in 3D not yet implemented.")
+            # marching cubes to find contour line
+            verts, faces, normals, values = marching_cubes(mapping(-xPhys), 
+                                                          level=volfrac)
             fig, ax = plt.subplots(1,1,subplot_kw={"projection": "3d"})
+            #
+            mesh = Poly3DCollection(verts[faces])
+            mesh.set_edgecolor('k')
+            ax.add_collection3d(mesh)
             im = ax.voxels(mapping(np.ones(xPhys.shape,dtype=bool)),
                            facecolors = -xPhys,
                            cmap='gray', edgecolor=None,

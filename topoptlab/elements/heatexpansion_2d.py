@@ -21,10 +21,10 @@ def _fk_linear_heatexp_2d(xe,c,
         stiffness tensor.
     alpha : np.ndarray, shape (nels,2,2) or 
         linear heat expansion tensor.
-    Tref : float
-        reference temperature.
     T : np.ndarray shape (nels,4)
         nodal temperatures
+    Tref : float
+        reference temperature.
     quadr_method: str or callable
         name of quadrature method or function/callable that returns coordinates of 
         quadrature points and weights. Check function get_integrpoints for 
@@ -37,7 +37,7 @@ def _fk_linear_heatexp_2d(xe,c,
         force due to thermal expansion.
         
     """
-    raise NotImplementedError("Not yet finished")
+    #raise NotImplementedError("Not yet finished")
     # convert linear heat expansion tensor to Voigt notation (nel,3,1)
     if len(alpha.shape) == 2:
         alpha = alpha[None,:,:]
@@ -49,7 +49,7 @@ def _fk_linear_heatexp_2d(xe,c,
     if len(xe.shape) == 2:
         xe = xe[None,:,:]
     #
-    x,w=get_integrpoints(ndim=2,nq=2,method=quadr_method)
+    x,w=get_integrpoints(ndim=2,nq=nquad,method=quadr_method)
     #
     nel = xe.shape[0]
     nq =w.shape[0]
@@ -63,7 +63,35 @@ def _fk_linear_heatexp_2d(xe,c,
     B = bmatrix(xi, eta, xe, all_elems=True)
     B = B.reshape(nel, nq,  B.shape[-2], B.shape[-1])
     #
-    integral = B.transpose([0,1,3,2])@c[:,None,:,:]@alpha[:,None,:,:]@N@deltaT
+    #print("B_T ", B.transpose([0,1,3,2]).shape)
+    #print("c ", c.shape)
+    integral = B.transpose([0,1,3,2])@c[:,None,:,:]
+    #print("prelim integral ",integral.shape)
+    integral = integral@alpha[:,None,:,:]
+    #print(N.shape)
+    integral = integral@N.transpose([0,1,3,2])
+    #print(deltaT.shape)
+    #print("prelast integral ",integral.shape)
+    integral = integral@deltaT[:,None,:,None]
     #
-    Ke = (w[:,None,None]*integral).sum(axis=1)
-    return Ke
+    fe = (w[:,None,None]*integral).sum(axis=1)
+    #print("fe ", fe.shape)
+    #print(fe)
+    return fe
+
+if __name__ == "__main__":
+    
+    from topoptlab.elements.linear_elasticity_2d import _lk_linear_elast_2d
+    from topoptlab.stiffness_tensors import isotropic_2d
+    xe = np.array([ [[-1.,-1.], 
+                     [1.,-1.], 
+                     [1.,1.], 
+                     [-1.,1.]]])
+    c = isotropic_2d(E=1.,nu=0.3)
+    _lk_linear_elast_2d(xe,c)
+    _fk_linear_heatexp_2d(xe=xe, 
+                          c = c, 
+                          alpha = np.eye(2)[None,:,:], 
+                          T=np.array([[1.,1.,1.,1.]]),
+                          Tref=0.)
+    

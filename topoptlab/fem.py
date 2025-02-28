@@ -189,6 +189,12 @@ def get_integrpoints(ndim,nq,method):
     """
     if method == "gauss-legendre":
         x,w = np.polynomial.legendre.leggauss(nq)
+    elif method == "gauss-hermite":
+        x,w = np.polynomial.hermite.hermgauss(nq)
+    elif method == "gauss-chebyshev":
+        x,w = np.polynomial.chebyshev.chebgauss(nq)
+    elif method == "gauss-laguerre":
+        x,w = np.polynomial.laguerre.laggauss(nq)
     elif hasattr(method, '__call__'):
         x,w = method(nq)
     else:
