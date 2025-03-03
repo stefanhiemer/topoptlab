@@ -10,7 +10,7 @@ from topoptlab.elements.bilinear_quadrilateral import create_edofMat as create_e
 from topoptlab.elements.trilinear_hexahedron import create_edofMat as create_edofMat3d
 
 
-def assemble_matrix_filter(nelx,nely,rmin,nelz=None,el = None,
+def assemble_matrix_filter(nelx,nely,rmin,nelz=None,
                            ndim=2):
     """
     Assemble distance based filters as sparse matrix that is applied on to
@@ -27,8 +27,6 @@ def assemble_matrix_filter(nelx,nely,rmin,nelz=None,el = None,
         to element center distance are used for filtering. 
     nelz : int or None
         number of elements in z direction. Ignored if ndim < 3.
-    el : np.ndarray or None
-        sorted array of element indices.
     ndim : int 
         number of dimensions
 
@@ -46,8 +44,7 @@ def assemble_matrix_filter(nelx,nely,rmin,nelz=None,el = None,
     elif ndim == 3:
         n = nelx*nely*nelz
     # index array of densities/elements
-    if el is None: 
-        el = np.arange(n)
+    el = np.arange(n)
     # filter size
     nfilter = int(n*((2*(np.ceil(rmin)-1)+1)**ndim))
     # create empty arrays for indices and values of final filter 
@@ -164,7 +161,7 @@ def assemble_convolution_filter(nelx,nely,rmin,
     return kernel,hs
 
 def assemble_helmholtz_filter(nelx,nely,rmin,nelz=None,
-                              el=None,n1=None,n2=None,n3=None,n4=None):
+                              n1=None,n2=None,n3=None,n4=None):
     """
     Assemble Helmholtz PDE based filter from "Efficient topology optimization 
     in MATLAB using 88 lines of code".
@@ -187,8 +184,6 @@ def assemble_helmholtz_filter(nelx,nely,rmin,nelz=None,
         to element center distance are used for filtering. 
     nelz : int or None
         number of elements in z direction.
-    el : np.ndarray or None
-        sorted array of element indices.
     n1 : np.ndarray or None
         index array to help constructing the stiffness matrix.
     n2 : np.ndarray or None
@@ -211,8 +206,7 @@ def assemble_helmholtz_filter(nelx,nely,rmin,nelz=None,
     if nelz is not None:
         raise NotImplementedError("3D not yet completely implemented.")
     # element indices
-    if el is None:
-        el = np.arange(nelx*nely)
+    el = np.arange(nelx*nely)
     # 
     if n1 is None:
         elx,ely = np.arange(nelx)[:,None], np.arange(nely)[None,:]

@@ -245,47 +245,6 @@ def cantilever_2d_wrong(nelx,nely,ndof,**kwargs):
     f[-1,0] = -1
     return u,f,fixed,np.setdiff1d(dofs,fixed),None
 
-def heatplate_2d(nelx,nely,ndof,**kwargs):
-    """
-    Heat conduction problem with an evenly heated plate attached to a heat 
-    sink at the negative x side. Example case taken from the standard TO 
-    textbook by Sigmund and Bendsoe page 271.
-    
-    Parameters
-    ----------
-    nelx : int
-        number of elements in x direction.
-    nely : int
-        number of elements in y direction.
-    ndof : int
-        number of degrees of freedom.
-
-    Returns
-    -------
-    u : np.ndarray
-        array of zeros for state variable (displacement, temperature) to be 
-        filled of shape (ndof).
-    f : np.ndarray
-        array of zeros for state flow variables (forces, flow).
-    fixed : np.ndarray
-        indices of fixed dofs (nfixed).
-    free : np.ndarray
-        indices of free dofs (ndofs - nfixed).
-    springs : None
-
-    """
-    # BC's
-    dofs = np.arange(ndof)
-    # Solution and RHS vectors
-    f = np.zeros((ndof, 1))
-    u = np.zeros((ndof, 1))
-    # heat sink
-    fixed = np.arange(int(nely / 2 + 1 - nely / 20), 
-                      int(nely / 2 + 1 + nely / 20) + 1)
-    # load/source
-    f[:, 0] = -1 # constant source
-    return u,f,fixed,np.setdiff1d(dofs,fixed),None
-
 def forceinverter_2d(nelx,nely,ndof,**kwargs):
     """
     Heat conduction problem with an evenly heated plate attached to a heat 
@@ -323,7 +282,7 @@ def forceinverter_2d(nelx,nely,ndof,**kwargs):
     # Solution and RHS vectors
     f = np.zeros((ndof, 1))
     u = np.zeros((ndof, 1))
-    # heat sink
+    #
     fixed = np.union1d(np.arange(1,(nelx+1)*(nely+1)*2,(nely+1)*2), # symmetry
                        np.arange(2*(nely+1)-4,2*(nely+1))) # bottom left bit
     # load/source
@@ -331,3 +290,46 @@ def forceinverter_2d(nelx,nely,ndof,**kwargs):
     #
     springs = [np.array([0,2*nelx*(nely+1)]),np.array([0.1,0.1])]
     return u,f,fixed,np.setdiff1d(dofs,fixed),springs
+
+def threepointbending_2d(nelx,nely,ndof,**kwargs):
+    """
+    y displacement fixed at bottom left and bottom right and force pushes
+    down on the middle top. x displacement fixed at bottom left.
+    
+    Parameters
+    ----------
+    nelx : int
+        number of elements in x direction.
+    nely : int
+        number of elements in y direction.
+    ndof : int
+        number of degrees of freedom.
+
+    Returns
+    -------
+    u : np.ndarray
+        array of zeros for state variable (displacement, temperature) to be 
+        filled of shape (ndof).
+    f : np.ndarray
+        array of zeros for state flow variables (forces, flow).
+    fixed : np.ndarray
+        indices of fixed dofs (nfixed).
+    free : np.ndarray
+        indices of free dofs (ndofs - nfixed).
+    springs : list
+        contains two 1D np.ndarrays of equal length. first is of integer type 
+        and contains the indices of dofs attached to a spring. second contains
+        the spring constants. 
+
+    """
+    # BC's
+    dofs = np.arange(ndof)
+    # Solution and RHS vectors
+    f = np.zeros((ndof, 1))
+    u = np.zeros((ndof, 1))
+    # heat sink
+    fixed = np.hstack(([2*nely-1,2*nely], # bottom left
+                      [ndof])) # bottom right 
+    # load/source
+    f[nelx*(nely+1) + 1,0] = 1
+    return u,f,fixed,np.setdiff1d(dofs,fixed),None

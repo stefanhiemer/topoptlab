@@ -3,7 +3,7 @@ from numpy.testing import assert_almost_equal
 import pytest
 
 from topoptlab.compliance_minimization import main
-from topoptlab.example_cases import mbb_2d,cantilever_2d,cantilever_2d_wrong,cantilever_2d_twoloads,cantilever_2d_twoloads_wrong
+from topoptlab.example_bc.lin_elast import mbb_2d,cantilever_2d,cantilever_2d_wrong,cantilever_2d_twoloads,cantilever_2d_twoloads_wrong
 
 @pytest.mark.parametrize('nelx, nely, volfrac, ft, rmin, filter_mode, bcs, obj_ref',
                          [(60,20,0.5,0,2.4,"matrix",mbb_2d,216.81366),

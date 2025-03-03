@@ -86,7 +86,11 @@ if __name__ == "__main__":
     xe = np.array([ [[-1.,-1.], 
                      [1.,-1.], 
                      [1.,1.], 
-                     [-1.,1.]]])
+                     [-1.,1.]],
+                    [[-2.,-2.], 
+                     [2.,-2.], 
+                     [2.,2.], 
+                     [-2.,2.]]])
     c = isotropic_2d(E=1.,nu=0.3)
     _lk_linear_elast_2d(xe,c)
     _fk_linear_heatexp_2d(xe=xe, 

@@ -4,8 +4,8 @@ import logging
 from functools import partial
 #
 import numpy as np
-from scipy.sparse import coo_matrix,coo_array
-from scipy.sparse.linalg import spsolve,factorized
+from scipy.sparse import coo_matrix
+from scipy.sparse.linalg import factorized
 from scipy.ndimage import convolve
 #
 from matplotlib.colors import Normalize
@@ -16,9 +16,9 @@ from skimage.measure import marching_cubes
 # functions to create filters
 from topoptlab.filters import assemble_matrix_filter,assemble_convolution_filter,assemble_helmholtz_filter
 # default application case that provides boundary conditions, etc.
-from topoptlab.example_cases import mbb_2d
+from topoptlab.example_bc.lin_elast import mbb_2d
 # set up finite element problem
-from topoptlab.fem import update_indices,create_matrixinds
+from topoptlab.fem import create_matrixinds
 from topoptlab.elements.bilinear_quadrilateral import create_edofMat as create_edofMat2d
 from topoptlab.elements.trilinear_hexahedron import create_edofMat as create_edofMat3d
 # different elements/physics
@@ -41,11 +41,13 @@ from topoptlab.utils import map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel
 def main(nelx, nely, volfrac, penal, rmin, ft,
          nelz=None,
          filter_mode="matrix",
-         solver="scipy-direct", preconditioner=None,
+         lin_solver="scipy-direct", preconditioner=None,
          assembly_mode="full",
-         bcs=mbb_2d, obj_func=compliance,obj_kw=dict(),
+         bcs=mbb_2d, 
+         obj_func=compliance, obj_kw={},
          el_flags=None,
-         optimizer="oc", nouteriter=2000, ninneriter=15,
+         optimizer="oc", 
+         nouteriter=2000, ninneriter=15,
          file="topopt",
          display=True,export=True,write_log=True,
          debug=0):
@@ -70,7 +72,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         integer flag for the filter. 0 sensitivity filtering,
         1 density filtering, -1 no filter.
     nelz : int or None
-        number of elements in z direction. Only important if ndim is 3.
+        number of elements in z direction. If None, simulation is 2d.
     filter_mode : str
         indicates how filtering is done. Possible values are "matrix" or
         "helmholtz". If "matrix", then density/sensitivity filters are
@@ -232,19 +234,16 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         n_ndof = int(KE.shape[0]/4)
         # number of degrees of freedom
         ndof = (nelx+1)*(nely+1)*n_ndof
+        # element degree of freedom matrix plus some helper indices
+        edofMat, n1, n2, n3, n4 = create_edofMat2d(nelx=nelx,nely=nely,nelz=nelz,
+                                                   nnode_dof=n_ndof)
     elif ndim == 3:
         KE = lk_linear_elast_3d()
         # infer nodal degrees of freedom assuming that we have 4/8 nodes in 2/3
         n_ndof = int(KE.shape[0]/8)
         # number of degrees of freedom
         ndof = (nelx+1)*(nely+1)*(nelz+1)*n_ndof
-    # el. indices
-    el = np.arange(n)
-    # element degree of freedom matrix plus some helper indices
-    if ndim == 2:
-        edofMat, n1, n2, n3, n4 = create_edofMat2d(nelx=nelx,nely=nely,nelz=nelz,
-                                                   nnode_dof=n_ndof)
-    elif ndim == 3:
+        # element degree of freedom matrix plus some helper indices
         edofMat, n1, n2, n3, n4 = create_edofMat3d(nelx=nelx,nely=nely,nelz=nelz,
                                                    nnode_dof=n_ndof)
     # Construct the index pointers for the coo format
@@ -267,7 +266,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     # Filter: Build (and assemble) the index+data vectors for the coo matrix format
     if filter_mode == "matrix":
         H,Hs = assemble_matrix_filter(nelx=nelx,nely=nely,nelz=nelz,
-                                      rmin=rmin,el=el,ndim=ndim)
+                                      rmin=rmin,ndim=ndim)
     elif filter_mode == "convolution":
         h,hs = assemble_convolution_filter(nelx=nelx,nely=nely,nelz=nelz,
                                            rmin=rmin,
@@ -276,18 +275,13 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     elif filter_mode == "helmholtz" and ft in [0,1]:
         KF,TF = assemble_helmholtz_filter(nelx=nelx,nely=nely,nelz=nelz,
                                           rmin=rmin,
-                                          el=el,n1=n1,n2=n2,n3=n3,n4=n4)
+                                          n1=n1,n2=n2,n3=n3,n4=n4)
         # LU decomposition. returns a function for solving, not the matrices
         lu_solve = factorized(KF)
     # BC's and support
     u,f,fixed,free,springs = bcs(nelx=nelx,nely=nely,nelz=nelz,
                                  ndof=ndof)
     f0 = None
-    # get rid of fixed degrees of freedom from stiffness matrix
-    #mask = ~(np.isin(iK,fixed) | np.isin(jK,fixed))
-    #iK = update_indices(iK, fixed, mask)
-    #jK = update_indices(jK, fixed, mask)
-    #ndof_free = ndof - fixed.shape[0]
     if display:
         # Initialize plot and plot the initial design
         plt.ion()  # Ensure that redrawing is possible
@@ -335,16 +329,16 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             # To Do: loop over boundary conditions if incompatible
             # assemble system matrix
             K = assemble_matrix(sK=sK,iK=iK,jK=jK,
-                                ndof=ndof,solver=solver,
+                                ndof=ndof,solver=lin_solver,
                                 springs=springs)
             # assemble right hand side
-            rhs = assemble_rhs(f0=f,solver=solver)
+            rhs = assemble_rhs(f0=f,solver=lin_solver)
             # apply boundary conditions to matrix
-            K = apply_bc(K=K,solver=solver,
+            K = apply_bc(K=K,solver=lin_solver,
                          free=free,fixed=fixed)
             # solve linear system. fact is a factorization and precond a preconditioner
             u[free, :], fact, precond, = solve_lin(K=K, rhs=rhs[free], 
-                                                   solver=solver,
+                                                   solver=lin_solver,
                                                    preconditioner=preconditioner)
             # Objective and objective gradient
             obj = 0
@@ -363,7 +357,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                 else:
                     h = np.zeros(f.shape)
                     h[free],_,_ = solve_lin(K, rhs=rhs_adj[free],
-                                            solver=solver,P=precond,
+                                            solver=lin_solver, P=precond,
                                             preconditioner = preconditioner)
                     if f0 is None:
                         dc += penal*xPhys**(penal-1)*(Emax-Emin)*\

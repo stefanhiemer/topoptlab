@@ -171,10 +171,10 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     jK = np.kron(edofMat, np.ones((1, 8))).flatten()
     # Filter: Build (and assemble) the index+data vectors for the coo matrix format
     if filter_mode == "matrix" and ft in [0,1]:
-        H,Hs = assemble_matrix_filter(nelx=nelx,nely=nely,rmin=rmin,el=el)
+        H,Hs = assemble_matrix_filter(nelx=nelx,nely=nely,rmin=rmin)
     elif filter_mode == "helmholtz" and ft in [0,1]:
         KF,TF = assemble_helmholtz_filter(nelx=nelx,nely=nely,rmin=rmin,
-                                          el=el,n1=n1,n2=n2)
+                                          n1=n1,n2=n2)
     # BC's and support
     dofs = np.arange(ndof)
     fixed = np.union1d(np.arange(1,(nelx+1)*(nely+1)*2,(nely+1)*2), # symmetry

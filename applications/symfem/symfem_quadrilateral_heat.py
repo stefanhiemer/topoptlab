@@ -4,6 +4,7 @@ import symfem
 from symfem.symbols import x
 
 from topoptlab.symfem_utils import multiply_vecT_symmat,generate_constMatrix
+
 if __name__ == "__main__":
     # Define the vertived and triangles of the mesh
     vertices = [(-1, -1), (1, -1), (1, 1), (-1, 1)]

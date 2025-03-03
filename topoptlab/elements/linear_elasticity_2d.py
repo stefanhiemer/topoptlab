@@ -47,7 +47,9 @@ def _lk_linear_elast_2d(xe,c,
     nel = xe.shape[0]
     nq =w.shape[0]
     # 
-    B,detJ = bmatrix(xi, eta, xe, all_elems=False, return_detJ=True)
+    B,detJ = bmatrix(xi, eta, xe, 
+                     all_elems=True, 
+                     return_detJ=True)
     print("detJ",detJ.shape)
     B = B.reshape(nel, nq,  B.shape[-2], B.shape[-1])
     print("bmat",B.shape)

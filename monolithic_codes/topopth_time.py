@@ -157,7 +157,6 @@ def main(nelx,nely,
         # appear in the obj. and are implicitly "hidden" in the state variables.
         dc[:] = 0 
         h = np.zeros((ndof,nsteps)) # adjoint vectors/Lagrangian multipliers
-        #h = np.zeros((ndof,1)) # adjoint vectors/Lagrangian multipliers
         if solver == "lu":
             h[free,-1] = lu(-f[free,-1])
         elif solver == "direct":
