@@ -9,7 +9,9 @@ def _fk_linear_heatexp_2d(xe,c,
                           nquad = 2):
     """
     Create force vector for 2D linear heat expansion with 
-    bilinear quadrilateral Lagrangian elements.
+    bilinear quadrilateral Lagrangian elements. This amounts to
+    
+    int_Omega B_T @ C_v @ alpha_v @ N_T @ dOmega DeltaT
     
     Parameters
     ----------
@@ -63,26 +65,19 @@ def _fk_linear_heatexp_2d(xe,c,
     B = bmatrix(xi, eta, xe, all_elems=True)
     B = B.reshape(nel, nq,  B.shape[-2], B.shape[-1])
     #
-    #print("B_T ", B.transpose([0,1,3,2]).shape)
-    #print("c ", c.shape)
     integral = B.transpose([0,1,3,2])@c[:,None,:,:]
-    #print("prelim integral ",integral.shape)
     integral = integral@alpha[:,None,:,:]
-    #print(N.shape)
     integral = integral@N.transpose([0,1,3,2])
-    #print(deltaT.shape)
-    #print("prelast integral ",integral.shape)
     integral = integral@deltaT[:,None,:,None]
     #
     fe = (w[:,None,None]*integral).sum(axis=1)
-    #print("fe ", fe.shape)
-    #print(fe)
     return fe
 
 if __name__ == "__main__":
     
     from topoptlab.elements.linear_elasticity_2d import _lk_linear_elast_2d
     from topoptlab.stiffness_tensors import isotropic_2d
+    
     xe = np.array([ [[-1.,-1.], 
                      [1.,-1.], 
                      [1.,1.], 

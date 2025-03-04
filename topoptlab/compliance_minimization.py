@@ -235,7 +235,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         # number of degrees of freedom
         ndof = (nelx+1)*(nely+1)*n_ndof
         # element degree of freedom matrix plus some helper indices
-        edofMat, n1, n2, n3, n4 = create_edofMat2d(nelx=nelx,nely=nely,nelz=nelz,
+        edofMat, n1, n2, n3, n4 = create_edofMat2d(nelx=nelx,nely=nely,
                                                    nnode_dof=n_ndof)
     elif ndim == 3:
         KE = lk_linear_elast_3d()

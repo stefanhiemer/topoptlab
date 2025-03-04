@@ -75,7 +75,7 @@ def rectangle_2d(nelx,nely,ndof,**kwargs):
     f = np.zeros((ndof, 1))
     u = np.zeros((ndof, 1))
     # heat sink
-    fixed = np.arange(nely)
+    fixed = np.arange(nely+1)
     # load/source
-    f[-nely:, 0] = -1 # constant source
+    f[-(nely+1):, 0] = 1 # constant source
     return u,f,fixed,np.setdiff1d(dofs,fixed),None

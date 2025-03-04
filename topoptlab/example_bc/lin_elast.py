@@ -293,8 +293,8 @@ def forceinverter_2d(nelx,nely,ndof,**kwargs):
 
 def threepointbending_2d(nelx,nely,ndof,**kwargs):
     """
-    y displacement fixed at bottom left and bottom right and force pushes
-    down on the middle top. x displacement fixed at bottom left.
+    both displacement fixed at bottom left and bottom right and force pushes
+    down on the middle top. 
     
     Parameters
     ----------
@@ -328,8 +328,53 @@ def threepointbending_2d(nelx,nely,ndof,**kwargs):
     f = np.zeros((ndof, 1))
     u = np.zeros((ndof, 1))
     # heat sink
-    fixed = np.hstack(([2*nely-1,2*nely], # bottom left
-                      [ndof])) # bottom right 
+    fixed = np.hstack(([2*nely,2*(nely+1)-1], # bottom left
+                       [ndof-2,ndof-1])) # bottom right 
     # load/source
-    f[nelx*(nely+1) + 1,0] = 1
+    f[nelx*(nely+1) + 1,0] = -1
+    return u,f,fixed,np.setdiff1d(dofs,fixed),None
+
+def xcenteredbeam_2d(nelx,nely,ndof,**kwargs):
+    """
+    Both displacements fixed at the middle of the left and right boundary. No
+    forces. This test case is mainly for cases where a force source due to 
+    another field (e. g. thermal stresses) appear
+    
+    Parameters
+    ----------
+    nelx : int
+        number of elements in x direction.
+    nely : int
+        number of elements in y direction.
+    ndof : int
+        number of degrees of freedom.
+
+    Returns
+    -------
+    u : np.ndarray
+        array of zeros for state variable (displacement, temperature) to be 
+        filled of shape (ndof).
+    f : np.ndarray
+        array of zeros for state flow variables (forces, flow).
+    fixed : np.ndarray
+        indices of fixed dofs (nfixed).
+    free : np.ndarray
+        indices of free dofs (ndofs - nfixed).
+    springs : list
+        contains two 1D np.ndarrays of equal length. first is of integer type 
+        and contains the indices of dofs attached to a spring. second contains
+        the spring constants. 
+
+    """
+    if nely%2 !=0:
+        raise ValueError("This example works only for nely equal to an even number.")
+    # BC's
+    dofs = np.arange(ndof)
+    # Solution and RHS vectors
+    f = np.zeros((ndof, 1))
+    u = np.zeros((ndof, 1))
+    # heat sink
+    fixed = np.hstack(([0,2*nely], # xdofs fixed left side
+                       [nely+1],
+                       [2*nelx*(nely+1) + nely+1])) # bottom right 
     return u,f,fixed,np.setdiff1d(dofs,fixed),None
