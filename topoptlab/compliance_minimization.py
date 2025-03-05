@@ -30,7 +30,7 @@ from topoptlab.fem import assemble_matrix,assemble_rhs,apply_bc
 from topoptlab.solve_linsystem import solve_lin
 # constrained optimizers
 from topoptlab.optimality_criterion import oc_top88,oc_mechanism
-from topoptlab.mma_utils import update_mma
+from topoptlab.mma_utils import update_mma,mma_defaultkws
 from topoptlab.objectives import compliance
 # output final design to a Paraview readable format
 from topoptlab.output_designs import export_vtk
@@ -46,7 +46,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
          bcs=mbb_2d, 
          obj_func=compliance, obj_kw={},
          el_flags=None,
-         optimizer="oc", 
+         optimizer="oc", optimizer_kw = None,
          nouteriter=2000, ninneriter=15,
          file="topopt",
          display=True,export=True,write_log=True,
@@ -174,56 +174,45 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     xTilde = x.copy()
     xPhys = x.copy()
     # initialize arrays for gradients
-    dc = np.zeros(x.shape[0],order="F")
+    dobj = np.zeros(x.shape[0],order="F")
     dv = np.ones(x.shape[0],order="F")
     # initialize solver
-    if optimizer in ["oc","ocm"]:
-        # must be initialized to use the NGuyen/Paulino OC approach
-        g = 0
-    elif optimizer == "mma":
-        # number of constraints.
-        m = 1
-        # lower and upper bound for densities
-        xmin = np.zeros((x.shape[0],1))
-        xmax = np.ones((x.shape[0],1))
-        # densities of two previous iterations
-        xold1 = x.copy()
-        xold2 = x.copy()
-        # initial lower and upper asymptotes
-        low = np.ones((x.shape[0],1))
-        upp = np.ones((x.shape[0],1))
-        #
-        a0 = 1.0
-        a = np.zeros((m,1))
-        c = 10000*np.ones((m,1))
-        d = np.zeros((m,1))
-        move = 0.2
-    elif optimizer == "gcmma":
-        # number of constraints.
-        m = 1
-        # lower and upper bound for densities
-        xmin = np.zeros((x.shape[0],1))
-        xmax = np.ones((x.shape[0],1))
-        # densities of two previous iterations
-        xold1 = x.copy()
-        xold2 = x.copy()
-        # lower and upper asymptotes
-        low = np.ones((x.shape[0],1))
-        upp = np.ones((x.shape[0],1))
-        #
-        a0 = 1.0
-        a = np.zeros((m,1))
-        c = 10000*np.ones((m,1))
-        d = np.zeros((m,1))
-        move = 0.2
-        #
-        epsimin = 0.0000001
-        raa0 = 0.01
-        raa = 0.01*np.ones((m,1))
-        raa0eps = 0.000001
-        raaeps = 0.000001*np.ones((m,1))
-    else:
-        raise ValueError("Unknown optimizer: ", optimizer)
+    if optimizer_kw is None:        
+        if optimizer in ["oc","ocm"]:
+            # must be initialized to use the NGuyen/Paulino OC approach
+            g = 0
+        elif optimizer == "mma":
+            # mma needs results of the two previous iterations
+            nhistory = 2
+            xhist = [x.copy(),x.copy()]
+            #
+            optimizer_kw = mma_defaultkws(x,ft=ft,n_constr=1)
+        elif optimizer == "gcmma":
+            # number of constraints.
+            m = 1
+            # lower and upper bound for densities
+            xmin = np.zeros((x.shape[0],1))
+            xmax = np.ones((x.shape[0],1))
+            # densities of two previous iterations
+            xold1 = x.copy()
+            xold2 = x.copy()
+            # lower and upper asymptotes
+            low = np.ones((x.shape[0],1))
+            upp = np.ones((x.shape[0],1))
+            #
+            a0 = 1.0
+            a = np.zeros((m,1))
+            c = 10000*np.ones((m,1))
+            d = np.zeros((m,1))
+            move = 0.2
+            #
+            epsimin = 0.0000001
+            raa0 = 0.01
+            raa = 0.01*np.ones((m,1))
+            raa0eps = 0.000001
+            raaeps = 0.000001*np.ones((m,1))
+        else:
+            raise ValueError("Unknown optimizer: ", optimizer)
     # Max and min Young's modulus
     Emin = 1e-9
     Emax = 1.0
@@ -317,7 +306,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     for loop in np.arange(nouteriter):
         # solve FEM, calculate obj. func. and gradients.
         # for
-        if optimizer in ["oc","mma"] or\
+        if optimizer in ["oc","mma", "ocm"] or\
            (optimizer in ["gcmma"] and ninneriter==0) or\
            loop==0:
             # update physical properties of the elements and thus the entries 
@@ -342,7 +331,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                                                    preconditioner=preconditioner)
             # Objective and objective gradient
             obj = 0
-            dc[:] = np.zeros(x.shape[0])
+            dobj[:] = np.zeros(x.shape[0])
             for i in np.arange(f.shape[1]):
                 # obj. value, selfadjoint variables, self adjoint flag
                 obj,rhs_adj,self_adj = obj_func(obj=obj, 
@@ -353,49 +342,53 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                                                 **obj_kw)
                 # if problem not self adjoint, solve for adjoint variables
                 if self_adj:
-                    dc[:] += rhs_adj
+                    dobj[:] += rhs_adj
                 else:
                     h = np.zeros(f.shape)
                     h[free],_,_ = solve_lin(K, rhs=rhs_adj[free],
                                             solver=lin_solver, P=precond,
                                             preconditioner = preconditioner)
                     if f0 is None:
-                        dc += penal*xPhys**(penal-1)*(Emax-Emin)*\
+                        dobj += penal*xPhys**(penal-1)*(Emax-Emin)*\
                               (np.dot(h[edofMat,i], KE)*u[edofMat,i]).sum(1) 
                     else:
-                        dc += penal*xPhys**(penal-1)*(Emax-Emin)*\
+                        dobj += penal*xPhys**(penal-1)*(Emax-Emin)*\
                               (np.dot(h[edofMat,i], KE)*\
                                (u[edofMat,i]-f0[:])).sum(1)
                 if debug:
                     print("FEM: it.: {0}, problem: {1}, min. u: {2:.10f}, med. u: {3:.10f}, max. u: {4:.10f}".format(
                            loop,i,np.min(u[:,i]),np.median(u[:,i]),np.max(u[:,i])))
         # Constraints and constraint gradients
-        dv[:] = np.ones(x.shape[0])
+        if volfrac is not None:
+            volconstr = np.array([xPhys.mean() - volfrac])
+            if optimizer in ["mma","gcmma"]:
+                dv[:] = np.ones(x.shape[0]) /(x.shape[0]*volfrac)
+            elif optimizer in ["oc","ocm"]:
+                dv[:] = np.ones(x.shape[0])
         if debug:
-            print("Pre-Sensitivity Filter: it.: {0}, dc: {1:.10f}, dv: {2:.10f}".format(
+            print("Pre-Sensitivity Filter: it.: {0}, dobj: {1:.10f}, dv: {2:.10f}".format(
                    loop,
-                   np.max(dc),
+                   np.max(dobj),
                    np.min(dv)))
-            #print(dc)
         # Sensitivity filtering:
         if ft == 0 and filter_mode == "matrix":
-            dc[:] = np.asarray((H*(x*dc))[None].T /
+            dobj[:] = np.asarray((H*(x*dobj))[None].T /
                                Hs)[:, 0] / np.maximum(0.001, x)
-            #dc[:] = dc[:] = H @ (dc*x) / Hs / np.maximum(0.001, x)
+            #dobj[:] = H @ (dc*x) / Hs / np.maximum(0.001, x)
         elif ft == 0 and filter_mode == "convolution":
-            dc[:] = invmapping(convolve(mapping(dc/hs),
+            dobj[:] = invmapping(convolve(mapping(dobj/hs),
                                h,
                                mode="constant",
                                cval=0)) / np.maximum(0.001, x)
         elif ft == 0 and filter_mode == "helmholtz":
-            dc[:] = TF.T @ lu_solve(TF@(dc*xPhys))/np.maximum(0.001, x)
+            dobj[:] = TF.T @ lu_solve(TF@(dobj*xPhys))/np.maximum(0.001, x)
         elif ft == 1 and filter_mode == "matrix":
-            dc[:] = np.asarray(H*(dc[None].T/Hs))[:, 0]
+            dobj[:] = np.asarray(H*(dobj[None].T/Hs))[:, 0]
             dv[:] = np.asarray(H*(dv[None].T/Hs))[:, 0]
-            #dc[:] = H @ (dc/Hs)
+            #dobj[:] = H @ (dobj/Hs)
             #dv[:] = H @ (dv/Hs)
         elif ft == 1 and filter_mode == "convolution":
-            dc[:] = invmapping(convolve(mapping(dc/hs),
+            dobj[:] = invmapping(convolve(mapping(dobj/hs),
                                         h,
                                         mode="constant",
                                         cval=0))
@@ -404,33 +397,47 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                                         mode="constant",
                                         cval=0))
         elif ft == 1 and filter_mode == "helmholtz":
-            dc[:] = TF.T @ lu_solve(TF@dc)
+            dobj[:] = TF.T @ lu_solve(TF@dobj)
             dv[:] = TF.T @ lu_solve(TF@dv)
         elif ft == -1:
             pass
         if debug:
-            print("Post-Sensitivity Filter: it.: {0}, max. dc: {1:.10f}, min. dv: {2:.10f}".format(
+            print("Post-Sensitivity Filter: it.: {0}, max. dobj: {1:.10f}, min. dv: {2:.10f}".format(
                    loop,
-                   np.max(dc),
+                   np.max(dobj),
                    np.min(dv)))
         # density update by solver
         xold[:] = x
         # optimality criteria
         if optimizer=="oc":
             (x[:], g) = oc_top88(x=x, volfrac=volfrac, 
-                                 dc=dc, dv=dv, g=g, 
+                                 dc=dobj, dv=dv, g=g, 
                                  el_flags=el_flags)
         elif optimizer=="ocm":
             (x[:], g) = oc_mechanism(x=x, volfrac=volfrac, 
-                                     dc=dc, dv=dv, g=g, 
+                                     dc=dobj, dv=dv, g=g, 
                                      el_flags=el_flags)
         # method of moving asymptotes
         elif optimizer=="mma":
             xval = x.copy()[None].T
-            xmma,ymma,zmma,lam,xsi,eta,mu,zet,s,low,upp = update_mma(x,xold1,xold2,xPhys,obj,dc,dv,loop,
-                                                                     m,xmin,xmax,low,upp,a0,a,c,d,move)
-            xold2 = xold1.copy()
-            xold1 = xval.copy()
+            constr = np.array([xPhys.mean() - volfrac])
+            xmma,ymma,zmma,lam,xsi,eta,mu,zet,s,low,upp = update_mma(x=x,
+                                                                xold1=xhist[-1],
+                                                                xold2=xhist[-2],
+                                                                xPhys=xPhys,
+                                                                obj=obj,
+                                                                dobj=dobj,
+                                                                constrs=volconstr,
+                                                                dconstr=dv,
+                                                                iteration=loop,
+                                                                **optimizer_kw)
+            # update asymptotes 
+            optimizer_kw["low"] = low
+            optimizer_kw["upp"] = upp
+            # delete oldest element of iteration history
+            xhist.pop(0)
+            xhist.append(xval)
+            del xval
             x = xmma.copy().flatten()
         #
         # Anderson acceleration every q steps after q0 iterations

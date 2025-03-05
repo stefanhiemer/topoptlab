@@ -15,7 +15,8 @@ import matplotlib.pyplot as plt
 from topoptlab.output_designs import export_vtk
 from topoptlab.filters import find_eta
 from topoptlab.optimality_criterion import oc_haevi
-from topoptlab.fem import lk_linear_elast_2d,update_indices
+from topoptlab.fem import update_indices
+from topoptlab.elements.linear_elasticity_2d import lk_linear_elast_2d
 
 from mmapy import mmasub,gcmmasub,asymp,concheck,raaupdate
     
@@ -568,9 +569,9 @@ if __name__ == "__main__":
     nelx = 60  # 180
     nely = int(nelx/3)  # 60
     volfrac = 0.5  # 0.4
-    rmin = 0.03*nelx  # 5.4
+    rmin = 2.4  # 5.4
     penal = 3.0
-    ft = 5 # ft==0 -> sens, ft==1 -> dens
+    ft = 1 # ft==0 -> sens, ft==1 -> dens
     import sys
     if len(sys.argv) > 1:
         nelx = int(sys.argv[1])

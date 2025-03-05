@@ -323,7 +323,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             plt.pause(0.01)
         # Write iteration history to screen (req. Python 2.6 or newer)
         if write_log: 
-            logging.info("it.: {0} , obj.: {1:.8f} Vol.: {2:.8f}, ch.: {3:.8f}".format(
+            logging.info("it.: {0} , obj.: {1:.10f} Vol.: {2:.10f}, ch.: {3:.10f}".format(
             loop, obj, xPhys.mean(), change))
         # convergence check
         if change < 0.01:

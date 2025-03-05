@@ -173,6 +173,8 @@ def fem_heat_expansion(nelx, nely, nelz=None,
     u[freeE, :], fact, precond, = solve_lin(K=KE, rhs=rhsE[freeE], 
                                             solver=lin_solver,
                                             preconditioner=preconditioner)
+    
+    print(u.max(),T.max() * alpha * nelx)
     #
     if export:
         export_vtk(filename=file+"T",

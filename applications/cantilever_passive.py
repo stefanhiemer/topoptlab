@@ -1,5 +1,5 @@
 from topoptlab.compliance_minimization import main
-from topoptlab.example_cases import cantilever_2d
+from topoptlab.example_bc.lin_elast import cantilever_2d
 from topoptlab.geometries import sphere
 
 # The real main driver
