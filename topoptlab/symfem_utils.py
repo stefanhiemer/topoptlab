@@ -49,7 +49,7 @@ def convert_to_code(matrix,npndarray=True):
     else:
         # add np.array
         lines = "np.array(" + lines        
-        lines = lines[:-2] + ")"
+        lines = lines[:-1] + ")"
         #
         first_line = lines.split(",",1)[0]
         #
