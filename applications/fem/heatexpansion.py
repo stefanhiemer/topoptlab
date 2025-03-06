@@ -15,6 +15,7 @@ from topoptlab.stiffness_tensors import isotropic_2d
 from topoptlab.elements.linear_elasticity_2d import lk_linear_elast_2d
 from topoptlab.elements.linear_elasticity_3d import lk_linear_elast_3d
 from topoptlab.elements.poisson_2d import lk_poisson_2d
+from topoptlab.elements.poisson_3d import lk_poisson_3d
 from topoptlab.elements.heatexpansion_2d import _fk_linear_heatexp_2d
 # generic functions for solving phys. problem
 from topoptlab.fem import assemble_matrix,assemble_rhs,apply_bc
@@ -25,10 +26,13 @@ from topoptlab.output_designs import export_vtk
 # MAIN DRIVER
 def fem_heat_expansion(nelx, nely, nelz=None,
                        xPhys=None, penal=3, 
-                       Emax=1.0, Emin=1e-9, nu=0.3, alpha=1.05,
-                       lin_solver="scipy-direct", preconditioner=None,
+                       Emax=1.0, Emin=1e-9, nu=0.3, 
+                       kmax=1.0, kmin=1e-9,
+                       alpha=0.05,
+                       lin_solver="cvxopt-cholmod", preconditioner=None,
                        assembly_mode="full",
-                       bcs=[xcenteredbeam_2d,rectangle_2d],
+                       bcs=[xcenteredbeam_2d, # threepointbending_2d
+                            rectangle_2d],
                        file="fem_heat-expansion",
                        export=True):
     """
@@ -53,6 +57,11 @@ def fem_heat_expansion(nelx, nely, nelz=None,
         minimum Young's modulus for the modified SIMP approach.
     nu : float
         Poissson's ratio.
+    kmax : float
+        (maximum) Yheat conductivity. If xPhys is None, all elements take this 
+        value.
+    kmin : float
+        minimum heat conductivity for the modified SIMP approach.
     solver : str
         solver for linear systems. Check function lin solve for available 
         options.
@@ -104,13 +113,20 @@ def fem_heat_expansion(nelx, nely, nelz=None,
                                                     nnode_dof=nT_ndof)
     elif ndim == 3:
         KE = lk_linear_elast_3d()
+        KT = lk_poisson_3d()
         # infer nodal degrees of freedom assuming that we have 4/8 nodes in 2/3
-        n_ndof = int(KE.shape[0]/8)
+        nE_ndof = int(KE.shape[0]/8)
+        nT_ndof = int(KT.shape[0]/8)
         # number of degrees of freedom
-        ndof = (nelx+1)*(nely+1)*(nelz+1)*n_ndof
+        nEdof = (nelx+1)*(nely+1)*(nelz+1)*nE_ndof
+        nTdof = (nelx+1)*(nely+1)*(nelz+1)*nT_ndof
         # element degree of freedom matrix plus some helper indices
-        edofMat, n1, n2, n3, n4 = create_edofMat3d(nelx=nelx,nely=nely,nelz=nelz,
-                                                   nnode_dof=n_ndof)
+        EedofMat, n1, n2, n3, n4 = create_edofMat3d(nelx=nelx,nely=nely,
+                                                    nelz=nelz,
+                                                    nnode_dof=nE_ndof)
+        TedofMat, n1, n2, n3, n4 = create_edofMat3d(nelx=nelx,nely=nely,
+                                                    nelz=nelz,
+                                                    nnode_dof=nT_ndof)
     # Construct the index pointers for the coo format
     iKE,jKE = create_matrixinds(EedofMat,mode=assembly_mode)
     iKT,jKT = create_matrixinds(TedofMat,mode=assembly_mode)
@@ -119,12 +135,13 @@ def fem_heat_expansion(nelx, nely, nelz=None,
                                 ndof=nEdof)
     T,q,fixedT,freeT,_ = bcs[1](nelx=nelx,nely=nely,nelz=nelz,
                                 ndof=nTdof)
+    # interpolate material properties
+    E = (Emin+(xPhys)** penal*(Emax-Emin))
+    k = (Emin+(xPhys)** penal*(Emax-Emin))
     # entries of stiffness matrix
     if assembly_mode == "full":
-        sKE = (KE.flatten()[:,None]*(Emin+(xPhys)
-               ** penal*(Emax-Emin))).flatten(order='F')
-        sKT = (KT.flatten()[:,None]*(Emin+(xPhys)
-               ** penal*(Emax-Emin))).flatten(order='F')
+        sKE = (KE.flatten()[:,None]*E).flatten(order='F')
+        sKT = (KT.flatten()[:,None]*k).flatten(order='F')
     # Setup and solve temperatur problem
     KT = assemble_matrix(sK=sKT,iK=iKT,jK=jKT,
                          ndof=nTdof,solver=lin_solver,
@@ -143,8 +160,7 @@ def fem_heat_expansion(nelx, nely, nelz=None,
                          ndof=nEdof,solver=lin_solver,
                          springs=None)
     # assemble right hand side
-    c = (Emin+(xPhys)** penal*(Emax-Emin))[:,None,None] *\
-        isotropic_2d(E=Emax,nu=nu)[None,:,:]
+    c = E[:,None,None] * isotropic_2d(E=1,nu=nu)[None,:,:]
     # element nodes coordinates in ref. space
     xe = np.array([[[-1.,-1.], 
                     [1.,-1.], 
@@ -153,7 +169,7 @@ def fem_heat_expansion(nelx, nely, nelz=None,
     # forces due to heat expansion per element
     fTe = _fk_linear_heatexp_2d(xe=xe,
                                c=c,
-                               alpha=np.eye(2)*alpha,
+                               alpha=np.eye(ndim)+alpha,
                                T=T[TedofMat][:,:,0],
                                Tref=0)
     # scale by SIMP interpolation
@@ -174,7 +190,7 @@ def fem_heat_expansion(nelx, nely, nelz=None,
                                             solver=lin_solver,
                                             preconditioner=preconditioner)
     
-    print(u.max(),T.max() * alpha * nelx)
+    print(u.max(),T.max() * (1+alpha) * nelx)
     #
     if export:
         export_vtk(filename=file+"T",
@@ -189,4 +205,4 @@ def fem_heat_expansion(nelx, nely, nelz=None,
 
 if __name__ == "__main__":
     
-    fem_heat_expansion(nelx=60, nely=20)
+    fem_heat_expansion(nelx=1000, nely=1000)

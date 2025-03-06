@@ -1,10 +1,12 @@
+from warnings import warn
 import numpy as np
 
 from topoptlab.fem import get_integrpoints
 from topoptlab.elements.trilinear_hexahedron import bmatrix
 
 def _lk_linear_elast_3d(xe,c,
-                        quadr_method="gauss-legendre"):
+                        quadr_method="gauss-legendre",
+                        nquad=2):
     """
     Create element stiffness matrix for 2D isotropic linear elasticity with 
     bilinear quadrilateral Lagrangian elements in plane stress.
@@ -21,6 +23,9 @@ def _lk_linear_elast_3d(xe,c,
         name of quadrature method or function/callable that returns coordinates of 
         quadrature points and weights. Check function get_integrpoints for 
         available options. 
+    nquad : int
+        number of quadrature points
+        
     Returns
     -------
     Ke : np.ndarray, shape (nels,24,24)
@@ -34,7 +39,7 @@ def _lk_linear_elast_3d(xe,c,
     if len(xe.shape) == 2:
         xe = xe[None,:,:]
     #
-    x,w=get_integrpoints(ndim=3,nq=2,method=quadr_method)
+    x,w=get_integrpoints(ndim=3,nq=nquad,method=quadr_method)
     #
     xi,eta,zeta = [_x[:,0] for _x in np.split(x, 3,axis=1)]
     #
@@ -142,7 +147,7 @@ def lk_linear_elast_aniso_3d(c):
         element stiffness matrix.
         
     """
-    raise ValueError("Not yet consistent with the stiffness matrix for the isotropic case")
+    warn("Not yet consistent with the stiffness matrix for the isotropic case")
     Ke = np.array([[2*c[0,0]/9 + c[0,4]/6 + c[0,5]/6 + c[4,0]/6 + 2*c[4,4]/9 + c[4,5]/6 + c[5,0]/6 + c[5,4]/6 + 2*c[5,5]/9,
                c[0,1]/6 + c[0,3]/6 + 2*c[0,5]/9 + c[4,1]/6 + 2*c[4,3]/9 + c[4,5]/6 + 2*c[5,1]/9 + c[5,3]/6 + c[5,5]/6,
                c[0,2]/6 + c[0,3]/6 + 2*c[0,4]/9 + 2*c[4,2]/9 + c[4,3]/6 + c[4,4]/6 + c[5,2]/6 + 2*c[5,3]/9 + c[5,4]/6,

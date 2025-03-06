@@ -1,6 +1,60 @@
 import numpy as np
 
-def lk_poisson_3d():
+from topoptlab.fem import get_integrpoints
+from topoptlab.elements.trilinear_hexahedron import jacobian,shape_functions_dxi
+
+def _lk_poisson_3d(xe,k,
+                   quadr_method="gauss-legendre",
+                   nquad=2):
+    """
+    Create element stiffness matrix for 3D Laplacian operator with bilinear
+    quadrilateral elements. 
+    
+    Parameters
+    ----------
+    xe : np.ndarray, shape (nels,4,2)
+        coordinates of element nodes. Please look at the 
+        definition/function of the shape function, then the node ordering is 
+        clear.
+    k : np.ndarray, shape (nels,3,3) or 
+        conductivity tensor or something equivalent.
+    quadr_method: str or callable
+        name of quadrature method or function/callable that returns coordinates of 
+        quadrature points and weights. Check function get_integrpoints for 
+        available options. 
+    nquad : int
+        number of quadrature points
+        
+    Returns
+    -------
+    Ke : np.ndarray, shape (nels,8,8)
+        element stiffness matrix.
+        
+    """
+    #
+    if len(k.shape) == 2:
+        k = k[None,:,:]
+    #
+    if len(xe.shape) == 2:
+        xe = xe[None,:,:]
+    #
+    x,w=get_integrpoints(ndim=3,nq=nquad,method=quadr_method)
+    #
+    xi,eta,zeta = [_x[:,0] for _x in np.split(x, 3,axis=1)]
+    #
+    gradN = shape_functions_dxi(xi=xi,eta=eta,zeta=zeta)
+    #
+    integral = gradN[None,:,:,:]@k[:,None,:,:]@gradN[None,:,:,:].transpose([0,1,3,2])
+    # multiply by determinant
+    #integral = integral * detJ[:,None,None]
+    #
+    Ke = (w[:,None,None]*integral).sum(axis=1)
+    # 
+    #J = jacobian(xi,eta,xe,all_elems=False)
+    #det = (J[:,0,0]*J[:,1,1]) - (J[:,1,0]*J[:,0,1])
+    return Ke
+
+def lk_poisson_3d(k=1):
     """
     Create element stiffness matrix for 3D Poisson with bilinear
     quadrilateral elements. Taken from the standard Sigmund textbook.
@@ -19,7 +73,7 @@ def lk_poisson_3d():
                    [-1/6, 0, -1/6, -1/6, 0, 2/3, 0, -1/6], 
                    [-1/6, -1/6, 0, -1/6, -1/6, 0, 2/3, 0], 
                    [-1/6, -1/6, -1/6, 0, 0, -1/6, 0, 2/3]])
-    return Ke
+    return k*Ke
 
 def lk_poisson_aniso_3d(k):
     """

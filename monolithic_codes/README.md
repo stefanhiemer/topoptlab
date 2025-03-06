@@ -27,3 +27,13 @@ topopth_time.py
 
 Transient heat conduction to minimize f^{T} u at every timestep and serves as
 demonstration code for transient topology optimization.
+
+
+homogenization.py
+
+This is a python re-implementation of 
+
+Andreassen, Erik, and Casper Schousboe Andreasen. "How to determine composite material properties using numerical homogenization." Computational Materials Science 83 (2014): 488-495."
+
+by converting their Matlab code. Currently only linear elasticity is
+available.

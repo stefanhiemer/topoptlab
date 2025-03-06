@@ -47,20 +47,20 @@ def _lk_linear_elast_2d(xe,c,
     nel = xe.shape[0]
     nq =w.shape[0]
     # 
-    B,detJ = bmatrix(xi, eta, xe, 
+    B,detJ = bmatrix(xi=xi, eta=eta, xe=xe, 
                      all_elems=True, 
                      return_detJ=True)
-    print("detJ",detJ.shape)
+    #print("detJ",detJ.shape)
     B = B.reshape(nel, nq,  B.shape[-2], B.shape[-1])
-    print("bmat",B.shape)
+    #print("bmat",B.shape)
     #
     integral = B.transpose([0,1,3,2])@c[:,None,:,:]@B
-    print("integral",integral.shape)
+    #print("integral",integral.shape)
     # multiply by determinant
     #integral = integral * detJ[:,None,None]
     #
     Ke = (w[:,None,None]*integral).sum(axis=1)
-    print("Ke",Ke.shape)
+    #print("Ke",Ke.shape)
     # multiply thickness
     Ke = t[:,None,None] * Ke  
     return Ke

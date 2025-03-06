@@ -2,10 +2,11 @@ from symfem.functions import MatrixFunction
 from symfem.symbols import x
 
 from topoptlab.symfem_utils import base_cell
+from topoptlab.symfem_utils import convert_to_code
 
-def symfem_mass(ndim,
-                  element_type="Lagrange",
-                  order=1):
+def mass(ndim,
+         element_type="Lagrange",
+         order=1):
     """
     Symbolically compute the mass matrix.
 
@@ -27,18 +28,16 @@ def symfem_mass(ndim,
     #
     vertices, nd_inds, ref, basis  = base_cell(ndim)
     # get shape functions as a column vector/matrix
-    N = MatrixFunction([[basis[i]] for i in nd_inds])
-    print(N)
+    N = MatrixFunction([[b] for b in basis])
     #
     integrand = N@N.transpose()
-    print(integrand[0,0])
     return integrand.integral(ref,x)
 
 if __name__ == "__main__":
     
     
     #
-    print(symfem_mass(ndim=2))
+    print(convert_to_code(mass(ndim = 3)))
     
     
     

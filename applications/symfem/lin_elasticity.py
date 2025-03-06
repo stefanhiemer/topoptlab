@@ -2,6 +2,7 @@ from symfem.symbols import x
 
 from topoptlab.symfem_utils import base_cell, bmatrix, generate_constMatrix
 from topoptlab.symfem_utils import convert_to_code
+
 def linelast(ndim,
              element_type="Lagrange",
              order=1):
