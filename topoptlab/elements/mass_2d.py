@@ -1,5 +1,3 @@
-from topoptlab.elements.poisson_2d import lk_poisson_2d
-
 import numpy as np
 
 def mass_2d():

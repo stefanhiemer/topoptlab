@@ -1,8 +1,6 @@
-from itertools import product
-
 from symfem.functions import MatrixFunction
 from symfem.symbols import x
-from topoptlab.symfem_utils import base_cell, bmatrix, _generate_constMatrix
+from topoptlab.symfem_utils import base_cell, bmatrix, generate_constMatrix
 
 def symfem_heatexp(ndim,
                   element_type="Lagrange",
@@ -27,31 +25,23 @@ def symfem_heatexp(ndim,
     """
     #
     vertices, nd_inds, ref, basis  = base_cell(ndim)
-    # number nodes
-    n_nds = len(nd_inds)
-    # Create a matrix of zeros with the correct shape
-    matrix = [[0 for i in range(n_nds*ndim)] for j in range(n_nds*ndim)]
     # anisotropic stiffness tensor or equivalent in Voigt notation
-    c = _generate_constMatrix(int((ndim**2 + ndim) /2),
-                              int((ndim**2 + ndim) /2),
-                              "c")
-    # shape functions
-    N = MatrixFunction([basis])
+    c = generate_constMatrix(int((ndim**2 + ndim) /2),
+                             int((ndim**2 + ndim) /2),
+                             "c")
+    # transpose of shape functions
+    NT = MatrixFunction([basis])
     # heat expansion coeff. tensor in Voigt notation
-    a = _generate_constMatrix(ncol=1,
-                              nrow=int((ndim**2 + ndim) /2),
-                              name="a")
+    a = generate_constMatrix(ncol=1,
+                             nrow=int((ndim**2 + ndim) /2),
+                             name="a")
     #
     b = bmatrix(ndim=ndim,
                 nd_inds=nd_inds,
                 basis=basis)
     #
-    integrand = b.transpose()@c@a@N
-    for i,j in product(range(integrand.shape[0]),
-                       range(integrand.shape[1])):
-        matrix[i][j] += integrand[i,j].integral(ref, x)
-        
-    return matrix
+    integrand = b.transpose()@c@a@NT
+    return integrand.integral(ref,x)
 
 if __name__ == "__main__":
     

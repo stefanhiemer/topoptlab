@@ -1,37 +1,66 @@
-import re 
+from io import StringIO
+import sys
+from re import sub 
 
 from sympy import symbols, Symbol
 from symfem import create_element, create_reference
 from symfem.functions import VectorFunction, MatrixFunction
 
-def process_output(output):
+def convert_to_code(matrix,npndarray=True):
     """
     Convert the printed expression by symfem to strings that can be
     converted to code.
 
     Parameters
     ----------
-    output : str
+    matrix : symfem.functions.MatrixFunction
         symfem output.
-
+    npndarray: bool
+        if True, writes the output as numpy ndarray
+        
     Returns
     -------
-    output : str
-        symfem output converted to code.
+    lines : str
+        symfem output converted to code that can be copy pasted into a 
+        function.
 
     """
-    
-    # add line break after every comma
-    output = output.replace(",",",\n")
-    
+    # convert symfem.MatrixFunction to list to better print it
+    ls = []
+    for i in range(matrix.shape[0]):
+        ls.append([])
+        for j in range(matrix.shape[0]):
+            ls[-1].append(matrix[i,j])
+    # create a StringIO object to capture print output
+    stringio_capturer = StringIO()
+    # redirect stdout to the StringIO object
+    sys.stdout = stringio_capturer  
+    # reset stdout back to normal
+    sys.stdout = sys.__stdout__  
+    # convert printed output to string
+    lines = stringio_capturer.getvalue() 
+    stringio_capturer.close()
+    #
+    if not npndarray:
+        # add line break after every comma
+        lines = lines.replace(",",",\n")
+    else:
+        # add np.array
+        lines = "np.array(" + lines        
+        lines = lines[:-2] + ")"
+        #
+        first_line = lines.split(",",1)[0]
+        #
+        delta = len("np.array("+first_line) - len(first_line) + 1
+        # add line break after every comma
+        lines = lines.replace(",",",\n"+"".join([" "]*delta))
     # replace with array entries
-    output = re.sub(r'c(\d)(\d)',
-                    lambda m: f'c[{int(m.group(1))-1},{int(m.group(2))-1}]',
-                    output)
-    
-    return output
+    lines = sub(r'c(\d)(\d)',
+                lambda m: f'c[{int(m.group(1))-1},{int(m.group(2))-1}]',
+                lines)
+    return lines
 
-def _generate_constMatrix(ncol,nrow,name):
+def generate_constMatrix(ncol,nrow,name):
     """
     Generate matrix full of symbolic constants as a list of lists
 
@@ -53,7 +82,12 @@ def _generate_constMatrix(ncol,nrow,name):
     """
     M = []
     for i in range(1,nrow+1):
-        variables = " ".join([name+str(i)+str(j) for j in range(1,ncol+1)])
+        if nrow != 1 and ncol !=1:
+            variables = " ".join([name+str(i)+str(j) for j in range(1,ncol+1)])
+        elif nrow == 1:
+            variables = " ".join([name+str(j) for j in range(1,ncol+1)])
+        elif ncol == 1:
+            variables = " ".join([name+str(i) for j in range(1,ncol+1)])
         variables = symbols(variables)
         if isinstance(variables, Symbol):
             variables = [variables]
@@ -127,26 +161,44 @@ def base_cell(ndim,
     reference = create_reference(cell_name, vertices=vertices)
     # map the basis functions to the cell
     basis = element.map_to_cell(vertices)
+    # reorder basis function according to the current node ordering
+    basis = [basis[i] for i in nd_inds]
     return vertices, nd_inds, reference, basis
 
 def bmatrix(ndim,nd_inds,basis):
+    """
+    Create the small strain matrix commonly referred to as bmatrix.
+
+    Parameters
+    ----------
+    ndim : int
+        number of spatial dimensions.
+    element_type : str
+        type of element.
+    order : int
+        order of element.
+
+    Returns
+    -------
+    bmatrix : symfem.functions.Matrixfunction
+        small displacement matrix.
+    """
+    
     nrows = int((ndim**2 + ndim) /2)
     ncols = int(ndim * len(nd_inds))
     # compute gradients of basis functions
-    gradN = [list(VectorFunction([basis[i] for i in nd_inds]).diff(var)) 
-             for var in ["x","y","z"][:ndim]]
-    #print(gradN)
+    gradN_T = VectorFunction(basis).grad(ndim).transpose()
     #
     bmatrix = [[0 for j in range(ncols)] for i in range(nrows)]
     # tension
     for i in range(ndim):
-        bmatrix[i][i::ndim] = gradN[i]
+        bmatrix[i][i::ndim] = gradN_T[i]
     # shear
     i,j = ndim-2,ndim-1
     for k in range(nrows-ndim):
         #
-        bmatrix[ndim+k][i::ndim] = gradN[j]
-        bmatrix[ndim+k][j::ndim] = gradN[i]
+        bmatrix[ndim+k][i::ndim] = gradN_T[j]
+        bmatrix[ndim+k][j::ndim] = gradN_T[i]
         #
-        i,j = (i+1)%ndim , (j-1)%ndim
+        i,j = (i+1)%ndim , (j+1)%ndim
     return MatrixFunction(bmatrix)
