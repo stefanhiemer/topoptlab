@@ -34,9 +34,11 @@ def convert_to_code(matrix,npndarray=True):
     # create a StringIO object to capture print output
     stringio_capturer = StringIO()
     # redirect stdout to the StringIO object
-    sys.stdout = stringio_capturer  
+    sys.stdout = stringio_capturer
+    # feed the matrix into the capturer
+    print(ls)
     # reset stdout back to normal
-    sys.stdout = sys.__stdout__  
+    sys.stdout = sys.__stdout__
     # convert printed output to string
     lines = stringio_capturer.getvalue() 
     stringio_capturer.close()
