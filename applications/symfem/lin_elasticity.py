@@ -42,7 +42,7 @@ if __name__ == "__main__":
     
     
     #
-    print(convert_to_code(linelast(ndim = 2)))
+    print(convert_to_code(linelast(ndim = 2),matrices = ["c"]))
         
     
     

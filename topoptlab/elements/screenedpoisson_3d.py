@@ -1,5 +1,5 @@
 from topoptlab.elements.poisson_3d import lk_poisson_3d,lk_poisson_aniso_3d
-from topoptlab.elements.mass_3d import mass_3d 
+from topoptlab.elements.mass_3d import lm_mass_3d 
 
 def lk_screened_poisson_3d(k):
     """
@@ -18,7 +18,7 @@ def lk_screened_poisson_3d(k):
         element stiffness matrix.
         
     """
-    Ke = k * lk_poisson_3d() + mass_3d()
+    Ke = lk_poisson_3d(k) + lm_mass_3d()
     return Ke
 
 def lk_screened_poisson_aniso_3d(k):
@@ -39,5 +39,5 @@ def lk_screened_poisson_aniso_3d(k):
         element stiffness matrix.
         
     """
-    Ke = lk_poisson_aniso_3d(k) + mass_3d()
+    Ke = lk_poisson_aniso_3d(k) + lm_mass_3d()
     return Ke

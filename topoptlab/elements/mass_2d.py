@@ -4,8 +4,9 @@ from topoptlab.fem import get_integrpoints
 from topoptlab.elements.bilinear_quadrilateral import jacobian,shape_functions
 
 def _lm_mass_2d(xe,
-                quadr_method="gauss-legendre",
+                p=np.array([1.]),
                 t=np.array([1.]),
+                quadr_method="gauss-legendre",
                 nquad=2):
     """
     Create element mass matrix in 2D with bilinear quadrilateral elements. 
@@ -16,12 +17,14 @@ def _lm_mass_2d(xe,
         coordinates of element nodes. Please look at the 
         definition/function of the shape function, then the node ordering is 
         clear.
+    p : np.ndarray of shape (nels) or (1)
+        density of element
+    t : np.ndarray of shape (nels) or (1)
+        thickness of element
     quadr_method: str or callable
         name of quadrature method or function/callable that returns coordinates of 
         quadrature points and weights. Check function get_integrpoints for 
         available options. 
-    t : np.ndarray of shape (nels) or (1)
-        thickness of element
     nquad : int
         number of quadrature points
     Returns
@@ -34,6 +37,12 @@ def _lm_mass_2d(xe,
     if len(xe.shape) == 2:
         xe = xe[None,:,:]
     #
+    if isinstance(t,float):
+        t = np.array([t])
+    #
+    if isinstance(p,float) or (p.shape[0] == 1 and xe.shape[0] !=1):
+        p = np.full(xe.shape[0], p)
+    #
     x,w=get_integrpoints(ndim=2,nq=nquad,method=quadr_method)
     #
     xi,eta = [_x[:,0] for _x in np.split(x, 2,axis=1)]
@@ -45,19 +54,20 @@ def _lm_mass_2d(xe,
     #integral = integral * detJ[:,None,None]
     #
     Ke = (w[:,None,None]*integral).sum(axis=1)
-    Ke = t[:,None,None] * Ke  
     # 
     #J = jacobian(xi,eta,xe,all_elems=False)
     #det = (J[:,0,0]*J[:,1,1]) - (J[:,1,0]*J[:,0,1])
-    return Ke
+    return t[:,None,None] * p[:,None,None] * Ke
 
-def lm_mass_symfem(t=1.):
+def lm_mass_symfem(p=1.,t=1.):
     """
     Create mass matrix for 2D with bilinear quadrilateral Lagrangian 
     elements. 
     
     Parameters
     ----------
+    p : float
+        density of element
     t : float
         thickness of element
         
@@ -68,10 +78,10 @@ def lm_mass_symfem(t=1.):
         
     """
     
-    return t*np.array([[4/9,2/9,1/9,2/9],
-                       [2/9,4/9,2/9,1/9],
-                       [1/9,2/9,4/9,2/9],
-                       [2/9,1/9,2/9,4/9]])
+    return p*t*np.array([[4/9,2/9,1/9,2/9],
+                         [2/9,4/9,2/9,1/9],
+                         [1/9,2/9,4/9,2/9],
+                         [2/9,1/9,2/9,4/9]])
 
 def lm_mass_2d():
     """

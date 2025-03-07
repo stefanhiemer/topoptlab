@@ -3,12 +3,13 @@ import numpy as np
 from topoptlab.elements.bilinear_quadrilateral import shape_functions,bmatrix
 from topoptlab.fem import get_integrpoints
 
-def _fk_linear_heatexp_2d(xe,c,
-                          alpha,T,Tref,
-                          quadr_method="gauss-legendre",
-                          nquad = 2):
+def _fk_heatexp_2d(xe,c,
+                   a,DeltaT=None,
+                   t = np.array([1.]),
+                   quadr_method="gauss-legendre",
+                   nquad = 2):
     """
-    Create force vector for 2D linear heat expansion with 
+    Create force vector for 2D heat expansion with 
     bilinear quadrilateral Lagrangian elements. This amounts to
     
     int_Omega B_T @ C_v @ alpha_v @ N_T @ dOmega DeltaT
@@ -21,35 +22,42 @@ def _fk_linear_heatexp_2d(xe,c,
         clear.
     c : np.ndarray, shape (nels,3,3) or 
         stiffness tensor.
-    alpha : np.ndarray, shape (nels,2,2) or 
+    a : np.ndarray, shape (nels,2,2) or 
         linear heat expansion tensor.
-    T : np.ndarray shape (nels,4)
-        nodal temperatures
-    Tref : float
-        reference temperature.
+    DeltaT : np.ndarray shape (nels,4) or None
+        difference of nodal temperatures with respect to reference temperature.
+    t : np.ndarray of shape (nels) or (1)
+        thickness of element
     quadr_method: str or callable
         name of quadrature method or function/callable that returns coordinates of 
         quadrature points and weights. Check function get_integrpoints for 
         available options. 
     nquad : int
         number of quadrature points
+        
     Returns
     -------
-    ft : np.ndarray, shape (nels,8)
+    ft : np.ndarray, shape (nels,8) or shape (nels,8,4) 
         force due to thermal expansion.
         
     """
-    #raise NotImplementedError("Not yet finished")
+    #
+    if len(xe.shape) == 2:
+        xe = xe[None,:,:]
     # convert linear heat expansion tensor to Voigt notation (nel,3,1)
-    if len(alpha.shape) == 2:
-        alpha = alpha[None,:,:]
-    alpha = alpha[:,[0,1,0],[0,1,1],None]
+    if len(a.shape) == 2:
+        a = a[None,:,:]
+    a = a[:,[0,1,0],[0,1,1],None]
     #
     if len(c.shape) == 2:
         c = c[None,:,:]
     #
-    if len(xe.shape) == 2:
-        xe = xe[None,:,:]
+    if DeltaT is not None:
+        if len(DeltaT.shape) == 1: 
+            DeltaT = DeltaT[None,:]
+    #
+    if isinstance(t,float):
+        t = np.array([t])    
     #
     x,w=get_integrpoints(ndim=2,nq=nquad,method=quadr_method)
     #
@@ -59,38 +67,130 @@ def _fk_linear_heatexp_2d(xe,c,
     xi,eta = [_x[:,0] for _x in np.split(x, 2,axis=1)]
     # shape functions at integration points
     N = shape_functions(xi,eta)[None,:,:,None]
-    # delta T
-    deltaT = (T-Tref)
     # 
     B = bmatrix(xi, eta, xe, all_elems=True)
     B = B.reshape(nel, nq,  B.shape[-2], B.shape[-1])
     #
-    integral = B.transpose([0,1,3,2])@c[:,None,:,:]
-    integral = integral@alpha[:,None,:,:]
-    integral = integral@N.transpose([0,1,3,2])
-    integral = integral@deltaT[:,None,:,None]
+    fe = B.transpose([0,1,3,2])@c[:,None,:,:]
+    fe = fe@a[:,None,:,:]@N.transpose([0,1,3,2])
+    # calculate integral via quadrature
+    fe = (w[:,None,None]*fe).sum(axis=1)
     #
-    fe = (w[:,None,None]*integral).sum(axis=1)
-    return fe
+    fe = t[:,None,None] * fe
+    if DeltaT is None:
+        return fe
+    else:
+        # this is basically a matrix product
+        return np.sum(fe*DeltaT[:,None,:],axis=2)
 
-if __name__ == "__main__":
+def fk_heatexp_2d(E,nu, 
+                  a,DeltaT=None,
+                  t = np.array([1.])):
+    """
+    Create force vector for 2D heat expansion with 
+    bilinear quadrilateral Lagrangian elements. This amounts to
     
-    from topoptlab.elements.linear_elasticity_2d import _lk_linear_elast_2d
-    from topoptlab.stiffness_tensors import isotropic_2d
+    int_Omega B_T @ C_v @ alpha_v @ N_T @ dOmega DeltaT
     
-    xe = np.array([ [[-1.,-1.], 
-                     [1.,-1.], 
-                     [1.,1.], 
-                     [-1.,1.]],
-                    [[-2.,-2.], 
-                     [2.,-2.], 
-                     [2.,2.], 
-                     [-2.,2.]]])
-    c = isotropic_2d(E=1.,nu=0.3)
-    _lk_linear_elast_2d(xe,c)
-    _fk_linear_heatexp_2d(xe=xe, 
-                          c = c, 
-                          alpha = np.eye(2)[None,:,:], 
-                          T=np.array([[1.,1.,1.,1.]]),
-                          Tref=0.)
+    Parameters
+    ----------
+    E : float
+        Young's modulus.
+    nu : float
+        Poisson's ratio.
+    a : float 
+        linear heat expansion coefficient.
+    DeltaT : np.ndarray shape (4) or None
+        difference of nodal temperatures with respect to reference temperature.
+    t : np.ndarray of shape (nels) or (1)
+        thickness of element
+        
+    Returns
+    -------
+    fe : np.ndarray, shape (8) or (8,4)
+        forces due to thermal expansion or matrix that returns forces by 
+        fe@DeltaT.
+        
+    """
+    #
+    fe = a * np.array([[E/(3*(nu - 1)), E/(3*(nu - 1)), E/(6*(nu - 1)), E/(6*(nu - 1))],
+                       [E/(3*(nu - 1)), E/(6*(nu - 1)), E/(6*(nu - 1)), E/(3*(nu - 1))],
+                       [-E/(3*nu - 3), -E/(3*nu - 3), -E/(6*nu - 6), -E/(6*nu - 6)],
+                       [E/(6*(nu - 1)), E/(3*(nu - 1)), E/(3*(nu - 1)), E/(6*(nu - 1))],
+                       [-E/(6*nu - 6), -E/(6*nu - 6), -E/(3*nu - 3), -E/(3*nu - 3)],
+                       [-E/(6*nu - 6), -E/(3*nu - 3), -E/(3*nu - 3), -E/(6*nu - 6)],
+                       [E/(6*(nu - 1)), E/(6*(nu - 1)), E/(3*(nu - 1)), E/(3*(nu - 1))],
+                       [-E/(3*nu - 3), -E/(6*nu - 6), -E/(6*nu - 6), -E/(3*nu - 3)]])
+    if DeltaT is None:
+        return fe*t
+    else: 
+        return t*fe@DeltaT
+    
+def fk_heatexp_aniso_2d(c, 
+                        a,DeltaT=None,
+                        t = np.array([1.])):
+    """
+    Create force vector for 2D heat expansion with 
+    bilinear quadrilateral Lagrangian elements. This amounts to
+    
+    int_Omega B_T @ C_v @ alpha_v @ N_T @ dOmega DeltaT
+    
+    Parameters
+    ----------
+    c : np.ndarray, shape (3,3)
+        stiffness tensor.
+    a : np.ndarray, shape (2,2)
+        anisotropic linear heat expansion tensor. If isotropic a would be 
+        [[a,0],[0,a]]
+    DeltaT : np.ndarray shape (4) or None
+        difference of nodal temperatures with respect to reference temperature.
+    t : np.ndarray of shape (nels) or (1)
+        thickness of element
+        
+    Returns
+    -------
+    fe : np.ndarray, shape (8) or (8,4)
+        forces due to thermal expansion or matrix that returns forces by 
+        fe@DeltaT.
+        
+    """
+    # convert heat expans. coeff. to Voigt notation
+    a = a[[0,1,0],[0,1,1]]
+    #
+    fe = np.array([[-a[0]*c[0,0]/3 - a[0]*c[2,0]/3 - a[1]*c[0,1]/3 - a[1]*c[2,1]/3 - a[2]*c[0,2]/3 - a[2]*c[2,2]/3,
+                    -a[0]*c[0,0]/3 - a[0]*c[2,0]/6 - a[1]*c[0,1]/3 - a[1]*c[2,1]/6 - a[2]*c[0,2]/3 - a[2]*c[2,2]/6,
+                    -a[0]*c[0,0]/6 - a[0]*c[2,0]/6 - a[1]*c[0,1]/6 - a[1]*c[2,1]/6 - a[2]*c[0,2]/6 - a[2]*c[2,2]/6,
+                    -a[0]*c[0,0]/6 - a[0]*c[2,0]/3 - a[1]*c[0,1]/6 - a[1]*c[2,1]/3 - a[2]*c[0,2]/6 - a[2]*c[2,2]/3],
+                   [-a[0]*c[1,0]/3 - a[0]*c[2,0]/3 - a[1]*c[1,1]/3 - a[1]*c[2,1]/3 - a[2]*c[1,2]/3 - a[2]*c[2,2]/3,
+                    -a[0]*c[1,0]/6 - a[0]*c[2,0]/3 - a[1]*c[1,1]/6 - a[1]*c[2,1]/3 - a[2]*c[1,2]/6 - a[2]*c[2,2]/3,
+                    -a[0]*c[1,0]/6 - a[0]*c[2,0]/6 - a[1]*c[1,1]/6 - a[1]*c[2,1]/6 - a[2]*c[1,2]/6 - a[2]*c[2,2]/6,
+                    -a[0]*c[1,0]/3 - a[0]*c[2,0]/6 - a[1]*c[1,1]/3 - a[1]*c[2,1]/6 - a[2]*c[1,2]/3 - a[2]*c[2,2]/6],
+                   [a[0]*c[0,0]/3 - a[0]*c[2,0]/6 + a[1]*c[0,1]/3 - a[1]*c[2,1]/6 + a[2]*c[0,2]/3 - a[2]*c[2,2]/6,
+                    a[0]*c[0,0]/3 - a[0]*c[2,0]/3 + a[1]*c[0,1]/3 - a[1]*c[2,1]/3 + a[2]*c[0,2]/3 - a[2]*c[2,2]/3,
+                    a[0]*c[0,0]/6 - a[0]*c[2,0]/3 + a[1]*c[0,1]/6 - a[1]*c[2,1]/3 + a[2]*c[0,2]/6 - a[2]*c[2,2]/3,
+                    a[0]*c[0,0]/6 - a[0]*c[2,0]/6 + a[1]*c[0,1]/6 - a[1]*c[2,1]/6 + a[2]*c[0,2]/6 - a[2]*c[2,2]/6],
+                   [-a[0]*c[1,0]/6 + a[0]*c[2,0]/3 - a[1]*c[1,1]/6 + a[1]*c[2,1]/3 - a[2]*c[1,2]/6 + a[2]*c[2,2]/3,
+                    -a[0]*c[1,0]/3 + a[0]*c[2,0]/3 - a[1]*c[1,1]/3 + a[1]*c[2,1]/3 - a[2]*c[1,2]/3 + a[2]*c[2,2]/3,
+                    -a[0]*c[1,0]/3 + a[0]*c[2,0]/6 - a[1]*c[1,1]/3 + a[1]*c[2,1]/6 - a[2]*c[1,2]/3 + a[2]*c[2,2]/6,
+                    -a[0]*c[1,0]/6 + a[0]*c[2,0]/6 - a[1]*c[1,1]/6 + a[1]*c[2,1]/6 - a[2]*c[1,2]/6 + a[2]*c[2,2]/6],
+                   [a[0]*c[0,0]/6 + a[0]*c[2,0]/6 + a[1]*c[0,1]/6 + a[1]*c[2,1]/6 + a[2]*c[0,2]/6 + a[2]*c[2,2]/6,
+                    a[0]*c[0,0]/6 + a[0]*c[2,0]/3 + a[1]*c[0,1]/6 + a[1]*c[2,1]/3 + a[2]*c[0,2]/6 + a[2]*c[2,2]/3,
+                    a[0]*c[0,0]/3 + a[0]*c[2,0]/3 + a[1]*c[0,1]/3 + a[1]*c[2,1]/3 + a[2]*c[0,2]/3 + a[2]*c[2,2]/3,
+                    a[0]*c[0,0]/3 + a[0]*c[2,0]/6 + a[1]*c[0,1]/3 + a[1]*c[2,1]/6 + a[2]*c[0,2]/3 + a[2]*c[2,2]/6],
+                   [a[0]*c[1,0]/6 + a[0]*c[2,0]/6 + a[1]*c[1,1]/6 + a[1]*c[2,1]/6 + a[2]*c[1,2]/6 + a[2]*c[2,2]/6,
+                    a[0]*c[1,0]/3 + a[0]*c[2,0]/6 + a[1]*c[1,1]/3 + a[1]*c[2,1]/6 + a[2]*c[1,2]/3 + a[2]*c[2,2]/6,
+                    a[0]*c[1,0]/3 + a[0]*c[2,0]/3 + a[1]*c[1,1]/3 + a[1]*c[2,1]/3 + a[2]*c[1,2]/3 + a[2]*c[2,2]/3,
+                    a[0]*c[1,0]/6 + a[0]*c[2,0]/3 + a[1]*c[1,1]/6 + a[1]*c[2,1]/3 + a[2]*c[1,2]/6 + a[2]*c[2,2]/3],
+                   [-a[0]*c[0,0]/6 + a[0]*c[2,0]/3 - a[1]*c[0,1]/6 + a[1]*c[2,1]/3 - a[2]*c[0,2]/6 + a[2]*c[2,2]/3,
+                    -a[0]*c[0,0]/6 + a[0]*c[2,0]/6 - a[1]*c[0,1]/6 + a[1]*c[2,1]/6 - a[2]*c[0,2]/6 + a[2]*c[2,2]/6,
+                    -a[0]*c[0,0]/3 + a[0]*c[2,0]/6 - a[1]*c[0,1]/3 + a[1]*c[2,1]/6 - a[2]*c[0,2]/3 + a[2]*c[2,2]/6,
+                    -a[0]*c[0,0]/3 + a[0]*c[2,0]/3 - a[1]*c[0,1]/3 + a[1]*c[2,1]/3 - a[2]*c[0,2]/3 + a[2]*c[2,2]/3],
+                   [a[0]*c[1,0]/3 - a[0]*c[2,0]/6 + a[1]*c[1,1]/3 - a[1]*c[2,1]/6 + a[2]*c[1,2]/3 - a[2]*c[2,2]/6,
+                    a[0]*c[1,0]/6 - a[0]*c[2,0]/6 + a[1]*c[1,1]/6 - a[1]*c[2,1]/6 + a[2]*c[1,2]/6 - a[2]*c[2,2]/6,
+                    a[0]*c[1,0]/6 - a[0]*c[2,0]/3 + a[1]*c[1,1]/6 - a[1]*c[2,1]/3 + a[2]*c[1,2]/6 - a[2]*c[2,2]/3,
+                    a[0]*c[1,0]/3 - a[0]*c[2,0]/3 + a[1]*c[1,1]/3 - a[1]*c[2,1]/3 + a[2]*c[1,2]/3 - a[2]*c[2,2]/3]])
+    if DeltaT is None:
+        return fe*t
+    else: 
+        return t*fe@DeltaT
     

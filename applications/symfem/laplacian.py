@@ -2,10 +2,11 @@ from symfem.functions import VectorFunction
 from symfem.symbols import x
 
 from topoptlab.symfem_utils import base_cell ,generate_constMatrix
+from topoptlab.symfem_utils import convert_to_code
 
-def symfem_isolaplacian(ndim, 
-                     element_type="Lagrange",
-                     order=1):
+def iso_laplacian(ndim, 
+                        element_type="Lagrange",
+                        order=1):
     """
     Symbolically compute the stiffness matrix for the Laplacian operator.
 
@@ -35,9 +36,9 @@ def symfem_isolaplacian(ndim,
     integrand = gradN@gradN.transpose()
     return integrand.integral(ref,x)
 
-def symfem_anisolaplacian(ndim, 
-                     element_type="Lagrange",
-                     order=1):
+def aniso_laplacian(ndim, 
+                    element_type="Lagrange",
+                    order=1):
     """
     Symbolically compute the stiffness matrix for the Laplacian operator.
 
@@ -72,4 +73,4 @@ def symfem_anisolaplacian(ndim,
 if __name__ == "__main__":
     
     #
-    print(symfem_isolaplacian(ndim=2))
+    print(convert_to_code(aniso_laplacian(ndim=2),matrices= ["k"]))
