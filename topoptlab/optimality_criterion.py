@@ -57,8 +57,10 @@ def oc_top88(x, volfrac, dc, dv, g, el_flags,
     xnew = np.zeros(x.shape)
     while (l2-l1)/(l1+l2) > 1e-3:
         lmid = 0.5*(l2+l1)
-        xnew[:] = np.maximum(0.0, np.maximum(
-            x-move, np.minimum(1.0, np.minimum(x+move, x*np.sqrt(-dc/dv/lmid)))))
+        xnew[:] = np.maximum(0.0, 
+                             np.maximum(x-move, 
+                                        np.minimum(1.0, 
+                                                   np.minimum(x+move, x*np.sqrt(-dc/dv/lmid)))))
         
         # passive element update
         if el_flags is not None:
@@ -226,6 +228,64 @@ def oc_mechanism(x, volfrac, dc, dv, g, el_flags):
         if el_flags is not None:
             xnew[el_flags==1] = 0
             xnew[el_flags==2] = 1
+        gt = xnew.sum() - volfrac * x.shape[0] #g+np.sum((dv*(xnew-x)))
+        if gt > 0:
+            l1 = lmid
+        else:
+            l2 = lmid
+        
+    return (xnew, gt)
+
+def oc_generalized(x, volfrac, dc, dv, g, el_flags):
+    """
+    This is a function where I try around various generalizations. At the 
+    moment identical to oc_mechanism.
+    
+    Parameters
+    ----------
+    x : np.array, shape (nel)
+        element densities for topology optimization of the current iteration.
+    volfrac : float
+        volume fraction.
+    dc : np.array, shape (nel)
+        gradient of objective function/complicance with respect to element 
+        densities.
+    dv : np.array, shape (nel)
+        gradient of volume constraint with respect to element densities..
+    g : float
+        parameter for the heuristic updating scheme.
+    el_flags : None or np.array 
+        array who contains indices used for un/masking passive elements. 0 
+        means an active element that is part of the optimization, 1 and 2 
+        indicate empty and full elements which are not part of the 
+        optimization.
+
+    Returns
+    -------
+    xnew : np.array, shape (nel)
+        updatet element densities for topology optimization.
+    gt : float
+        updated parameter for the heuristic updating scheme..
+
+    """
+    l1 = 0
+    l2 = 1e9
+    move = 0.1
+    damp = 0.3
+    # reshape to perform vector operations
+    xnew = np.zeros(x.shape)
+    while (l2-l1)/(l1+l2) > 1e-4 and l2 > 1e-40:
+        lmid = 0.5*(l2+l1)
+        xnew = np.maximum(0.,
+                          np.maximum(x-move, 
+                                     np.minimum(1., 
+                                                np.minimum(x+move, 
+                                                           x*np.maximum(1e-10,
+                                                                        (-dc)/dv/lmid)**damp))))
+        # passive element update
+        if el_flags is not None:
+            xnew[el_flags==1] = 0.
+            xnew[el_flags==2] = 1.
         gt = xnew.sum() - volfrac * x.shape[0] #g+np.sum((dv*(xnew-x)))
         if gt > 0:
             l1 = lmid

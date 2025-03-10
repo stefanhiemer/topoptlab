@@ -29,7 +29,7 @@ from topoptlab.elements.poisson_2d import lk_poisson_2d
 from topoptlab.fem import assemble_matrix,assemble_rhs,apply_bc
 from topoptlab.solve_linsystem import solve_lin
 # constrained optimizers
-from topoptlab.optimality_criterion import oc_top88,oc_mechanism
+from topoptlab.optimality_criterion import oc_top88,oc_mechanism,oc_generalized
 from topoptlab.mma_utils import update_mma,mma_defaultkws
 from topoptlab.objectives import compliance
 # output final design to a Paraview readable format
@@ -47,6 +47,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
          obj_func=compliance, obj_kw={},
          el_flags=None,
          optimizer="oc", optimizer_kw = None,
+         alpha=None,
          nouteriter=2000, ninneriter=15,
          file="topopt",
          display=True,export=True,write_log=True,
@@ -105,6 +106,10 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         solver options which are "oc", "mma" and "gcmma" for the optimality
         criteria method, the method of moving asymptotes and the globally
         covergent method of moving asymptotes.
+    optimizer_kw : dict
+        dictionary with parameters for optimizer.
+    alpha : None or float,
+        mixing parameter for design variable update.
     nouteriter: int
         number of TO iterations
     ninneriter: int
@@ -178,7 +183,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     dv = np.ones(x.shape[0],order="F")
     # initialize solver
     if optimizer_kw is None:        
-        if optimizer in ["oc","ocm"]:
+        if optimizer in ["oc","ocm","ocg"]:
             # must be initialized to use the NGuyen/Paulino OC approach
             g = 0
         elif optimizer == "mma":
@@ -306,7 +311,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     for loop in np.arange(nouteriter):
         # solve FEM, calculate obj. func. and gradients.
         # for
-        if optimizer in ["oc","mma", "ocm"] or\
+        if optimizer in ["oc","mma", "ocm","ocg"] or\
            (optimizer in ["gcmma"] and ninneriter==0) or\
            loop==0:
             # update physical properties of the elements and thus the entries 
@@ -340,7 +345,8 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                                                 Amax=Emax,Amin=Emin,
                                                 penal=penal,
                                                 **obj_kw)
-                # if problem not self adjoint, solve for adjoint variables
+                # if problem not self adjoint, solve for adjoint variables and
+                # calculate derivatives, else use analytical solution
                 if self_adj:
                     dobj[:] += rhs_adj
                 else:
@@ -417,10 +423,13 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             (x[:], g) = oc_mechanism(x=x, volfrac=volfrac, 
                                      dc=dobj, dv=dv, g=g, 
                                      el_flags=el_flags)
+        elif optimizer=="ocg":
+            (x[:], g) = oc_generalized(x=x, volfrac=volfrac, 
+                                       dc=dobj, dv=dv, g=g, 
+                                       el_flags=el_flags)
         # method of moving asymptotes
         elif optimizer=="mma":
             xval = x.copy()[None].T
-            constr = np.array([xPhys.mean() - volfrac])
             xmma,ymma,zmma,lam,xsi,eta,mu,zet,s,low,upp = update_mma(x=x,
                                                                 xold1=xhist[-1],
                                                                 xold2=xhist[-2],
@@ -439,6 +448,9 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             xhist.append(xval)
             del xval
             x = xmma.copy().flatten()
+        # mixing
+        if alpha is not None:
+            x = x*(1-alpha) + alpha * xold
         #
         # Anderson acceleration every q steps after q0 iterations
         #if (loop-q0) % q == 0:
