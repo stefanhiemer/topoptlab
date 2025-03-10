@@ -225,7 +225,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     if ndim == 2:
         KE = lk_linear_elast_2d() #lk_poisson_2d()#
         # infer nodal degrees of freedom assuming that we have 4/8 nodes in 2/3
-        n_ndof = int(KE.shape[0]/4)
+        n_ndof = int(KE.shape[-1]/4)
         # number of degrees of freedom
         ndof = (nelx+1)*(nely+1)*n_ndof
         # element degree of freedom matrix plus some helper indices
@@ -234,7 +234,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     elif ndim == 3:
         KE = lk_linear_elast_3d()
         # infer nodal degrees of freedom assuming that we have 4/8 nodes in 2/3
-        n_ndof = int(KE.shape[0]/8)
+        n_ndof = int(KE.shape[-1]/8)
         # number of degrees of freedom
         ndof = (nelx+1)*(nely+1)*(nelz+1)*n_ndof
         # element degree of freedom matrix plus some helper indices

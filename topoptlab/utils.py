@@ -133,7 +133,7 @@ def parse_logfile(file):
                       skiprows=0, usecols = [1,3,5,7]) 
     return params,data
 
-def rotation_matrix(theta):
+def rotation_matrix_2d(theta):
     """
     2D rotation matrix
 

@@ -378,3 +378,47 @@ def xcenteredbeam_2d(nelx,nely,ndof,**kwargs):
                        [nely+1],
                        [2*nelx*(nely+1) + nely+1])) # bottom right 
     return u,f,fixed,np.setdiff1d(dofs,fixed),None
+
+def selffolding_2d(nelx,nely,ndof,**kwargs):
+    """
+    Symmetry axis on left side (x dofs fixed) and bottom node on left side has 
+    fixed y displacement as well. No forces applied as this is thought to be 
+    used with another physical phenomenon that induces forces by itself 
+    e. g. heat expansion.
+    
+    Parameters
+    ----------
+    nelx : int
+        number of elements in x direction.
+    nely : int
+        number of elements in y direction.
+    ndof : int
+        number of degrees of freedom.
+
+    Returns
+    -------
+    u : np.ndarray
+        array of zeros for state variable (displacement, temperature) to be 
+        filled of shape (ndof).
+    f : np.ndarray
+        array of zeros for state flow variables (forces, flow).
+    fixed : np.ndarray
+        indices of fixed dofs (nfixed).
+    free : np.ndarray
+        indices of free dofs (ndofs - nfixed).
+    springs : None
+        contains two 1D np.ndarrays of equal length. first is of integer type 
+        and contains the indices of dofs attached to a spring. second contains
+        the spring constants. 
+
+    """
+    if nely%2 !=0:
+        raise ValueError("This example works only for nely equal to an even number.")
+    # BC's
+    dofs = np.arange(ndof)
+    fixed = np.union1d(dofs[0:2*(nely+1):2], # symmetry 
+                       np.array([2*(nely+1)-1])) # bottom support
+    # Solution and RHS vectors
+    f = np.zeros((ndof, 1))
+    u = np.zeros((ndof, 1))
+    return u,f,fixed,np.setdiff1d(dofs,fixed),None
