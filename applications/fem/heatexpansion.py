@@ -16,7 +16,7 @@ from topoptlab.elements.linear_elasticity_2d import lk_linear_elast_2d
 from topoptlab.elements.linear_elasticity_3d import lk_linear_elast_3d
 from topoptlab.elements.poisson_2d import lk_poisson_2d
 from topoptlab.elements.poisson_3d import lk_poisson_3d
-from topoptlab.elements.heatexpansion_2d import _fk_linear_heatexp_2d
+from topoptlab.elements.heatexpansion_2d import _fk_heatexp_2d
 # generic functions for solving phys. problem
 from topoptlab.fem import assemble_matrix,assemble_rhs,apply_bc
 from topoptlab.solve_linsystem import solve_lin
@@ -167,18 +167,17 @@ def fem_heat_expansion(nelx, nely, nelz=None,
                     [1.,1.], 
                     [-1.,1.]]]) * np.ones(xPhys.shape)[:,None,None]
     # forces due to heat expansion per element
-    fTe = _fk_linear_heatexp_2d(xe=xe,
-                               c=c,
-                               alpha=np.eye(ndim)+alpha,
-                               T=T[TedofMat][:,:,0],
-                               Tref=0)
+    fTe = _fk_heatexp_2d(xe=xe,
+                         c=c,
+                         a=np.eye(ndim)+alpha,
+                         DeltaT=T[TedofMat][:,:,0])
     # scale by SIMP interpolation
-    fTe = (Emin+(xPhys)**penal*(Emax-Emin))[:,None,None]*fTe[:]
+    fTe = (Emin+(xPhys)**penal*(Emax-Emin))[:,None]*fTe[:]
     # assemble
     fT = np.zeros(f.shape)
-    np.add.at(fT,
-              EedofMat,
-              fTe)
+    np.add.at(fT[:,0],
+              EedofMat.flatten(),
+              fTe.flatten())
     # assemble completely
     rhsE = assemble_rhs(f0=f+fT,
                         solver=lin_solver)
@@ -205,4 +204,4 @@ def fem_heat_expansion(nelx, nely, nelz=None,
 
 if __name__ == "__main__":
     
-    fem_heat_expansion(nelx=1000, nely=1000)
+    fem_heat_expansion(nelx=100, nely=100)
