@@ -2,11 +2,11 @@
 # minor modifications by Stefan Hiemer (January 2025)
 import numpy as np
 from scipy.sparse import coo_matrix
-from scipy.sparse.linalg import spsolve
+from scipy.sparse.linalg import spsolve,factorized
 from matplotlib import colors
 import matplotlib.pyplot as plt
 # MAIN DRIVER
-def main(nelx,nely,volfrac,penal,rmin,ft):
+def main(nelx,nely,volfrac,penal,rmin,ft,solver="lu"):
     """
     Topology optimization for maximum stiffness with the SIMP method based on 
     the default direct solver of scipy sparse.
@@ -27,6 +27,8 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
     ft : int
         integer flag for the filter. 0 sensitivity filtering, 
         1 density filtering, -1 no filter.
+    solver : str
+        scipy solver for the FEM and adjoint problem. Either "direct" or "lu".
 
     Returns
     -------
@@ -40,6 +42,9 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
     # Max and min stiffness
     Emin=1e-9
     Emax=1.0
+    # stiffness constants springs 
+    kin = 0.1
+    kout = 0.1
     # Allocate design variables (as array), initialize and allocate sens.
     x=volfrac * np.ones(nely*nelx,dtype=float,order="F")
     xold=x.copy()
@@ -63,15 +68,22 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
     # assemble filter
     H,Hs = assemble_filter(rmin=rmin,el=el,nelx=nelx,nely=nely)
     # BC's and support
-    dofs=np.arange(2*(nelx+1)*(nely+1))
-    fixed = np.hstack((np.arange(0,2*(nely+1),2), # symmetry 
-                       np.array([2*(nelx+1)*(nely+1)-1]))) # fixation bottom right
-    free=np.setdiff1d(dofs,fixed)
-    # Solution and RHS vectors
-    f=np.zeros((ndof,1))
-    u=np.zeros((ndof,1))
+    dofs = np.arange(ndof)
+    fixed = np.union1d(np.arange(1,(nelx+1)*(nely+1)*2,(nely+1)*2), # symmetry
+                       np.arange(2*(nely+1)-4,2*(nely+1))) # bottom left bit
+    din = 0
+    dout = 2*nelx*(nely+1)
+    # Solution, RHS and adjoint vectors
+    f = np.zeros((ndof, 1))
+    u = np.zeros((ndof, 1))
+    h = np.zeros((ndof,1))
     # Set load
-    f[1,0]=-1
+    f[din,0] = 1
+    # general
+    free = np.setdiff1d(dofs, fixed)
+    # indicator array for the output node and later for the adjoint problem
+    l = np.zeros((ndof, 1))
+    l[dout,0] = 1
     # Initialize plot and plot the initial design
     plt.ion() # Ensure that redrawing is possible
     fig,ax = plt.subplots()
@@ -89,20 +101,30 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
     change=1
     dv = np.ones(nely*nelx)
     dc = np.ones(nely*nelx)
-    ce = np.ones(nely*nelx)
     while change>0.01 and loop<2000:
         loop=loop+1
         # Setup and solve FE problem
         sK=((KE.flatten()[np.newaxis]).T*(Emin+(xPhys)**penal*(Emax-Emin))).flatten(order='F')
         K = coo_matrix((sK,(iK,jK)),shape=(ndof,ndof)).tocsc()
+        # add springs to stiffness matrix
+        K[din,din] += kin # 
+        K[dout,dout] += kout # 
         # Remove constrained dofs from matrix
         K = K[free,:][:,free]
         # Solve system 
-        u[free,0]=spsolve(K,f[free,0])    
+        if solver == "lu":
+            lu = factorized(K)
+            u[free,0]=lu(f[free,0])
+        elif solver == "direct":
+            u[free,0]=spsolve(K,f[free,0])    
         # Objective and sensitivity
-        ce[:] = (np.dot(u[edofMat].reshape(nelx*nely,8),KE) * u[edofMat].reshape(nelx*nely,8) ).sum(1)
-        obj=( (Emin+xPhys**penal*(Emax-Emin))*ce ).sum()
-        dc[:]=(-penal*xPhys**(penal-1)*(Emax-Emin))*ce
+        obj = u[l[:,0]!=0].sum()
+        if solver == "lu":
+            h[free,0] = lu(-l[free,0])
+        elif solver == "direct":
+            h[free,0] = spsolve(K,-l[free,0])
+        dc[:]= penal*xPhys**(penal-1)*(Emax-Emin)*(np.dot(h[edofMat,0], KE)*\
+               u[edofMat,0]).sum(1)
         dv[:] = np.ones(nely*nelx)
         # Sensitivity filtering:
         if ft==0:
@@ -238,16 +260,15 @@ def oc(x,volfrac,dc,dv,g):
     """
     l1=0
     l2=1e9
-    move=0.2
+    move=0.1
+    damp = 0.3
     # reshape to perform vector operations
-    xnew=np.zeros(x.shape)
-    while (l2-l1)/(l1+l2)>1e-3:
+    xnew = np.zeros(x.shape)
+    while (l2-l1)/(l1+l2) > 1e-4 and l2 > 1e-40:
         lmid=0.5*(l2+l1)
-        xnew[:]= np.maximum(0.0,
-                            np.maximum(x-move,
-                                       np.minimum(1.0,
-                                                  np.minimum(x+move,
-                                                             x*np.sqrt(-dc/dv/lmid)))))
+        xnew[:] = np.maximum(0.0, np.maximum(
+            x-move, np.minimum(1.0, np.minimum(x+move, x*np.maximum(1e-10,
+                                                                    -dc/dv/lmid)**damp))))
         gt=g+np.sum((dv*(xnew-x)))
         if gt>0 :
             l1=lmid
@@ -257,12 +278,12 @@ def oc(x,volfrac,dc,dv,g):
 # The real main driver    
 if __name__ == "__main__":
     # Default input parameters
-    nelx=60
+    nelx=40
     nely=20
-    volfrac=0.5
-    rmin=2.4
+    volfrac=0.3
+    rmin=1.2
     penal=3.0
-    ft=1 # ft==0 -> sens, ft==1 -> dens
+    ft=0 # ft==0 -> sens, ft==1 -> dens
     import sys
     if len(sys.argv)>1: nelx   =int(sys.argv[1])
     if len(sys.argv)>2: nely   =int(sys.argv[2])

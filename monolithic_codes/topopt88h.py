@@ -8,8 +8,8 @@ import matplotlib.pyplot as plt
 # MAIN DRIVER
 def main(nelx,nely,volfrac,penal,rmin,ft):
     """
-    Topology optimization for maximum stiffness with the SIMP method based on 
-    the default direct solver of scipy sparse.
+    Topology optimization for heat compliance minimization with the SIMP method 
+    based on the default direct solver of scipy sparse.
     
     Parameters
     ----------
@@ -38,7 +38,7 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
     print("volfrac: " + str(volfrac) + ", rmin: " + str(rmin) + ", penal: " + str(penal))
     print("Filter method: " + ["Sensitivity based","Density based"][ft])
     # Max and min stiffness
-    Emin=1e-9
+    Emin=1e-3
     Emax=1.0
     # Allocate design variables (as array), initialize and allocate sens.
     x=volfrac * np.ones(nely*nelx,dtype=float,order="F")
@@ -55,23 +55,24 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
     el = np.arange(nelx*nely)
     n1 = ((nely+1)*elx+ely).flatten()
     n2 = ((nely+1)*(elx+1)+ely).flatten()
-    edofMat = np.column_stack((2*n1+2, 2*n1+3, 2*n2+2, 2*n2+3, 
-                               2*n2, 2*n2+1, 2*n1, 2*n1+1))
+    edofMat = np.column_stack((n1+1, n2+1, n2, n1))
     # Construct the index pointers for the coo format
     iK = np.tile(edofMat,KE.shape[0]).flatten()
     jK = np.repeat(edofMat,KE.shape[0]).flatten()   
     # assemble filter
     H,Hs = assemble_filter(rmin=rmin,el=el,nelx=nelx,nely=nely)
-    # BC's and support
-    dofs=np.arange(2*(nelx+1)*(nely+1))
-    fixed = np.hstack((np.arange(0,2*(nely+1),2), # symmetry 
-                       np.array([2*(nelx+1)*(nely+1)-1]))) # fixation bottom right
-    free=np.setdiff1d(dofs,fixed)
+    # BC's
+    dofs = np.arange(ndof)
+    # heat sink
+    fixed = np.arange(int(nely / 2 + 1 - nely / 20), 
+                      int(nely / 2 + 1 + nely / 20) + 1)
+    # general
+    free = np.setdiff1d(dofs, fixed)
     # Solution and RHS vectors
-    f=np.zeros((ndof,1))
-    u=np.zeros((ndof,1))
-    # Set load
-    f[1,0]=-1
+    f = np.zeros((ndof, 1))
+    u = np.zeros((ndof, 1))
+    # load/source
+    f[:, 0] = -1 # constant source
     # Initialize plot and plot the initial design
     plt.ion() # Ensure that redrawing is possible
     fig,ax = plt.subplots()
@@ -100,7 +101,8 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
         # Solve system 
         u[free,0]=spsolve(K,f[free,0])    
         # Objective and sensitivity
-        ce[:] = (np.dot(u[edofMat].reshape(nelx*nely,8),KE) * u[edofMat].reshape(nelx*nely,8) ).sum(1)
+        ce[:] = (np.dot(u[edofMat].reshape(nelx*nely,KE.shape[-1]),KE) *\
+                 u[edofMat].reshape(nelx*nely,KE.shape[-1]) ).sum(1)
         obj=( (Emin+xPhys**penal*(Emax-Emin))*ce ).sum()
         dc[:]=(-penal*xPhys**(penal-1)*(Emax-Emin))*ce
         dv[:] = np.ones(nely*nelx)
@@ -130,7 +132,7 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
     # Make sure the plot stays and that the shell remains    
     plt.show()
     input("Press any key...")
-    return 
+    return
 # matrix filter
 def assemble_filter(rmin,el,nelx,nely):
     """
@@ -183,28 +185,19 @@ def assemble_filter(rmin,el,nelx,nely):
 #element stiffness matrix
 def lk():
     """
-    Create element stiffness matrix for 2D linear elasticity equation with 
-    bilinear quadrilateral elements in plane stress. Taken from the 88 line code.
+    Create element stiffness matrix for 2D Poisson equation with bilinear
+    quadrilateral elements. Taken from the standard Sigmund textbook.
     
     Returns
     -------
-    Ke : np.ndarray, shape (8,8)
+    Ke : np.ndarray, shape (4,4)
         element stiffness matrix.
         
     """
-    E=1
-    nu=0.3
-    k=np.array([1/2-nu/6,1/8+nu/8,-1/4-nu/12,-1/8+3*nu/8,
-                -1/4+nu/12,-1/8-nu/8,nu/6,1/8-3*nu/8])
-    KE = E/(1-nu**2)*np.array([[k[0], k[1], k[2], k[3], k[4], k[5], k[6], k[7]],
-                               [k[1], k[0], k[7], k[6], k[5], k[4], k[3], k[2]],
-                               [k[2], k[7], k[0], k[5], k[6], k[3], k[4], k[1]],
-                               [k[3], k[6], k[5], k[0], k[7], k[2], k[1], k[4]],
-                               [k[4], k[5], k[6], k[7], k[0], k[1], k[2], k[3]],
-                               [k[5], k[4], k[3], k[2], k[1], k[0], k[7], k[6]],
-                               [k[6], k[3], k[4], k[1], k[2], k[7], k[0], k[5]],
-                               [k[7], k[2], k[1], k[4], k[3], k[6], k[5], k[0]]])
-    return KE
+    return np.array([[2/3, -1/6, -1/3, -1/6],
+                     [-1/6, 2/3, -1/6, -1/3],
+                     [-1/3, -1/6, 2/3, -1/6],
+                     [-1/6, -1/3, -1/6, 2/3]])
 # Optimality criterion
 def oc(x,volfrac,dc,dv,g):
     """
@@ -257,11 +250,11 @@ def oc(x,volfrac,dc,dv,g):
 # The real main driver    
 if __name__ == "__main__":
     # Default input parameters
-    nelx=60
-    nely=20
-    volfrac=0.5
-    rmin=2.4
-    penal=3.0
+    nelx = 40
+    nely = 40
+    volfrac = 0.4
+    rmin = 1.2
+    penal = 3.0
     ft=1 # ft==0 -> sens, ft==1 -> dens
     import sys
     if len(sys.argv)>1: nelx   =int(sys.argv[1])

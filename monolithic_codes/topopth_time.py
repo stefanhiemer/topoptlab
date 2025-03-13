@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 # MAIN DRIVER
 def main(nelx,nely,
          nsteps,dt, 
-         solver,
-         volfrac,penal,rmin,ft):
+         volfrac,penal,rmin,ft,
+         solver="lu"):
     """
     Topology optimization with transient heat conduction to minimize 
     sum_{i=1}^{N_{t}} f_{i}^T u_{i}. At the moment this function is purely for
@@ -25,8 +25,6 @@ def main(nelx,nely,
         timestep. With default arguments, values above 0.25 should be fine. If 
         one goes much larger than that, one should check for stability/sensible
         solutions.
-    solver : str
-        either "direct" or "lu".
     volfrac : float
         volume fraction.
     penal : float
@@ -37,6 +35,8 @@ def main(nelx,nely,
     ft : int
         integer flag for the filter. 0 sensitivity filtering, 
         1 density filtering, -1 no filter.
+    solver : str
+        scipy solver for the FEM and adjoint problem. Either "direct" or "lu".
 
     Returns
     -------
@@ -70,30 +70,8 @@ def main(nelx,nely,
     # Construct the index pointers for the coo format
     iE = np.tile(edofMat,KE.shape[0]).flatten()
     jE = np.repeat(edofMat,KE.shape[0]).flatten()  
-    # Filter: Build (and assemble) the index+data vectors for the coo matrix format
-    nfilter = int(nelx*nely*((2*(np.ceil(rmin)-1)+1)**2))
-    iH = np.zeros(nfilter)
-    jH = np.zeros(nfilter)
-    sH = np.zeros(nfilter)
-    i = np.floor(el/nely)
-    j = el%nely
-    kk1 = np.maximum(i-(np.ceil(rmin)-1), 0).astype(int)
-    kk2 = np.minimum(i+np.ceil(rmin), nelx).astype(int)
-    ll1 = np.maximum(j-(np.ceil(rmin)-1), 0).astype(int)
-    ll2 = np.minimum(j+np.ceil(rmin), nely).astype(int)
-    n_neigh = (kk2-kk1)*(ll2-ll1)
-    el,i,j = np.repeat(el, n_neigh),np.repeat(i, n_neigh),np.repeat(j, n_neigh)
-    cc = np.arange(el.shape[0])
-    k,l = np.hstack([np.stack([a.flatten() for a in \
-                     np.meshgrid(np.arange(k1,k2),np.arange(l1,l2))]) \
-                     for k1,k2,l1,l2 in zip(kk1,kk2,ll1,ll2)])
-    fac = rmin-np.sqrt(((i-k)**2+(j-l)**2))
-    iH[cc] = el # row
-    jH[cc] = k*nely+l #column
-    sH[cc] = np.maximum(0.0, fac)
-    # Finalize assembly and convert to csc format
-    H = coo_matrix((sH, (iH, jH)), shape=(nelx*nely, nelx*nely)).tocsc()
-    Hs = H.sum(1)
+    # assemble filter
+    H,Hs = assemble_filter(rmin=rmin,el=el,nelx=nelx,nely=nely)
     # BC's
     dofs = np.arange(ndof)
     # heat sink
@@ -220,7 +198,7 @@ def main(nelx,nely,
             dv[:] = np.asarray(H*(dv[np.newaxis].T/Hs))[:,0]
         # Optimality criteria
         xold[:]=x
-        x[:],g=oc(nelx,nely,x,volfrac,dc,dv,g)
+        x[:],g=oc(x,volfrac,dc,dv,g)
         # Filter design variables
         if ft==0:   
             xPhys[:]=x
@@ -239,26 +217,124 @@ def main(nelx,nely,
     plt.show()
     input("Press any key...")
     return
+# matrix filter
+def assemble_filter(rmin,el,nelx,nely):
+    """
+    Assemble matrix filter.
+    
+    Parameters
+    ----------
+    rmin : float
+        filter radius measured by number of elements.
+    el : np.array, shape (nel)
+        element indices.
+    nelx : int
+        number of elements in x direction.
+    nely : int
+        number of elements in y direction.
+        
+    Returns
+    -------
+    xnew : np.array, shape (nel)
+        updatet element densities for topology optimization.
+    gt : float
+        updated parameter for the heuristic updating scheme..
+
+    """
+    # Filter: Build (and assemble) the index+data vectors for the coo matrix format
+    nfilter = int(nelx*nely*((2*(np.ceil(rmin)-1)+1)**2))
+    iH = np.zeros(nfilter)
+    jH = np.zeros(nfilter)
+    sH = np.zeros(nfilter)
+    i = np.floor(el/nely)
+    j = el%nely
+    kk1 = np.maximum(i-(np.ceil(rmin)-1), 0).astype(int)
+    kk2 = np.minimum(i+np.ceil(rmin), nelx).astype(int)
+    ll1 = np.maximum(j-(np.ceil(rmin)-1), 0).astype(int)
+    ll2 = np.minimum(j+np.ceil(rmin), nely).astype(int)
+    n_neigh = (kk2-kk1)*(ll2-ll1)
+    el,i,j = np.repeat(el, n_neigh),np.repeat(i, n_neigh),np.repeat(j, n_neigh)
+    cc = np.arange(el.shape[0])
+    k,l = np.hstack([np.stack([a.flatten() for a in \
+                     np.meshgrid(np.arange(k1,k2),np.arange(l1,l2))]) \
+                     for k1,k2,l1,l2 in zip(kk1,kk2,ll1,ll2)])
+    fac = rmin-np.sqrt((i-k)**2+(j-l)**2)
+    iH[cc] = el # row
+    jH[cc] = k*nely+l #column
+    sH[cc] = np.maximum(0.0, fac)
+    # Finalize assembly and convert to csc format
+    H = coo_matrix((sH, (iH, jH)), shape=(nelx*nely, nelx*nely)).tocsc()
+    Hs = H.sum(1)
+    return H,Hs
 #element stiffness matrix
 def lk():
+    """
+    Create element stiffness matrix for 2D transient heat equation with 
+    bilinear quadrilateral elements. Taken from the standard Sigmund textbook.
+    
+    Returns
+    -------
+    Ke : np.ndarray, shape (4,4)
+        element stiffness matrix.
+        
+    """
     return np.array([[2/3, -1/6, -1/3, -1/6,],
                      [-1/6, 2/3, -1/6, -1/3],
                      [-1/3, -1/6, 2/3, -1/6],
                      [-1/6, -1/3, -1/6, 2/3]])
 #element mass matrix
 def lm():
+    """
+    Create element mass matrix for 2D transient heat equation with bilinear 
+    quadrilateral elements.
+    
+    Returns
+    -------
+    Ke : np.ndarray, shape (4,4)
+        element stiffness matrix.
+        
+    """
     return np.array([[1/9, 1/18, 1/36, 1/18],
                      [1/18, 1/9, 1/18, 1/36],
                      [1/36, 1/18, 1/9, 1/18],
                      [1/18, 1/36, 1/18, 1/9]])
 # Optimality criterion
-def oc(nelx,nely,x,volfrac,dc,dv,g):
+def oc(x,volfrac,dc,dv,g):
+    """
+    Optimality criteria method (section 2.2 in top88 paper) for maximum/minimum 
+    stiffness/compliance. Heuristic updating scheme for the element densities 
+    to find the Lagrangian multiplier. Overtaken and adapted from the 
+    
+    165 LINE TOPOLOGY OPTIMIZATION CODE BY NIELS AAGE AND VILLADS EGEDE JOHANSEN
+    
+    Parameters
+    ----------
+    x : np.array, shape (nel)
+        element densities for topology optimization of the current iteration.
+    volfrac : float
+        volume fraction.
+    dc : np.array, shape (nel)
+        gradient of objective function/complicance with respect to element 
+        densities.
+    dv : np.array, shape (nel)
+        gradient of volume constraint with respect to element densities..
+    g : float
+        parameter for the heuristic updating scheme.
+        
+    Returns
+    -------
+    xnew : np.array, shape (nel)
+        updatet element densities for topology optimization.
+    gt : float
+        updated parameter for the heuristic updating scheme..
+
+    """
     l1=0
     l2=1e9
     move = 0.1#0.1
     #damp = 0.3
     # reshape to perform vector operations
-    xnew = np.zeros(nelx*nely)
+    xnew = np.zeros(x.shape)
     while (l2-l1)/(l1+l2) > 1e-4 and l2 > 1e-40:
         lmid = 0.5*(l2+l1)
         xnew[:]= np.maximum(0.0,np.maximum(x-move,np.minimum(1.0,np.minimum(x+move,x*np.sqrt(-dc/dv/lmid)))))
@@ -274,10 +350,10 @@ def oc(nelx,nely,x,volfrac,dc,dv,g):
 # The real main driver    
 if __name__ == "__main__":
     # Default input parameters
-    nelx = 100
-    nely = 100
+    nelx = 40
+    nely = 40
     volfrac = 0.4
-    rmin = 2.4
+    rmin = 1.2
     penal = 3.0
     ft=1 # ft==0 -> sens, ft==1 -> dens
     dt = 4e0 # 1/(4 * kmax) is a lower bound

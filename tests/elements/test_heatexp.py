@@ -15,7 +15,7 @@ from topoptlab.stiffness_tensors import isotropic_2d
                           ([1.,2.],[0.3,0.4],[0.05,0.1],
                            array([[[-1,-1],[1,-1],[1,1],[-1,1]]])),])
 
-def test_isotrop_linelast_2d(Es,nus,_as,xe):
+def test_isotrop_heatexp_2d(Es,nus,_as,xe):
     
     #
     Kes = stack([fk_heatexp_2d(E,nu,a) for E,nu,a in zip(Es,nus,_as)])
@@ -48,7 +48,7 @@ from topoptlab.elements.heatexpansion_2d import fk_heatexp_aniso_2d
                            stack([eye(2)*0.05,eye(2)*0.1]),
                            array([[-1,-1],[1,-1],[1,1],[-1,1]])),])
 
-def test_anisotrop_linelast_2d(cs,_as, xe):
+def test_anisotrop_heatexp_2d(cs,_as, xe):
     
     #
     if len(cs.shape) == 2:
@@ -76,7 +76,7 @@ from topoptlab.stiffness_tensors import isotropic_3d
                            array([[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
                                    [-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]]])),])
 
-def test_isotrop_linelast_3d(Es,nus,_as,xe):
+def test_isotrop_heatexp_3d(Es,nus,_as,xe):
     
     #
     Kes = stack([fk_heatexp_3d(E,nu,a) for E,nu,a in zip(Es,nus,_as)])
@@ -139,7 +139,7 @@ from topoptlab.elements.heatexpansion_3d import fk_heatexp_aniso_3d
                                   [[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
                                    [-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]]]))])
 
-def test_anisotrop_linelast_3d(cs,_as, xe):
+def test_anisotrop_heatexp_3d(cs,_as, xe):
     
     #
     if len(cs.shape) == 2 and xe.shape[0]==1:

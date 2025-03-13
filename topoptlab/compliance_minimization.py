@@ -369,7 +369,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             volconstr = np.array([xPhys.mean() - volfrac])
             if optimizer in ["mma","gcmma"]:
                 dv[:] = np.ones(x.shape[0]) /(x.shape[0]*volfrac)
-            elif optimizer in ["oc","ocm"]:
+            elif optimizer in ["oc","ocm","ocg"]:
                 dv[:] = np.ones(x.shape[0])
         if debug:
             print("Pre-Sensitivity Filter: it.: {0}, dobj: {1:.10f}, dv: {2:.10f}".format(

@@ -8,7 +8,7 @@ from topoptlab.fem import create_matrixinds
 from topoptlab.elements.bilinear_quadrilateral import create_edofMat as create_edofMat2d
 from topoptlab.elements.trilinear_hexahedron import create_edofMat as create_edofMat3d
 # default application case that provides boundary conditions, etc.
-from topoptlab.example_bc.lin_elast import threepointbending_2d,xcenteredbeam_2d
+from topoptlab.example_bc.lin_elast import forceinverter_2d
 from topoptlab.example_bc.heat_conduction import rectangle_2d
 # different elements/physics
 from topoptlab.stiffness_tensors import isotropic_2d
@@ -28,10 +28,10 @@ def fem_heat_expansion(nelx, nely, nelz=None,
                        xPhys=None, penal=3, 
                        Emax=1.0, Emin=1e-9, nu=0.3, 
                        kmax=1.0, kmin=1e-9,
-                       alpha=0.05,
+                       alpha=1.05,
                        lin_solver="cvxopt-cholmod", preconditioner=None,
                        assembly_mode="full",
-                       bcs=[xcenteredbeam_2d, # threepointbending_2d
+                       bcs=[forceinverter_2d,
                             rectangle_2d],
                        file="fem_heat-expansion",
                        export=True):
@@ -95,7 +95,7 @@ def fem_heat_expansion(nelx, nely, nelz=None,
         n = nelx * nely * nelz
     #
     if xPhys is None:
-        xPhys = np.ones(n, dtype=float,order='F')
+        xPhys = np.ones(n, dtype=float,order='F')#*0.3
     # get element stiffness matrix and element of freedom matrix
     if ndim == 2:
         KE = lk_linear_elast_2d()
@@ -131,13 +131,13 @@ def fem_heat_expansion(nelx, nely, nelz=None,
     iKE,jKE = create_matrixinds(EedofMat,mode=assembly_mode)
     iKT,jKT = create_matrixinds(TedofMat,mode=assembly_mode)
     # BC's and support
-    u,f,fixedE,freeE,_ = bcs[0](nelx=nelx,nely=nely,nelz=nelz,
+    u,f,fixedE,freeE,springs = bcs[0](nelx=nelx,nely=nely,nelz=nelz,
                                 ndof=nEdof)
     T,q,fixedT,freeT,_ = bcs[1](nelx=nelx,nely=nely,nelz=nelz,
                                 ndof=nTdof)
     # interpolate material properties
-    E = (Emin+(xPhys)** penal*(Emax-Emin))
-    k = (Emin+(xPhys)** penal*(Emax-Emin))
+    E = (Emin+ xPhys**penal *(Emax-Emin))
+    k = (kmin+ xPhys**penal *(kmax-kmin))
     # entries of stiffness matrix
     if assembly_mode == "full":
         sKE = (KE.flatten()[:,None]*E).flatten(order='F')
@@ -158,7 +158,7 @@ def fem_heat_expansion(nelx, nely, nelz=None,
     #
     KE = assemble_matrix(sK=sKE,iK=iKE,jK=jKE,
                          ndof=nEdof,solver=lin_solver,
-                         springs=None)
+                         springs=springs)
     # assemble right hand side
     c = E[:,None,None] * isotropic_2d(E=1,nu=nu)[None,:,:]
     # element nodes coordinates in ref. space
@@ -169,7 +169,7 @@ def fem_heat_expansion(nelx, nely, nelz=None,
     # forces due to heat expansion per element
     fTe = _fk_heatexp_2d(xe=xe,
                          c=c,
-                         a=np.eye(ndim)+alpha,
+                         a=np.eye(ndim)*alpha,
                          DeltaT=T[TedofMat][:,:,0])
     # scale by SIMP interpolation
     fTe = (Emin+(xPhys)**penal*(Emax-Emin))[:,None]*fTe[:]
@@ -189,7 +189,7 @@ def fem_heat_expansion(nelx, nely, nelz=None,
                                             solver=lin_solver,
                                             preconditioner=preconditioner)
     
-    print(u.max(),T.max() * (1+alpha) * nelx)
+    print(u.max(),T.max(),T.max()*(1+alpha)*nelx)
     #
     if export:
         export_vtk(filename=file+"T",
@@ -204,4 +204,4 @@ def fem_heat_expansion(nelx, nely, nelz=None,
 
 if __name__ == "__main__":
     
-    fem_heat_expansion(nelx=100, nely=100)
+    fem_heat_expansion(nelx=2, nely=1)

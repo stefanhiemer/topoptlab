@@ -51,8 +51,11 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
     xPhys=x.copy()
     g=0 # must be initialized to use the NGuyen/Paulino OC approach
     dc=np.zeros((nely,nelx), dtype=float)
-    # FE: Build the index vectors for the for coo matrix format.
+    # fetch element stiffness matrix
     KE = lk()
+    # # dofs:
+    ndof = int(KE.shape[-1]/4) *(nelx+1)*(nely+1)
+    # FE: Build the index vectors for the for coo matrix format.
     elx,ely = np.arange(nelx)[:,None], np.arange(nely)[None,:]
     el = np.arange(nelx*nely)
     n1 = ((nely+1)*elx+ely).flatten()
@@ -62,30 +65,8 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
     # Construct the index pointers for the coo format
     iK = np.tile(edofMat,KE.shape[0]).flatten()
     jK = np.repeat(edofMat,KE.shape[0]).flatten()    
-    # Filter: Build (and assemble) the index+data vectors for the coo matrix format
-    nfilter = int(nelx*nely*((2*(np.ceil(rmin)-1)+1)**2))
-    iH = np.zeros(nfilter)
-    jH = np.zeros(nfilter)
-    sH = np.zeros(nfilter)
-    i = np.floor(el/nely)
-    j = el%nely
-    kk1 = np.maximum(i-(np.ceil(rmin)-1), 0).astype(int)
-    kk2 = np.minimum(i+np.ceil(rmin), nelx).astype(int)
-    ll1 = np.maximum(j-(np.ceil(rmin)-1), 0).astype(int)
-    ll2 = np.minimum(j+np.ceil(rmin), nely).astype(int)
-    n_neigh = (kk2-kk1)*(ll2-ll1)
-    el,i,j = np.repeat(el, n_neigh),np.repeat(i, n_neigh),np.repeat(j, n_neigh)
-    cc = np.arange(el.shape[0])
-    k,l = np.hstack([np.stack([a.flatten() for a in \
-                     np.meshgrid(np.arange(k1,k2),np.arange(l1,l2))]) \
-                     for k1,k2,l1,l2 in zip(kk1,kk2,ll1,ll2)])
-    fac = rmin-np.sqrt(((i-k)**2+(j-l)**2))
-    iH[cc] = el # row
-    jH[cc] = k*nely+l #column
-    sH[cc] = np.maximum(0.0, fac)
-    # Finalize assembly and convert to csc format
-    H = coo_matrix((sH, (iH, jH)), shape=(nelx*nely, nelx*nely)).tocsc()
-    Hs = H.sum(1)
+    # assemble filter
+    H,Hs = assemble_filter(rmin=rmin,el=el,nelx=nelx,nely=nely)
     # BC's and support
     dofs=np.arange(2*(nelx+1)*(nely+1))
     fixed = np.hstack((np.arange(0,2*(nely+1),2), # symmetry 
@@ -139,7 +120,7 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
             dv[:] = np.asarray(H*(dv[np.newaxis].T/Hs))[:,0]
         # Optimality criteria
         xold[:]=x
-        x[:],g=oc(nelx,nely,x,volfrac,dc,dv,g)
+        x[:],g=oc(x,volfrac,dc,dv,g)
         # Filter design variables
         if ft==0:   
             xPhys[:]=x
@@ -158,8 +139,67 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
     plt.show()
     input("Press any key...")
     return
+# matrix filter
+def assemble_filter(rmin,el,nelx,nely):
+    """
+    Assemble matrix filter.
+    
+    Parameters
+    ----------
+    rmin : float
+        filter radius measured by number of elements.
+    el : np.array, shape (nel)
+        element indices.
+    nelx : int
+        number of elements in x direction.
+    nely : int
+        number of elements in y direction.
+        
+    Returns
+    -------
+    xnew : np.array, shape (nel)
+        updatet element densities for topology optimization.
+    gt : float
+        updated parameter for the heuristic updating scheme..
+
+    """
+    # Filter: Build (and assemble) the index+data vectors for the coo matrix format
+    nfilter = int(nelx*nely*((2*(np.ceil(rmin)-1)+1)**2))
+    iH = np.zeros(nfilter)
+    jH = np.zeros(nfilter)
+    sH = np.zeros(nfilter)
+    i = np.floor(el/nely)
+    j = el%nely
+    kk1 = np.maximum(i-(np.ceil(rmin)-1), 0).astype(int)
+    kk2 = np.minimum(i+np.ceil(rmin), nelx).astype(int)
+    ll1 = np.maximum(j-(np.ceil(rmin)-1), 0).astype(int)
+    ll2 = np.minimum(j+np.ceil(rmin), nely).astype(int)
+    n_neigh = (kk2-kk1)*(ll2-ll1)
+    el,i,j = np.repeat(el, n_neigh),np.repeat(i, n_neigh),np.repeat(j, n_neigh)
+    cc = np.arange(el.shape[0])
+    k,l = np.hstack([np.stack([a.flatten() for a in \
+                     np.meshgrid(np.arange(k1,k2),np.arange(l1,l2))]) \
+                     for k1,k2,l1,l2 in zip(kk1,kk2,ll1,ll2)])
+    fac = rmin-np.sqrt((i-k)**2+(j-l)**2)
+    iH[cc] = el # row
+    jH[cc] = k*nely+l #column
+    sH[cc] = np.maximum(0.0, fac)
+    # Finalize assembly and convert to csc format
+    H = coo_matrix((sH, (iH, jH)), shape=(nelx*nely, nelx*nely)).tocsc()
+    Hs = H.sum(1)
+    return H,Hs
 #element stiffness matrix
 def lk():
+    """
+    Create element stiffness matrix for 2D linear elasticity equation with 
+    bilinear quadrilateral elements in plane stress. Taken from the 88 line code.
+    
+    Returns
+    -------
+    Ke : np.ndarray, shape (8,8)
+        element stiffness matrix.
+        
+    """
     E=1
     nu=0.3
     k=np.array([1/2-nu/6,1/8+nu/8,-1/4-nu/12,-1/8+3*nu/8,-1/4+nu/12,-1/8-nu/8,nu/6,1/8-3*nu/8])
@@ -173,7 +213,36 @@ def lk():
     [k[7], k[2], k[1], k[4], k[3], k[6], k[5], k[0]] ]);
     return KE
 # Optimality criterion
-def oc(nelx,nely,x,volfrac,dc,dv,g):
+def oc(x,volfrac,dc,dv,g):
+    """
+    Optimality criteria method (section 2.2 in top88 paper) for maximum/minimum 
+    stiffness/compliance. Heuristic updating scheme for the element densities 
+    to find the Lagrangian multiplier. Overtaken and adapted from the 
+    
+    165 LINE TOPOLOGY OPTIMIZATION CODE BY NIELS AAGE AND VILLADS EGEDE JOHANSEN
+    
+    Parameters
+    ----------
+    x : np.array, shape (nel)
+        element densities for topology optimization of the current iteration.
+    volfrac : float
+        volume fraction.
+    dc : np.array, shape (nel)
+        gradient of objective function/complicance with respect to element 
+        densities.
+    dv : np.array, shape (nel)
+        gradient of volume constraint with respect to element densities..
+    g : float
+        parameter for the heuristic updating scheme.
+        
+    Returns
+    -------
+    xnew : np.array, shape (nel)
+        updatet element densities for topology optimization.
+    gt : float
+        updated parameter for the heuristic updating scheme..
+
+    """
     l1=0
     l2=1e9
     move=0.2
@@ -189,13 +258,34 @@ def oc(nelx,nely,x,volfrac,dc,dv,g):
             l2=lmid
     return xnew,gt
 def deleterowcol(A, delrow, delcol):
-	# Assumes that matrix is in symmetric csc form !
-	m = A.shape[0]
-	keep = np.delete(np.arange(0, m), delrow)
-	A = A[keep, :]
-	keep = np.delete(np.arange(0, m), delcol)
-	A = A[:, keep]
-	return A   
+    """
+    Utility function to delete rows and columns from 
+    from the scipy.sparse.csc_matrix. Overtaken and adapted from the 
+    
+    165 LINE TOPOLOGY OPTIMIZATION CODE BY NIELS AAGE AND VILLADS EGEDE JOHANSEN
+    
+    Parameters
+    ----------
+    A : np.scipy.sparse.csc_matrix., shape (ndof,ndof)
+        matrix to delete rows and columns from.
+    delrow : np.ndarray
+        row indices which are to be deleted.
+    delcol : np.ndarray
+        column indices which are to be deleted.
+        
+    Returns
+    -------
+    A_new : np.scipy.sparse.csc_matrix., shape (ndof,ndof)
+        new matrix with rows and columns deleted.
+
+    """
+    # Assumes that matrix is in symmetric csc form !
+    m = A.shape[0]
+    keep = np.delete(np.arange(0, m), delrow)
+    A = A[keep, :]
+    keep = np.delete(np.arange(0, m), delcol)
+    A = A[:, keep]
+    return A
 # The real main driver    
 if __name__ == "__main__":
     # Default input parameters
