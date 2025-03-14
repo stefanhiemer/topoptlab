@@ -1,6 +1,6 @@
 from symfem.functions import MatrixFunction
 from symfem.symbols import x
-from topoptlab.symfem_utils import base_cell, bmatrix, generate_constMatrix
+from topoptlab.symfem_utils import base_cell, small_strain_matrix, generate_constMatrix
 from topoptlab.symfem_utils import convert_to_code,stifftens_isotropic
 from topoptlab.symfem_utils import simplify_matrix
 
@@ -35,9 +35,9 @@ def heatexp_iso(ndim,
     a = MatrixFunction([[1] for i in range(ndim)]+\
                         [[0] for i in range(int((ndim**2 + ndim) /2)-ndim)])
     #
-    b = bmatrix(ndim=ndim,
-                nd_inds=nd_inds,
-                basis=basis)
+    b = small_strain_matrix(ndim=ndim,
+                            nd_inds=nd_inds,
+                            basis=basis)
     #
     integrand = b.transpose()@c@a@N.transpose()
     return simplify_matrix(integrand.integral(ref,x))

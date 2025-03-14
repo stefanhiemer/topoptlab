@@ -1,6 +1,6 @@
 from symfem.symbols import x
 
-from topoptlab.symfem_utils import base_cell, bmatrix, generate_constMatrix
+from topoptlab.symfem_utils import base_cell, small_strain_matrix, generate_constMatrix
 from topoptlab.symfem_utils import convert_to_code
 
 def linelast(ndim,
@@ -31,9 +31,9 @@ def linelast(ndim,
                               int((ndim**2 + ndim) /2),
                               "c")
     #
-    b = bmatrix(ndim=ndim,
-                nd_inds=nd_inds,
-                basis=basis)
+    b = small_strain_matrix(ndim=ndim,
+                            nd_inds=nd_inds,
+                            basis=basis)
     #
     integrand = b.transpose()@c@b
     return integrand.integral(ref,x)

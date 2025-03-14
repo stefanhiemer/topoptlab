@@ -73,4 +73,4 @@ def aniso_laplacian(ndim,
 if __name__ == "__main__":
     
     #
-    print(convert_to_code(aniso_laplacian(ndim=2),matrices= ["k"]))
+    print(convert_to_code(_iso_laplacian(ndim=2),matrices= ["k"]))

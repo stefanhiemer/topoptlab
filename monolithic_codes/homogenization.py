@@ -208,11 +208,15 @@ def check_elementMatVec():
     print(keMu)
     print(feLambda)
     print(feMu)
+    print(keLambda + keMu)
     
     return
 
 if __name__ == "__main__":
-    
+    #
+    check_elementMatVec()
+    import sys 
+    sys.exit()
     # Example usage:
     lambda_ = [0.01, 2.]
     mu = [0.02, 4.]
