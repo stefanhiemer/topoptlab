@@ -332,27 +332,26 @@ def small_strain_matrix(ndim,nd_inds,basis):
         i,j = (i+1)%ndim , (j+1)%ndim
     return MatrixFunction(bmatrix)
 
-def scale_cell(vertices,ndim):
+def scale_cell(vertices):
     """
     Scale/rotate the vertices/nodes basic cell by lengths l and angles g.
 
     Parameters
     ----------
-    basis : list
-        list of basis functions.
     vertices : tuple
         coordinates of vertices as created by base cell
 
     Returns
     -------
-    
-    coord : symfem.functions.MatrixFunction, shape (ndim,1)
+    vertices_new : symfem.functions.MatrixFunction, shape (ndim,1)
         coordinate according to ispoarametric map
     """
     from sympy.functions.elementary.trigonometric import tan
     #
     if isinstance(vertices, tuple):
         vertices = MatrixFunction(vertices)
+    #
+    ndim = vertices.shape[1]
     # rotation angles
     g = generate_constMatrix(ncol=1,nrow=ndim-1,name="g")
     # create rotation matrix
@@ -386,7 +385,6 @@ def isoparametric_map(basis,vertices,ndim):
 
     Returns
     -------
-    
     coord : symfem.functions.MatrixFunction, shape (ndim,1)
         coordinate according to ispoarametric map
     """
@@ -402,3 +400,45 @@ def isoparametric_map(basis,vertices,ndim):
         if basis.shape[1] != 1:
             raise ValueError("If basis is provided as MatrixFunction, must have shape (n_nodes,1)")
     return vertices.tranpose()@basis
+
+def rotation_matrix(ndim,mode=None):
+    """
+    rotation matrix around y and z axis with angles phi (y axis) and theta 
+    (z axis).
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    R : symfem.functions.MatrixFunction, shape (3,3)
+        rotation matrix.
+
+    """
+    from sympy.functions.elementary.trigonometric import sin,cos
+    if ndim == 1:
+        R =  MatrixFunction([[1]])
+    elif ndim == 2:
+        theta = symbols("theta")
+        R =  MatrixFunction([[cos(theta),-sin(theta)],
+                             [sin(theta),cos(theta)]])
+    elif ndim == 3:
+        theta,phi = symbols("theta phi")
+        R = MatrixFunction([[cos(theta)*cos(phi),-sin(theta),cos(theta)*sin(phi)],
+                            [sin(theta)*cos(phi),cos(theta),sin(theta)*sin(phi)],
+                            [-sin(phi),0,cos(phi)]])
+    else:
+        raise ValueError("ndim has to be integer and between 1 and 3.")
+    if mode is None:
+        return R
+    elif mode == "voigt":
+        if ndim == 1:
+            pass
+        else:
+            # unity matrix
+            I = MatrixFunction([[1 for j in range(ndim)] for j in range(ndim)])
+            R = R.tranpose()@I@R 
+            R = MatrixFunction([[R[i,i]] for i in range(ndim)] +\
+                               [[R[1,-1]] +\
+                                [[R[0,i+1]] for i in range(ndim-1)]])
+        return R

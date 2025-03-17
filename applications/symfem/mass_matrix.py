@@ -1,7 +1,7 @@
 from symfem.functions import MatrixFunction
 from symfem.symbols import x
 
-from topoptlab.symfem_utils import base_cell
+from topoptlab.symfem_utils import base_cell,scale_cell
 from topoptlab.symfem_utils import convert_to_code
 
 def mass(ndim,
@@ -37,7 +37,6 @@ if __name__ == "__main__":
     
     
     #
-    print(convert_to_code(mass(ndim = 3)))
-    
-    
-    
+    #print(convert_to_code(mass(ndim = 3)))
+    vertices, nd_inds, ref, basis  = base_cell(ndim=2)
+    scale_cell(vertices)
