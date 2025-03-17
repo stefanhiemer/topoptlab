@@ -94,7 +94,7 @@ def convert_to_code(matrix,matrices=[],vectors=[],
                     lines)
     return lines
 
-def generate_constMatrix(ncol,nrow,name):
+def generate_constMatrix(ncol,nrow,name,symmetric=False):
     """
     Generate matrix full of symbolic constants as a list of lists
 
@@ -106,6 +106,8 @@ def generate_constMatrix(ncol,nrow,name):
         number of cols.
     name : str
         name to put in front of indices.
+    symmetric : bool
+        if True, matrix generated in symmetric fashion
 
     Returns
     -------
@@ -129,6 +131,15 @@ def generate_constMatrix(ncol,nrow,name):
             variables = list(variables)
         
         M.append( variables )
+    if symmetric:
+        # check
+        if ncol != nrow:
+            raise ValueError("For matrix to be symmetric, it must be square. Currenly ncol != nrow")
+        #
+        for i in range(nrow):
+            for j in range(i+1,nrow):
+                M[j][i] = M[i][j]
+        
     return MatrixFunction(M)
 
 def stifftens_isotropic(ndim,plane_stress=True):
@@ -172,7 +183,7 @@ def simplify_matrix(M):
     
     Parameters
     ----------
-    M : symfem.functions.MatrixFunction
+    M : symfem.functions.MatrixFunction or list
         matrix to be simplified.
     
     Returns
@@ -180,8 +191,11 @@ def simplify_matrix(M):
     M_new : symfem.functions.MatrixFunction
         simplified matrix.
     """
-    
-    M_new = [[0 for j in range(M.shape[1])] for i in range(M.shape[0])]
+    if isinstance(M, MatrixFunction):
+        nrow,ncol = M.shape[0],M.shape[1]
+    elif isinstance(M, list):
+        nrow,ncol = len(M),len(M[0])
+    M_new = [[0 for j in range(ncol)] for i in range(nrow)]
     for i,j in product(range(M.shape[0]),range(M.shape[1])):
         M_new[i][j] = M[i,j].as_sympy().simplify()
     return MatrixFunction(M_new)
@@ -408,37 +422,248 @@ def rotation_matrix(ndim,mode=None):
 
     Parameters
     ----------
-
+    ndim : int
+        number of spatial dimensions.
+    mode : str or None
+        Either None or "voigt". If None, returns the standard rotation matrix.
+        Either None or "voigt". If None, returns the standard rotation matrix. 
+        If "voigt" rotation matrix for 2nd rank tensors in Voigt notation 
+        ("Voigt vectors")  or 4th rank tensors ("Voigt matrices"). 
+        
     Returns
     -------
-    R : symfem.functions.MatrixFunction, shape (3,3)
+    R : symfem.functions.MatrixFunction, shape (ndim,ndim) or 
+        ((ndim**2 + ndim) /2,(ndim**2 + ndim) /2)
         rotation matrix.
 
     """
     from sympy.functions.elementary.trigonometric import sin,cos
+    # introduce angle variables
     if ndim == 1:
-        R =  MatrixFunction([[1]])
+        pass
     elif ndim == 2:
         theta = symbols("theta")
-        R =  MatrixFunction([[cos(theta),-sin(theta)],
-                             [sin(theta),cos(theta)]])
     elif ndim == 3:
         theta,phi = symbols("theta phi")
-        R = MatrixFunction([[cos(theta)*cos(phi),-sin(theta),cos(theta)*sin(phi)],
-                            [sin(theta)*cos(phi),cos(theta),sin(theta)*sin(phi)],
-                            [-sin(phi),0,cos(phi)]])
     else:
         raise ValueError("ndim has to be integer and between 1 and 3.")
+    # standard rotation matrix
     if mode is None:
+        if ndim == 1:
+            R =  MatrixFunction([[1]])
+        elif ndim == 2:
+            theta = symbols("theta")
+            R =  MatrixFunction([[cos(theta),-sin(theta)],
+                                 [sin(theta),cos(theta)]])
+        elif ndim == 3:
+            theta,phi = symbols("theta phi")
+            R = MatrixFunction([[cos(theta)*cos(phi),-sin(theta),cos(theta)*sin(phi)],
+                                [sin(theta)*cos(phi),cos(theta),sin(theta)*sin(phi)],
+                                [-sin(phi),0,cos(phi)]])
         return R
     elif mode == "voigt":
         if ndim == 1:
-            pass
-        else:
-            # unity matrix
-            I = MatrixFunction([[1 for j in range(ndim)] for j in range(ndim)])
-            R = R.tranpose()@I@R 
-            R = MatrixFunction([[R[i,i]] for i in range(ndim)] +\
-                               [[R[1,-1]] +\
-                                [[R[0,i+1]] for i in range(ndim-1)]])
+            R =  MatrixFunction([[1]])
+        elif ndim == 2:
+            R = MatrixFunction([[cos(theta)**2, sin(theta)**2, -sin(2*theta)/2], 
+                                [sin(theta)**2, cos(theta)**2,  sin(2*theta)/2], 
+                                [ sin(2*theta), -sin(2*theta),    cos(2*theta)]])
+        elif ndim == 3:
+            R = MatrixFunction([[cos(phi)**2*cos(theta)**2,
+                                 sin(theta)**2,
+                                 sin(phi)**2*cos(theta)**2,
+                                 0,
+                                 sin(phi)*cos(phi)*cos(theta)**2,
+                                 0],
+                                [sin(theta)**2*cos(phi)**2,
+                                 cos(theta)**2,
+                                 sin(phi)**2*sin(theta)**2,
+                                 0,
+                                 sin(phi)*sin(theta)**2*cos(phi),
+                                 0],
+                                [sin(phi)**2,
+                                 0,
+                                 cos(phi)**2,
+                                 0,
+                                 -sin(2*phi)/2,
+                                 0],
+                                [-cos(2*phi - theta)/2 + cos(2*phi + theta)/2,
+                                 0,
+                                 cos(2*phi - theta)/2 - cos(2*phi + theta)/2,
+                                 0,
+                                 -sin(2*phi - theta)/2 + sin(2*phi + theta)/2,
+                                 0],
+                                [-sin(2*phi - theta)/2 - sin(2*phi + theta)/2,
+                                 0,
+                                 sin(2*phi - theta)/2 + sin(2*phi + theta)/2,
+                                 0,
+                                 cos(2*phi - theta)/2 + cos(2*phi + theta)/2,
+                                 0],
+                                [2*sin(theta)*cos(phi)**2*cos(theta),
+                                 -sin(2*theta),
+                                 2*sin(phi)**2*sin(theta)*cos(theta), 
+                                 0, 
+                                 cos(2*phi - 2*theta)/4 - cos(2*phi + 2*theta)/4, 
+                                 0]])
         return R
+
+def rotation_matrix_dangle(ndim,mode=None):
+    """
+    1st derivative of rotation matrix around y and z axis with angles phi 
+    (y axis) and theta (z axis).
+
+    Parameters
+    ----------
+    ndim : int
+        number of spatial dimensions.
+    mode : str or None
+        Either None or "voigt". If None, returns derivatives of the standard 
+        rotation matrix. If "voigt" rotation matrix for 2nd rank tensors in 
+        Voigt notation ("Voigt vectors")  or 4th rank tensors 
+        ("Voigt matrices"). 
+        
+    Returns
+    -------
+    dRdtheta : symfem.functions.MatrixFunction, shape (ndim,ndim) or 
+        ((ndim**2 + ndim) /2,(ndim**2 + ndim) /2)
+        1st derivative of rotation matrix with regards to theta.
+    dRdphi : symfem.functions.MatrixFunction, shape (ndim,ndim) or 
+        ((ndim**2 + ndim) /2,(ndim**2 + ndim) /2)
+        1st derivative of rotation matrix with regards to phi.
+        
+
+    """
+    from sympy.functions.elementary.trigonometric import sin,cos
+    # introduce angle variables
+    if ndim == 1:
+        pass
+    elif ndim == 2:
+        theta = symbols("theta")
+    elif ndim == 3:
+        theta,phi = symbols("theta phi")
+    else:
+        raise ValueError("ndim has to be integer and between 1 and 3.")
+    # standard rotation matrix
+    if mode is None:
+        if ndim == 1:
+            R =  MatrixFunction([[1]])
+        elif ndim == 2:
+            theta = symbols("theta")
+            dRdtheta =  MatrixFunction([[-sin(theta), -cos(theta)],
+                                        [cos(theta), -sin(theta)]])
+            return dRdtheta
+        
+        elif ndim == 3:
+            theta,phi = symbols("theta phi")
+            dRdtheta = MatrixFunction([[-sin(theta)*cos(phi), -cos(theta), -sin(phi)*sin(theta)],
+                                       [cos(phi)*cos(theta), -sin(theta),  sin(phi)*cos(theta)],
+                                       [0, 0, 0]])
+            dRdphi = MatrixFunction([[-sin(phi)*cos(theta), 0, cos(phi)*cos(theta)],
+                                     [-sin(phi)*sin(theta), 0, sin(theta)*cos(phi)],
+                                     [-cos(phi), 0, -sin(phi)]])
+            
+            return dRdtheta,dRdphi
+    elif mode == "voigt":
+        if ndim == 1:
+            R =  MatrixFunction([[1]])
+        elif ndim == 2:
+            dRdtheta = MatrixFunction([[-sin(2*theta), sin(2*theta), -cos(2*theta)],
+                                       [sin(2*theta),   -sin(2*theta),    cos(2*theta)],
+                                       [2*cos(2*theta), -2*cos(2*theta), -2*sin(2*theta)]])
+            return dRdtheta
+        elif ndim == 3:
+            dRdtheta = MatrixFunction([[-2*sin(theta)*cos(phi)**2*cos(theta),
+                                        sin(2*theta),
+                                        -2*sin(phi)**2*sin(theta)*cos(theta), 
+                                        0, 
+                                        -cos(2*phi - 2*theta)/4 + cos(2*phi + 2*theta)/4, 
+                                        0],
+                                       [2*sin(theta)*cos(phi)**2*cos(theta), 
+                                        -sin(2*theta),
+                                        2*sin(phi)**2*sin(theta)*cos(theta),
+                                        0,
+                                        cos(2*phi - 2*theta)/4 - cos(2*phi + 2*theta)/4, 
+                                        0],
+                                       [0, 0, 0, 0, 0, 0],
+                                       [-sin(2*phi - theta)/2 - sin(2*phi + theta)/2, 
+                                        0,  
+                                        sin(2*phi - theta)/2 + sin(2*phi + theta)/2, 
+                                        0, 
+                                        cos(2*phi - theta)/2 + cos(2*phi + theta)/2, 
+                                        0],
+                                       [cos(2*phi - theta)/2 - cos(2*phi + theta)/2, 
+                                        0, 
+                                        -cos(2*phi - theta)/2 + cos(2*phi + theta)/2, 
+                                        0, 
+                                        (2*sin(phi)**2 - 1)*sin(theta), 
+                                        0],
+                                       [2*cos(phi)**2*cos(2*theta), 
+                                        -2*cos(2*theta), 
+                                        2*sin(phi)**2*cos(2*theta), 
+                                        0, 
+                                        sin(2*phi - 2*theta)/2 + sin(2*phi + 2*theta)/2, 
+                                        0]])
+            dRdphi = MatrixFunction([[-2*sin(phi)*cos(phi)*cos(theta)**2, 
+                                      0,
+                                      2*sin(phi)*cos(phi)*cos(theta)**2, 
+                                      0,
+                                      cos(2*phi)*cos(theta)**2, 
+                                      0],
+                                     [-2*sin(phi)*sin(theta)**2*cos(phi), 
+                                      0, 
+                                      2*sin(phi)*sin(theta)**2*cos(phi), 
+                                      0, 
+                                      sin(theta)**2*cos(2*phi), 
+                                      0],
+                                     [sin(2*phi),
+                                      0,
+                                      -sin(2*phi),
+                                      0,
+                                      -cos(2*phi), 
+                                      0], 
+                                     [2*(2*sin(phi)**2 - 1)*sin(theta), 
+                                      0, 
+                                      -sin(2*phi - theta) + sin(2*phi + theta), 
+                                      0, 
+                                      -cos(2*phi - theta) + cos(2*phi + theta), 
+                                      0], 
+                                     [2*(2*sin(phi)**2 - 1)*cos(theta), 
+                                      0, 
+                                      cos(2*phi - theta) + cos(2*phi + theta), 
+                                      0, 
+                                      -sin(2*phi - theta) - sin(2*phi + theta), 
+                                      0], 
+                                     [-cos(2*phi - 2*theta)/2 + cos(2*phi + 2*theta)/2, 
+                                      0, 
+                                      cos(2*phi - 2*theta)/2 - cos(2*phi + 2*theta)/2, 
+                                      0, 
+                                      -sin(2*phi - 2*theta)/2 + sin(2*phi + 2*theta)/2, 
+                                      0]])
+            return dRdtheta,dRdphi
+        return R
+    
+def convert_to_voigt(A):
+    """
+    Convert 2nd rank tensor into its Voigt representation.
+
+    Parameters
+    ----------
+    A : symfem.functions.MatrixFunction, shape (ndim,ndim)
+        2nd rank tensor
+
+    Returns
+    -------
+    A_v : symfem.functions.MatrixFunction, shape (ndim,1)
+        2nd rank tensor in voigt notation
+    """
+    #
+    if isinstance(A,MatrixFunction):
+        ndim = A.shape[0]
+    elif isinstance(A,list):
+        ndim = len(A)
+    #
+    A_v = [[A[i][i]] for i in range(ndim)]
+    if ndim == 3:
+        A_v += [[A[1][-1]]]
+    A_v += [[A[0][i]] for i in range(ndim-1,0,-1)]
+    return MatrixFunction(A_v)
