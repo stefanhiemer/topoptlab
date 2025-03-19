@@ -10,7 +10,12 @@ Villads Egede Johansen (JANUARY 2013) taken from https://www.topopt.mek.dtu.dk.
 Changes are 
 - syntax changes from Python 2 to 3
 - deletion of from __future__ import division
-- vectorization of the filter and stiffness matrix construction, 
+- extract filter construction into individual function
+- switch change calculation to "np.abs(x-xold).max()" as it is better readable 
+  and likely faster then the previous expression although probably only 
+  marginally
+- vectorization of the filter (could be done better I think) 
+- vectorization of the stiffness matrix construction 
 - insertion of plt.pause() as otherwise the figure appears only at the end
 - deletion of unnecessary uses of tuples, indices, etc. pp.
 - construct fixed bc without use of union to make it a little more efficient
@@ -29,6 +34,10 @@ Same as topopt88.py just for heat conduction. Originally taken from page 271 of
 the Bendsoe & Sigmund textbook and transcribed from the old 99 line code to the 
 88 line code.
 
+topopt_rank2.py
+
+topology optimization using rank 2 laminates. Not yet finished.
+
 topopt88m.py
 
 Similar to topopt88.py just for compliant mechanism synthesis (maximized 
@@ -37,6 +46,10 @@ and transcribed from the old 99 line code to the 88 line code. The results are
 close to the old 99 line code version but do not 100 % agree. I believe 
 rounding errors in the old code to be the reason as the stiffness matrix there
 seems to be asymmetric as well due to rounding errors. 
+
+topopt88mh.py
+
+Thermal bimaterial compliant mechanism. Not yet working.
 
 topopth_time.py
 
@@ -50,4 +63,5 @@ This is a conversion of the Matlab code from
 
 Andreassen, Erik, and Casper Schousboe Andreasen. "How to determine composite material properties using numerical homogenization." Computational Materials Science 83 (2014): 488-495."
 
-to Python- Currently only linear elasticity is available.
+to Python- Currently only linear elasticity is available and still needs 
+cleaning up.

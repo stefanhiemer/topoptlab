@@ -40,13 +40,19 @@ def main(nelx,nely,volfrac,penal,rmin,ft,solver="lu"):
     print("volfrac: " + str(volfrac) + ", rmin: " + str(rmin) + ", penal: " + str(penal))
     print("Filter method: " + ["Sensitivity based","Density based"][ft])
     # Max and min stiffness
-    Emin=1e-9
-    Emax=1.0
+    E1=0.35
+    E2=1.0
+    # Poisson's ratio
+    nu = 0.3
+    #
+    kappa1 = E1 / (2 * (1-nu))
+    kappa2 = E2 / (2 * (1-nu))
+    # heat expansion coefficients
+    a1 = 1e-1
+    a2 = 1e-2
     # Max and min heat conductivity
-    kmin=1e-9
-    kmax=1.0
-    # 
-    a = 0.05
+    k1=3
+    k2=1
     # stiffness constants springs 
     kin = 0.1
     kout = 0.1
@@ -58,8 +64,8 @@ def main(nelx,nely,volfrac,penal,rmin,ft,solver="lu"):
     dc=np.zeros((nely,nelx), dtype=float)
     # fetch element stiffness matrix
     KeT = lkT()
-    KeE = lkE(E=1.0,nu=0.3)
-    KeET = lkET(E=1.0,nu=0.3,a=a)
+    KeE = lkE(E=1.0,nu=nu)
+    KeET = lkET(E=1.0,nu=nu,a=1.0)
     # # dofs:
     ndofT = int(KeT.shape[-1]/4) *(nelx+1)*(nely+1)
     ndofE = int(KeE.shape[-1]/4) *(nelx+1)*(nely+1)
@@ -129,7 +135,7 @@ def main(nelx,nely,volfrac,penal,rmin,ft,solver="lu"):
     while change>0.01 and loop<2000:
         loop=loop+1
         # Setup and solve heat FE problem
-        k = (kmin+(xPhys)**penal*(kmax-kmin))
+        k = (k1+(xPhys)**penal*(k2-k1))
         sKT=((KeT.flatten()[None]).T*k).flatten(order='F')
         K_T = coo_matrix((sKT,(iKT,jKT)),shape=(ndofT,ndofT)).tocsc()
         # Remove constrained dofs from matrix
@@ -141,7 +147,10 @@ def main(nelx,nely,volfrac,penal,rmin,ft,solver="lu"):
         elif solver == "direct":
             T[freeT,0]=spsolve(K_T,q[freeT,0])  
         # Setup and solve elastic FE problem
-        E = (Emin+(xPhys)**penal*(Emax-Emin))
+        E = (E1+(xPhys)**penal*(E2-E1))
+        kappa = E / (2 * (1-nu))
+        a = (a1 * kappa1 * (kappa2 - kappa) - a2 * kappa2 * (kappa1 - kappa)) \
+            / (kappa * (kappa1-kappa2))
         sKE=((KeE.flatten()[np.newaxis]).T*E).flatten(order='F')
         K_E = coo_matrix((sKE,(iKE,jKE)),shape=(ndofE,ndofE)).tocsc()
         # add springs to stiffness matrix
@@ -155,7 +164,7 @@ def main(nelx,nely,volfrac,penal,rmin,ft,solver="lu"):
         fT = np.zeros(f.shape)
         np.add.at(fT[:,0],
                   edofMatE.flatten(),
-                  (E[:,None,None] * fTe).flatten())
+                  (E[:,None,None] * a[:,None,None] * fTe).flatten())
         # Solve system 
         if solver == "lu":
             lu_E = factorized(K_E)
@@ -170,7 +179,7 @@ def main(nelx,nely,volfrac,penal,rmin,ft,solver="lu"):
         elif solver == "direct":
             hE[freeE,0] = spsolve(K_E,-l[freeE,0])
         # set up second adjoint problem
-        sKET = (E[:,None,None] * KeET).flatten()
+        sKET = (E[:,None,None] * a[:,None,None] * KeET).flatten()
         # transpose of force due to heat expansion by temperature
         K_ET = coo_matrix((sKET,(iKET,jKET)),shape=(ndofT,ndofE)).tocsc()
         # Remove constrained dofs from matrix
@@ -181,9 +190,12 @@ def main(nelx,nely,volfrac,penal,rmin,ft,solver="lu"):
             hT[freeT,0] = spsolve(K_T, K_ET@hE[freeE,0])
         # sensitivity
         dc[:]= penal*xPhys**(penal-1)*(\
-                (kmax-kmin)*(np.dot(hT[edofMatT,0], KeT)*T[edofMatT,0]).sum(1)\
-                +(Emax-Emin)*( np.dot(hE[edofMatE,0], KeE)*u[edofMatE,0] \
-                               - hE[edofMatE,0]*fTe[:,:,0] ).sum(1))
+                (k2-k1)*(np.dot(hT[edofMatT,0], KeT)*T[edofMatT,0]).sum(1)\
+                +(E2-E1)*( np.dot(hE[edofMatE,0], KeE)*u[edofMatE,0] \
+                               + E[:,None] * kappa1*kappa2 / (kappa1-kappa2) *\
+                                 (a1-a2)/(kappa[:,None]**2) * 1/(2*(1-nu)) *\
+                                 hE[edofMatE,0]*fTe[:,:,0] 
+                                - a[:,None] * hE[edofMatE,0]*fTe[:,:,0]).sum(1))
         #
         dv[:] = np.ones(nely*nelx)
         # Sensitivity filtering:
@@ -384,9 +396,9 @@ def oc(x,volfrac,dc,dv,g):
 # The real main driver    
 if __name__ == "__main__":
     # Default input parameters
-    nelx=40
-    nely=20
-    volfrac=0.3
+    nelx=2
+    nely=1
+    volfrac=0.5
     rmin=1.2
     penal=3.0
     ft=0 # ft==0 -> sens, ft==1 -> dens

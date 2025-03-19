@@ -68,8 +68,8 @@ def main(nelx,nely,
     n2 = ((nely+1)*(elx+1)+ely).flatten()
     edofMat = np.column_stack((n1+1, n2+1, n2, n1))
     # Construct the index pointers for the coo format
-    iE = np.tile(edofMat,KE.shape[0]).flatten()
-    jE = np.repeat(edofMat,KE.shape[0]).flatten()  
+    iE = np.tile(edofMat,KE.shape[-1]).flatten()
+    jE = np.repeat(edofMat,KE.shape[-1]).flatten()  
     # assemble filter
     H,Hs = assemble_filter(rmin=rmin,el=el,nelx=nelx,nely=nely)
     # BC's

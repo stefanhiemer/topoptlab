@@ -36,9 +36,9 @@ def Rv_2d(theta):
 
     """
     
-    return np.column_stack(np.cos(theta)**2, np.sin(theta)**2, -np.sin(2*theta)/2, 
-                           np.sin(theta)**2, np.cos(theta)**2, np.sin(2*theta)/2, 
-                           np.sin(2*theta), -np.sin(2*theta), np.cos(2*theta))\
+    return np.column_stack((np.cos(theta)**2, np.sin(theta)**2, -np.sin(2*theta)/2, 
+                            np.sin(theta)**2, np.cos(theta)**2, np.sin(2*theta)/2, 
+                            np.sin(2*theta), -np.sin(2*theta), np.cos(2*theta)))\
           .reshape((theta.shape[0],3,3))
 
 def R_3d(theta, phi):
@@ -61,6 +61,44 @@ def R_3d(theta, phi):
                             np.sin(theta)*np.cos(phi),np.cos(theta),np.sin(theta)*np.sin(phi),
                             -np.sin(phi),np.zeros(theta.shape[0]),np.cos(phi)))\
           .reshape((theta.shape[0],3,3))
+
+def Rv_3d(theta, phi):
+    return np.column_stack((np.cos(phi)**2*np.cos(theta)**2,
+                            np.sin(theta)**2,
+                            np.sin(phi)**2*np.cos(theta)**2,
+                            0,
+                            np.sin(phi)*np.cos(phi)*np.cos(theta)**2,
+                            0,
+                            np.sin(theta)**2*np.cos(phi)**2,
+                            np.cos(theta)**2,
+                            np.sin(phi)**2*np.sin(theta)**2,
+                            0,
+                            np.sin(phi)*np.sin(theta)**2*np.cos(phi),
+                            0,
+                            np.sin(phi)**2,
+                            0,
+                            np.cos(phi)**2,
+                            0,
+                            -np.sin(2*phi)/2,
+                            0,
+                            -np.cos(2*phi - theta)/2 + np.cos(2*phi + theta)/2,
+                            0,
+                            np.cos(2*phi - theta)/2 - np.cos(2*phi + theta)/2,
+                            0,
+                            -np.sin(2*phi - theta)/2 + np.sin(2*phi + theta)/2,
+                            0,
+                            -np.sin(2*phi - theta)/2 - np.sin(2*phi + theta)/2,
+                            0,
+                            np.sin(2*phi - theta)/2 + np.sin(2*phi + theta)/2,
+                            0,
+                            np.cos(2*phi - theta)/2 + np.cos(2*phi + theta)/2,
+                            0,
+                            2*np.sin(theta)*np.cos(phi)**2*np.cos(theta),
+                            -np.sin(2*theta),
+                            2*np.sin(phi)**2*np.sin(theta)*np.cos(theta), 
+                            0, 
+                            np.cos(2*phi - 2*theta)/4 - np.cos(2*phi + 2*theta)/4, 
+                            0)).reshape((theta.shape[0],6,6))
 
 def dRvdtheta_2d(theta):
     """
