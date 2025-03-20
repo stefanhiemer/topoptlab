@@ -49,7 +49,12 @@ seems to be asymmetric as well due to rounding errors.
 
 topopt88mh.py
 
-Thermal bimaterial compliant mechanism. Not yet working.
+Thermal bimaterial compliant mechanism and is just a proof of concept right 
+now. The optimization "works" (objective function is minimized), but the 
+thermal boundary condition is a bit useless right now. Also the material 
+interpolation is pure SIMP by now and should be changed to i) thermal expansion
+by explicit formula ii) conductivities, elast. modulus etc. pp. via 
+Hashin-Shtrikman bound based interpolations. 
 
 topopth_time.py
 

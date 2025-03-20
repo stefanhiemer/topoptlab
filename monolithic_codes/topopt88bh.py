@@ -50,11 +50,7 @@ def main(nelx,nely,volfrac,penal,rmin,ft,solver="lu"):
     # heat expansion coefficients
     a1 = 1e-1
     a2 = 5e-2
-    # Max and min heat conductivity
-    k1=3
-    k2=1
-    # stiffness constants springs 
-    kin = 0.1
+    # stiffness constants springs
     kout = 0.1
     # Allocate design variables (as array), initialize and allocate sens.
     x=volfrac * np.ones(nely*nelx,dtype=float,order="F")
@@ -63,11 +59,10 @@ def main(nelx,nely,volfrac,penal,rmin,ft,solver="lu"):
     g=0 # must be initialized to use the NGuyen/Paulino OC approach
     dc=np.zeros((nely,nelx), dtype=float)
     # fetch element stiffness matrix
-    KeT = lkT()
     KeE = lkE(E=1.0,nu=nu)
     KeET = lkET(E=1.0,nu=nu,a=1.0)
     # # dofs:
-    ndofT = int(KeT.shape[-1]/4) *(nelx+1)*(nely+1)
+    ndofT = 4*(nelx+1)*(nely+1)
     ndofE = int(KeE.shape[-1]/4) *(nelx+1)*(nely+1)
     # FE: Build the index vectors for the for coo matrix format.
     elx,ely = np.arange(nelx)[:,None], np.arange(nely)[None,:]
@@ -78,40 +73,23 @@ def main(nelx,nely,volfrac,penal,rmin,ft,solver="lu"):
     edofMatE = np.column_stack((2*n1+2, 2*n1+3, 2*n2+2, 2*n2+3, 
                                 2*n2, 2*n2+1, 2*n1, 2*n1+1))
     # Construct the index pointers for the coo format
-    iKE = np.tile(edofMatE,KeE.shape[-1]).flatten()
-    jKE = np.repeat(edofMatE,KeE.shape[-1]).flatten() 
-    iKT = np.tile(edofMatT,KeT.shape[-1]).flatten()
-    jKT = np.repeat(edofMatT,KeT.shape[-1]).flatten()
-    iKET = np.tile(edofMatT,KeE.shape[-1]).flatten() 
-    jKET = np.repeat(edofMatE,KeT.shape[-1]).flatten()
+    iK = np.tile(edofMatE,KeE.shape[-1]).flatten()
+    jK = np.repeat(edofMatE,KeE.shape[-1]).flatten()
     # assemble filter
     H,Hs = assemble_filter(rmin=rmin,el=el,nelx=nelx,nely=nely)
-    # Solution, RHS 
-    q = np.zeros((ndofT, 1))
-    T = np.zeros((ndofT, 1))
-    # BC's for heat conduction
-    dofsT = np.arange(ndofT)
-    # heat sink
-    fixedT = dofsT[-(nely+1)]#np.arange(nely+1)
-    freeT = np.setdiff1d(dofsT, fixedT)
-    hT = np.zeros((ndofT,1))
-    # heat source
-    q[:nely+1] = 1e-2
-    #q[-(nely+1):, 0] = 1
+    # Solution, RHS
+    T = np.ones((ndofT, 1))
     # BC's and support of linear elasticity
-    dofsE = np.arange(ndofE)
-    fixedE = np.union1d(np.arange(1,(nelx+1)*(nely+1)*2,(nely+1)*2), # symmetry
-                        np.arange(2*(nely+1)-4,2*(nely+1))) # bottom left bit
-    din = 0
-    dout = 2*nelx*(nely+1)
+    dofs = np.arange(ndofE)
+    fixed = np.union1d(dofs[0:2*(nely+1):2], # symmetry 
+                       np.array([2*(nely+1)-1])) # bottom support
+    dout = ndofE - 2 * (nely+1) + 2
     # Solution, RHS and adjoint vectors
     f = np.zeros((ndofE, 1))
     u = np.zeros((ndofE, 1))
-    hE = np.zeros((ndofE,1))
-    # Set load
-    f[din,0] = 1
+    h = np.zeros((ndofE,1))
     # general
-    freeE = np.setdiff1d(dofsE, fixedE)
+    free = np.setdiff1d(dofs, fixed)
     # indicator array for the output node and later for the adjoint problem
     l = np.zeros((ndofE, 1))
     l[dout,0] = 1
@@ -133,32 +111,19 @@ def main(nelx,nely,volfrac,penal,rmin,ft,solver="lu"):
     dv = np.ones(nely*nelx)
     dc = np.ones(nely*nelx)
     while change>0.01 and loop<2000:
-        loop=loop+1
-        # Setup and solve heat FE problem
-        k = (k1+(xPhys)**penal*(k2-k1))
-        sKT=((KeT.flatten()[None]).T*k).flatten(order='F')
-        K_T = coo_matrix((sKT,(iKT,jKT)),shape=(ndofT,ndofT)).tocsc()
-        # Remove constrained dofs from matrix
-        K_T = K_T[freeT,:][:,freeT]
-        # Solve system for temperature 
-        if solver == "lu":
-            lu_T = factorized(K_T)
-            T[freeT,0]=lu_T(q[freeT,0])
-        elif solver == "direct":
-            T[freeT,0]=spsolve(K_T,q[freeT,0])  
+        loop=loop+1 
         # Setup and solve elastic FE problem
         E = (E1+(xPhys)**penal*(E2-E1))
         #kappa = E / (2 * (1-nu))
         #a = (a1 * kappa1 * (kappa2 - kappa) - a2 * kappa2 * (kappa1 - kappa)) \
         #    / (kappa * (kappa1-kappa2))
         a = (a1+(xPhys)**penal*(a2-a1))
-        sKE=((KeE.flatten()[np.newaxis]).T*E).flatten(order='F')
-        K_E = coo_matrix((sKE,(iKE,jKE)),shape=(ndofE,ndofE)).tocsc()
+        sK=((KeE.flatten()[np.newaxis]).T*E).flatten(order='F')
+        K_E = coo_matrix((sK,(iK,jK)),shape=(ndofE,ndofE)).tocsc()
         # add springs to stiffness matrix
-        K_E[din,din] += kin
         K_E[dout,dout] += kout
         # Remove constrained dofs from matrix
-        K_E = K_E[freeE,:][:,freeE]
+        K_E = K_E[free,:][:,free]
         # create right hand side
         fTe = KeET@T[edofMatT]
         # assemble
@@ -168,34 +133,23 @@ def main(nelx,nely,volfrac,penal,rmin,ft,solver="lu"):
                   (E[:,None,None] * a[:,None,None] * fTe).flatten())
         # Solve system 
         if solver == "lu":
-            lu_E = factorized(K_E)
-            u[freeE,0]=lu_E(f[freeE,0] + fT[freeE,0])
+            lu = factorized(K_E)
+            u[free,0]=lu(f[free,0] + fT[free,0])
         elif solver == "direct":
-            u[freeE,0]=spsolve(K_E,f[freeE,0] + fT[freeE,0])
+            u[free,0]=spsolve(K_E,f[free,0] + fT[free,0])
         # Objective
         obj = u[l[:,0]!=0].sum()
         # first adjoint problem
         if solver == "lu":
-            hE[freeE,0] = lu_E(-l[freeE,0])
+            h[free,0] = lu(-l[free,0])
         elif solver == "direct":
-            hE[freeE,0] = spsolve(K_E,-l[freeE,0])
-        # set up second adjoint problem
-        sKET = (E[:,None,None] * a[:,None,None] * KeET).flatten()
-        # transpose of force due to heat expansion by temperature
-        K_ET = coo_matrix((sKET,(iKET,jKET)),shape=(ndofT,ndofE)).tocsc()
-        # Remove constrained dofs from matrix
-        K_ET = K_ET[freeT,:][:,freeE]
-        if solver == "lu":
-            hT[freeT] = lu_T(K_ET@hE[freeE,:])
-        elif solver == "direct":
-            hT[freeT,0] = spsolve(K_T, K_ET@hE[freeE,0])
+            h[free,0] = spsolve(K_E,-l[free,0])
         # sensitivity
         dc[:]= penal*xPhys**(penal-1)*(\
-                (k2-k1)*(np.dot(hT[edofMatT,0], KeT)*T[edofMatT,0]).sum(1)\
-                +(E2-E1)*( np.dot(hE[edofMatE,0], KeE)*u[edofMatE,0] \
-                                - E[:,None] * (a2-a1) *\
-                                  hE[edofMatE,0]*fTe[:,:,0] 
-                                - a[:,None] * hE[edofMatE,0]*fTe[:,:,0]).sum(1))
+                (E2-E1)*( np.dot(h[edofMatE,0], KeE)*u[edofMatE,0] \
+                                 -E[:,None] * (a2-a1) *\
+                                  h[edofMatE,0]*fTe[:,:,0] 
+                                 -a[:,None] * h[edofMatE,0]*fTe[:,:,0]).sum(1))
         #kappa1*kappa2 / (kappa1-kappa2) *(a1-a2)/(kappa[:,None]**2) * 1/(2*(1-nu)) *\
         #
         dv[:] = np.ones(nely*nelx)
@@ -222,40 +176,29 @@ def main(nelx,nely,volfrac,penal,rmin,ft,solver="lu"):
         # Write iteration history to screen (req. Python 2.6 or newer)
         print("it.: {0} , obj.: {1:.10f} Vol.: {2:.10f}, ch.: {3:.10f}".format(\
                     loop,obj,(g+volfrac*nelx*nely)/(nelx*nely),change))
+        if loop == 500:
+            break
     # Make sure the plot stays and that the shell remains    
     plt.show()
     input("Press any key...")
     #
     from topoptlab.output_designs import export_vtk, threshold
-    export_vtk(filename="topoptmh",
+    export_vtk(filename="topoptbh",
                nelx=nelx,nely=nely,nelz=None,
                xPhys=xPhys,x=x,
                u=u,f=f,volfrac=volfrac)
     #
     xThresh = threshold(xPhys,
                         volfrac)
-    # Setup and solve heat FE problem
-    k = (k1+(xThresh)**penal*(k2-k1))
-    sKT=((KeT.flatten()[None]).T*k).flatten(order='F')
-    K_T = coo_matrix((sKT,(iKT,jKT)),shape=(ndofT,ndofT)).tocsc()
-    # Remove constrained dofs from matrix
-    K_T = K_T[freeT,:][:,freeT]
-    # Solve system for temperature 
-    if solver == "lu":
-        lu_T = factorized(K_T)
-        T[freeT,0]=lu_T(q[freeT,0])
-    elif solver == "direct":
-        T[freeT,0]=spsolve(K_T,q[freeT,0])  
     # Setup and solve elastic FE problem
     E = (E1+(xThresh)**penal*(E2-E1))
     a = (a1+(xThresh)**penal*(a2-a1))
-    sKE=((KeE.flatten()[np.newaxis]).T*E).flatten(order='F')
-    K_E = coo_matrix((sKE,(iKE,jKE)),shape=(ndofE,ndofE)).tocsc()
+    sK=((KeE.flatten()[np.newaxis]).T*E).flatten(order='F')
+    K_E = coo_matrix((sK,(iK,jK)),shape=(ndofE,ndofE)).tocsc()
     # add springs to stiffness matrix
-    K_E[din,din] += kin
     K_E[dout,dout] += kout
     # Remove constrained dofs from matrix
-    K_E = K_E[freeE,:][:,freeE]
+    K_E = K_E[free,:][:,free]
     # create right hand side
     fTe = KeET@T[edofMatT]
     # assemble
@@ -266,16 +209,16 @@ def main(nelx,nely,volfrac,penal,rmin,ft,solver="lu"):
     # Solve system 
     if solver == "lu":
         lu_E = factorized(K_E)
-        u[freeE,0]=lu_E(f[freeE,0] + fT[freeE,0])
+        u[free,0]=lu_E(f[free,0] + fT[free,0])
     elif solver == "direct":
-        u[freeE,0]=spsolve(K_E,f[freeE,0] + fT[freeE,0])
+        u[free,0]=spsolve(K_E,f[free,0] + fT[free,0])
     # Objective
     obj = u[l[:,0]!=0].sum()
     #
     print("it.: {0} , obj.: {1:.10f} Vol.: {2:.10f}".format(\
                 loop+1,obj,xThresh.mean()))
     #
-    export_vtk(filename="topoptmh-bw",
+    export_vtk(filename="topoptbh-bw",
                nelx=nelx,nely=nely,nelz=None,
                xPhys=xPhys,x=x,
                u=u,f=f,volfrac=volfrac)
@@ -352,23 +295,7 @@ def lkE(E,nu):
                                [k[6], k[3], k[4], k[1], k[2], k[7], k[0], k[5]],
                                [k[7], k[2], k[1], k[4], k[3], k[6], k[5], k[0]]])
     return KE
-#element stiffness matrix for heat conduction
-def lkT():
-    """
-    Create element stiffness matrix for 2D Poisson equation with bilinear
-    quadrilateral elements. Taken from the standard Sigmund textbook.
-    
-    Returns
-    -------
-    Ke : np.ndarray, shape (4,4)
-        element stiffness matrix.
-        
-    """
-    return np.array([[2/3, -1/6, -1/3, -1/6],
-                     [-1/6, 2/3, -1/6, -1/3],
-                     [-1/3, -1/6, 2/3, -1/6],
-                     [-1/6, -1/3, -1/6, 2/3]])
-# 
+#element stiffness matrix 
 def lkET(E,nu,a):
     """
     Create force vector for 2D heat expansion with 
@@ -442,7 +369,7 @@ def oc(x,volfrac,dc,dv,g):
         xnew[:] = np.maximum(0.0, np.maximum(
             x-move, np.minimum(1.0, np.minimum(x+move, x*np.maximum(1e-10,
                                                                     -dc/dv/lmid)**damp))))
-        gt=g+np.sum((dv*(xnew-x)))
+        gt=xnew.mean()-volfrac
         if gt>0 :
             l1=lmid
         else:
@@ -451,10 +378,10 @@ def oc(x,volfrac,dc,dv,g):
 # The real main driver    
 if __name__ == "__main__":
     # Default input parameters
-    nelx=40
-    nely=20
-    volfrac=0.3
-    rmin=1.2
+    nelx=80
+    nely=40
+    volfrac=0.5
+    rmin=2.4
     penal=3.0
     ft=0 # ft==0 -> sens, ft==1 -> dens
     import sys
