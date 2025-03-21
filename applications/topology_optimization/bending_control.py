@@ -19,11 +19,11 @@ if __name__ == "__main__":
     l = zeros((2*(nelx+1)*(nely+1),1))
     l[arange(0,2*(nelx+1)*(nely+1),2*(nely+1))+1,0] = 1
     # 
-    u0 = -0.3 * arange(0,nely+1)*2#l.copy() * 2
+    u0 = -0.3 * arange(0,nelx+1) * 1e-1#l.copy() * 2
     #
     main(nelx=nelx, nely=nely, volfrac=volfrac, penal=penal, rmin=rmin, 
          bcs=selffolding_2d , obj_func=var_squarederror ,
          obj_kw={"l": l,"u0": u0},alpha=None,
-         ft=ft, filter_mode="matrix",optimizer="ocm",
+         ft=ft, filter_mode="matrix",optimizer="mma",
          export=False)
     

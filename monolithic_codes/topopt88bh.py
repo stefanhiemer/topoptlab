@@ -378,12 +378,12 @@ def oc(x,volfrac,dc,dv,g):
 # The real main driver    
 if __name__ == "__main__":
     # Default input parameters
-    nelx=80
-    nely=40
+    nelx=360
+    nely=120
     volfrac=0.5
     rmin=2.4
     penal=3.0
-    ft=0 # ft==0 -> sens, ft==1 -> dens
+    ft=1 # ft==0 -> sens, ft==1 -> dens
     import sys
     if len(sys.argv)>1: nelx   =int(sys.argv[1])
     if len(sys.argv)>2: nely   =int(sys.argv[2])

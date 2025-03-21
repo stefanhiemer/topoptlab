@@ -45,7 +45,7 @@ def heatexpcoeff(kappa,
                  a1,a2,
                  kappa1,kappa2):
     """
-    Return the linear heatexpansion oefficient of a composite consisting of two 
+    Return the linear heatexpansion coefficient of a composite consisting of two 
     isotropic substances. 
     
     Rosen & Hasin 1970
