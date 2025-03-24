@@ -51,7 +51,7 @@ def main(nelx,nely,volfrac,penal,rmin,ft,solver="lu"):
     a1 = 1e-1
     a2 = 5e-2
     # stiffness constants springs
-    kout = 0.1
+    kout = 0.
     # Allocate design variables (as array), initialize and allocate sens.
     x=volfrac * np.ones(nely*nelx,dtype=float,order="F")
     xold=x.copy()
@@ -138,12 +138,12 @@ def main(nelx,nely,volfrac,penal,rmin,ft,solver="lu"):
         elif solver == "direct":
             u[free,0]=spsolve(K_E,f[free,0] + fT[free,0])
         # Objective
-        obj = u[l[:,0]!=0].sum()
+        obj = -u[l[:,0]!=0].sum()
         # first adjoint problem
         if solver == "lu":
-            h[free,0] = lu(-l[free,0])
+            h[free,0] = lu(l[free,0])
         elif solver == "direct":
-            h[free,0] = spsolve(K_E,-l[free,0])
+            h[free,0] = spsolve(K_E,l[free,0])
         # sensitivity
         dc[:]= penal*xPhys**(penal-1)*(\
                 (E2-E1)*( np.dot(h[edofMatE,0], KeE)*u[edofMatE,0] \
@@ -213,7 +213,7 @@ def main(nelx,nely,volfrac,penal,rmin,ft,solver="lu"):
     elif solver == "direct":
         u[free,0]=spsolve(K_E,f[free,0] + fT[free,0])
     # Objective
-    obj = u[l[:,0]!=0].sum()
+    obj = -u[l[:,0]!=0].sum()
     #
     print("it.: {0} , obj.: {1:.10f} Vol.: {2:.10f}".format(\
                 loop+1,obj,xThresh.mean()))
@@ -378,12 +378,12 @@ def oc(x,volfrac,dc,dv,g):
 # The real main driver    
 if __name__ == "__main__":
     # Default input parameters
-    nelx=360
-    nely=120
+    nelx=60
+    nely=20
     volfrac=0.5
     rmin=2.4
     penal=3.0
-    ft=1 # ft==0 -> sens, ft==1 -> dens
+    ft=0 # ft==0 -> sens, ft==1 -> dens
     import sys
     if len(sys.argv)>1: nelx   =int(sys.argv[1])
     if len(sys.argv)>2: nely   =int(sys.argv[2])
