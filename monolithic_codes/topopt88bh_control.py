@@ -98,9 +98,7 @@ def main(nelx,nely,volfrac,penal,rmin,ft,
     # indicator array for the output node and later for the adjoint problem
     l = np.zeros((ndofE, 1))
     l[np.arange(0,2*(nelx+1)*(nely+1),2*(nely+1))+1,0] = 1
-    u0 = np.arange(0,nelx+1)**2 * 1e-3# + 6.5
-    #l[2*nelx*(nely+1)+1,0] = 1
-    #u0 = 5
+    u0 = np.arange(0,nelx+1)**2 * 1e-3 + 6.5
     # Initialize plot and plot the initial design
     plt.ion() # Ensure that redrawing is possible
     fig,ax = plt.subplots()
@@ -146,14 +144,10 @@ def main(nelx,nely,volfrac,penal,rmin,ft,
         elif solver == "direct":
             u[free,0]=spsolve(K_E,f[free,0] + fT[free,0])
         # Objective
-        #obj = ((u[l!=0] - u0)**2).sum()
-        du = (u[l!=0] - u0)
-        offset = du.mean()
-        obj = ((du - offset)**2).sum()
+        obj = ((u[l!=0] - u0)**2).sum()
         # first adjoint problem
         if solver == "lu":
-            #h[free,0] = lu( ((-2)*l*(u[l!=0]-u0).sum())[free,0] )
-            h[free,0] = lu( ((-2)*l*( du - offset ).sum())[free,0] * (1 - (1/(l!=0).sum()) )  )
+            h[free,0] = lu( ((-2)*l*(u[l!=0]-u0).sum())[free,0] )
         elif solver == "direct":
             h[free,0] = spsolve(K_E,l[free,0])
         # sensitivity
@@ -179,7 +173,6 @@ def main(nelx,nely,volfrac,penal,rmin,ft,
         # Optimality criteria
         xold[:]=x
         x[:],g=oc(x,volfrac,dc,dv,g)
-        #x[:] = (x[:] + xold[:]) * 0.5
         # Filter design variables
         if ft==0:   
             xPhys[:]=x
@@ -241,9 +234,6 @@ def main(nelx,nely,volfrac,penal,rmin,ft,
         u_bw[free,0]=spsolve(K_E,f[free,0] + fT[free,0])
     # Objective
     obj = ((u_bw[l!=0] - u0)**2).sum()
-    #du = (u[l!=0] - u0)
-    #offset = du.mean()
-    #obj = ((du - offset)**2).sum()
     #
     print("it.: {0} , obj.: {1:.10f} Vol.: {2:.10f}".format(\
                 loop+1,obj,xThresh.mean()))
@@ -266,6 +256,8 @@ def main(nelx,nely,volfrac,penal,rmin,ft,
             label="black/white design")
     ax.set_xlabel("position x")
     ax.set_ylabel("displacement")
+    ax.set_xlim(left=0)
+    ax.set_ylim(bottom=0)
     ax.legend()
     plt.show()
     input("Press any key...")
@@ -444,7 +436,7 @@ def find_eta(eta0,xTilde,beta,volfrac):
     Returns
     -------
     eta : float
-        unnormalized filter.
+        filter threshold.
 
     """
     result = minimize(_eta_residual, x0=eta0,
@@ -474,8 +466,8 @@ def _eta_residual(eta,xTilde,beta,volfrac):
 
     Returns
     -------
-    eta : float
-        unnormalized filter.
+    residual : float
+        residual of the volume constraint.
 
     """
     # Calculate the expression for given eta
@@ -483,13 +475,13 @@ def _eta_residual(eta,xTilde,beta,volfrac):
            (np.tanh(beta * eta) + np.tanh(beta * (1 - eta)))
     #grad = -beta * np.sinh(beta)**(-1) * np.cosh(beta * (xTilde - eta))**(-2) * \
     #        np.sinh(xTilde * beta) * np.sinh((1 - xTilde) * beta)
-    return np.abs(np.mean(xPhys) - volfrac)**2, None#, grad.mean()
+    return (np.mean(xPhys) - volfrac)**2, None#, grad.mean()
 # The real main driver    
 if __name__ == "__main__":
     # Default input parameters
-    nelx=60
-    nely=60
-    volfrac=0.5
+    nelx=120
+    nely=40
+    volfrac=0.3
     rmin=2.4
     penal=3.0
     ft=1 # ft==0 -> sens, ft==1 -> dens

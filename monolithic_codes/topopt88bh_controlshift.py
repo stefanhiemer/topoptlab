@@ -149,9 +149,9 @@ def main(nelx,nely,volfrac,penal,rmin,ft,
         obj = ((du - offset)**2).sum()
         # first adjoint problem
         if solver == "lu":
-            h[free,0] = lu( ((2)*l*( du - offset ).sum())[free,0] * (1 - (1/(l!=0).sum()) )  )
+            h[free,0] = lu( ((-2)*l*( du - offset ).sum())[free,0] * (1 - (1/(l!=0).sum()) )  )
         elif solver == "direct":
-            h[free,0] = spsolve( K_E , ((2)*l*( du - offset ).sum())[free,0] * (1 - (1/(l!=0).sum()) ) )
+            h[free,0] = spsolve( K_E , ((-2)*l*( du - offset ).sum())[free,0] * (1 - (1/(l!=0).sum()) ) )
         # sensitivity
         dc[:]= penal*xPhys**(penal-1)*(\
                 (E2-E1)*( np.dot(h[edofMatE,0], KeE)*u[edofMatE,0] \
@@ -483,7 +483,7 @@ if __name__ == "__main__":
     # Default input parameters
     nelx=120
     nely=40
-    volfrac=0.2
+    volfrac=0.3
     rmin=2.4
     penal=3.0
     ft=1 # ft==0 -> sens, ft==1 -> dens

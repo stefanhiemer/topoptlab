@@ -22,7 +22,7 @@ def fem_heat_expansion(nelx, nely, nelz=None,
                        xPhys=None, penal=3, 
                        Emax=1.0, Emin=1e-9, nu=0.3, 
                        kmax=1.0, kmin=1e-9,
-                       a1=1e-1,a2=5e-2,
+                       a1=5e-2,a2=1e-1,
                        Eratio = 0.35, kratio=3,
                        lin_solver="cvxopt-cholmod", preconditioner=None,
                        assembly_mode="full",
@@ -99,12 +99,12 @@ def fem_heat_expansion(nelx, nely, nelz=None,
     # isotropic bilayer
     if ndim ==2:
         # stiffness tensor
-        cs = [isotropic_2d(E=Eratio, nu = nu) for i in np.arange(int(nely/2))] 
-        cs += [isotropic_2d(E=1., nu=nu) for j in np.arange(int(nely/2),nely)]
+        cs = [isotropic_2d(E=1., nu = nu) for i in np.arange(int(nely/2))] 
+        cs += [isotropic_2d(E=Eratio, nu=nu) for j in np.arange(int(nely/2),nely)]
         cs = np.tile(np.stack(cs),(nelx,1,1))
     # anistropic expansion coefficient
-    a = np.hstack( (np.full( (int(nely/2)), fill_value=a2 ), 
-                    np.full( (int(nely/2)), fill_value=a1 )))
+    a = np.hstack( (np.full( (int(nely/2)), fill_value=a1 ), 
+                    np.full( (int(nely/2)), fill_value=a2 )))
     a = np.tile(a,(nelx))
     # get element stiffness matrix and element of freedom matrix
     nT_ndof = 1
@@ -187,4 +187,4 @@ def fem_heat_expansion(nelx, nely, nelz=None,
 
 if __name__ == "__main__":
     
-    fem_heat_expansion(nelx=60, nely=60)
+    fem_heat_expansion(nelx=120, nely=40)

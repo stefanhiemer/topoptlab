@@ -378,8 +378,8 @@ def oc(x,volfrac,dc,dv,g):
 # The real main driver    
 if __name__ == "__main__":
     # Default input parameters
-    nelx=60
-    nely=60
+    nelx=120
+    nely=40
     volfrac=0.5
     rmin=2.4
     penal=3.0
