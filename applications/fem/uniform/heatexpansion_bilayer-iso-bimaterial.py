@@ -187,4 +187,4 @@ def fem_heat_expansion(nelx, nely, nelz=None,
 
 if __name__ == "__main__":
     
-    fem_heat_expansion(nelx=60, nely=20)
+    fem_heat_expansion(nelx=60, nely=60)

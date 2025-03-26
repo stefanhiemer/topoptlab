@@ -24,13 +24,12 @@ from topoptlab.elements.trilinear_hexahedron import create_edofMat as create_edo
 # different elements/physics
 from topoptlab.elements.linear_elasticity_2d import lk_linear_elast_2d
 from topoptlab.elements.linear_elasticity_3d import lk_linear_elast_3d
-from topoptlab.elements.poisson_2d import lk_poisson_2d
 # generic functions for solving phys. problem
 from topoptlab.fem import assemble_matrix,assemble_rhs,apply_bc
 from topoptlab.solve_linsystem import solve_lin
 # constrained optimizers
-from topoptlab.optimality_criterion import oc_top88,oc_mechanism,oc_generalized
-from topoptlab.mma_utils import update_mma,mma_defaultkws
+from topoptlab.optimizer.optimality_criterion import oc_top88,oc_mechanism,oc_generalized
+from topoptlab.optimizer.mma_utils import update_mma,mma_defaultkws
 from topoptlab.objectives import compliance
 # output final design to a Paraview readable format
 from topoptlab.output_designs import export_vtk

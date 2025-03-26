@@ -21,6 +21,6 @@ if __name__ == "__main__":
     #
     main(nelx=nelx, nely=nely, volfrac=volfrac, penal=penal, rmin=rmin, 
          bcs=forceinverter_2d , obj_func=var_maximization ,obj_kw={"l": l},
-         ft=ft, filter_mode="matrix",optimizer="ocm",
+         ft=ft, filter_mode="matrix",optimizer="mma",
          export=False)
     

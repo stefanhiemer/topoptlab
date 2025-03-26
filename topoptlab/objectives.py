@@ -59,8 +59,9 @@ def var_maximization(u,l,
     u : np.ndarray
         state variable (displacement, temperature) of shape (ndof).
     l : np.ndarray
-        indicator vector for state variable of shape (ndof). Is 1 at output 
-        nodes.
+        indicator vector for state variable of shape (ndof). Is 1 or -1 at 
+        output nodes depending on which direction of the dof you want to 
+        maximize. 
     obj : float
         objective function.
 
@@ -108,6 +109,6 @@ def var_squarederror(u,u0,l,
         obj. is not selfadjoint, so adjoint problem has to be solved
 
     """
-    mask = l[:,0]==1
+    mask = l[:,0]!=0
     obj += ((u[mask] - u0)**2).sum()
     return obj, (-2)*l*(u[mask]-u0).sum(), False

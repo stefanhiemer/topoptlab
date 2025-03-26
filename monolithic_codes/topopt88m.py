@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 # MAIN DRIVER
 def main(nelx,nely,volfrac,penal,rmin,ft,solver="lu"):
     """
-    Topology optimization for maximum stiffness with the SIMP method based on 
+    Topology optimization for force inverter with the SIMP method based on 
     the default direct solver of scipy sparse.
     
     Parameters
@@ -35,7 +35,7 @@ def main(nelx,nely,volfrac,penal,rmin,ft,solver="lu"):
     None.
 
     """
-    print("Minimum compliance problem with OC")
+    print("Force Inverter problem with OC")
     print("ndes: " + str(nelx) + " x " + str(nely))
     print("volfrac: " + str(volfrac) + ", rmin: " + str(rmin) + ", penal: " + str(penal))
     print("Filter method: " + ["Sensitivity based","Density based"][ft])

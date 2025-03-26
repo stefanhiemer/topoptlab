@@ -3,10 +3,12 @@
 import numpy as np
 from scipy.sparse import coo_matrix
 from scipy.sparse.linalg import spsolve,factorized
+from scipy.optimize import minimize
 from matplotlib import colors
 import matplotlib.pyplot as plt
 # MAIN DRIVER
-def main(nelx,nely,volfrac,penal,rmin,ft,solver="lu"):
+def main(nelx,nely,volfrac,penal,rmin,ft,
+         solver="lu"):
     """
     Topology optimization for maximum stiffness with the SIMP method based on 
     the default direct solver of scipy sparse.
@@ -38,7 +40,7 @@ def main(nelx,nely,volfrac,penal,rmin,ft,solver="lu"):
     print("Minimum compliance problem with OC")
     print("ndes: " + str(nelx) + " x " + str(nely))
     print("volfrac: " + str(volfrac) + ", rmin: " + str(rmin) + ", penal: " + str(penal))
-    print("Filter method: " + ["Sensitivity based","Density based"][ft])
+    print("Filter method: " + ["Sensitivity based","Density based","eta-projection"][ft])
     # Max and min stiffness
     E1=0.35
     E2=1.0
@@ -53,11 +55,14 @@ def main(nelx,nely,volfrac,penal,rmin,ft,solver="lu"):
     # stiffness constants springs
     kout = 0.
     # Allocate design variables (as array), initialize and allocate sens.
-    x=volfrac * np.ones(nely*nelx,dtype=float,order="F")
+    x=np.ones(nely*nelx,dtype=float,order="F")
     xold=x.copy()
     xPhys=x.copy()
     g=0 # must be initialized to use the NGuyen/Paulino OC approach
-    dc=np.zeros((nely,nelx), dtype=float)
+    if ft == 2:
+        beta = 1
+        eta = 0.5
+        xTilde = x.copy()
     # fetch element stiffness matrix
     KeE = lkE(E=1.0,nu=nu)
     KeET = lkET(E=1.0,nu=nu,a=1.0)
@@ -83,7 +88,7 @@ def main(nelx,nely,volfrac,penal,rmin,ft,solver="lu"):
     dofs = np.arange(ndofE)
     fixed = np.union1d(dofs[0:2*(nely+1):2], # symmetry 
                        np.array([2*(nely+1)-1])) # bottom support
-    dout = ndofE - 2 * (nely+1) + 1
+    dout = ndofE - 2 * (nely+1) + 2
     # Solution, RHS and adjoint vectors
     f = np.zeros((ndofE, 1))
     u = np.zeros((ndofE, 1))
@@ -92,7 +97,8 @@ def main(nelx,nely,volfrac,penal,rmin,ft,solver="lu"):
     free = np.setdiff1d(dofs, fixed)
     # indicator array for the output node and later for the adjoint problem
     l = np.zeros((ndofE, 1))
-    l[dout,0] = -1
+    l[np.arange(0,2*(nelx+1)*(nely+1),2*(nely+1))+1,0] = 1
+    u0 = np.arange(0,nelx+1)**2 * 2e-4
     # Initialize plot and plot the initial design
     plt.ion() # Ensure that redrawing is possible
     fig,ax = plt.subplots()
@@ -110,7 +116,7 @@ def main(nelx,nely,volfrac,penal,rmin,ft,solver="lu"):
     change=1
     dv = np.ones(nely*nelx)
     dc = np.ones(nely*nelx)
-    while change>0.01 and loop<2000:
+    while change>0.01 and loop<100:
         loop=loop+1 
         # Setup and solve elastic FE problem
         E = (E1+(xPhys)**penal*(E2-E1))
@@ -138,12 +144,14 @@ def main(nelx,nely,volfrac,penal,rmin,ft,solver="lu"):
         elif solver == "direct":
             u[free,0]=spsolve(K_E,f[free,0] + fT[free,0])
         # Objective
-        obj = (l[l!=0]*u[l!=0]).sum()
+        du = (u[l!=0] - u0)
+        offset = du.mean()
+        obj = ((du - offset)**2).sum()
         # first adjoint problem
         if solver == "lu":
-            h[free,0] = lu(-l[free,0])
+            h[free,0] = lu( ((2)*l*( du - offset ).sum())[free,0] * (1 - (1/(l!=0).sum()) )  )
         elif solver == "direct":
-            h[free,0] = spsolve(K_E,-l[free,0])
+            h[free,0] = spsolve( K_E , ((2)*l*( du - offset ).sum())[free,0] * (1 - (1/(l!=0).sum()) ) )
         # sensitivity
         dc[:]= penal*xPhys**(penal-1)*(\
                 (E2-E1)*( np.dot(h[edofMatE,0], KeE)*u[edofMatE,0] \
@@ -159,6 +167,11 @@ def main(nelx,nely,volfrac,penal,rmin,ft,solver="lu"):
         elif ft==1:
             dc[:] = np.asarray(H*(dc[np.newaxis].T/Hs))[:,0]
             dv[:] = np.asarray(H*(dv[np.newaxis].T/Hs))[:,0]
+        elif ft==2:
+            dx = beta * (1 - np.tanh(beta * (xTilde - eta))**2) /\
+                    (np.tanh(beta*eta)+np.tanh(beta*(1-eta)))
+            dc[:] = np.asarray(H*((dc*dx)[np.newaxis].T/Hs))[:, 0] 
+            dv[:] = np.asarray(H*((dv*dx)[np.newaxis]/Hs))[:, 0] 
         # Optimality criteria
         xold[:]=x
         x[:],g=oc(x,volfrac,dc,dv,g)
@@ -167,6 +180,12 @@ def main(nelx,nely,volfrac,penal,rmin,ft,solver="lu"):
             xPhys[:]=x
         elif ft==1:    
             xPhys[:]=np.asarray(H*x[np.newaxis].T/Hs)[:,0]
+        elif ft==2:
+            xTilde = np.asarray(H*x[np.newaxis].T/Hs)[:, 0]
+            # get volume preserving eta
+            eta = find_eta(eta, xTilde, beta, volfrac)
+            xPhys = (np.tanh(beta*eta)+np.tanh(beta * (xTilde - eta)))/\
+                    (np.tanh(beta*eta)+np.tanh(beta*(1-eta)))
         # Compute the change by the inf. norm
         change=np.abs(x-xold).max()
         # Plot to screen
@@ -176,14 +195,16 @@ def main(nelx,nely,volfrac,penal,rmin,ft,solver="lu"):
         # Write iteration history to screen (req. Python 2.6 or newer)
         print("it.: {0} , obj.: {1:.10f} Vol.: {2:.10f}, ch.: {3:.10f}".format(\
                     loop,obj,(g+volfrac*nelx*nely)/(nelx*nely),change))
-        if loop == 500:
-            break
+        if (ft in [2]) and (beta < 16) and \
+            (loop%50 == 0 or change < 0.01):
+            beta = 2 * beta
+            print(f"Parameter beta increased to {beta}")
     # Make sure the plot stays and that the shell remains    
     plt.show()
     input("Press any key...")
     #
     from topoptlab.output_designs import export_vtk, threshold
-    export_vtk(filename="topoptbh",
+    export_vtk(filename="topoptbh_controlshift",
                nelx=nelx,nely=nely,nelz=None,
                xPhys=xPhys,x=x,
                u=u,f=f,volfrac=volfrac)
@@ -207,21 +228,41 @@ def main(nelx,nely,volfrac,penal,rmin,ft,solver="lu"):
               edofMatE.flatten(),
               (E[:,None,None] * a[:,None,None] * fTe).flatten())
     # Solve system 
+    u_bw = np.zeros(u.shape)
     if solver == "lu":
         lu_E = factorized(K_E)
-        u[free,0]=lu_E(f[free,0] + fT[free,0])
+        u_bw[free,0]=lu_E(f[free,0] + fT[free,0])
     elif solver == "direct":
-        u[free,0]=spsolve(K_E,f[free,0] + fT[free,0])
+        u_bw[free,0]=spsolve(K_E,f[free,0] + fT[free,0])
     # Objective
-    obj = (l[l!=0]*u[l!=0]).sum()
+    du = (u_bw[l!=0] - u0)
+    offset = du.mean()
+    obj = ((du - offset)**2).sum()
     #
     print("it.: {0} , obj.: {1:.10f} Vol.: {2:.10f}".format(\
                 loop+1,obj,xThresh.mean()))
     #
-    export_vtk(filename="topoptbh-bw",
+    export_vtk(filename="topoptbh_controlshift-bw",
                nelx=nelx,nely=nely,nelz=None,
                xPhys=xPhys,x=x,
-               u=u,f=f,volfrac=volfrac)
+               u=u_bw,f=f,volfrac=volfrac)
+    #
+    plt.close()
+    fig,ax = plt.subplots(1,1)
+    ax.plot(np.arange( int((l!=0).sum())),
+            u0+offset,
+            label="target")
+    ax.plot(np.arange( int((l!=0).sum())),
+            u_bw[l!=0],
+            label="gray design")
+    ax.plot(np.arange( int((l!=0).sum())),
+            u[l!=0],
+            label="black/white design")
+    ax.set_xlabel("position x")
+    ax.set_ylabel("displacement")
+    ax.legend()
+    plt.show()
+    input("Press any key...")
     return 
 # matrix filter
 def assemble_filter(rmin,el,nelx,nely):
@@ -375,12 +416,74 @@ def oc(x,volfrac,dc,dv,g):
         else:
             l2=lmid
     return xnew,gt
+def find_eta(eta0,xTilde,beta,volfrac):
+    """
+    Find volume preserving eta for the relaxed Haeviside projection similar to 
+    what has been done in 
+    
+    Xu S, Cai Y, Cheng G (2010) Volume preserving nonlinear density filter based on Heaviside functions. Struct Multidiscip Optim 41:495–505
+    
+    Parameters
+    ----------
+    eta0 : float
+        initial guess for threshold value.
+    beta : np.ndarray
+        sharpness factor. The higher the more we approach the Haeviside 
+        function which si recovered in the limit of beta to infinity
+    rmin : float
+        filter radius. 
+    volfrac : float
+        volume fraction. 
+
+    Returns
+    -------
+    eta : float
+        unnormalized filter.
+
+    """
+    result = minimize(_eta_residual, x0=eta0,
+                      bounds=[[0., 1.]], options={"maxiter":1e5},
+                      method='Nelder-Mead',jac=True,tol=1e-10,
+                      args=(xTilde,beta,volfrac))
+    if result.success:
+        return result.x
+    else:
+        raise ValueError("volume conserving eta could not be found: ",result)
+def _eta_residual(eta,xTilde,beta,volfrac):
+    """
+    Residual for finding the volume preserving eta for the relaxed Haeviside 
+    projection.
+    
+    Parameters
+    ----------
+    eta0 : float
+        initial guess for threshold value.
+    beta : np.ndarray
+        sharpness factor. The higher the more we approach the Haeviside 
+        function which si recovered in the limit of beta to infinity
+    rmin : float
+        filter radius. 
+    volfrac : float
+        volume fraction. 
+
+    Returns
+    -------
+    eta : float
+        unnormalized filter.
+
+    """
+    # Calculate the expression for given eta
+    xPhys = (np.tanh(beta * eta) + np.tanh(beta * (xTilde - eta))) / \
+           (np.tanh(beta * eta) + np.tanh(beta * (1 - eta)))
+    #grad = -beta * np.sinh(beta)**(-1) * np.cosh(beta * (xTilde - eta))**(-2) * \
+    #        np.sinh(xTilde * beta) * np.sinh((1 - xTilde) * beta)
+    return np.abs(np.mean(xPhys) - volfrac)**2, None#, grad.mean()
 # The real main driver    
 if __name__ == "__main__":
     # Default input parameters
-    nelx=60
-    nely=60
-    volfrac=0.5
+    nelx=120
+    nely=40
+    volfrac=0.2
     rmin=2.4
     penal=3.0
     ft=1 # ft==0 -> sens, ft==1 -> dens

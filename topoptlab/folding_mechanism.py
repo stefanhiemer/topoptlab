@@ -14,8 +14,8 @@ import matplotlib.pyplot as plt
 from topoptlab.output_designs import export_vtk,export_stl,threshold
 from topoptlab.elements.linear_elasticity_2d import lk_linear_elast_2d
 from topoptlab.fem import update_indices
-from topoptlab.optimality_criterion import oc_mechanism
-from topoptlab.mma_utils import update_mma
+from topoptlab.optimizer.optimality_criterion import oc_mechanism
+from topoptlab.optimizer.mma_utils import update_mma
 
 from mmapy import gcmmasub,asymp,concheck,raaupdate
 
