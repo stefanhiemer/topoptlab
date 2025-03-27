@@ -98,7 +98,8 @@ def main(nelx,nely,volfrac,penal,rmin,ft,
     # indicator array for the output node and later for the adjoint problem
     l = np.zeros((ndofE, 1))
     l[np.arange(0,2*(nelx+1)*(nely+1),2*(nely+1))+1,0] = 1
-    u0 = np.arange(0,nelx+1)**2 * 1e-3 + 6.5
+    mask = l[:,0]!=0
+    u0 = np.arange(0,nelx+1)**2 * 5e-3 + 3.0
     # Initialize plot and plot the initial design
     plt.ion() # Ensure that redrawing is possible
     fig,ax = plt.subplots()
@@ -116,6 +117,7 @@ def main(nelx,nely,volfrac,penal,rmin,ft,
     change=1
     dv = np.ones(nely*nelx)
     dc = np.ones(nely*nelx)
+    rhs = np.zeros(l.shape) 
     while change>0.01 and loop<50:
         loop=loop+1 
         # Setup and solve elastic FE problem
@@ -144,12 +146,13 @@ def main(nelx,nely,volfrac,penal,rmin,ft,
         elif solver == "direct":
             u[free,0]=spsolve(K_E,f[free,0] + fT[free,0])
         # Objective
-        obj = ((u[l!=0] - u0)**2).sum()
+        obj = ((u[mask] - u0)**2).mean()
         # first adjoint problem
+        rhs[mask,0] = (-2)*(u[mask,0]-u0) / u0.shape[0] 
         if solver == "lu":
-            h[free,0] = lu( ((-2)*l*(u[l!=0]-u0).sum())[free,0] )
+            h[free,0] = lu( rhs[free,0] )
         elif solver == "direct":
-            h[free,0] = spsolve(K_E,l[free,0])
+            h[free,0] = spsolve(K_E,rhs[free,0])
         # sensitivity
         dc[:]= penal*xPhys**(penal-1)*(\
                 (E2-E1)*( np.dot(h[edofMatE,0], KeE)*u[edofMatE,0] \
@@ -479,8 +482,8 @@ def _eta_residual(eta,xTilde,beta,volfrac):
 # The real main driver    
 if __name__ == "__main__":
     # Default input parameters
-    nelx=120
-    nely=40
+    nelx=60
+    nely=20
     volfrac=0.3
     rmin=2.4
     penal=3.0
