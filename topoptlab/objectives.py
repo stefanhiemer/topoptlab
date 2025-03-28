@@ -69,9 +69,8 @@ def var_maximization(u,l,
     -------
     obj : float
         updated objective function.
-    dc : np.ndarray
-        updated sensitivities/gradients of design variables with regards to 
-        objective function. shape (ndesign)
+    rhs_adj : np.ndarray
+        right hand side for the adjoint problem
     selfadjoint : bool, False
         obj. is not selfadjoint, so adjoint problem has to be solved
 
@@ -102,13 +101,16 @@ def var_squarederror(u,u0,l,
     -------
     obj : float
         updated objective function.
-    dc : np.ndarray
-        updated sensitivities/gradients of design variables with regards to 
-        objective function. shape (ndesign)
+    rhs_adj : np.ndarray
+        right hand side for the adjoint problem. if problem is self adjoint, 
+        this is already the solution to the self-adjoint problem.
     selfadjoint : bool, False
         obj. is not selfadjoint, so adjoint problem has to be solved
 
     """
     mask = l[:,0]!=0
-    obj += ((u[mask] - u0)**2).sum()
-    return obj, (-2)*l*(u[mask]-u0).sum(), False
+    obj += ((u[mask] - u0)**2).mean()
+    rhs_adj = np.zeros(l.shape)
+    mask = l != 0
+    rhs_adj[mask,0] = (-2)*(u[mask,0]-u0) / u0.shape[0] 
+    return obj, rhs_adj , False

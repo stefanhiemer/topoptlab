@@ -98,7 +98,8 @@ def main(nelx,nely,volfrac,penal,rmin,ft,
     # indicator array for the output node and later for the adjoint problem
     l = np.zeros((ndofE, 1))
     l[np.arange(0,2*(nelx+1)*(nely+1),2*(nely+1))+1,0] = 1
-    u0 = np.arange(0,nelx+1)**2 * 2e-4
+    mask = l != 0
+    u0 = -np.arange(0,nelx+1)**2 * 5e-4
     # Initialize plot and plot the initial design
     plt.ion() # Ensure that redrawing is possible
     fig,ax = plt.subplots()
@@ -116,6 +117,7 @@ def main(nelx,nely,volfrac,penal,rmin,ft,
     change=1
     dv = np.ones(nely*nelx)
     dc = np.ones(nely*nelx)
+    rhs_adj = np.zeros(l.shape)
     while change>0.01 and loop<100:
         loop=loop+1 
         # Setup and solve elastic FE problem
@@ -147,17 +149,59 @@ def main(nelx,nely,volfrac,penal,rmin,ft,
         du = (u[l!=0] - u0)
         offset = du.mean()
         obj = ((du - offset)**2).sum()
-        # first adjoint problem
+        rhs_adj[mask] = ((-2)*(du-offset)[None,:] * (np.eye(u0.shape[0]) - 1/u0.shape[0]) ).sum(axis=1)
         if solver == "lu":
-            h[free,0] = lu( ((-2)*l*( du - offset ).sum())[free,0] * (1 - (1/(l!=0).sum()) )  )
+            h[free,0] = lu( rhs_adj[free,0] )
         elif solver == "direct":
-            h[free,0] = spsolve( K_E , ((-2)*l*( du - offset ).sum())[free,0] * (1 - (1/(l!=0).sum()) ) )
+            h[free,0] = spsolve(K_E,rhs_adj[free,0])
         # sensitivity
         dc[:]= penal*xPhys**(penal-1)*(\
                 (E2-E1)*( np.dot(h[edofMatE,0], KeE)*u[edofMatE,0] \
                                  -E[:,None] * (a2-a1) *\
                                   h[edofMatE,0]*fTe[:,:,0] 
                                  -a[:,None] * h[edofMatE,0]*fTe[:,:,0]).sum(1))
+        #
+        dp = 1e-10
+        _dc = np.zeros(dc.shape)
+        for i in np.arange(xPhys.shape[0]):
+            #
+            _xPhys = xPhys.copy()
+            _xPhys[i] += dp 
+            #
+            E = (E1+(_xPhys)**penal*(E2-E1))
+            #kappa = E / (2 * (1-nu))
+            #a = (a1 * kappa1 * (kappa2 - kappa) - a2 * kappa2 * (kappa1 - kappa)) \
+            #    / (kappa * (kappa1-kappa2))
+            a = (a1+(_xPhys)**penal*(a2-a1))
+            sK=((KeE.flatten()[np.newaxis]).T*E).flatten(order='F')
+            K_E = coo_matrix((sK,(iK,jK)),shape=(ndofE,ndofE)).tocsc()
+            # add springs to stiffness matrix
+            K_E[dout,dout] += kout
+            # Remove constrained dofs from matrix
+            K_E = K_E[free,:][:,free]
+            # create right hand side
+            fTe = KeET@T[edofMatT]
+            # assemble
+            fT = np.zeros(f.shape)
+            np.add.at(fT[:,0],
+                      edofMatE.flatten(),
+                      (E[:,None,None] * a[:,None,None] * fTe).flatten())
+            # Solve system 
+            if solver == "lu":
+                lu = factorized(K_E)
+                u[free,0]=lu(f[free,0] + fT[free,0])
+            elif solver == "direct":
+                u[free,0]=spsolve(K_E,f[free,0] + fT[free,0])
+            # Objective
+            du = (u[l!=0] - u0)
+            offset = du.mean()
+            _obj = ((du - offset)**2).sum()
+            _dc[i] = (_obj - obj) / dp
+        print(dc)
+        print(_dc)
+        print(dc/_dc)
+        import sys 
+        sys.exit()
         #kappa1*kappa2 / (kappa1-kappa2) *(a1-a2)/(kappa[:,None]**2) * 1/(2*(1-nu)) *\
         #
         dv[:] = np.ones(nely*nelx)
@@ -481,8 +525,8 @@ def _eta_residual(eta,xTilde,beta,volfrac):
 # The real main driver    
 if __name__ == "__main__":
     # Default input parameters
-    nelx=120
-    nely=40
+    nelx=3
+    nely=3
     volfrac=0.3
     rmin=2.4
     penal=3.0

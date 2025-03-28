@@ -117,8 +117,8 @@ def main(nelx,nely,volfrac,penal,rmin,ft,
     change=1
     dv = np.ones(nely*nelx)
     dc = np.ones(nely*nelx)
-    rhs = np.zeros(l.shape) 
-    while change>0.01 and loop<50:
+    rhs_adj = np.zeros(l.shape) 
+    while change>0.01 and loop<200:
         loop=loop+1 
         # Setup and solve elastic FE problem
         E = (E1+(xPhys)**penal*(E2-E1))
@@ -147,12 +147,12 @@ def main(nelx,nely,volfrac,penal,rmin,ft,
             u[free,0]=spsolve(K_E,f[free,0] + fT[free,0])
         # Objective
         obj = ((u[mask] - u0)**2).mean()
-        # first adjoint problem
-        rhs[mask,0] = (-2)*(u[mask,0]-u0) / u0.shape[0] 
+        # adjoint problem
+        rhs_adj[mask,0] = (-2)*(u[mask,0]-u0) / u0.shape[0] 
         if solver == "lu":
-            h[free,0] = lu( rhs[free,0] )
+            h[free,0] = lu( rhs_adj[free,0] )
         elif solver == "direct":
-            h[free,0] = spsolve(K_E,rhs[free,0])
+            h[free,0] = spsolve(K_E,rhs_adj[free,0])
         # sensitivity
         dc[:]= penal*xPhys**(penal-1)*(\
                 (E2-E1)*( np.dot(h[edofMatE,0], KeE)*u[edofMatE,0] \

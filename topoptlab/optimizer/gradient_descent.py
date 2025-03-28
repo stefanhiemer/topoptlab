@@ -1,23 +1,27 @@
-from __future__ import division
-
 import numpy as np
 
-projections = [2,3,4,5]
-filters = [0,1]
-
-def gradient_descent(x, dc, xmin, xmax, 
-                     el_flags, move=0.2):
+def barzilai_borwein(x, dobj, 
+                     xold, dobjold,
+                     xmin, xmax, 
+                     el_flags, 
+                     mode="long",
+                     move=0.1):
     """
-    Simple gradient respect that respects lower and upper bounds for the design 
-    variables.
+    Barzilai-Borwain gradient descent that respects lower and upper bounds for 
+    the design variables.
     
     Parameters
     ----------
     x : np.ndarray, shape (nel)
         element densities for topology optimization of the current iteration.
-    dc : np.array, shape (nel)
-        gradient of objective function/complicance with respect to element 
+    dobj : np.array, shape (nel)
+        gradient of objective function with respect to element 
         densities.
+    xold : np.ndarray, shape (nel)
+        element densities for topology optimization of the previous iteration.
+    dobjold : np.array, shape (nel)
+        gradient of objective function with respect to element densities of 
+        the previous iteration.
     xmin : np.ndarray, shape (nel)
         element densities for topology optimization of the current iteration.
     xmax : np.ndarray, shape (nel)
@@ -38,14 +42,28 @@ def gradient_descent(x, dc, xmin, xmax,
 
     """
     #
-    dx = move/dc.max()
+    xnew = np.zeros(x.shape)
+    # calculate step size
+    dx = x-xold
+    dg = dobj-dobjold
     #
-    x[:] = np.maximum(xmin, 
-                      np.maximum(x-move, 
-                                 np.minimum(xmax, 
-                                            np.minimum(x+move, x+dx*dc))))
-    # passive element update
+    if mode == "long":
+        alpha = dx.dot(dx) / dx.dot(dg)
+    elif mode == "short":
+        alpha = dx.dot(dg) / dg.dot(dg)
+    elif mode == "stabilized":
+        alpha = np.minimum(dx.dot(dx) / dx.dot(dg), 
+                           np.sqrt( dx.dot(dx) ))
+        print(alpha)
+    if np.isclose(alpha, 0.) or np.isinf(alpha):
+        raise ValueError("No step size could be found.")
+    #
+    xnew[:] = np.maximum(xmin, 
+                         np.maximum(x-move, 
+                                    np.minimum(xmax, 
+                                               np.minimum(x+move, x-alpha*dobj))))
+    # passive/active element update
     if el_flags is not None:
-        x[el_flags==1] = 0
-        x[el_flags==2] = 1
-    return x
+        xnew[el_flags==1] = 0
+        xnew[el_flags==2] = 1
+    return xnew

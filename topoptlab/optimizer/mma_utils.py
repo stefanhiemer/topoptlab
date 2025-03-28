@@ -2,17 +2,36 @@ import numpy as np
 
 from mmapy import mmasub
 
-def mma_defaultkws(x,ft,n_constr):
+def mma_defaultkws(n,ft,n_constr):
+    """
+    Default arguments for the method of moving asymptotes (MMA) based on 
+    experience.
+    
+    Parameters
+    ----------
+    n : int
+        number of design variables.
+    ft : int
+        filter flag.
+    n_constr : int
+        number of constraints.
+        
+    Returns
+    -------
+    optimizer_kw : dict
+        dictionary filled with default arguments.
+
+    """
     #
     optimizer_kw = {}
     # number of constraints
     optimizer_kw["nconstr"] = n_constr
     # lower and upper bound for densities
-    optimizer_kw["xmin"] = np.zeros((x.shape[0],1))
-    optimizer_kw["xmax"] = np.ones((x.shape[0],1))
+    optimizer_kw["xmin"] = np.zeros((n,1))
+    optimizer_kw["xmax"] = np.ones((n,1))
     # initial lower and upper asymptotes
-    optimizer_kw["low"] = np.ones((x.shape[0],1))
-    optimizer_kw["upp"] = np.ones((x.shape[0],1))
+    optimizer_kw["low"] = np.ones((n,1))
+    optimizer_kw["upp"] = np.ones((n,1))
     #
     optimizer_kw["a0"] = 1.0
     optimizer_kw["a"] = np.zeros((n_constr,1))

@@ -158,7 +158,10 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             logging.info(f"elements: {nelx} x {nely}")
         elif ndim == 3:
             logging.info(f"elements: {nelx} x {nely} x {nelz}")
-        logging.info(f"volfrac: {volfrac} rmin: {rmin}  penal: {penal}")
+        if volfrac is not None:
+            logging.info(f"volfrac: {volfrac} rmin: {rmin}  penal: {penal}")
+        else:
+            logging.info(f"rmin: {rmin}  penal: {penal}")
         logging.info("filter: " + ["Sensitivity based",
                                    "Density based",
                                    "Haeviside Guest",
@@ -190,7 +193,8 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             nhistory = 2
             xhist = [x.copy(),x.copy()]
             #
-            optimizer_kw = mma_defaultkws(x,ft=ft,n_constr=1)
+            if optimizer_kw is None:
+                optimizer_kw = mma_defaultkws(x.shape[0],ft=ft,n_constr=1)
         elif optimizer == "gcmma":
             # number of constraints.
             m = 1
