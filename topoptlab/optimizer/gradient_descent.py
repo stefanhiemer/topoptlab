@@ -31,14 +31,12 @@ def barzilai_borwein(x, dobj,
         Currently 1 marks the element as passive (zero at all times), while 2
         marks it as active (1 at all time).
     move: float
-        maximum change allowed in the density of a single element.
+        maximum change allowed in each design variable.
         
     Returns
     -------
     xnew : np.array, shape (nel)
         updatet element densities for topology optimization.
-    gt : float
-        updated parameter for the heuristic updating scheme..
 
     """
     #
@@ -54,7 +52,6 @@ def barzilai_borwein(x, dobj,
     elif mode == "stabilized":
         alpha = np.minimum(dx.dot(dx) / dx.dot(dg), 
                            np.sqrt( dx.dot(dx) ))
-        print(alpha)
     if np.isclose(alpha, 0.) or np.isinf(alpha):
         raise ValueError("No step size could be found.")
     #
