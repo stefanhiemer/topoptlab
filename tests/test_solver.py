@@ -3,7 +3,7 @@ from numpy.testing import assert_almost_equal
 import pytest
 
 from topoptlab.compliance_minimization import main
-from topoptlab.example_bc.lin_elast import mbb_2d,cantilever_2d,cantilever_2d_wrong,cantilever_2d_twoloads,cantilever_2d_twoloads_wrong
+from topoptlab.example_bc.lin_elast import mbb_2d
 
 @pytest.mark.parametrize('nelx, nely, volfrac, ft, rmin, solver, preconditioner, bcs',
                          [(10,3,0.5,0,2.4,"scipy-direct",None,mbb_2d),

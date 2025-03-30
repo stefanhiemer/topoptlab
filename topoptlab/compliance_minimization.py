@@ -4,7 +4,6 @@ import logging
 from functools import partial
 #
 import numpy as np
-from scipy.sparse import coo_matrix
 from scipy.sparse.linalg import factorized
 from scipy.ndimage import convolve
 #

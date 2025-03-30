@@ -1,17 +1,15 @@
 from itertools import product
 
 import numpy as np
-from scipy.sparse import coo_matrix
-from scipy.sparse.linalg import spsolve,cg, spilu, LinearOperator, factorized
+from scipy.sparse import coo_array
 
-from cvxopt import spmatrix,matrix
-from cvxopt.cholmod import linsolve
+from cvxopt import spmatrix
 
 from topoptlab.elements.bilinear_quadrilateral import shape_functions
 
 def assemble_matrix(sK,iK,jK,ndof,solver,springs):
     #
-    K = coo_matrix((sK, (iK, jK)), shape=(ndof, ndof)).tocsc()
+    K = coo_array((sK, (iK, jK)), shape=(ndof, ndof)).tocsc()
     # attach springs to dofs if there
     if springs:
         inds,spring_const = springs
