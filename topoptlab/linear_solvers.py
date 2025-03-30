@@ -4,7 +4,8 @@ from scipy.sparse.linalg import spsolve_triangular
 
 def gauss_seidel(A, b, x0=None, 
                  tol=1e-8, max_iter=1000,
-                 L = None, U = None):
+                 L=None, U=None,
+                 **kwargs):
     """
     Gauss-Seidel solver for Ax = b. We rewrite 
     
@@ -53,7 +54,7 @@ def gauss_seidel(A, b, x0=None,
         U =  triu(A,k=1,format="csc")
     #
     r = np.zeros(x.shape,dtype=np.float64)
-    for i in range(max_iter):
+    for i in np.arange(max_iter):
         # SRO update
         x[:] = spsolve_triangular(L, b - U@x,
                                   lower=True)
@@ -65,7 +66,9 @@ def gauss_seidel(A, b, x0=None,
             break
     return x, i
 
-def smoothed_jacobi(A, b, x0=None, omega=0.67, tol=1e-8, max_iter=1000):
+def smoothed_jacobi(A, b, x0=None, omega=0.67, 
+                    tol=1e-8, max_iter=1000,
+                    **kwargs):
     """
     Smoothed Jacobi iterative solver for Ax = b.
 
@@ -106,7 +109,7 @@ def smoothed_jacobi(A, b, x0=None, omega=0.67, tol=1e-8, max_iter=1000):
     Dinv = 1. / A.diagonal()
     # initialize residual
     r = np.zeros(x.shape,dtype=np.float64)
-    for i in range(max_iter):
+    for i in np.arange(max_iter):
         # smoothed Jacobi update
         x[:] = x + omega * ( Dinv*b - Dinv*(A@x) )
         # residual
@@ -117,7 +120,9 @@ def smoothed_jacobi(A, b, x0=None, omega=0.67, tol=1e-8, max_iter=1000):
             break
     return x, i
 
-def modified_richardson(A, b, x0=None, omega=0.1, tol=1e-8, max_iter=1000):
+def modified_richardson(A, b, x0=None, omega=0.1, 
+                        tol=1e-8, max_iter=1000,
+                        **kwargs):
     """
     Modified Richardson iterative solver for Ax = b.
 
@@ -156,7 +161,7 @@ def modified_richardson(A, b, x0=None, omega=0.1, tol=1e-8, max_iter=1000):
         x = x0.copy()
     # initial residual
     r = b - A @ x
-    for i in range(max_iter):
+    for i in np.arange(max_iter):
         # richardson update
         x[:] = x + omega*r
         # residual
@@ -169,7 +174,8 @@ def modified_richardson(A, b, x0=None, omega=0.1, tol=1e-8, max_iter=1000):
 
 def successive_overrelaxation(A, b, x0=None, 
                               omega=0.5, tol=1e-8, max_iter=1000,
-                              D = None, A_u = None, A_l = None):
+                              D = None, A_u = None, A_l = None,
+                              **kwargs):
     """
     Successive over-relaxation (SRO) solver for Ax = b. We rewrite 
     
@@ -227,7 +233,7 @@ def successive_overrelaxation(A, b, x0=None,
         M_u =  omega * triu(A,k=1,format="csc") + (omega - 1) * D
     #
     r = np.zeros(x.shape,dtype=np.float64)
-    for i in range(max_iter):
+    for i in np.arange(max_iter):
         # SRO update
         x[:] = spsolve_triangular(M_l, omega * b - M_u@x,
                                   lower=True)

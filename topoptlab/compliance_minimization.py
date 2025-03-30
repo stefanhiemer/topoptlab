@@ -333,9 +333,9 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             K = apply_bc(K=K,solver=lin_solver,
                          free=free,fixed=fixed)
             # solve linear system. fact is a factorization and precond a preconditioner
-            u[free, :], fact, precond, = solve_lin(K=K, rhs=rhs[free], 
-                                                   solver=lin_solver,
-                                                   preconditioner=preconditioner)
+            u[free, :], fact, precond = solve_lin(K=K, rhs=rhs[free], 
+                                                  solver=lin_solver,
+                                                  preconditioner=preconditioner)
             # Objective and objective gradient
             obj = 0
             dobj[:] = np.zeros(x.shape[0])
