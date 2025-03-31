@@ -19,11 +19,10 @@ from topoptlab.output_designs import export_vtk
 
 # MAIN DRIVER
 def fem_heat_expansion(nelx, nely, nelz=None,
-                       xPhys=None, penal=3, 
+                       xPhys=None, penal=3., 
                        Emax=1.0, Emin=1e-9, nu=0.3, 
-                       kmax=1.0, kmin=1e-9,
                        a1=5e-2,a2=1e-1,
-                       Eratio = 0.35, kratio=3,
+                       Eratio = 0.35,
                        lin_solver="cvxopt-cholmod", preconditioner=None,
                        assembly_mode="full",
                        bc=selffolding_2d,
@@ -51,11 +50,13 @@ def fem_heat_expansion(nelx, nely, nelz=None,
         minimum Young's modulus for the modified SIMP approach.
     nu : float
         Poissson's ratio.
-    kmax : float
-        (maximum) Yheat conductivity. If xPhys is None, all elements take this 
-        value.
-    kmin : float
-        minimum heat conductivity for the modified SIMP approach.
+    a1 : float
+        heat expansion coefficient of phase 1
+    a2 : float
+        heat expansion coefficient of phase 2
+    Eratio : float
+        ratio of Young's moduli from 1:2. So 0.35 means the Young's modulus of 
+        phase 2 is 0.35 and the one of phase 1 is 1.
     solver : str
         solver for linear systems. Check function lin solve for available 
         options.
@@ -64,7 +65,7 @@ def fem_heat_expansion(nelx, nely, nelz=None,
     assembly_mode : str
         whether full or only lower triangle of linear system / matrix is 
         created.
-    bcs : str or callable
+    bc : str or callable
         returns the boundary conditions
     file : str
         name of output files
@@ -135,19 +136,18 @@ def fem_heat_expansion(nelx, nely, nelz=None,
                                                     nelz=nelz,
                                                     nnode_dof=1)
     # Construct the index pointers for the coo format
-    iKE,jKE = create_matrixinds(EedofMat,mode=assembly_mode)
+    iK,jK = create_matrixinds(EedofMat,mode=assembly_mode)
     # BC's and support
-    u,f,fixedE,freeE,_ = bc(nelx=nelx,nely=nely,nelz=nelz,
-                            ndof=nEdof)
+    u,f,fixedE,freeE,_ = bc(nelx=nelx,nely=nely,nelz=nelz,ndof=nEdof)
     #
     T = np.ones((nTdof,1))
     # interpolate material properties
     E = (Emin+(xPhys)** penal*(Emax-Emin))
     # entries of stiffness matrix
     if assembly_mode == "full":
-        sKE = (E[:,None,None] * KE).flatten()
+        sK = (E[:,None,None] * KE).flatten()
     #
-    KE = assemble_matrix(sK=sKE,iK=iKE,jK=jKE,
+    KE = assemble_matrix(sK=sK,iK=iK,jK=jK,
                          ndof=nEdof,solver=lin_solver,
                          springs=None)
     # assemble right hand side
@@ -173,6 +173,8 @@ def fem_heat_expansion(nelx, nely, nelz=None,
                                             solver=lin_solver,
                                             preconditioner=preconditioner)
     print(u[1::2].max())
+    np.savetxt("surface-displacements.csv", 
+               u[np.arange(0,2*(nelx+1)*(nely+1),2*(nely+1))+1,0])
     #
     if export:
         export_vtk(filename=file+"T",
@@ -181,7 +183,7 @@ def fem_heat_expansion(nelx, nely, nelz=None,
                    u=T)
         export_vtk(filename=file+"E",
                    nelx=nelx,nely=nely,nelz=nelz,
-                   xPhys=xPhys,
+                   xPhys=1/a,
                    u=u,f=f+fT)
     return
 

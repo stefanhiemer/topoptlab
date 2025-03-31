@@ -2,8 +2,8 @@
 Version = 210903
 Coordinate System = Cartesian 2D
 Subcell Divisions in 2D = 1 1
-Subcell Limits 1 = 0 1
-Subcell Limits 2 = 0 1
+Subcell Limits 1 = 0 60
+Subcell Limits 2 = 0 20
 Material Structure in 2D
    1
 End
@@ -13,4 +13,4 @@ Boundary Definitions
    1    0    1    1
 End
 Element Degree = 1
-Surface Elements = 1
+Surface Elements = 120

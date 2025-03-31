@@ -1,5 +1,3 @@
-# A 165 LINE TOPOLOGY OPTIMIZATION CODE BY NIELS AAGE AND VILLADS EGEDE JOHANSEN, JANUARY 2013
-# minor modifications by Stefan Hiemer (January 2025)
 import numpy as np
 from scipy.sparse import coo_matrix
 from scipy.sparse.linalg import spsolve,factorized
@@ -482,9 +480,9 @@ def _eta_residual(eta,xTilde,beta,volfrac):
 # The real main driver    
 if __name__ == "__main__":
     # Default input parameters
-    nelx=60
-    nely=20
-    volfrac=0.3
+    nelx=120
+    nely=40
+    volfrac=0.5
     rmin=2.4
     penal=3.0
     ft=1 # ft==0 -> sens, ft==1 -> dens

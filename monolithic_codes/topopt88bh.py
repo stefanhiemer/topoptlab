@@ -1,5 +1,3 @@
-# A 165 LINE TOPOLOGY OPTIMIZATION CODE BY NIELS AAGE AND VILLADS EGEDE JOHANSEN, JANUARY 2013
-# minor modifications by Stefan Hiemer (January 2025)
 import numpy as np
 from scipy.sparse import coo_matrix
 from scipy.sparse.linalg import spsolve,factorized
@@ -187,6 +185,8 @@ def main(nelx,nely,volfrac,penal,rmin,ft,solver="lu"):
                nelx=nelx,nely=nely,nelz=None,
                xPhys=xPhys,x=x,
                u=u,f=f,volfrac=volfrac)
+    np.savetxt("topoptbh_surface-displacements.csv", 
+               u[np.arange(0,2*(nelx+1)*(nely+1),2*(nely+1))+1,0])
     #
     xThresh = threshold(xPhys,
                         volfrac)
@@ -217,6 +217,8 @@ def main(nelx,nely,volfrac,penal,rmin,ft,solver="lu"):
     #
     print("it.: {0} , obj.: {1:.10f} Vol.: {2:.10f}".format(\
                 loop+1,obj,xThresh.mean()))
+    np.savetxt("topoptbh-bw_surface-displacements.csv", 
+               u[np.arange(0,2*(nelx+1)*(nely+1),2*(nely+1))+1,0])
     #
     export_vtk(filename="topoptbh-bw",
                nelx=nelx,nely=nely,nelz=None,

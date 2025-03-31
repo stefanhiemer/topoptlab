@@ -6,6 +6,17 @@ from matplotlib.colors import Normalize
 import matplotlib.pyplot as plt
 # map element data to img/voxel
 from topoptlab.material_interpolation import heatexpcoeff 
+from topoptlab.bounds.hashin_shtrikman import conductivity_nary_upp
+
+def show_conductivities():
+    
+    #
+    fig,ax = plt.subplots(1,1)
+    #
+    x = np.linspace(0,1,11)[:,None]
+    ax.plot(x,conductivity_nary_upp(x, ks = np.array([1,0.1])) )
+    plt.show()
+    return
 
 def show_heat_exp():
     
@@ -41,4 +52,4 @@ def show_heat_exp():
 
 # The real main driver
 if __name__ == "__main__":
-    show_heat_exp()
+    show_conductivities()
