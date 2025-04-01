@@ -6,8 +6,8 @@ from matplotlib.colors import Normalize
 import matplotlib.pyplot as plt
 # map element data to img/voxel
 from topoptlab.material_interpolation import heatexpcoeff 
-from topoptlab.bounds.hashin_shtrikman import conductivity_binary_low, conductivity_binary_upp
-from topoptlab.bounds.hashin_shtrikman import conductivity_nary_low, conductivity_nary_upp
+from topoptlab.bounds.hashin_shtrikman_3d import conductivity_binary_low, conductivity_binary_upp
+from topoptlab.bounds.hashin_shtrikman_3d import conductivity_nary_low, conductivity_nary_upp
 
 def even_spaced_ternary(npoints):
     fracs = [] 
@@ -133,8 +133,19 @@ def show_heat_exp():
 # The real main driver
 if __name__ == "__main__":
     #show_conductivities()
-    x = np.linspace(0,1,11)
-    from topoptlab.bounds.hashin_shtrikman import conductivity_binary_low_dx
-    from scipy.differentiate import derivative
-    print(conductivity_binary_low_dx(x, kmin = 1e-2, kmax = 1.))
-    print(derivative(conductivity_binary_low,x,args=(1e-2,1.)).df)
+    x = np.linspace(0,1,11)[:,None]
+    #
+    from topoptlab.bounds.hashin_shtrikman_3d import conductivity_binary_low_dx,conductivity_nary_low_dx
+    from scipy.differentiate import derivative,jacobian
+    from functools import partial
+    #
+    jac = np.zeros(x.shape)
+    k0 = conductivity_nary_low(x, ks = np.array([1e-2,1.])) 
+    d = 1e-9
+    for i in np.arange(x.shape[1]):
+        dx = np.zeros(x.shape)
+        dx[:,i] += d
+        jac[:,i] = (conductivity_nary_low(x+dx, ks = np.array([1e-2,1.]))-k0)/d
+    #
+    print(conductivity_nary_low_dx(x, ks = np.array([1e-2,1.])))
+    print(jac)

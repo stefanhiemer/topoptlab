@@ -92,16 +92,19 @@ def conductivity_nary_low_dx(x,ks):
     if not mask.all():
         A1 += (1-x.sum(axis=1)) / ( 1/(ks[-1] - kmin) + alpha1 )
     # dA1/dx
+    A1dx = np.zeros(x.shape)
     if mask.any():
-        A1dx = x[:,x_inds[mask]] / ( 1/(ks[None,k_inds[mask]] - kmin) + alpha1 )
+        A1dx[:,x_inds[mask]] = 1 / ( 1/(ks[None,k_inds[mask]] \
+                                                      - kmin) + alpha1 )
     # case binary and minimum is 2nd phase
     else:
-        A1dx = np.zeros(x.shape[0])
+        A1dx = np.zeros(x.shape)
     # case minimum is not the last phase
     if not mask.all():
-        A1dx += (1-x.sum(axis=1)) / ( 1/(ks[-1] - kmin) + alpha1 )
+        A1dx -= 1 / ( 1/(ks[-1] - kmin) + alpha1 )
     #
-    return kmin + (A1 / (1 - (alpha1*A1) ))
+    return A1dx / (1 - (alpha1*A1[:,None])) * \
+           (1 + ((A1[:,None] * alpha1)/(1 - (alpha1*A1[:,None])) ))
 
 def conductivity_nary_low(x,ks):
     """
