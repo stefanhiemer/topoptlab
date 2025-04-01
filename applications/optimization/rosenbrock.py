@@ -4,6 +4,8 @@ from scipy.optimize import rosen, rosen_der
 from topoptlab.optimizer.gradient_descent import barzilai_borwein
 
 def demonstrate_barzilai_borwein(nvars=3):
+    """
+    """
     #
     np.random.seed(1)
     #
@@ -25,13 +27,11 @@ def demonstrate_barzilai_borwein(nvars=3):
         #
         xhist.pop(0)
         xhist.append(x[:])
-        #print(x_old)
-        #print(xhist)
         #
         x = barzilai_borwein(x=x, dobj=dobj, 
                              xold=xhist[0], dobjold=dobjold,
-                             xmin=-1., xmax=1., 
-                             mode = "long",
+                             xmin=-1.5, xmax=1.5, 
+                             step_mode = "long",
                              el_flags=None, move=0.1)
         dobjold[:] = dobj
         #
@@ -39,9 +39,10 @@ def demonstrate_barzilai_borwein(nvars=3):
         #
         print("it.: {0} obj.: {1:.10f}, ch.: {2:.10f}".format(
                      i+1, obj, change))
-        if change <= 1e-5:
+        if change <= 1e-9:
             break
-    print(x,dobj)
+    print("final x: ", x)
+    print("final gradient: ", dobj)
     return
 
 if __name__ == "__main__":
