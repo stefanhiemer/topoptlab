@@ -15,10 +15,9 @@ def bdf_coefficients(k):
 
     Returns
     -------
-    coeffcients : np.ndarray shape (k+1)
+    coefficients : np.ndarray shape (k+1)
         First one is multiplied with the forces and the stiffness matrix, the others on
         the right hand side with the mass matrix and the history of the function.
-
     """
     if k > 6:
         raise NotImplementedError("Not implemented yet for order higher than 6.")
@@ -28,6 +27,27 @@ def bdf_coefficients(k):
                     [12/25,48/25,-36/25,16/25,-3/25],
                     [60/137,300/137,-300/137,200/137,-75/137,12/137],
                     [60/147,360/147,-450/147,400/147,-225/147,72/147,-10/147]]) 
+
+def even_spaced_ternary(npoints):
+    """
+    Create even spaced points for a ternary phase system.
+
+    Parameters
+    ----------
+    npoints : int
+        number of points.
+
+    Returns
+    -------
+    fracs : np.ndarray shape (k+1,3)
+        phase fractions.
+    """
+    
+    fracs = [] 
+    for i,a in enumerate(np.linspace(0.0,1.0,npoints)):
+        for b in np.linspace(0.0,1.0,npoints)[:(npoints-i)]:
+            fracs.append([a,b,1-a-b])
+    return np.array(fracs)
 
 def parse_logfile_old(file):
     """

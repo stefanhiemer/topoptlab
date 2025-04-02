@@ -1,20 +1,15 @@
-from functools import partial
-
 import numpy as np
 
-from matplotlib.colors import Normalize
 import matplotlib.pyplot as plt
 # map element data to img/voxel
 from topoptlab.material_interpolation import heatexpcoeff 
+from topoptlab.utils import even_spaced_ternary
 from topoptlab.bounds.hashin_shtrikman_3d import conductivity_binary_low, conductivity_binary_upp
 from topoptlab.bounds.hashin_shtrikman_3d import conductivity_nary_low, conductivity_nary_upp
-
-def even_spaced_ternary(npoints):
-    fracs = [] 
-    for i,a in enumerate(np.linspace(0.0,1.0,npoints)):
-        for b in np.linspace(0.0,1.0,npoints)[:(npoints-i)]:
-            fracs.append([a,b,1-a-b])
-    return fracs
+from topoptlab.bounds.hashin_shtrikman_3d import bulkmod_binary_low, bulkmod_binary_upp
+from topoptlab.bounds.hashin_shtrikman_3d import shearmod_binary_low, shearmod_binary_upp
+from topoptlab.bounds.hashin_shtrikman_3d import bulkmod_nary_low,bulkmod_nary_upp
+from topoptlab.bounds.hashin_shtrikman_3d import shearmod_nary_low,shearmod_nary_upp
 
 def show_conductivities(ncomp=3):
     #
@@ -98,6 +93,161 @@ def show_conductivities(ncomp=3):
     plt.show()
     return
 
+def show_bulkmodulus(ncomp=3):
+    #
+    npoints = 11
+    #
+    x = np.linspace(0,1,npoints)
+    #
+    if ncomp == 2:
+        #
+        fig,axs = plt.subplots(1,2,sharex=True,sharey=True)
+        
+        #
+        axs[0].plot(x,bulkmod_binary_low(x, 
+                                         Kmin = 1e-2, Kmax = 1,
+                                         Gmin=1e-2,Gmax=1.), 
+                    label="binary lower")
+        axs[0].plot(x,bulkmod_binary_upp(x, 
+                                         Kmin=1e-2, Kmax=1,
+                                         Gmin=1e-2, Gmax=1.), 
+                    label="binary upper")
+        #
+        axs[1].plot(x,shearmod_binary_low(x, 
+                                          Kmin = 1e-2, Kmax = 1,
+                                          Gmin=1e-2,Gmax=1.))
+        axs[1].plot(x,shearmod_binary_upp(x, 
+                                         Kmin=1e-2, Kmax=1,
+                                         Gmin=1e-2, Gmax=1.))
+        #
+        x = x[:,None]
+        axs[0].plot(x,bulkmod_nary_low(x, 
+                                       Ks = np.array([1,1e-2]),
+                                       Gs = np.array([1,1e-2])), 
+                    label="nary")
+        axs[0].plot(x,bulkmod_nary_upp(x, 
+                                       Ks = np.array([1,1e-2]),
+                                       Gs = np.array([1,1e-2])), 
+                    label="nary")
+        #
+        axs[1].plot(x,shearmod_nary_low(x, 
+                                       Ks = np.array([1,1e-2]),
+                                       Gs = np.array([1,1e-2])))
+        axs[1].plot(x,shearmod_nary_upp(x, 
+                                       Ks = np.array([1,1e-2]),
+                                       Gs = np.array([1,1e-2])))
+        
+        axs[0].set_xlabel("vol. frac phase 1")
+        axs[0].set_ylabel("bulk modulus")
+        axs[1].set_xlabel("vol. frac phase 1")
+        axs[1].set_ylabel("shear modulus")
+        #
+        axs[0].set_xlim(0,1)
+        #
+        fig.legend()
+    elif ncomp == 3:
+        #
+        x = np.array(even_spaced_ternary(npoints))[:,:2]
+        #
+        Klow = bulkmod_nary_low(x,
+                                Ks = np.array([1,1e-1,1e-2]),
+                                Gs = np.array([1,1e-1,1e-2]))
+        Kupp = bulkmod_nary_upp(x,
+                                Ks = np.array([1,1e-1,1e-2]),
+                                Gs = np.array([1,1e-1,1e-2]))
+        #
+        Glow = shearmod_nary_low(x,
+                                 Ks = np.array([1,1e-1,1e-2]),
+                                 Gs = np.array([1,1e-1,1e-2]))
+        Gupp = shearmod_nary_upp(x,
+                                 Ks = np.array([1,1e-1,1e-2]),
+                                 Gs = np.array([1,1e-1,1e-2]))
+        #
+        fig = plt.figure(figsize=plt.figaspect(2.))
+        #
+        ax3d = fig.add_subplot(2, 2, 1, projection='3d')
+        #
+        ax3d.scatter(x[:,0], x[:,1], 
+                     Klow, 
+                     c="b",
+                     linewidth=0, 
+                     antialiased=False,
+                     label="K low")
+        ax3d.scatter(x[:,0], x[:,1], 
+                     Kupp, 
+                     c="r",
+                     linewidth=0, 
+                     antialiased=False,
+                     label="K upp")
+        #
+        ax3d.set_xlabel("vol. frac phase 1")
+        ax3d.set_ylabel("vol. frac phase 2")
+        ax3d.set_zlabel("bulk modulus")
+        #
+        ax3d.set_xlim(0,1)
+        ax3d.set_ylim(0,1)
+        ax3d.set_zlim(0,1)
+        #
+        ax3d = fig.add_subplot(2, 2, 2, projection='3d')
+        #
+        ax3d.scatter(x[:,0], x[:,1], 
+                     Glow, 
+                     c="b",
+                     linewidth=0, 
+                     antialiased=False,
+                     label="G low")
+        ax3d.scatter(x[:,0], x[:,1], 
+                     Gupp, 
+                     c="r",
+                     linewidth=0, 
+                     antialiased=False,
+                     label="G upp")
+        #
+        ax3d.set_xlabel("vol. frac phase 1")
+        ax3d.set_ylabel("vol. frac phase 2")
+        ax3d.set_zlabel("shear modulus")
+        #
+        ax3d.set_xlim(0,1)
+        ax3d.set_ylim(0,1)
+        ax3d.set_zlim(0,1)
+        #
+        ax2d = fig.add_subplot(2, 2, 3)
+        for x_i in np.linspace(0,1,npoints):
+            #
+            mask = x[:,1] == x_i
+            #
+            #ax2d.scatter(x[mask,0],klow[mask],
+            #             c="b")
+            ax2d.plot(x[mask,0],Klow[mask],
+                      c="b")
+            #ax2d.scatter(x[mask,0],kupp[mask],
+            #             c="r")
+            ax2d.plot(x[mask,0],Kupp[mask],
+                      c="r")
+        #
+        ax2d.set_xlabel("vol. frac phase 1")
+        ax2d.set_ylabel("bulk modulus")
+        #
+        ax2d = fig.add_subplot(2, 2, 4)
+        for x_i in np.linspace(0,1,npoints):
+            #
+            mask = x[:,1] == x_i
+            #
+            #ax2d.scatter(x[mask,0],klow[mask],
+            #             c="b")
+            ax2d.plot(x[mask,0],Glow[mask],
+                      c="b")
+            #ax2d.scatter(x[mask,0],kupp[mask],
+            #             c="r")
+            ax2d.plot(x[mask,0],Gupp[mask],
+                      c="r")
+        #
+        ax2d.set_xlabel("vol. frac phase 1")
+        ax2d.set_ylabel("shear modulus")
+        
+    plt.show()
+    return
+
 def show_heat_exp():
     
     fig,ax = plt.subplots(2,2)
@@ -133,19 +283,48 @@ def show_heat_exp():
 # The real main driver
 if __name__ == "__main__":
     #show_conductivities()
+    #show_bulkmodulus(2)
     x = np.linspace(0,1,11)[:,None]
+    #
+    Ks, Gs = np.array([1e-1,1.]),np.array([2e-1,1.])
+    #
+    jac = np.zeros(x.shape)
+    k0 = bulkmod_nary_upp(x, 
+                          Ks = Ks,
+                          Gs = Gs)
+    d = 1e-9
+    from topoptlab.bounds.hashin_shtrikman_3d import bulkmod_nary_upp_dx
+    for i in range(x.shape[1]):
+        dx = np.zeros(x.shape)
+        dx[:,i] += d
+        jac[:,i] = (bulkmod_nary_upp(x+dx,
+                                     Ks = Ks,
+                                     Gs = Gs) -k0)/d
+    
+    print(bulkmod_nary_upp_dx(x,
+                              Ks = Ks,
+                              Gs = Gs))
+    print(jac)
+    print( np.abs(bulkmod_nary_upp_dx(x,
+                                      Ks = Ks,
+                                      Gs = Gs) - jac).max() )
+    """
+    x = np.linspace(0,1,11)[:,None]
+    d = 1e-9
+    ks = np.array([1.,1e-2])
     #
     from topoptlab.bounds.hashin_shtrikman_3d import conductivity_binary_low_dx,conductivity_nary_low_dx
     from scipy.differentiate import derivative,jacobian
     from functools import partial
     #
     jac = np.zeros(x.shape)
-    k0 = conductivity_nary_low(x, ks = np.array([1e-2,1.])) 
-    d = 1e-9
+    k0 = conductivity_nary_low(x, ks = ks) 
     for i in np.arange(x.shape[1]):
         dx = np.zeros(x.shape)
         dx[:,i] += d
-        jac[:,i] = (conductivity_nary_low(x+dx, ks = np.array([1e-2,1.]))-k0)/d
+        jac[:,i] = (conductivity_nary_low(x+dx, ks = ks)-k0)/d
     #
-    print(conductivity_nary_low_dx(x, ks = np.array([1e-2,1.])))
+    print(conductivity_nary_low_dx(x, ks = ks))
     print(jac)
+    print( np.abs(conductivity_nary_low_dx(x, ks = ks) - jac).max() )
+    """
