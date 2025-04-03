@@ -2,14 +2,18 @@ import numpy as np
 
 import matplotlib.pyplot as plt
 # map element data to img/voxel
-from topoptlab.material_interpolation import heatexpcoeff 
+
 from topoptlab.utils import even_spaced_ternary
+
 from topoptlab.bounds.hashin_shtrikman_3d import conductivity_binary_low, conductivity_binary_upp
 from topoptlab.bounds.hashin_shtrikman_3d import conductivity_nary_low, conductivity_nary_upp
 from topoptlab.bounds.hashin_shtrikman_3d import bulkmod_binary_low, bulkmod_binary_upp
 from topoptlab.bounds.hashin_shtrikman_3d import shearmod_binary_low, shearmod_binary_upp
 from topoptlab.bounds.hashin_shtrikman_3d import bulkmod_nary_low,bulkmod_nary_upp
 from topoptlab.bounds.hashin_shtrikman_3d import shearmod_nary_low,shearmod_nary_upp
+
+from topoptlab.material_interpolation import heatexpcoeff_binary_iso, simp
+from topoptlab.bounds.hashin_rosen_3d import heatexp_binary_low, heatexp_binary_upp
 
 def show_conductivities(ncomp=3):
     #
@@ -249,33 +253,27 @@ def show_bulkmodulus(ncomp=3):
     return
 
 def show_heat_exp():
-    
-    fig,ax = plt.subplots(2,2)
-    for kappa2 in np.linspace(0,2,11)[1:]:
-        for a2 in np.linspace(0,2,11)[1:]: 
-            if kappa2 == 1:
-                continue 
-            elif a2 == 1:
-                continue
-            elif kappa2 < 1 and a2 < 1:
-                i,j = 0,0
-            elif kappa2 > 1 and a2 < 1:
-                i,j = 0,1
-            elif kappa2 < 1 and a2 > 1:
-                i,j = 1,0
-            elif kappa2 > 1 and a2 > 1:
-                i,j = 1,1
-            #
-            if kappa2 > 1:
-                kappa = np.linspace(1.,kappa2,11) 
-            else:
-                kappa = np.linspace(kappa2,1.,11) 
-            ax[i,j].plot(kappa,
-                    heatexpcoeff(kappa=kappa, 
-                                 a1=np.ones(kappa.shape)*1e-3,
-                                 a2=np.ones(kappa.shape)*a2*1e-3,
-                                 kappa1=np.ones(kappa.shape),
-                                 kappa2=np.ones(kappa.shape)*kappa2))
+    #
+    fig,ax = plt.subplots(1,1)
+    #
+    x = np.linspace(0,1,21)
+    #
+    a = heatexpcoeff_binary_iso(x=x, K=simp(xPhys=x, eps=1e-2, penal=3),
+                                a1=1e0, a2=1e-2,
+                                K1=1e-2, K2=1e0)
+    #
+    alow = heatexp_binary_low(x,
+                           Kmin=1e-2,Kmax=1e0,
+                           Gmin=1e-2,Gmax=1e0,
+                           amin=1e0,amax=1e-2)
+    aupp = heatexp_binary_upp(x,
+                           Kmin=1e-2,Kmax=1e0,
+                           Gmin=1e-2,Gmax=1e0,
+                           amin=1e0,amax=1e-2)
+    ax.plot(x,a,label="interpolation")
+    ax.plot(x,aupp,label="upper bound")
+    ax.plot(x,alow,label="lower bound")
+    ax.legend()
     plt.show()
     
     return
@@ -284,47 +282,4 @@ def show_heat_exp():
 if __name__ == "__main__":
     #show_conductivities()
     #show_bulkmodulus(2)
-    x = np.linspace(0,1,11)[:,None]
-    #
-    Ks, Gs = np.array([1e-1,1.]),np.array([2e-1,1.])
-    #
-    jac = np.zeros(x.shape)
-    k0 = bulkmod_nary_upp(x, 
-                          Ks = Ks,
-                          Gs = Gs)
-    d = 1e-9
-    from topoptlab.bounds.hashin_shtrikman_3d import bulkmod_nary_upp_dx
-    for i in range(x.shape[1]):
-        dx = np.zeros(x.shape)
-        dx[:,i] += d
-        jac[:,i] = (bulkmod_nary_upp(x+dx,
-                                     Ks = Ks,
-                                     Gs = Gs) -k0)/d
-    
-    print(bulkmod_nary_upp_dx(x,
-                              Ks = Ks,
-                              Gs = Gs))
-    print(jac)
-    print( np.abs(bulkmod_nary_upp_dx(x,
-                                      Ks = Ks,
-                                      Gs = Gs) - jac).max() )
-    """
-    x = np.linspace(0,1,11)[:,None]
-    d = 1e-9
-    ks = np.array([1.,1e-2])
-    #
-    from topoptlab.bounds.hashin_shtrikman_3d import conductivity_binary_low_dx,conductivity_nary_low_dx
-    from scipy.differentiate import derivative,jacobian
-    from functools import partial
-    #
-    jac = np.zeros(x.shape)
-    k0 = conductivity_nary_low(x, ks = ks) 
-    for i in np.arange(x.shape[1]):
-        dx = np.zeros(x.shape)
-        dx[:,i] += d
-        jac[:,i] = (conductivity_nary_low(x+dx, ks = ks)-k0)/d
-    #
-    print(conductivity_nary_low_dx(x, ks = ks))
-    print(jac)
-    print( np.abs(conductivity_nary_low_dx(x, ks = ks) - jac).max() )
-    """
+    show_heat_exp()

@@ -981,7 +981,7 @@ def conductivity_binary_low_dx(x,kmin,kmax):
 
 def conductivity_binary_low(x,kmin,kmax):
     """
-    Return the lower Hashin Shtrikman bound for the  conductvity 
+    Return the lower Hashin Shtrikman bound for the conductvity 
     of a composite consisting of two isotropic materials. Also applies to 
     electrical conductivity and diffusion by concept of analogy. Taken from 
     Eq. 13 (in the original script the label is written as 31) of 

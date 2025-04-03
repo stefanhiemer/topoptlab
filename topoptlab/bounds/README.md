@@ -1,5 +1,14 @@
-| Material Property     | Base Material (Iso/Aniso) | Effective Property (Iso/Aniso) | Number of Base Materials | Closest Bound | Dimensions | Name |
+| Material Property     | Base Material (Iso/Aniso) | Effective Property (Iso/Aniso) | Number of Base Materials | Dimensions | Name | Comment |
 |----------------------|-------------------------|------------------------------|--------------------------|---------------|------------|------------|
-| K  | iso | iso | m | Yes | 3 | Hashin-Shtrikman |
-| G  | iso | iso | m | Yes | 3 | Hashin-Shtrikman |
-| k,μ,D,equivalent  | iso | iso | m | Yes | 3 | Hashin-Shtrikman |
+| K  | iso | iso | m | 3 | Hashin-Shtrikman | |
+| G  | iso | iso | m | 3 | Hashin-Shtrikman | |
+| k,μ,D,σ,...  | iso | iso | m | 3 | Hashin-Shtrikman | |
+
+## Glossary
+
+- **K**: Bulk Modulus
+- **G**: Shear Modulus
+- **k**: Thermal Conductivity
+- **μ**: Magnetic Permeability
+- **D**: Diffusion Coefficient
+- **σ**: Electric Conductivity
