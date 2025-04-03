@@ -41,14 +41,20 @@ def simp_dp(xPhys, eps, penal):
     """
     return penal * (1-eps)*(xPhys)**(penal-1)
 
-def heatexpcoeff(kappa, 
-                 a1,a2,
-                 kappa1,kappa2):
+def heatexpcoeff_iso(kappa, 
+                     a1,a2,
+                     kappa1,kappa2):
     """
     Return the linear heatexpansion coefficient of a composite consisting of two 
-    isotropic substances. 
+    isotropic substances. Taken from Eq. 2.26 of
     
-    Rosen & Hasin 1970
+    Rosen, B. Walter, and Zvi Hashin. "Effective thermal expansion coefficients 
+    and specific heats of composite materials." International Journal of 
+    Engineering Science 8.2 (1970): 157-173.
+    
+    As in this equation it is not stated how K* (effective bulk modulus) is 
+    calculated, I assume it to be provided by some material interpolation 
+    function (e. g. SIMP). 
     
     Parameters
     ----------
