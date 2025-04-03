@@ -36,7 +36,7 @@ def heatexp_binary_upp(x,
         upper bound of heat expansion coefficient.
 
     """
-    return 4*x*(1-x)*Gmax*(Kmin-Kmax)*(amin-amax) / \
+    return x*amax + (1-x)*amin + 4*x*(1-x)*Gmax*(Kmin-Kmax)*(amin-amax) / \
            ( (3*Kmin*Kmax) + (4*Gmax*((1-x)*Kmin + x*Kmax))  )
 
 def heatexp_binary_low(x,
@@ -75,5 +75,5 @@ def heatexp_binary_low(x,
         lower bound of heat expansion coefficient.
 
     """
-    return 4*x*(1-x)*Gmin*(Kmin-Kmax)*(amin-amax) / \
+    return x*amax + (1-x)*amin + 4*x*(1-x)*Gmin*(Kmin-Kmax)*(amin-amax) / \
            ( (3*Kmin*Kmax) + (4*Gmin*((1-x)*Kmin + x*Kmax))  )
