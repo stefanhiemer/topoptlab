@@ -41,9 +41,9 @@ def simp_dp(xPhys, eps, penal):
     """
     return penal * (1-eps)*(xPhys)**(penal-1)
 
-def heatexpcoeff_binary_iso(x, K, 
-                            a1, a2,
-                            K1, K2):
+def heatexpcoeff_binary_iso(x, K,
+                            Kmin, Kmax,
+                            amin, amax):
     """
     Return the linear heatexpansion coefficient of a composite consisting of two 
     isotropic substances. Taken from Eq. 2.26 of
@@ -63,14 +63,14 @@ def heatexpcoeff_binary_iso(x, K,
         volume fraction of phase 1
     K : np.ndarray, shape (n)
         interpolated / effective bulk modulus
-    a1 : np.ndarray, shape (n)
-        heat expansion coefficient of material 1
-    a2 : np.ndarray, shape (n)
-        heat expansion coefficient of material 2
-    K1 : np.ndarray, shape (n)
-        bulk modulus of material 1
-    K2 : np.ndarray, shape (n)
-        bulk modulus of material 2
+    Kmin : float
+        smaller bulk modulus
+    Kmax : float
+        larger bulk modulus
+    amin : float
+        heat expansion coefficient of weaker phase.
+    amax : float
+        heat expansion coefficient of stronger phase.
 
     Returns
     -------
@@ -78,4 +78,6 @@ def heatexpcoeff_binary_iso(x, K,
         interpolated heat expansion coefficient
 
     """
-    return x*a1 + (1-x)*a2 + (a1-a2)*K1*K2/(K2 - K1) * (1/K - x/K1 + (1-x)/K2)
+    raise NotImplementedError("At the moment, this contains a bug.")
+    return x*amax + (1-x)*amin + (amin-amax) / (1/Kmin + 1/Kmax) * (1/K - (1-x)/Kmin - x/Kmax )
+           

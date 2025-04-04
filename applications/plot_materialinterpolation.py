@@ -128,11 +128,11 @@ def show_bulkmodulus(ncomp=3):
         axs[0].plot(x,bulkmod_nary_low(x, 
                                        Ks = np.array([1,1e-2]),
                                        Gs = np.array([1,1e-2])), 
-                    label="nary")
+                    label="n-ary lower")
         axs[0].plot(x,bulkmod_nary_upp(x, 
                                        Ks = np.array([1,1e-2]),
                                        Gs = np.array([1,1e-2])), 
-                    label="nary")
+                    label="n-nary upper")
         #
         axs[1].plot(x,shearmod_nary_low(x, 
                                        Ks = np.array([1,1e-2]),
@@ -254,26 +254,37 @@ def show_bulkmodulus(ncomp=3):
 
 def show_heat_exp():
     #
+    K1 = 76
+    K2 = 170
+    #
+    G1 = 26
+    G2 = 82
+    #
+    a1 = 12.87
+    a2 = 22.87
+    #
     fig,ax = plt.subplots(1,1)
     #
     x = np.linspace(0,1,21)
     #
-    a = heatexpcoeff_binary_iso(x=x, K=simp(xPhys=x, eps=1e-2, penal=3),
-                                a1=1e0, a2=1e-2,
-                                K1=1e-2, K2=1e0)
+    a = heatexpcoeff_binary_iso(x=x, K=K2 * simp(xPhys=x, eps=K1/K2, penal=2),
+                                amax=a1, amin=a2,
+                                Kmin=K1, Kmax=K2)
     #
     alow = heatexp_binary_low(x,
-                           Kmin=1e-2,Kmax=1e0,
-                           Gmin=1e-2,Gmax=1e0,
-                           amin=1e0,amax=1e-2)
+                              Kmin=K1,Kmax=K2,
+                              Gmin=G1,Gmax=G2,
+                              amin=a1,amax=a2)
     aupp = heatexp_binary_upp(x,
-                           Kmin=1e-2,Kmax=1e0,
-                           Gmin=1e-2,Gmax=1e0,
-                           amin=1e0,amax=1e-2)
+                              Kmin=K1,Kmax=K2,
+                              Gmin=G1,Gmax=G2,
+                              amin=a1,amax=a2)
     ax.plot(x,a,label="interpolation")
     ax.plot(x,aupp,label="upper bound")
     ax.plot(x,alow,label="lower bound")
     ax.legend()
+    ax.set_xlabel("vol. frac phase 1")
+    ax.set_ylabel("coeff. of thermal expansion")
     plt.show()
     
     return

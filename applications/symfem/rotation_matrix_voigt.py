@@ -1,7 +1,6 @@
-import math 
+import pickle
 
 from symfem.functions import MatrixFunction
-from symfem.symbols import x
 
 from topoptlab.symfem_utils import rotation_matrix, generate_constMatrix
 from topoptlab.symfem_utils import simplify_matrix,convert_to_code
@@ -52,6 +51,8 @@ if __name__ == "__main__":
     Rv = simplify_matrix(Rv)
     print(convert_to_code(Rv,npndarray=False,
                           max_line_length=100))
+    with open(f"Rv_{ndim}.pickle","wb") as f:
+        pickle.dump(Rv,f,protocol=5)
     # calculate derivatives
     if ndim == 1:
         pass 
@@ -59,7 +60,12 @@ if __name__ == "__main__":
         Rv_dtheta = Rv.diff(theta)
         Rv_dtheta = simplify_matrix(Rv_dtheta)
     print(Rv_dtheta)
+    with open(f"Rv_dtheta_{ndim}.pickle","wb") as f:
+        pickle.dump(Rv_dtheta,f,protocol=5)
     if ndim > 2:
         Rv_dphi = Rv.diff(phi)
         Rv_dphi = simplify_matrix(Rv_dphi)
         print(Rv_dphi)
+        with open(f"Rv_dphi_{ndim}.pickle","wb") as f:
+            pickle.dump(Rv_dphi,f,protocol=5)
+        
