@@ -1,3 +1,40 @@
+def heatexp_binary_upp_dx(x,
+                       Kmin,Kmax,
+                       Gmin,Gmax,
+                       amin,amax):
+    """
+    Derivative for  the upper Hashin Rosen bound for the heat expansion 
+    coefficient of a composite consisting of two isotropic materials.
+
+    Parameters
+    ----------
+    x : np.ndarray, shape (n)
+        relative density of stronger phase
+    Kmin : float
+        smaller bulk modulus
+    Kmax : float
+        larger bulk modulus
+    Gmin : float
+        smaller shear modulus
+    Gmax : float
+        larger shear modulus
+    amin : float
+        heat expansion coefficient of weaker phase.
+    amax : float
+        heat expansion coefficient of stronger phase.
+
+    Returns
+    -------
+    a_upp_dx : np.ndarray, shape (n)
+        derivative of upper bound of heat expansion coefficient.
+
+    """
+    return amax - amin + 4*Gmax*(Kmin-Kmax)*(amin-amax) / \
+           ( (3*Kmin*Kmax) + (4*Gmax*( (1-x)*Kmin + x*Kmax)) ) * \
+           ( 1-2*x - \
+            (1-x)*x / ( (3*Kmin*Kmax) + (4*Gmax*( (1-x)*Kmin + x*Kmax)) ) *\
+            (4*Gmax*( Kmax - Kmin )) )
+
 def heatexp_binary_upp(x,
                        Kmin,Kmax,
                        Gmin,Gmax,
@@ -34,8 +71,8 @@ def heatexp_binary_upp(x,
         upper bound of heat expansion coefficient.
 
     """
-    return (1-x)*amax + x*amin + 4*(1-x)*x*Gmax*(Kmin-Kmax)*(amin-amax) / \
-           ( (3*Kmin*Kmax) + (4*Gmax*(x*Kmin + (1-x)*Kmax))  )
+    return x*amax + (1-x)*amin + 4*(1-x)*x*Gmax*(Kmin-Kmax)*(amin-amax) / \
+           ( (3*Kmin*Kmax) + (4*Gmax*( (1-x)*Kmin + x*Kmax))  )
 
 def heatexp_binary_low_dx(x,
                           Kmin,Kmax,
@@ -68,12 +105,10 @@ def heatexp_binary_low_dx(x,
         derivative of lower bound of heat expansion coefficient.
 
     """
-    return amin-amax + \
-           4*(Gmin*(Kmin-Kmax)*(amin-amax)) /\
-            ( (3*Kmin*Kmax) + (4*Gmin*(x*Kmin + (1-x)*Kmax)) )  *\
-           ( 1-2*x - \
-            x*(1-x) / ( (3*Kmin*Kmax) + (4*Gmin*(x*Kmin + (1-x)*Kmax)) ) *\
-            (4*Gmin*(Kmin -Kmax)) ) 
+    return amax - amin +\
+        4*Gmin*(Kmin-Kmax)*(amin-amax) / ( (3*Kmin*Kmax) + (4*Gmin*( (1-x)*Kmin + x*Kmax))  )\
+         *(1 - 2*x  - 4*Gmin*(Kmax - Kmin)*x*(1-x) \
+           / ( (3*Kmin*Kmax) + (4*Gmin*( (1-x)*Kmin + x*Kmax))  ) )
 
 def heatexp_binary_low(x,
                        Kmin,Kmax,
@@ -111,5 +146,5 @@ def heatexp_binary_low(x,
         lower bound of heat expansion coefficient.
 
     """
-    return (1-x)*amax + x*amin + 4*x*(1-x)*Gmin*(Kmin-Kmax)*(amin-amax) / \
-           ( (3*Kmin*Kmax) + (4*Gmin*(x*Kmin + (1-x)*Kmax))  )
+    return x*amax + (1-x)*amin + 4*x*(1-x)*Gmin*(Kmin-Kmax)*(amin-amax) / \
+           ( (3*Kmin*Kmax) + (4*Gmin*( (1-x)*Kmin + x*Kmax))  )

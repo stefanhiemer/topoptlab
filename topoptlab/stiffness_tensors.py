@@ -1,4 +1,154 @@
-from numpy import array
+from numpy import array,sqrt
+
+def compute_elastic_propertie_3d(E=None, nu=None, G=None, 
+                                 K=None, lam=None, M=None):
+    """
+    Compute all 3D isotropic elastic properties from any 2 given elast. 
+    properties. 
+    
+    Parameters
+    ----------
+    E : float
+        Young's modulus.
+    nu : float
+        Poisson's ratio.
+    G : float
+        shear modulus.
+    K : float
+        bulk modulus.
+    lam : float
+        Lamé's first parameter.
+    M : float
+        P-wave modulus.
+    
+    Returns
+    -------
+    E : float
+        Young's modulus.
+    nu : float
+        Poisson's ratio.
+    G : float
+        shear modulus.
+    K : float
+        bulk modulus.
+    lam : float
+        Lamé's first parameter.
+    M : float
+        P-wave modulus.
+    """
+    
+    # count how many values are provided
+    given = {k: v for k, v in locals().items() if v is not None and k != 'math'}
+    if len(given) < 2:
+        raise ValueError("Provide at least two independent elastic constants.")
+    
+    # calculate missing values based on known pairs
+    if K is not None and E is not None:
+        nu = 3*K - E / (6*K)
+        G = 3*(K*E) / (9*K - E)
+        lam = 3*K(3*K-E) / (9*K - E)
+        M = 3*K*(3*K+E) / (9*K-E)
+        return E,nu,G,K,lam,M
+    elif K is not None and lam is not None:
+        E = 9*K*(K-lam) / (3*K-lam)
+        G = 3 * (K-lam) / 2
+        nu = lam / (3*K-lam)
+        M = 3*K - 2*lam
+        return E,nu,G,K,lam,M
+    elif K is not None and G is not None:
+        E = 9*K*G / (3*K + G)
+        nu = (3*K - 2*G) / (2*(3*K + G))
+        lam = K - 2/3 * G
+        M = K + 4/3 * G
+        return E,nu,G,K,lam,M
+    elif K is not None and nu is not None:
+        E = 3*(1-2*nu)
+        lam = 3*K*nu / (1+nu)
+        G = 3*K*(1-2*nu) / (2*(1+nu))
+        M = 3*K*(1-nu) / (1+nu)
+        return E,nu,G,K,lam,M
+    elif K is not None and M is not None:
+        E = 9*K*(M-K) / (3*K+M)
+        lam = (3*K - M) /2
+        G = 3*(M-K) / 4
+        nu = (3*K - M) / (3*K+M)
+        return E,nu,G,K,lam,M
+    elif E is not None and lam is not None:
+        R = sqrt(E**2 + 9*lam**2+2*E*lam)
+        K = (E + 3*lam + R) / 6
+        G = (E - 3*lam + R) / 4
+        nu = 2 * lam / (E+lam+R)
+        M = (E-lam+R)/2
+        return E,nu,G,K,lam,M
+    elif E is not None and G is not None:
+        nu = E / (2 * G) - 1
+        K = E*G / (3 * (3*G-E))
+        lam = G*(E-2*G) / (3*G - E)
+        M = G*(4*G-E) / (3*G-E)
+        return E,nu,G,K,lam,M
+    elif E is not None and nu is not None:
+        G = E / (2 * (1 + nu))
+        K = E / (3 * (1 - 2 * nu))
+        lam = E*nu / ( (1+nu)*(1-2*nu) )
+        M = E*(1-nu) / ( (1+nu)*(1-2*nu) )
+        return E,nu,G,K,lam,M
+    elif E is not None and M is not None:
+        S = (E**2 + 9*M**2 - (10*E*M))
+        G = (3*M+E-S) / 8
+        K = (3*M - E + S) / 6
+        lam = (M - E + S) / 4
+        nu = (E-M+S) / (4*M)
+        return E,nu,G,K,lam,M
+    elif lam is not None and G is not None:
+        E = G*(3*lam + 2*G)/(lam + G)
+        nu = lam / (2*(lam + G))
+        K = lam + 2/3 * G
+        M = lam + 2*G
+        return E,nu,G,K,lam,M
+    elif lam is not None and nu is not None:
+        E =  lam*(1+nu)*(1-2*nu) / nu
+        G = lam*(1-2+nu) / (2*nu)
+        K = lam*(1+nu) / (3*nu)
+        M = lam*(1-nu) / nu
+        return E,nu,G,K,lam,M
+    elif lam is not None and M is not None:
+        K = (M+2*lam) / 3
+        E = (M-lam)*(M+2*lam) / (M+lam)
+        G = (M-lam) / 2
+        nu = lam / (M+lam)
+        return E,nu,G,K,lam,M
+    elif G is not None and nu is not None:
+        K = 2*G*(1+nu) / ( 3*(1-2*nu) )  
+        E = 2*G*(1+nu)
+        lam = 2*G*nu / (1-2*nu)
+        M = 2*G*(1-nu) / (1-2*nu)
+        return E,nu,G,K,lam,M
+    elif G is not None and M is not None:
+        K = M - 4/3 * G
+        lam = M-2*G
+        E = (G*(3*M-4*G) / (M-G))
+        nu = (M-2*G) / (2*M-2*G)
+        return E,nu,G,K,lam,M
+    elif nu is not None and M is not None:
+        K = M*(1+nu) / ( 3*(1-nu) )
+        E = M*(1+nu)*(1-2*nu) / (1-nu)
+        G = M*nu / (1-nu)
+        lam = M*(1-2*nu) / (2 * (1-nu))
+        return E,nu,G,K,lam,M
+
+    else:
+        raise ValueError("Unsupported or insufficient input combination.")
+
+    return {
+        "E (Young's modulus)": E,
+        "nu (Poisson's ratio)": nu,
+        "G (Shear modulus)": G,
+        "K (Bulk modulus)": K,
+        "lambda (Lamé's first parameter)": lam,
+        "M (P-wave modulus)": M
+    }
+
+
 
 def isotropic_2d(E=1.,nu=0.3,plane_stress=True):
     """

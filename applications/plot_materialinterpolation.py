@@ -12,7 +12,7 @@ from topoptlab.bounds.hashin_shtrikman_3d import shearmod_binary_low, shearmod_b
 from topoptlab.bounds.hashin_shtrikman_3d import bulkmod_nary_low,bulkmod_nary_upp
 from topoptlab.bounds.hashin_shtrikman_3d import shearmod_nary_low,shearmod_nary_upp
 
-from topoptlab.material_interpolation import heatexpcoeff_binary_iso, simp
+from topoptlab.material_interpolation import heatexpcoeff_binary_iso, simp, bound_interpol
 from topoptlab.bounds.hashin_rosen_3d import heatexp_binary_low, heatexp_binary_upp
 
 def show_conductivities(ncomp=3):
@@ -97,7 +97,7 @@ def show_conductivities(ncomp=3):
     plt.show()
     return
 
-def show_bulkmodulus(ncomp=3):
+def show_bulkshearmodulus(ncomp=3):
     #
     npoints = 11
     #
@@ -252,6 +252,164 @@ def show_bulkmodulus(ncomp=3):
     plt.show()
     return
 
+from topoptlab.bounds.hashin_shtrikman_3d import youngsmod_binary_low,youngsmod_binary_upp
+from topoptlab.bounds.hashin_shtrikman_3d import poiss_binary_low,poiss_binary_upp
+from topoptlab.bounds.hashin_shtrikman_3d import youngsmod_nary_low,youngsmod_nary_upp
+from topoptlab.bounds.hashin_shtrikman_3d import poiss_nary_low,poiss_nary_upp
+def show_youngmoduluspoiss(ncomp=2):
+    #
+    npoints = 21
+    #
+    x = np.linspace(0,1,npoints)
+    #
+    if ncomp == 2:
+        #
+        fig,axs = plt.subplots(1,2,sharex=True,sharey=False)
+        
+        #
+        axs[0].plot(x,youngsmod_binary_low(x, 
+                                         Kmin = 1e-2, Kmax = 1,
+                                         Gmin=1e-2,Gmax=1.), 
+                    label="binary lower")
+        axs[0].plot(x,youngsmod_binary_upp(x, 
+                                         Kmin=1e-2, Kmax=1,
+                                         Gmin=1e-2, Gmax=1.), 
+                    label="binary upper")
+        #
+        axs[1].plot(x,poiss_binary_low(x, 
+                                       Kmin = 1e-2, Kmax = 1,
+                                       Gmin=1e-2,Gmax=1.))
+        axs[1].plot(x,poiss_binary_upp(x, 
+                                       Kmin=1e-2, Kmax=1,
+                                       Gmin=1e-2, Gmax=1.))
+        #
+        x = x[:,None]
+        axs[0].plot(x,youngsmod_nary_low(x, 
+                                       Ks = np.array([1,1e-2]),
+                                       Gs = np.array([1,1e-2])), 
+                    label="n-ary lower")
+        axs[0].plot(x,youngsmod_nary_upp(x, 
+                                       Ks = np.array([1,1e-2]),
+                                       Gs = np.array([1,1e-2])), 
+                    label="n-nary upper")
+        #
+        axs[1].plot(x,poiss_nary_low(x, 
+                                     Ks = np.array([1,1e-2]),
+                                     Gs = np.array([1,1e-2])))
+        axs[1].plot(x,poiss_nary_upp(x, 
+                                     Ks = np.array([1,1e-2]),
+                                     Gs = np.array([1,1e-2])))
+        axs[0].set_xlabel("vol. frac phase 1")
+        axs[0].set_ylabel("Young's modulus")
+        axs[1].set_xlabel("vol. frac phase 1")
+        axs[1].set_ylabel("Poisson's ratio")
+        #
+        axs[0].set_xlim(0,1)
+        #
+        fig.legend()
+    elif ncomp == 3:
+        #
+        x = np.array(even_spaced_ternary(npoints))[:,:2]
+        #
+        Ylow = youngsmod_nary_low(x,
+                                  Ks = np.array([1,1e-1,1e-2]),
+                                  Gs = np.array([1,1e-1,1e-2]))
+        Yupp = youngsmod_nary_upp(x,
+                                  Ks = np.array([1,1e-1,1e-2]),
+                                  Gs = np.array([1,1e-1,1e-2]))
+        #
+        vlow = poiss_nary_low(x,
+                              Ks = np.array([1,1e-1,1e-2]),
+                              Gs = np.array([1,1e-1,1e-2]))
+        vupp = poiss_nary_upp(x,
+                              Ks = np.array([1,1e-1,1e-2]),
+                              Gs = np.array([1,1e-1,1e-2]))
+        #
+        fig = plt.figure(figsize=plt.figaspect(2.))
+        #
+        ax3d = fig.add_subplot(2, 2, 1, projection='3d')
+        #
+        ax3d.scatter(x[:,0], x[:,1], 
+                     Ylow, 
+                     c="b",
+                     linewidth=0, 
+                     antialiased=False,
+                     label="K low")
+        ax3d.scatter(x[:,0], x[:,1], 
+                     Yupp, 
+                     c="r",
+                     linewidth=0, 
+                     antialiased=False,
+                     label="K upp")
+        #
+        ax3d.set_xlabel("vol. frac phase 1")
+        ax3d.set_ylabel("vol. frac phase 2")
+        ax3d.set_zlabel("Young's modulus")
+        #
+        ax3d.set_xlim(0,1)
+        ax3d.set_ylim(0,1)
+        ax3d.set_zlim(0,1)
+        #
+        ax3d = fig.add_subplot(2, 2, 2, projection='3d')
+        #
+        ax3d.scatter(x[:,0], x[:,1], 
+                     vlow, 
+                     c="b",
+                     linewidth=0, 
+                     antialiased=False,
+                     label="v low")
+        ax3d.scatter(x[:,0], x[:,1], 
+                     vupp, 
+                     c="r",
+                     linewidth=0, 
+                     antialiased=False,
+                     label="v upp")
+        #
+        ax3d.set_xlabel("vol. frac phase 1")
+        ax3d.set_ylabel("vol. frac phase 2")
+        ax3d.set_zlabel("Poisson's ratio")
+        #
+        ax3d.set_xlim(0,1)
+        ax3d.set_ylim(0,1)
+        ax3d.set_zlim(-1,1)
+        #
+        ax2d = fig.add_subplot(2, 2, 3)
+        for x_i in np.linspace(0,1,npoints):
+            #
+            mask = x[:,1] == x_i
+            #
+            #ax2d.scatter(x[mask,0],klow[mask],
+            #             c="b")
+            ax2d.plot(x[mask,0],Ylow[mask],
+                      c="b")
+            #ax2d.scatter(x[mask,0],kupp[mask],
+            #             c="r")
+            ax2d.plot(x[mask,0],Yupp[mask],
+                      c="r")
+        #
+        ax2d.set_xlabel("vol. frac phase 1")
+        ax2d.set_ylabel("Young's modulus")
+        #
+        ax2d = fig.add_subplot(2, 2, 4)
+        for x_i in np.linspace(0,1,npoints):
+            #
+            mask = x[:,1] == x_i
+            #
+            #ax2d.scatter(x[mask,0],klow[mask],
+            #             c="b")
+            ax2d.plot(x[mask,0],vlow[mask],
+                      c="b")
+            #ax2d.scatter(x[mask,0],kupp[mask],
+            #             c="r")
+            ax2d.plot(x[mask,0],vupp[mask],
+                      c="r")
+        #
+        ax2d.set_xlabel("vol. frac phase 1")
+        ax2d.set_ylabel("Poisson's ratio")
+        
+    plt.show()
+    return
+
 def show_heat_exp():
     #
     K1 = 76
@@ -260,16 +418,31 @@ def show_heat_exp():
     G1 = 26
     G2 = 82
     #
-    a1 = 12.87
-    a2 = 22.87
+    a1 = 22.87
+    a2 = 12.87
     #
     fig,ax = plt.subplots(1,1)
     #
     x = np.linspace(0,1,21)
     #
-    a = heatexpcoeff_binary_iso(x=x, K=K2 * simp(xPhys=x, eps=K1/K2, penal=2),
-                                amax=a1, amin=a2,
+    a_simp = heatexpcoeff_binary_iso(xPhys=x, 
+                                     K = K2*simp(xPhys=x, eps=K1/K2, penal=3),
+                                amax=a2, amin=a1,
                                 Kmin=K1, Kmax=K2)
+    K_bd = bound_interpol(xPhys=x,w=0.5,
+                          bd_low=bulkmod_binary_low,
+                          bd_upp=bulkmod_binary_upp,
+                          bd_kws={"Kmin": K1, "Kmax": K2,
+                                  "Gmin": G1, "Gmax": G2})
+    a_hs = heatexpcoeff_binary_iso(xPhys=x, K=K_bd,
+    #                               K=0.5*(bulkmod_binary_upp(x, 
+    #                                                    Kmin = K1, Kmax = K2,
+    #                                                    Gmin = G1, Gmax = G2)+\
+    #                                      bulkmod_binary_low(x, 
+    #                                                    Kmin = K1, Kmax = K2,
+    #                                                    Gmin = G1, Gmax = G2)),
+                                   amax=a2, amin=a1,
+                                   Kmin=K1, Kmax=K2)
     #
     alow = heatexp_binary_low(x,
                               Kmin=K1,Kmax=K2,
@@ -279,7 +452,8 @@ def show_heat_exp():
                               Kmin=K1,Kmax=K2,
                               Gmin=G1,Gmax=G2,
                               amin=a1,amax=a2)
-    ax.plot(x,a,label="interpolation")
+    ax.plot(x,a_simp,label="SIMP-interpolation",c="b",linestyle="--")
+    ax.plot(x,a_hs,label="HS-interpolation",c="b")
     ax.plot(x,aupp,label="upper bound")
     ax.plot(x,alow,label="lower bound")
     ax.legend()
@@ -293,4 +467,5 @@ def show_heat_exp():
 if __name__ == "__main__":
     #show_conductivities()
     #show_bulkmodulus(2)
-    show_heat_exp()
+    #show_heat_exp()
+    show_youngmoduluspoiss(3)
