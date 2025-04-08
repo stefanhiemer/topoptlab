@@ -1,16 +1,17 @@
 import numpy as np
+from matplotlib import colors
+import matplotlib.pyplot as plt
 # set up finite element problem
 from topoptlab.fem import create_matrixinds
 from topoptlab.elements.bilinear_quadrilateral import create_edofMat as create_edofMat2d
 from topoptlab.elements.trilinear_hexahedron import create_edofMat as create_edofMat3d
 # default application case that provides boundary conditions, etc.
-from topoptlab.example_bc.lin_elast import selffolding_2d, selffolding_3d
+from topoptlab.example_bc.lin_elast import selffolding_2d,selffolding_3d
 # different elements/physics
-from topoptlab.stiffness_tensors import isotropic_2d, isotropic_3d
+from topoptlab.stiffness_tensors import isotropic_2d,isotropic_3d
 from topoptlab.elements.linear_elasticity_2d import _lk_linear_elast_2d
 from topoptlab.elements.linear_elasticity_3d import _lk_linear_elast_3d
 from topoptlab.elements.heatexpansion_2d import _fk_heatexp_2d
-from topoptlab.elements.heatexpansion_3d import _fk_heatexp_3d
 # generic functions for solving phys. problem
 from topoptlab.fem import assemble_matrix,assemble_rhs,apply_bc
 from topoptlab.solve_linsystem import solve_lin
@@ -18,14 +19,15 @@ from topoptlab.solve_linsystem import solve_lin
 from topoptlab.output_designs import export_vtk
 
 # MAIN DRIVER
-def fem_heat_expansion(nelx, nely, nelz=None,
-                       xPhys=None, penal=3., 
+def fem_heat_expansion(nelx, nely, volfrac,nelz=None,
+                       penal=3, 
                        Emax=1.0, Emin=1e-9, nu=0.3, 
-                       a1=5e-2,a2=1e-1,
-                       Eratio = 0.35,
+                       kmax=1.0, kmin=1e-9,
+                       a1=1e-1,a2=5e-2,
+                       Eratio = 0.35,kratio=3,
                        lin_solver="cvxopt-cholmod", preconditioner=None,
                        assembly_mode="full",
-                       bc=selffolding_2d,
+                       bc=selffolding_3d,
                        file="fem_heat-expansion_bilayer-iso",
                        export=True):
     """
@@ -39,8 +41,6 @@ def fem_heat_expansion(nelx, nely, nelz=None,
         number of elements in y direction.
     nelz : int or None
         number of elements in z direction. Only important if ndim is 3.
-    xPhys : np.ndarray, shape (n)
-        physical SIMP density
     penal : float
         penalty exponent for the SIMP method.
     Emax : float
@@ -50,13 +50,11 @@ def fem_heat_expansion(nelx, nely, nelz=None,
         minimum Young's modulus for the modified SIMP approach.
     nu : float
         Poissson's ratio.
-    a1 : float
-        heat expansion coefficient of phase 1
-    a2 : float
-        heat expansion coefficient of phase 2
-    Eratio : float
-        ratio of Young's moduli from 1:2. So 0.35 means the Young's modulus of 
-        phase 2 is 0.35 and the one of phase 1 is 1.
+    kmax : float
+        (maximum) Yheat conductivity. If xPhys is None, all elements take this 
+        value.
+    kmin : float
+        minimum heat conductivity for the modified SIMP approach.
     solver : str
         solver for linear systems. Check function lin solve for available 
         options.
@@ -65,7 +63,7 @@ def fem_heat_expansion(nelx, nely, nelz=None,
     assembly_mode : str
         whether full or only lower triangle of linear system / matrix is 
         created.
-    bc : str or callable
+    bcs : str or callable
         returns the boundary conditions
     file : str
         name of output files
@@ -88,8 +86,9 @@ def fem_heat_expansion(nelx, nely, nelz=None,
     elif ndim == 3:
         n = nelx * nely * nelz
     #
-    if xPhys is None:
-        xPhys = np.ones(n, dtype=float,order='F')
+    x=volfrac * np.ones(nely*nelx,dtype=float,order="F")
+    xold=x.copy()
+    xPhys=x.copy()
     #
     if ndim == 2:
         xe = np.array([[[-1.,-1.], 
@@ -153,60 +152,60 @@ def fem_heat_expansion(nelx, nely, nelz=None,
     u,f,fixedE,freeE,_ = bc(nelx=nelx,nely=nely,nelz=nelz,ndof=nEdof)
     #
     T = np.ones((nTdof,1))
-    # interpolate material properties
-    E = (Emin+(xPhys)** penal*(Emax-Emin))
-    # entries of stiffness matrix
-    if assembly_mode == "full":
-        sK = (E[:,None,None] * KE).flatten()
-    #
-    KE = assemble_matrix(sK=sK,iK=iK,jK=jK,
-                         ndof=nEdof,solver=lin_solver,
-                         springs=None)
-    # assemble right hand side
-    # forces due to heat expansion per element
-    if ndim == 2:
+    # indicator array for the output node and later for the adjoint problem
+    l = np.zeros((nEdof, 1))
+    dout = nEdof - 2 * (nely+1) + 1
+    l[dout,0] = -1
+    # Set loop counter and gradient vectors 
+    loop=0
+    change=1
+    dv = np.ones(nely*nelx)
+    dc = np.ones(nely*nelx)
+    while change>0.01 and loop<2000:
+        # interpolate material properties
+        E = (Emin+(xPhys)** penal*(Emax-Emin))
+        k = (Emin+(xPhys)** penal*(Emax-Emin))
+        # entries of stiffness matrix
+        if assembly_mode == "full":
+            sK = (E[:,None,None] * KE).flatten()
+        #
+        KE = assemble_matrix(sK=sK,iK=iK,jK=jK,
+                             ndof=nEdof,solver=lin_solver,
+                             springs=None)
+        # assemble right hand side
+        # forces due to heat expansion per element
         fTe = _fk_heatexp_2d(xe=xe,
                              c=cs,
                              a=np.eye(ndim),
                              DeltaT=T[TedofMat][:,:,0])
-    elif ndim == 3:
-        fTe = _fk_heatexp_3d(xe=xe,
-                             c=cs,
-                             a=np.eye(ndim),
-                             DeltaT=T[TedofMat][:,:,0])
-    fTe = fTe * a[:,None]
-    # assemble
-    fT = np.zeros(f.shape)
-    np.add.at(fT[:,0],
-              EedofMat.flatten(),
-              fTe.flatten())
-    # assemble completely
-    rhsE = assemble_rhs(f0=f+fT,
-                        solver=lin_solver)
-    # apply boundary conditions to matrix
-    KE = apply_bc(K=KE,solver=lin_solver,
-                 free=freeE,fixed=fixedE)
-    # solve linear system. fact is a factorization and precond a preconditioner
-    u[freeE, :], fact, precond, = solve_lin(K=KE, rhs=rhsE[freeE], 
-                                            solver=lin_solver,
-                                            preconditioner=preconditioner)
-    #print(u[1::2].max())
-    #np.savetxt("surface-displacements.csv", 
-    #           u[np.arange(0,2*(nelx+1)*(nely+1),2*(nely+1))+1,0])
+        # assemble
+        fT = np.zeros(f.shape)
+        np.add.at(fT[:,0],
+                  EedofMat.flatten(),
+                  fTe.flatten())
+        # assemble completely
+        rhsE = assemble_rhs(f0=f+fT,
+                            solver=lin_solver)
+        # apply boundary conditions to matrix
+        KE = apply_bc(K=KE,solver=lin_solver,
+                     free=freeE,fixed=fixedE)
+        # solve linear system. fact is a factorization and precond a preconditioner
+        u[freeE, :], fact, precond, = solve_lin(K=KE, rhs=rhsE[freeE], 
+                                                solver=lin_solver,
+                                                preconditioner=preconditioner)
+    
     #
     if export:
-        export_vtk(filename=file+"T"+str(ndim),
+        export_vtk(filename=file+"T",
                    nelx=nelx,nely=nely,nelz=nelz,
                    xPhys=xPhys,
-                   u=T)
-        export_vtk(filename=file+"E-"+str(ndim),
+                   u=T,f=q)
+        export_vtk(filename=file+"E",
                    nelx=nelx,nely=nely,nelz=nelz,
-                   xPhys=1/a,
+                   xPhys=xPhys,
                    u=u,f=f+fT)
     return
 
 if __name__ == "__main__":
-    nelx=1000
-    nely=1000
-    nelz=None
-    fem_heat_expansion(nelx=nelx,nely=nely,nelz=nelz)
+    
+    fem_heat_expansion(nelx=1000, nely=200)

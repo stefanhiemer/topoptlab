@@ -1,6 +1,4 @@
 import numpy as np
-from scipy.linalg import solve
-from scipy.special import factorial
 
 def bdf_coefficients(k):
     """

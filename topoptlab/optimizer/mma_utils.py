@@ -44,6 +44,14 @@ def mma_defaultkws(n,ft,n_constr):
         optimizer_kw["move"] = 0.05
     else:
         optimizer_kw["move"] = 0.2
+    #
+    optimizer_kw["asyinit"] = 0.5
+    optimizer_kw["asydecr"] = 0.7
+    optimizer_kw["asyincr"] = 1.2
+    optimizer_kw["asymin"] = 0.01
+    optimizer_kw["asymax"] = 10
+    optimizer_kw["raa0"] = 1e-5
+    optimizer_kw["albefa"] = 0.1
     return optimizer_kw
 
 def update_mma(x,xold1,xold2,xPhys,
@@ -57,9 +65,25 @@ def update_mma(x,xold1,xold2,xPhys,
     f0val = mu0*obj 
     df0dx = mu0*dobj[None].T
     xval = x.copy()[None].T 
-    return mmasub(nconstr,x.shape[0],iteration,
-                  xval,xmin,xmax,
-                  xold1,xold2,f0val,df0dx,
-                  mu1*constrs[:,None],mu1*np.atleast_2d(dconstr.T),
-                  low,upp,
-                  a0,a,c,d,move)
+    #
+    fval=mu1*constrs[:,None]
+    dfdx=mu1*np.atleast_2d(dconstr.T)
+    return mmasub(m=nconstr,
+                  n=x.shape[0],
+                  iter=iteration,
+                  xval=xval,
+                  xmin=xmin,
+                  xmax=xmax,
+                  xold1=xold1,
+                  xold2=xold2,
+                  f0val=f0val,
+                  df0dx=df0dx,
+                  fval=fval,
+                  dfdx=dfdx,
+                  low=low,
+                  upp=upp,
+                  a0=a0,
+                  a=a,
+                  c=c,
+                  d=d,
+                  move=move)

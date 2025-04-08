@@ -81,7 +81,6 @@ def main(nelx,nely,volfrac,penal,rmin,ft,solver="lu"):
     dofs = np.arange(ndofE)
     fixed = np.union1d(dofs[0:2*(nely+1):2], # symmetry 
                        np.array([2*(nely+1)-1])) # bottom support
-    dout = ndofE - 2 * (nely+1) + 1
     # Solution, RHS and adjoint vectors
     f = np.zeros((ndofE, 1))
     u = np.zeros((ndofE, 1))
@@ -90,6 +89,7 @@ def main(nelx,nely,volfrac,penal,rmin,ft,solver="lu"):
     free = np.setdiff1d(dofs, fixed)
     # indicator array for the output node and later for the adjoint problem
     l = np.zeros((ndofE, 1))
+    dout = ndofE - 2 * (nely+1) + 1
     l[dout,0] = -1
     # Initialize plot and plot the initial design
     plt.ion() # Ensure that redrawing is possible

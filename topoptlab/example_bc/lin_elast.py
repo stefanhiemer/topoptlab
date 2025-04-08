@@ -75,10 +75,12 @@ def mbb_3d(nelx,nely,nelz,ndof,**kwargs):
     xsymmetry = np.arange(0,3*(nely+1),3)
     xsymmetry = np.tile(xsymmetry,nelz+1)+\
                 np.repeat(np.arange(0,ndof,3*(nelx+1)*(nely+1)),nely+1)
+    # symmetry bc (fix z displacements to zero)
+    zsymmetry = np.arange(2,(nelx+1)*(nely+1)*3,3)
     # fix y dofs at support position
     fixation = np.arange((nelx+1)*(nely+1)*3 - 2,ndof,(nelx+1)*(nely+1)*3)
     #
-    fixed = np.hstack((xsymmetry, 
+    fixed = np.hstack((xsymmetry, zsymmetry,
                        fixation,
                        fixation+1)) # z fixation
     # force pushing down in y direction on top of symmetry plane
@@ -421,4 +423,58 @@ def selffolding_2d(nelx,nely,ndof,**kwargs):
     # Solution and RHS vectors
     f = np.zeros((ndof, 1))
     u = np.zeros((ndof, 1))
+    return u,f,fixed,np.setdiff1d(dofs,fixed),None
+
+def selffolding_3d(nelx,nely,nelz,ndof,**kwargs):
+    """
+    Symmetry axis on left side (x dofs fixed) and bottom node on left side has 
+    fixed y displacement as well. No forces applied as this is thought to be 
+    used with another physical phenomenon that induces forces by itself 
+    e. g. heat expansion.
+    
+    Parameters
+    ----------
+    nelx : int
+        number of elements in x direction.
+    nely : int
+        number of elements in y direction.
+    nelz : int
+        number of elements in y direction.
+    ndof : int
+        number of degrees of freedom.
+
+    Returns
+    -------
+    u : np.ndarray
+        array of zeros for state variable (displacement, temperature) to be 
+        filled of shape (ndof).
+    f : np.ndarray
+        array of zeros for state flow variables (forces, flow).
+    fixed : np.ndarray
+        indices of fixed dofs (nfixed).
+    free : np.ndarray
+        indices of free dofs (ndofs - nfixed).
+    springs : None
+        contains two 1D np.ndarrays of equal length. first is of integer type 
+        and contains the indices of dofs attached to a spring. second contains
+        the spring constants. 
+
+    """
+    #
+    dofs = np.arange(ndof)
+    # Solution and RHS vectors
+    f = np.zeros((ndof, 1))
+    u = np.zeros((ndof, 1))
+    # symmetry bc (fix x displacements to zero)
+    xsymmetry = np.arange(0,3*(nely+1),3)
+    xsymmetry = np.tile(xsymmetry,nelz+1)+\
+                np.repeat(np.arange(0,ndof,3*(nelx+1)*(nely+1)),nely+1)
+    # symmetry bc (fix z displacements to zero)
+    zsymmetry = np.arange(2,(nelx+1)*(nely+1)*3,3)
+    # fix y dofs at support position
+    fixation = np.arange(1,ndof,(nelx+1)*(nely+1)*3)
+    #
+    fixed = np.hstack((xsymmetry,zsymmetry,
+                       fixation,
+                       fixation+1)) # z fixation
     return u,f,fixed,np.setdiff1d(dofs,fixed),None

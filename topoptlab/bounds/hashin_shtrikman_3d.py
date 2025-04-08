@@ -26,6 +26,35 @@ def poiss_nary_upp(x,Ks,Gs):
     Gl = shearmod_nary_low(x=x, Ks=Ks, Gs=Gs)
     return (3*Ku-2*Gl) / (6*Ku + 2*Gl)
 
+def poiss_nary_upp_dx(x,Ks,Gs):
+    """
+    Return the derivative of the upper Hashin Shtrikman bound for the Poisson's 
+    ratio of a composite consisting of m isotropic materials with well ordered 
+    moduli (Gmax and Kmax belong to same phase).
+
+    Parameters
+    ----------
+    x : np.ndarray, shape (n,m-1)
+        volume fraction of first m-1 phases. The volume fraction of the mth 
+        phase can then be inferred via 1-x.sum(axis=1)
+    Ks : np.ndarray, shape(m)
+        bulk moduli
+    Gs : np.ndarray, shape(m)
+        shear moduli
+
+    Returns
+    -------
+    nu_upp_dx : np.ndarray, shape (n)
+        derivative of upper bound of Poisson's ratio
+
+    """
+    Ku = bulkmod_nary_upp(x=x, Ks=Ks, Gs=Gs)[:,None]
+    Kudx = bulkmod_nary_upp_dx(x=x, Ks=Ks, Gs=Gs)
+    Gl = shearmod_nary_low(x=x, Ks=Ks, Gs=Gs)[:,None]
+    Gldx = shearmod_nary_low_dx(x=x, Ks=Ks, Gs=Gs)
+    return 1/(6*Ku + 2*Gl) *\
+           ( 3*Kudx-2*Gldx - (3*Ku-2*Gl)*(6*Kudx + 2*Gldx)/(6*Ku + 2*Gl) )
+
 def poiss_nary_low(x,Ks,Gs):
     """
     Return the lower Hashin Shtrikman bound for the Poisson's ratio 
@@ -52,7 +81,36 @@ def poiss_nary_low(x,Ks,Gs):
     Gu = shearmod_nary_upp(x=x, Ks=Ks, Gs=Gs)
     return (3*Kl-2*Gu) / (6*Kl + 2*Gu)
 
-def youngsmod_nary_upp(x,Ks,Gs):
+def poiss_nary_low_dx(x,Ks,Gs):
+    """
+    Return the derivative of the lower Hashin Shtrikman bound for the Poisson's 
+    ratio of a composite consisting of m isotropic materials with well ordered 
+    moduli (Gmin and Kmin belong to same phase).
+
+    Parameters
+    ----------
+    x : np.ndarray, shape (n,m-1)
+        volume fraction of first m-1 phases. The volume fraction of the mth 
+        phase can then be inferred via 1-x.sum(axis=1)
+    Ks : np.ndarray, shape(m)
+        bulk moduli
+    Gs : np.ndarray, shape(m)
+        shear moduli
+
+    Returns
+    -------
+    nu_low_dx : np.ndarray, shape (n)
+        derivative of lower bound of Poisson's ratio
+
+    """
+    Kl = bulkmod_nary_low(x=x, Ks=Ks, Gs=Gs)[:,None]
+    Kldx = bulkmod_nary_low_dx(x=x, Ks=Ks, Gs=Gs)
+    Gu = shearmod_nary_upp(x=x, Ks=Ks, Gs=Gs)[:,None]
+    Gudx = shearmod_nary_upp_dx(x=x, Ks=Ks, Gs=Gs)
+    return 1/(6*Kl + 2*Gu)*\
+           (3*Kldx-2*Gudx - (3*Kl-2*Gu)*(6*Kldx + 2*Gudx) / (6*Kl + 2*Gu) )
+
+def emod_nary_upp(x,Ks,Gs):
     """
     Return the upper Hashin Shtrikman bound for the Young's modulus 
     of a composite consisting of two isotropic materials with well ordered 
@@ -78,7 +136,7 @@ def youngsmod_nary_upp(x,Ks,Gs):
     Gu = shearmod_nary_upp(x=x, Ks=Ks, Gs=Gs)
     return 9*Ku*Gu / (3*Ku + Gu)
 
-def youngsmod_nary_upp_dx(x,Ks,Gs):
+def emod_nary_upp_dx(x,Ks,Gs):
     """
     Return derivative of the upper Hashin Shtrikman bound for the Young's 
     modulus of a composite consisting of two isotropic materials with well 
@@ -100,13 +158,13 @@ def youngsmod_nary_upp_dx(x,Ks,Gs):
         derivative of upper bound of Young's modulus
 
     """
-    Ku = bulkmod_nary_upp(x=x, Ks=Ks, Gs=Gs)
+    Ku = bulkmod_nary_upp(x=x, Ks=Ks, Gs=Gs)[:,None]
     Kudx = bulkmod_nary_upp_dx(x=x, Ks=Ks, Gs=Gs)
-    Gu = shearmod_nary_upp(x=x, Ks=Ks, Gs=Gs)
+    Gu = shearmod_nary_upp(x=x, Ks=Ks, Gs=Gs)[:,None]
     Gudx = shearmod_nary_upp_dx(x=x, Ks=Ks, Gs=Gs)
-    return 9/(3*Ku+Gu) * (Kudx + Gudx - Ku*Gu*(3*Kudx + Gudx)/(3*Ku+Gu)**2 )
+    return 9/(3*Ku+Gu) * (Kudx*Gu + Ku*Gudx - Ku*Gu*(3*Kudx + Gudx)/(3*Ku+Gu) )
 
-def youngsmod_nary_low(x,Ks,Gs):
+def emod_nary_low(x,Ks,Gs):
     """
     Return the lower Hashin Shtrikman bound for the Young's modulus 
     of a composite consisting of two isotropic materials with well ordered 
@@ -132,7 +190,7 @@ def youngsmod_nary_low(x,Ks,Gs):
     Gl = shearmod_nary_low(x=x, Ks=Ks, Gs=Gs)
     return 9*Kl*Gl / (3*Kl + Gl)
 
-def youngsmod_nary_low_dx(x,Ks,Gs):
+def emod_nary_low_dx(x,Ks,Gs):
     """
     Return the derivative of the lower Hashin Shtrikman bound for the Young's 
     modulus of a composite consisting of two isotropic materials with well 
@@ -154,11 +212,11 @@ def youngsmod_nary_low_dx(x,Ks,Gs):
         derivative of lower bound of Young's modulus
 
     """
-    Kl = bulkmod_nary_low(x=x, Ks=Ks, Gs=Gs)
+    Kl = bulkmod_nary_low(x=x, Ks=Ks, Gs=Gs)[:,None]
     Kldx = bulkmod_nary_low_dx(x=x, Ks=Ks, Gs=Gs)
-    Gl = shearmod_nary_low(x=x, Ks=Ks, Gs=Gs)
+    Gl = shearmod_nary_low(x=x, Ks=Ks, Gs=Gs)[:,None]
     Gldx = shearmod_nary_low_dx(x=x, Ks=Ks, Gs=Gs)
-    return 9/(3*Kl+Gl) * (Kldx + Gldx - Kl*Gl*(3*Kldx + Gldx)/(3*Kl+Gl)**2 )
+    return 9/(3*Kl+Gl) * (Kldx*Gl + Kl*Gldx - Kl*Gl*(3*Kldx + Gldx)/(3*Kl+Gl) )
 
 def poiss_binary_upp(x,
                      Kmin,Kmax,
@@ -191,6 +249,42 @@ def poiss_binary_upp(x,
     Gl = shearmod_binary_low(x=x, Kmin=Kmin, Kmax=Kmax, Gmin=Gmin, Gmax=Gmax)
     return (3*Ku-2*Gl) / (6*Ku + 2*Gl)
 
+def poiss_binary_upp_dx(x,
+                        Kmin,Kmax,
+                        Gmin,Gmax):
+    """
+    Return thederivative of the upper Hashin Shtrikman bound for the Poisson's 
+    ratio of a composite consisting of two isotropic materials with well 
+    ordered moduli (Gmin and Kmin belong to same phase).
+
+    Parameters
+    ----------
+    x : np.ndarray, shape (n)
+        relative density of stronger phase
+    Kmin : float
+        smaller bulk modulus
+    Kmax : float
+        larger bulk modulus
+    Gmin : float
+        smaller shear modulus
+    Gmax : float
+        larger shear modulus
+
+    Returns
+    -------
+    nu_upp : np.ndarray, shape (n)
+        upper bound of Poisson's ratio
+
+    """
+    Ku = bulkmod_binary_upp(x=x, Kmin=Kmin, Kmax=Kmax, Gmin=Gmin, Gmax=Gmax)
+    Kudx = bulkmod_binary_upp_dx(x=x, Kmin=Kmin, Kmax=Kmax, 
+                                 Gmin=Gmin, Gmax=Gmax)
+    Gl = shearmod_binary_low(x=x, Kmin=Kmin, Kmax=Kmax, Gmin=Gmin, Gmax=Gmax)
+    Gldx = shearmod_binary_low_dx(x=x, Kmin=Kmin, Kmax=Kmax, 
+                                  Gmin=Gmin, Gmax=Gmax)
+    return 1/(6*Ku + 2*Gl) *\
+           ( 3*Kudx-2*Gldx - (3*Ku-2*Gl)*(6*Kudx + 2*Gldx)/(6*Ku + 2*Gl) )
+
 def poiss_binary_low(x,
                      Kmin,Kmax,
                      Gmin,Gmax):
@@ -222,9 +316,43 @@ def poiss_binary_low(x,
     Gu = shearmod_binary_upp(x=x, Kmin=Kmin, Kmax=Kmax, Gmin=Gmin, Gmax=Gmax)
     return (3*Kl-2*Gu) / (6*Kl + 2*Gu)
 
-def youngsmod_binary_upp(x,
-                         Kmin,Kmax,
-                         Gmin,Gmax):
+def poiss_binary_low_dx(x,
+                        Kmin,Kmax,
+                        Gmin,Gmax):
+    """
+    Return the deriviative of the lower Hashin Shtrikman bound for the 
+    Poisson's ratio of a composite consisting of two isotropic materials with 
+    well ordered moduli (Gmin and Kmin belong to same phase).
+
+    Parameters
+    ----------
+    x : np.ndarray, shape (n)
+        relative density of stronger phase
+    Kmin : float
+        smaller bulk modulus
+    Kmax : float
+        larger bulk modulus
+    Gmin : float
+        smaller shear modulus
+    Gmax : float
+        larger shear modulus
+
+    Returns
+    -------
+    nu_low_dx : np.ndarray, shape (n)
+        derivative of lower bound of Poisson's ratio
+
+    """
+    Kl = bulkmod_binary_low(x=x, Kmin=Kmin, Kmax=Kmax, Gmin=Gmin, Gmax=Gmax)
+    Kldx = bulkmod_binary_low_dx(x=x, Kmin=Kmin, Kmax=Kmax, 
+                                  Gmin=Gmin, Gmax=Gmax)
+    Gu = shearmod_binary_upp(x=x, Kmin=Kmin, Kmax=Kmax, Gmin=Gmin, Gmax=Gmax)
+    Gudx = shearmod_binary_upp_dx(x=x, Kmin=Kmin, Kmax=Kmax, 
+                                  Gmin=Gmin, Gmax=Gmax)
+    return 1/(6*Kl + 2*Gu)*\
+           (3*Kldx-2*Gudx - (3*Kl-2*Gu)*(6*Kldx + 2*Gudx) / (6*Kl + 2*Gu) )
+
+def emod_binary_upp(x,Kmin,Kmax,Gmin,Gmax):
     """
     Return the upper Hashin Shtrikman bound for the Young's modulus 
     of a composite consisting of two isotropic materials with well ordered 
@@ -253,9 +381,9 @@ def youngsmod_binary_upp(x,
     Gu = shearmod_binary_upp(x=x, Kmin=Kmin, Kmax=Kmax, Gmin=Gmin, Gmax=Gmax)
     return 9*Ku*Gu / (3*Ku + Gu)
 
-def youngsmod_binary_upp_dx(x,
-                            Kmin,Kmax,
-                            Gmin,Gmax):
+def emod_binary_upp_dx(x,
+                       Kmin,Kmax,
+                       Gmin,Gmax):
     """
     Return the derivative of the upper Hashin Shtrikman bound for the 
     Young's modulus of a composite consisting of two isotropic materials with 
@@ -286,11 +414,11 @@ def youngsmod_binary_upp_dx(x,
     Gu = shearmod_binary_upp(x=x, Kmin=Kmin, Kmax=Kmax, Gmin=Gmin, Gmax=Gmax)
     Gudx = shearmod_binary_upp_dx(x=x, Kmin=Kmin, Kmax=Kmax, 
                                   Gmin=Gmin, Gmax=Gmax)
-    return  9/(3*Ku+Gu) * (Kudx + Gudx - Ku*Gu*(3*Kudx + Gudx)/(3*Ku+Gu)**2 )
+    return  9/(3*Ku+Gu) * (Kudx*Gu + Ku*Gudx - Ku*Gu*(3*Kudx + Gudx)/(3*Ku+Gu) )
 
-def youngsmod_binary_low(x,
-                         Kmin,Kmax,
-                         Gmin,Gmax):
+def emod_binary_low(x,
+                    Kmin,Kmax,
+                    Gmin,Gmax):
     """
     Return the lower Hashin Shtrikman bound for the Young's modulus 
     of a composite consisting of two isotropic materials with well ordered 
@@ -319,9 +447,9 @@ def youngsmod_binary_low(x,
     Gl = shearmod_binary_low(x=x, Kmin=Kmin, Kmax=Kmax, Gmin=Gmin, Gmax=Gmax)
     return 9*Kl*Gl / (3*Kl + Gl)
 
-def youngsmod_binary_low_dx(x,
-                            Kmin,Kmax,
-                            Gmin,Gmax):
+def emod_binary_low_dx(x,
+                       Kmin,Kmax,
+                       Gmin,Gmax):
     """
     Return the derivative of the lower Hashin Shtrikman bound for the Young's 
     modulus of a composite consisting of two isotropic materials with well 
@@ -351,7 +479,7 @@ def youngsmod_binary_low_dx(x,
                                   Gmin=Gmin, Gmax=Gmax)
     Gl = shearmod_binary_low(x=x, Kmin=Kmin, Kmax=Kmax, Gmin=Gmin, Gmax=Gmax)
     Gldx = shearmod_binary_low_dx(x=x, Kmin=Kmin, Kmax=Kmax, Gmin=Gmin, Gmax=Gmax)
-    return 9/(3*Kl+Gl) * (Kldx + Gldx - Kl*Gl*(3*Kldx + Gldx)/(3*Kl+Gl)**2 )
+    return 9/(3*Kl+Gl) * (Kldx*Gl + Kl*Gldx - Kl*Gl*(3*Kldx + Gldx)/(3*Kl+Gl) )
 
 def shearmod_nary_upp(x,
                      Ks,Gs):

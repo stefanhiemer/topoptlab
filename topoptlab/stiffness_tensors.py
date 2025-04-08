@@ -1,7 +1,7 @@
 from numpy import array,sqrt
 
-def compute_elastic_propertie_3d(E=None, nu=None, G=None, 
-                                 K=None, lam=None, M=None):
+def compute_elastic_properties_3d(E=None, nu=None, G=None, 
+                                  K=None, lam=None, M=None):
     """
     Compute all 3D isotropic elastic properties from any 2 given elast. 
     properties. 
@@ -36,17 +36,15 @@ def compute_elastic_propertie_3d(E=None, nu=None, G=None,
     M : float
         P-wave modulus.
     """
-    
     # count how many values are provided
     given = {k: v for k, v in locals().items() if v is not None and k != 'math'}
     if len(given) < 2:
         raise ValueError("Provide at least two independent elastic constants.")
-    
     # calculate missing values based on known pairs
     if K is not None and E is not None:
-        nu = 3*K - E / (6*K)
+        nu = (3*K - E) / (6*K)
         G = 3*(K*E) / (9*K - E)
-        lam = 3*K(3*K-E) / (9*K - E)
+        lam = 3*K*(3*K-E) / (9*K - E)
         M = 3*K*(3*K+E) / (9*K-E)
         return E,nu,G,K,lam,M
     elif K is not None and lam is not None:
@@ -62,7 +60,7 @@ def compute_elastic_propertie_3d(E=None, nu=None, G=None,
         M = K + 4/3 * G
         return E,nu,G,K,lam,M
     elif K is not None and nu is not None:
-        E = 3*(1-2*nu)
+        E = 3*K*(1-2*nu)
         lam = 3*K*nu / (1+nu)
         G = 3*K*(1-2*nu) / (2*(1+nu))
         M = 3*K*(1-nu) / (1+nu)
@@ -93,7 +91,7 @@ def compute_elastic_propertie_3d(E=None, nu=None, G=None,
         M = E*(1-nu) / ( (1+nu)*(1-2*nu) )
         return E,nu,G,K,lam,M
     elif E is not None and M is not None:
-        S = (E**2 + 9*M**2 - (10*E*M))
+        S = sqrt(E**2 + 9*M**2 - (10*E*M))
         G = (3*M+E-S) / 8
         K = (3*M - E + S) / 6
         lam = (M - E + S) / 4
@@ -107,7 +105,7 @@ def compute_elastic_propertie_3d(E=None, nu=None, G=None,
         return E,nu,G,K,lam,M
     elif lam is not None and nu is not None:
         E =  lam*(1+nu)*(1-2*nu) / nu
-        G = lam*(1-2+nu) / (2*nu)
+        G = lam*(1-2*nu) / (2*nu)
         K = lam*(1+nu) / (3*nu)
         M = lam*(1-nu) / nu
         return E,nu,G,K,lam,M
@@ -132,25 +130,13 @@ def compute_elastic_propertie_3d(E=None, nu=None, G=None,
     elif nu is not None and M is not None:
         K = M*(1+nu) / ( 3*(1-nu) )
         E = M*(1+nu)*(1-2*nu) / (1-nu)
-        G = M*nu / (1-nu)
-        lam = M*(1-2*nu) / (2 * (1-nu))
+        G = M*(1-2*nu) / (2*(1-nu))
+        lam = M*nu / (1-nu)
         return E,nu,G,K,lam,M
-
     else:
         raise ValueError("Unsupported or insufficient input combination.")
 
-    return {
-        "E (Young's modulus)": E,
-        "nu (Poisson's ratio)": nu,
-        "G (Shear modulus)": G,
-        "K (Bulk modulus)": K,
-        "lambda (Lamé's first parameter)": lam,
-        "M (P-wave modulus)": M
-    }
-
-
-
-def isotropic_2d(E=1.,nu=0.3,plane_stress=True):
+def isotropic_2d(E=1., nu=0.3, plane_stress=True):
     """
     2D stiffness tensor for isotropic material. 
     
@@ -184,13 +170,14 @@ def orthotropic_2d(Ex, Ey, nu_xy, G_xy):
     
     Parameters
     ----------
-    E : float
-        Young's modulus.
-    nu : float
+    Ex : float
+        Young's modulus in x direction.
+    Ey : float
+        Young's modulus in y direction.
+    nu_xy : float
         Poisson' ratio.
-    plane_stress : bool
-        if True, return stiffness tensor for plane stress, otherwise return
-        stiffness tensor for plane strain
+    G_xy : float
+        shear modulus.
     
     Returns
     -------
@@ -203,6 +190,54 @@ def orthotropic_2d(Ex, Ey, nu_xy, G_xy):
     return factor * array([[Ex, nu_xy * Ey, 0],
                            [nu_xy * Ey, Ey, 0],
                            [0, 0, G_xy * (1 - nu_xy * nu_yx)]])
+
+def orthotropic_3d(Ex, Ey, Ez, 
+                   nu_xy, nu_xz, nu_yz, 
+                   G_xy, G_xz, G_yz):
+    """
+    3D stiffness tensor for orthotropic material. 
+    
+    Parameters
+    ----------
+    Ex : float
+        Young's modulus in x direction.
+    Ey : float
+        Young's modulus in y direction.
+    Ez : float
+        Young's modulus in z direction.
+    nu_xy : float
+        Poisson' ratio.
+    nu_xz : float
+        Poisson' ratio.
+    nu_yz : float
+        Poisson' ratio.
+    G_xy : float
+        shear modulus.
+    G_xz : float
+        shear modulus.
+    G_yz : float
+        shear modulus.
+    
+    Returns
+    -------
+    c : np.ndarray, shape (6,6)
+        stiffness tensor.
+    """
+    return array([[Ex*(nu_yz**2 - 1)/(nu_xy**2 + 2*nu_xy*nu_xz*nu_yz + nu_xz**2 + nu_yz**2 - 1), 
+                   Ex*(-nu_xy - nu_xz*nu_yz)/(nu_xy**2 + 2*nu_xy*nu_xz*nu_yz + nu_xz**2 + nu_yz**2 - 1),
+                   Ex*(-nu_xy*nu_yz - nu_xz)/(nu_xy**2 + 2*nu_xy*nu_xz*nu_yz + nu_xz**2 + nu_yz**2 - 1),
+                   0, 0, 0],
+                  [Ey*(-nu_xy - nu_xz*nu_yz)/(nu_xy**2 + 2*nu_xy*nu_xz*nu_yz + nu_xz**2 + nu_yz**2 - 1), 
+                   Ey*(nu_xz**2 - 1)/(nu_xy**2 + 2*nu_xy*nu_xz*nu_yz + nu_xz**2 + nu_yz**2 - 1),
+                   Ey*(-nu_xy*nu_xz - nu_yz)/(nu_xy**2 + 2*nu_xy*nu_xz*nu_yz + nu_xz**2 + nu_yz**2 - 1),
+                   0, 0, 0],
+                  [Ez*(-nu_xy*nu_yz - nu_xz)/(nu_xy**2 + 2*nu_xy*nu_xz*nu_yz + nu_xz**2 + nu_yz**2 - 1),
+                   Ez*(-nu_xy*nu_xz - nu_yz)/(nu_xy**2 + 2*nu_xy*nu_xz*nu_yz + nu_xz**2 + nu_yz**2 - 1),
+                   Ez*(nu_xy**2 - 1)/(nu_xy**2 + 2*nu_xy*nu_xz*nu_yz + nu_xz**2 + nu_yz**2 - 1),
+                   0, 0, 0],
+                  [0, 0, 0, G_yz, 0, 0],
+                  [0, 0, 0, 0, G_xz, 0], 
+                  [0, 0, 0, 0, 0, G_xy]])
 
 def isotropic_3d(E=1.,nu=0.3):
     """
@@ -229,8 +264,11 @@ def isotropic_3d(E=1.,nu=0.3):
 
 def octet_trusslattice(E,rho):
     """
-    Octet truss structure from "Effective properties of the octet-truss lattice 
-    material".
+    Octet truss structure from 
+    
+    "Deshpande, Vikram S., Norman A. Fleck, and Michael F. Ashby. "Effective 
+    properties of the octet-truss lattice material." Journal of the Mechanics 
+    and Physics of Solids 49.8 (2001): 1747-1769.".
     
     Parameters
     ----------

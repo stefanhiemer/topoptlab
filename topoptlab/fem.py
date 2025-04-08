@@ -8,14 +8,41 @@ from cvxopt import spmatrix
 from topoptlab.elements.bilinear_quadrilateral import shape_functions
 
 def assemble_matrix(sK,iK,jK,ndof,solver,springs):
+    """
+    Assemble matrix from indices.
+
+    Parameters
+    ----------
+    sK : np.ndarray
+        element degree of freedom matrix.
+    sK : np.ndarray
+        matrix values.
+    iK : np.ndarray
+        matrix row indices.
+    jK : np.ndarray
+        matrix column indices.
+    ndof : int
+        number of degrees of freedom
+    solver : str
+        solver used to solve the linear system.
+    springs : list
+        contains two np.ndarrays. The first one contains the indices of the 
+        degrees of freedom to which the springs are attached. The second one 
+        contains the spring constants.
+
+    Returns
+    -------
+    M : scipy.sparse.csc_array, shape (ndof,ndof)
+        assembled matrix.
+    """ 
     #
-    K = coo_array((sK, (iK, jK)), shape=(ndof, ndof)).tocsc()
+    M = coo_array((sK, (iK, jK)), shape=(ndof, ndof)).tocsc()
     # attach springs to dofs if there
     if springs:
         inds,spring_const = springs
         for i,k in zip(inds,spring_const):
-            K[i,i] += k
-    return K
+            M[i,i] += k
+    return M
 
 def assemble_rhs(f0,solver):
     return f0
