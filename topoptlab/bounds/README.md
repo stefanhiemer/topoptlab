@@ -14,4 +14,4 @@
 - **σ**: Electric Conductivity
 
 
-[View the documentation](images/heatexp_binary.pdf)
+[View the documentation](../../images/heatexp_binary.pdf)
