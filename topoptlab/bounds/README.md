@@ -14,6 +14,9 @@
 - **σ**: Electric Conductivity
 
 [View the shear and bulk modulus bounds](../../images/bulkshear_ternary.pdf)
+
 [View the conductivity bounds](../../images/conductivity_ternary.pdf)
+
 [View the heat expansion coefficient bounds](../../images/heatexp_binary.pdf)
+
 [View the Young's modulus and Poisson ratio bounds](../../images/emodpois_ternary.pdf)
