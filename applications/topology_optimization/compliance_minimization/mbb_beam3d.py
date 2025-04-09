@@ -4,7 +4,7 @@ from topoptlab.example_bc.lin_elast import mbb_2d,mbb_3d
 # The real main driver
 if __name__ == "__main__":
     # Default input parameters
-    nelx = 180
+    nelx = 120
     nely = int(nelx/3)
     nelz = int(nelx/6)
     volfrac = 0.5

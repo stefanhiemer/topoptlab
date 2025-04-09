@@ -12,3 +12,6 @@
 - **μ**: Magnetic Permeability
 - **D**: Diffusion Coefficient
 - **σ**: Electric Conductivity
+
+
+[View the documentation](images/heatexp_binary.pdf)

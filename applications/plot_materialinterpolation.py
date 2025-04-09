@@ -86,6 +86,7 @@ def show_conductivities(ncomp=3):
         #
         ax2d.set_xlabel("vol. frac phase 1")
         ax2d.set_ylabel("conductivity")
+        ax2d.set_xlim(0,1)
         
     plt.show()
     return
@@ -229,6 +230,7 @@ def show_bulkshearmodulus(ncomp=3):
         #
         ax2d.set_xlabel("vol. frac phase 1")
         ax2d.set_ylabel("bulk modulus")
+        ax2d.set_xlim(0,1)
         #
         ax2d = fig.add_subplot(2, 2, 4)
         for x_i in np.linspace(0,1,npoints):
@@ -246,7 +248,7 @@ def show_bulkshearmodulus(ncomp=3):
         #
         ax2d.set_xlabel("vol. frac phase 1")
         ax2d.set_ylabel("shear modulus")
-        
+        ax2d.set_xlim(0,1)
     plt.show()
     return
 
@@ -332,13 +334,13 @@ def show_youngmoduluspoiss(ncomp=2):
                      c="b",
                      linewidth=0, 
                      antialiased=False,
-                     label="K low")
+                     label="E low")
         ax3d.scatter(x[:,0], x[:,1], 
                      Yupp, 
                      c="r",
                      linewidth=0, 
                      antialiased=False,
-                     label="K upp")
+                     label="E upp")
         #
         ax3d.set_xlabel("vol. frac phase 1")
         ax3d.set_ylabel("vol. frac phase 2")
@@ -346,7 +348,7 @@ def show_youngmoduluspoiss(ncomp=2):
         #
         ax3d.set_xlim(0,1)
         ax3d.set_ylim(0,1)
-        ax3d.set_zlim(0,1)
+        ax3d.set_zlim(bottom=0)
         #
         ax3d = fig.add_subplot(2, 2, 2, projection='3d')
         #
@@ -387,6 +389,7 @@ def show_youngmoduluspoiss(ncomp=2):
         #
         ax2d.set_xlabel("vol. frac phase 1")
         ax2d.set_ylabel("Young's modulus")
+        ax2d.set_xlim(0,1)
         #
         ax2d = fig.add_subplot(2, 2, 4)
         for x_i in np.linspace(0,1,npoints):
@@ -404,7 +407,7 @@ def show_youngmoduluspoiss(ncomp=2):
         #
         ax2d.set_xlabel("vol. frac phase 1")
         ax2d.set_ylabel("Poisson's ratio")
-        
+        ax2d.set_xlim(0,1)
     plt.show()
     return
 
@@ -460,6 +463,7 @@ def show_heat_exp():
     ax.legend()
     ax.set_xlabel("vol. frac phase 1")
     ax.set_ylabel("coeff. of thermal expansion")
+    ax.set_xlim(0,1)
     plt.show()
     
     return
