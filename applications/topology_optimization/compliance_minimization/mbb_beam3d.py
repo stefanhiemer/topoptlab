@@ -4,7 +4,7 @@ from topoptlab.example_bc.lin_elast import mbb_2d,mbb_3d
 # The real main driver
 if __name__ == "__main__":
     # Default input parameters
-    nelx = 120
+    nelx = 60
     nely = int(nelx/3)
     nelz = int(nelx/6)
     volfrac = 0.5
@@ -14,7 +14,7 @@ if __name__ == "__main__":
     main(nelx=nelx, nely=nely, nelz=nelz, volfrac=volfrac, penal=penal, 
          rmin=rmin, ft=ft, filter_mode="matrix", 
          optimizer="oc", lin_solver = "cvxopt-cholmod",
-         nouteriter=1000,
+         nouteriter=2000,
          bcs=mbb_3d,
          file="mbb_3d",
          debug=False,display=False,

@@ -196,10 +196,6 @@ def fem_heat_expansion(nelx, nely, volfrac,nelz=None,
     
     #
     if export:
-        export_vtk(filename=file+"T",
-                   nelx=nelx,nely=nely,nelz=nelz,
-                   xPhys=xPhys,
-                   u=T,f=q)
         export_vtk(filename=file+"E",
                    nelx=nelx,nely=nely,nelz=nelz,
                    xPhys=xPhys,

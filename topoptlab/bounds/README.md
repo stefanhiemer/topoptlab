@@ -3,7 +3,7 @@
 | K  | iso | iso | m | 3 | Hashin-Shtrikman | closest bounds |
 | G  | iso | iso | m | 3 | Hashin-Shtrikman | might not be closest bounds |
 | E  | iso | iso | m | 3 | Hashin-Shtrikman | |
-| ν  | iso | iso | m | 3 | Hashin-Shtrikman | |
+| ν  | iso | iso | m | 3 | Hashin-Shtrikman / Zimmermann | |
 | k,μ,D,σ,...  | iso | iso | m | 3 | Hashin-Shtrikman | to my knowledge closest bounds |
 | α  | iso | iso | 2 | 3 | Schapery | |
 

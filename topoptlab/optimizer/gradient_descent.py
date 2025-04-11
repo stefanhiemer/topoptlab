@@ -1,5 +1,44 @@
 import numpy as np
 
+def gradient_descent(x, dobj, 
+                     xmin, xmax, 
+                     stepsize=1e-4,
+                     move=0.1,
+                     **kwargs):
+    """
+    Standard gradient descent. Just for demonstration, teaching and testing 
+    purposes. Do not use in series research endeavours.
+    
+    Parameters
+    ----------
+    x : np.ndarray, shape (nel)
+        design variablesof the current iteration.
+    dobj : np.array, shape (nel)
+        gradient of objective function with respect to design variables.
+    xmin : np.ndarray, shape (nel)
+        minimum value of design variables.
+    xmax : np.ndarray, shape (nel)
+        maximum value of design variables.
+    stepsize : float
+        step size 
+    move: float
+        maximum change allowed in each design variable.
+        
+    Returns
+    -------
+    xnew : np.array, shape (nel)
+        updated design variables.
+    """
+    #
+    xnew = np.zeros(x.shape)
+    #
+    xnew[:] = np.maximum(xmin, 
+                         np.maximum(x-move, 
+                                    np.minimum(xmax, 
+                                               np.minimum(x+move, 
+                                                          x-stepsize*dobj))))
+    return xnew
+
 def barzilai_borwein(x, dobj, 
                      xold, dobjold,
                      xmin, xmax, 
@@ -22,25 +61,24 @@ def barzilai_borwein(x, dobj,
     Parameters
     ----------
     x : np.ndarray, shape (nel)
-        element densities for topology optimization of the current iteration.
+        design variablesof the current iteration.
     dobj : np.array, shape (nel)
-        gradient of objective function with respect to element 
-        densities.
+        gradient of objective function with respect to design variables.
     xold : np.ndarray, shape (nel)
-        element densities for topology optimization of the previous iteration.
+        design variables  of the previous iteration.
     dobjold : np.array, shape (nel)
-        gradient of objective function with respect to element densities of 
+        gradient of objective function with respect to design variables of 
         the previous iteration.
     xmin : np.ndarray, shape (nel)
-        element densities for topology optimization of the current iteration.
+        minimum value of design variables.
     xmax : np.ndarray, shape (nel)
-        element densities for topology optimization of the current iteration.
+        maximum value of design variables.
     el_flags : np.ndarray or None
         array of flags/integers that switch behaviour of specific elements. 
         Currently 1 marks the element as passive (zero at all times), while 2
         marks it as active (1 at all time).
     step_method : str
-        method to determine step size. Either 
+        method to determine step size. Either "long","short" or "stabilized".
     move: float
         maximum change allowed in each design variable.
         
@@ -64,7 +102,7 @@ def barzilai_borwein(x, dobj,
         alpha = np.minimum(dx.dot(dx) / dx.dot(dg), 
                            np.sqrt( dx.dot(dx) ))
     if np.isclose(alpha, 0.) or np.isinf(alpha):
-        raise ValueError("No step size could be found.")
+        raise ValueError("No step size could be found: ",alpha)
     #
     xnew[:] = np.maximum(xmin, 
                          np.maximum(x-move, 

@@ -4,7 +4,10 @@ def poiss_nary_upp(x,Ks,Gs):
     """
     Return the upper Hashin Shtrikman bound for the Poisson's ratio 
     of a composite consisting of m isotropic materials with well ordered 
-    moduli (Gmax and Kmax belong to same phase).
+    moduli (Gmax and Kmax belong to same phase) as stated in 
+    
+    Zimmerman, Robert W. "Hashin-Shtrikman bounds on the Poisson ratio of a 
+    composite material." Mechanics research communications 19.6 (1992): 563-569.
 
     Parameters
     ----------
@@ -59,7 +62,10 @@ def poiss_nary_low(x,Ks,Gs):
     """
     Return the lower Hashin Shtrikman bound for the Poisson's ratio 
     of a composite consisting of m isotropic materials with well ordered 
-    moduli (Gmin and Kmin belong to same phase).
+    moduli (Gmin and Kmin belong to same phase) as stated in 
+    
+    Zimmerman, Robert W. "Hashin-Shtrikman bounds on the Poisson ratio of a 
+    composite material." Mechanics research communications 19.6 (1992): 563-569.
 
     Parameters
     ----------
@@ -224,7 +230,10 @@ def poiss_binary_upp(x,
     """
     Return the upper Hashin Shtrikman bound for the Poisson's ratio 
     of a composite consisting of two isotropic materials with well ordered 
-    moduli (Gmin and Kmin belong to same phase).
+    moduli (Gmin and Kmin belong to same phase) as stated in 
+    
+    Zimmerman, Robert W. "Hashin-Shtrikman bounds on the Poisson ratio of a 
+    composite material." Mechanics research communications 19.6 (1992): 563-569.
 
     Parameters
     ----------
@@ -291,7 +300,10 @@ def poiss_binary_low(x,
     """
     Return the lower Hashin Shtrikman bound for the Poisson's ratio 
     of a composite consisting of two isotropic materials with well ordered 
-    moduli (Gmin and Kmin belong to same phase).
+    moduli (Gmin and Kmin belong to same phase) as stated in 
+    
+    Zimmerman, Robert W. "Hashin-Shtrikman bounds on the Poisson ratio of a 
+    composite material." Mechanics research communications 19.6 (1992): 563-569.
 
     Parameters
     ----------
