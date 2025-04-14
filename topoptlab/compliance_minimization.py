@@ -34,6 +34,9 @@ from topoptlab.objectives import compliance
 from topoptlab.output_designs import export_vtk
 # map element data to img/voxel
 from topoptlab.utils import map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel
+# logging related stuff
+from topoptlab.log_utils import init_logging
+
 
 # MAIN DRIVER
 def main(nelx, nely, volfrac, penal, rmin, ft,
@@ -135,40 +138,26 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     #
     if write_log:
         # check if log file exists and if True delete
-        if isfile(".".join([file,"log"])):
-            remove(".".join([file,"log"])) 
-        # check if any previous loggers exist and close them properly, 
-        # otherwise you start writing the same information in a single huge 
-        # file
-        logger = logging.getLogger()
-        if logger.hasHandlers():
-            for handler in logger.handlers[:]:
-                logger.removeHandler(handler)
-                handler.close()  
+        to_log = init_logging(logfile=file)
         #
-        logging.basicConfig(level=logging.INFO,
-                            format='%(message)s',
-                            handlers=[logging.FileHandler(".".join([file,"log"])),
-                                      logging.StreamHandler()])
-        #
-        logging.info(f"minimum compliance problem with optimizer {optimizer}")
-        logging.info(f"number of spatial dimensions: {ndim}")
+        to_log(f"minimum compliance problem with optimizer {optimizer}")
+        to_log(f"number of spatial dimensions: {ndim}")
         if ndim == 2:
-            logging.info(f"elements: {nelx} x {nely}")
+            to_log(f"elements: {nelx} x {nely}")
         elif ndim == 3:
-            logging.info(f"elements: {nelx} x {nely} x {nelz}")
+            to_log(f"elements: {nelx} x {nely} x {nelz}")
         if volfrac is not None:
-            logging.info(f"volfrac: {volfrac} rmin: {rmin}  penal: {penal}")
+            to_log(f"volfrac: {volfrac} rmin: {rmin}  penal: {penal}")
         else:
-            logging.info(f"rmin: {rmin}  penal: {penal}")
-        logging.info("filter: " + ["Sensitivity based",
-                                   "Density based",
-                                   "Haeviside Guest",
-                                   "Haeviside complement Sigmund 2007",
-                                   "Haeviside eta projection",
-                                   "Volume Preserving eta projection",
-                                   "No filter"][ft])
-        logging.info(f"filter mode: {filter_mode}")
+            to_log(f"rmin: {rmin}  penal: {penal}")
+        to_log("filter: " + ["Sensitivity based",
+                             "Density based",
+                             "Haeviside Guest",
+                             "Haeviside complement Sigmund 2007",
+                             "Haeviside eta projection",
+                             "Volume Preserving eta projection",
+                             "No filter"][ft])
+        to_log(f"filter mode: {filter_mode}")
     # total number of design variables/elements
     if ndim == 2:
         n = nelx * nely
@@ -508,7 +497,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             plt.pause(0.01)
         # Write iteration history to screen (req. Python 2.6 or newer)
         if write_log:
-            logging.info("it.: {0} obj.: {1:.10f} vol.: {2:.10f} ch.: {3:.10f}".format(
+            to_log("it.: {0} obj.: {1:.10f} vol.: {2:.10f} ch.: {3:.10f}".format(
                          loop+1, obj, xPhys.mean(), change))
         # convergence check
         if change < 0.01:

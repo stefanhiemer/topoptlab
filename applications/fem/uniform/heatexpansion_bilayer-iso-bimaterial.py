@@ -25,7 +25,7 @@ def fem_heat_expansion(nelx, nely, nelz=None,
                        Eratio = 0.35,
                        lin_solver="cvxopt-cholmod", preconditioner=None,
                        assembly_mode="full",
-                       bc=selffolding_2d,
+                       bc=selffolding_3d,
                        file="fem_heat-expansion_bilayer-iso",
                        export=True):
     """
@@ -206,7 +206,7 @@ def fem_heat_expansion(nelx, nely, nelz=None,
     return
 
 if __name__ == "__main__":
-    nelx=1000
-    nely=1000
-    nelz=None
+    nelx=60
+    nely=20
+    nelz=10
     fem_heat_expansion(nelx=nelx,nely=nely,nelz=nelz)

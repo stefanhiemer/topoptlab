@@ -75,7 +75,11 @@ def diis(x, xhist,
          r=None, rhist=None,
          damp=0.9):
     """
-    Direct inversion in the iterative subspace (DIIS) or Pulay mixing.
+    Direct inversion in the iterative subspace (DIIS) or also known as Pulay 
+    mixing for convergence acceleration. Two use cases have to be 
+    distinguished: i) a residual is avaliable (e. g. we try to solve a linear 
+    system iteratively r = b - A@x) ii) no residual is available meaning we 
+    perform a recursion (e. g. optimization or a fixed point iteration). 
     
     Parameters
     ----------
@@ -86,7 +90,7 @@ def diis(x, xhist,
     max_history : int
         maximum number of past results used for the current update.
     r : np.ndarray (n)
-        current residual (e. g. from a linear system ala r=b-Ax)
+        current residual (e. g. from a linear system ala r=b-A<qx)
     rhist : list
         history of residuals.
     damp : float
@@ -98,26 +102,49 @@ def diis(x, xhist,
         updated iterate.
     """ 
     n = len(xhist)
-    if n < 1:
-        raise ValueError("Need at least 1 past result for diis acceleration.")
+    if n < 2 and rhist is not None:
+        raise ValueError("Need at least two past result for DIIS acceleration.")
     X = np.column_stack(xhist[-max_history:]+[x])
     # calculate residuals
     if r is None and rhist is None:
-        rhist = X[:,1:] - X[:,:-1]
-    # Build B matrix: B_ij = <r_i | r_j>
-    B = np.empty((n + 1, n + 1))
-    for i in np.arange(n):
-        B[i,i:-1] = rhist[:,i].dot(rhist[:,i:])
-        
-    #B[:-1, :-1] = np.array([[np.dot(rhist[i], rhist[j]) for j in range(n)] \
-    #                         for i in range(n)])
+        R = X[:,1:] - X[:,:-1]
+    else:
+        rhist = rhist + [r]
+        R = np.column_stack(rhist)
+        n = n+1
+    #
+    #print("R unnormalized",R,"\n")
+    #norm = np.linalg.norm(R,2,axis=0)
+    #R = R / norm
+    #print("R normalized",R,"\n")
+    # build B matrix: B_ij = <r_i | r_j>
+    B = np.zeros((n, n))
+    i=0
+    # off-diagonal
+    for i in np.arange(R.shape[1]-1):
+        B[i,i+1:-1] = R[:,i].dot(R[:,i+1:])
+    #print(B,"\n")
+    B = B + B.T
+    #print(B,"\n")
+    # diagonal
+    B = B + np.eye(R.shape[1]+1)
+    #print(B,"\n")
+    #
     B[-1, :-1] = -1
     B[:-1, -1] = -1
     B[-1, -1] = 0
     # 
-    rhs = np.zeros(n+1)
+    rhs = np.zeros(n)
     rhs[-1] = -1
-    coeffs = np.linalg.solve(B, rhs)[:-1]
+    try:
+        coeffs = np.linalg.solve(B, rhs)[:-1]
+    except np.linalg.LinAlgError as err:
+        print(X)
+        print(R)
+        print(B)
+        print(rhs)
+        raise np.linalg.LinAlgError(err)
+    #print(B,"\n")
     # update
     x = xhist[-1]*(1-damp) + damp*np.column_stack([c*_x for c,_x in zip(coeffs,xhist) ]).sum(axis=1)
     return x

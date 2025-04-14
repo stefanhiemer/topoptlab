@@ -309,4 +309,4 @@ if __name__ == "__main__":
     #demonstrate_mma()
     #demonstrate_gradient_descent()
     #demonstrate_periodicanderson(mix=1.,damp=1.)
-    demonstrate_diis(mix=1.,damp=1.)
+    demonstrate_diis(mix=0.5,damp=0.5,verbose=True)
