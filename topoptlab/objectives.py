@@ -1,7 +1,5 @@
 import numpy as np
 
-from scipy.sparse.linalg import spsolve
-
 def compliance(xPhys,u,KE,edofMat,
                Amax,Amin,penal,
                obj,**kwargs):

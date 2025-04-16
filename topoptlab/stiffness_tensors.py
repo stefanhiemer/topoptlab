@@ -164,9 +164,14 @@ def isotropic_2d(E=1., nu=0.3, plane_stress=True):
                                           [nu,1-nu,0],
                                           [0,0,(1-nu)/2]])
 
-def orthotropic_2d(Ex, Ey, nu_xy, G_xy):
+def orthotropic_2d(Ex, Ey, 
+                   nu_xy, G_xy,
+                   Ez=None, nu_xz=None, nu_yz=None,
+                   plane_stress=True):
     """
-    2D stiffness tensor for isotropic material. 
+    2D stiffness tensor for orthotropic material. The indices of the Poisson 
+    ratios nu_ij are defined as the direction with the applied strain (i) and 
+    the direction of contraction/expansion j. 
     
     Parameters
     ----------
@@ -174,28 +179,44 @@ def orthotropic_2d(Ex, Ey, nu_xy, G_xy):
         Young's modulus in x direction.
     Ey : float
         Young's modulus in y direction.
-    nu_xy : float
-        Poisson' ratio.
     G_xy : float
-        shear modulus.
+        shear modulus in xy plane.
+    nu_xy : float
+        Poisson's ratio for tension in x and contraction/expansion y direction.
+    Ez : float
+        Young's modulus in z direction.
+    nu_xz : float or None
+        Poisson's ratio for tension in x and contraction/expansion z direction.
+    nu_yz : float or None
+        Poisson's ratio for tension in y and contraction/expansion z direction.
     
     Returns
     -------
     c : np.ndarray, shape (3,3)
         stiffness tensor.
     """
-    nu_yx = nu_xy * (Ey / Ex)  # Reciprocity relation
-    factor = Ex / (Ex - (Ey * nu_xy**2) )
-    
-    return factor * array([[Ex, nu_xy * Ey, 0],
-                           [nu_xy * Ey, Ey, 0],
-                           [0, 0, G_xy * (1 - nu_xy * nu_yx)]])
+    #
+    nu_yx = nu_xy * (Ey / Ex)
+    #
+    if plane_stress:
+        return array([[Ex / (1-nu_xy*nu_yx), Ex*nu_yx / (1-nu_xy*nu_yx) ,0], 
+                      [Ey*nu_xy / (1-nu_xy*nu_yx), Ey / (1-nu_xy*nu_yx), 0],
+                      [0, 0, G_xy]])
+    else:
+        nu_zy = nu_yz * (Ez / Ey)
+        nu_zx = nu_xz * (Ez / Ex)
+        D = 1 - nu_xy*nu_yx - nu_xz*nu_zx - nu_yz*nu_zy - 2*nu_xy*nu_yz*nu_zx
+        return array([[Ex*(1-nu_yz*nu_zy)/D,Ex*(nu_yx + nu_yz*nu_zx)/D,0], 
+                      [Ey*(nu_xy + nu_xz*nu_zy)/D, Ey*(1 - nu_xz*nu_zx)/D, 0],
+                      [0, 0, G_xy]])
 
 def orthotropic_3d(Ex, Ey, Ez, 
-                   nu_xy, nu_xz, nu_yz, 
+                   nu_xy, nu_xz, nu_yz,
                    G_xy, G_xz, G_yz):
     """
-    3D stiffness tensor for orthotropic material. 
+    3D stiffness tensor for orthotropic material. The indices of the Poisson 
+    ratios nu_ij are defined as the direction with the applied strain (i) and 
+    the direction of contraction/expansion j. 
     
     Parameters
     ----------
@@ -206,36 +227,42 @@ def orthotropic_3d(Ex, Ey, Ez,
     Ez : float
         Young's modulus in z direction.
     nu_xy : float
-        Poisson' ratio.
-    nu_xz : float
-        Poisson' ratio.
-    nu_yz : float
-        Poisson' ratio.
+        Poisson's ratio for tension in x and contraction/expansion y direction.
+    nu_xz : float or None
+        Poisson's ratio for tension in x and contraction/expansion z direction.
+    nu_yz : float or None
+        Poisson's ratio for tension in y and contraction/expansion z direction.
     G_xy : float
-        shear modulus.
+        shear modulus in xy plane.
     G_xz : float
-        shear modulus.
+        shear modulus in xz plane.
     G_yz : float
-        shear modulus.
+        shear modulus in yz plane.
     
     Returns
     -------
     c : np.ndarray, shape (6,6)
         stiffness tensor.
     """
-    return array([[Ex*(nu_yz**2 - 1)/(nu_xy**2 + 2*nu_xy*nu_xz*nu_yz + nu_xz**2 + nu_yz**2 - 1), 
-                   Ex*(-nu_xy - nu_xz*nu_yz)/(nu_xy**2 + 2*nu_xy*nu_xz*nu_yz + nu_xz**2 + nu_yz**2 - 1),
-                   Ex*(-nu_xy*nu_yz - nu_xz)/(nu_xy**2 + 2*nu_xy*nu_xz*nu_yz + nu_xz**2 + nu_yz**2 - 1),
-                   0, 0, 0],
-                  [Ey*(-nu_xy - nu_xz*nu_yz)/(nu_xy**2 + 2*nu_xy*nu_xz*nu_yz + nu_xz**2 + nu_yz**2 - 1), 
-                   Ey*(nu_xz**2 - 1)/(nu_xy**2 + 2*nu_xy*nu_xz*nu_yz + nu_xz**2 + nu_yz**2 - 1),
-                   Ey*(-nu_xy*nu_xz - nu_yz)/(nu_xy**2 + 2*nu_xy*nu_xz*nu_yz + nu_xz**2 + nu_yz**2 - 1),
-                   0, 0, 0],
-                  [Ez*(-nu_xy*nu_yz - nu_xz)/(nu_xy**2 + 2*nu_xy*nu_xz*nu_yz + nu_xz**2 + nu_yz**2 - 1),
-                   Ez*(-nu_xy*nu_xz - nu_yz)/(nu_xy**2 + 2*nu_xy*nu_xz*nu_yz + nu_xz**2 + nu_yz**2 - 1),
-                   Ez*(nu_xy**2 - 1)/(nu_xy**2 + 2*nu_xy*nu_xz*nu_yz + nu_xz**2 + nu_yz**2 - 1),
-                   0, 0, 0],
-                  [0, 0, 0, G_yz, 0, 0],
+    #
+    nu_zy = nu_yz * (Ez / Ey)
+    nu_zx = nu_xz * (Ez / Ex)
+    nu_yx = nu_xy * (Ey / Ex)
+    #
+    D = 1 - nu_xy*nu_yx - nu_xz*nu_zx - nu_yz*nu_zy - 2*nu_xy*nu_yz*nu_zx
+    return array([[Ex*(1-nu_yz*nu_zy)/D,
+                   Ex*(nu_yx + nu_yz*nu_zx)/D, 
+                   Ex*(nu_zx + nu_zy*nu_yx)/D, 
+                   0, 0, 0], 
+                  [Ey*(nu_xy + nu_xz*nu_zy)/D, 
+                   Ey*(1 - nu_xz*nu_zx)/D,
+                   Ey*(nu_zy + nu_zx*nu_xy)/D, 
+                   0, 0, 0], 
+                  [Ez*(nu_xz + nu_xy*nu_yz)/D, 
+                   Ez*(nu_yz + nu_yx*nu_xz)/D, 
+                   Ez*(1-nu_xy*nu_yx)/D, 
+                   0, 0, 0], 
+                  [0, 0, 0, G_yz, 0, 0], 
                   [0, 0, 0, 0, G_xz, 0], 
                   [0, 0, 0, 0, 0, G_xy]])
 

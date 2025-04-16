@@ -33,7 +33,7 @@ def main(nelx,nely,volfrac,penal,rmin,ft,solver="lu"):
     None.
 
     """
-    print("Minimum compliance problem with OC")
+    print("Swelling induced bending maximization with OC")
     print("ndes: " + str(nelx) + " x " + str(nely))
     print("volfrac: " + str(volfrac) + ", rmin: " + str(rmin) + ", penal: " + str(penal))
     print("Filter method: " + ["Sensitivity based","Density based"][ft])
@@ -145,9 +145,8 @@ def main(nelx,nely,volfrac,penal,rmin,ft,solver="lu"):
         # sensitivity
         dc[:]= penal*xPhys**(penal-1)*(\
                 (E2-E1)*( np.dot(h[edofMatE,0], KeE)*u[edofMatE,0] \
-                                 -E[:,None] * (a2-a1) *\
-                                  h[edofMatE,0]*fTe[:,:,0] 
-                                 -a[:,None] * h[edofMatE,0]*fTe[:,:,0]).sum(1))
+                          -E[:,None] * (a2-a1) *h[edofMatE,0]*fTe[:,:,0] 
+                          -a[:,None] * h[edofMatE,0]*fTe[:,:,0]).sum(1))
         #kappa1*kappa2 / (kappa1-kappa2) *(a1-a2)/(kappa[:,None]**2) * 1/(2*(1-nu)) *\
         #
         dv[:] = np.ones(nely*nelx)

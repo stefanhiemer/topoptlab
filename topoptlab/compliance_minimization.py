@@ -28,7 +28,7 @@ from topoptlab.fem import assemble_matrix,assemble_rhs,apply_bc
 from topoptlab.solve_linsystem import solve_lin
 # constrained optimizers
 from topoptlab.optimizer.optimality_criterion import oc_top88,oc_mechanism,oc_generalized
-from topoptlab.optimizer.mma_utils import update_mma,mma_defaultkws
+from topoptlab.optimizer.mma_utils import update_mma,mma_defaultkws,gcmma_defaultkws
 from topoptlab.objectives import compliance
 # output final design to a Paraview readable format
 from topoptlab.output_designs import export_vtk
@@ -184,29 +184,12 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             if optimizer_kw is None:
                 optimizer_kw = mma_defaultkws(x.shape[0],ft=ft,n_constr=1)
         elif optimizer == "gcmma":
-            # number of constraints.
-            m = 1
-            # lower and upper bound for densities
-            xmin = np.zeros((x.shape[0],1))
-            xmax = np.ones((x.shape[0],1))
-            # densities of two previous iterations
-            xold1 = x.copy()
-            xold2 = x.copy()
-            # lower and upper asymptotes
-            low = np.ones((x.shape[0],1))
-            upp = np.ones((x.shape[0],1))
+            # gcmma needs results of the two previous iterations
+            nhistory = 2
+            xhist = [x.copy(),x.copy()]
             #
-            a0 = 1.0
-            a = np.zeros((m,1))
-            c = 10000*np.ones((m,1))
-            d = np.zeros((m,1))
-            move = 0.2
-            #
-            epsimin = 0.0000001
-            raa0 = 0.01
-            raa = 0.01*np.ones((m,1))
-            raa0eps = 0.000001
-            raaeps = 0.000001*np.ones((m,1))
+            if optimizer_kw is None:
+                optimizer_kw = gcmma_defaultkws(x.shape[0],ft=ft,n_constr=1)
         else:
             raise ValueError("Unknown optimizer: ", optimizer)
     # Max and min Young's modulus

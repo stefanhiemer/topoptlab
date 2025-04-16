@@ -6,7 +6,7 @@ from topoptlab.elements.trilinear_hexahedron import create_edofMat as create_edo
 # default application case that provides boundary conditions, etc.
 from topoptlab.example_bc.lin_elast import selffolding_2d, selffolding_3d
 # different elements/physics
-from topoptlab.stiffness_tensors import isotropic_2d, isotropic_3d
+from topoptlab.stiffness_tensors import orthotropic_2d, orthotropic_3d
 from topoptlab.elements.linear_elasticity_2d import _lk_linear_elast_2d
 from topoptlab.elements.linear_elasticity_3d import _lk_linear_elast_3d
 from topoptlab.elements.heatexpansion_2d import _fk_heatexp_2d
@@ -23,10 +23,10 @@ def fem_heat_expansion(nelx, nely, nelz=None,
                        Emax=1.0, Emin=1e-9, nu=0.3, 
                        a1=5e-2,a2=1e-1,
                        Eratio = 0.35,
-                       lin_solver="cvxopt-cholmod", preconditioner=None,
+                       lin_solver="scipy-direct", preconditioner=None,
                        assembly_mode="full",
-                       bc=selffolding_2d,
-                       file="fem_heat-expansion_bilayer-iso",
+                       bc=selffolding_3d,
+                       file="fem_heat-expansion_bilayer-aniso",
                        export=True):
     """
     Run a single finite element simulation on a regular grid.
@@ -103,22 +103,30 @@ def fem_heat_expansion(nelx, nely, nelz=None,
     # isotropic bilayer
     if ndim ==2:
         # stiffness tensor
-        cs = [isotropic_2d(E=1., nu = nu) for i in np.arange(int(nely/2))] 
-        cs += [isotropic_2d(E=Eratio, nu=nu) for j in np.arange(int(nely/2),nely)]
+        cs = [orthotropic_2d(Ex=1., Ey=Eratio, nu_xy=nu, G_xy=0.3) \
+              for i in np.arange(int(nely/2))] 
+        cs += [orthotropic_2d(Ex=Eratio, Ey=1., nu_xy=nu*Eratio, G_xy=0.3) \
+               for j in np.arange(int(nely/2),nely)]
         cs = np.tile(np.stack(cs),(nelx,1,1))
         # lin. expansion coefficient
-        a = np.hstack( (np.full( (int(nely/2)), fill_value=a1 ), 
-                        np.full( (int(nely/2)), fill_value=a2 )))
-        a = np.tile(a,(nelx))
+        a = np.stack([np.diag([a1,a2]) for i in np.arange(int(nely/2))]+\
+                     [np.diag([a2,a1]) for i in np.arange(int(nely/2))])
+        a = np.tile(a,(nelx,1,1))
     if ndim ==3:
         # stiffness tensor
-        cs = [isotropic_3d(E=1., nu = nu) for i in np.arange(int(nely/2))] 
-        cs += [isotropic_3d(E=Eratio, nu=nu) for j in np.arange(int(nely/2),nely)]
+        cs = [orthotropic_3d(Ex=1.0, Ey=Eratio, Ez=Eratio, 
+                             nu_xy=nu, nu_xz=nu, nu_yz=nu,
+                             G_xy=0.3, G_xz=0.3, G_yz=0.3) \
+              for i in np.arange(int(nely/2))] 
+        cs += [orthotropic_3d(Ex=Eratio, Ey=1.0, Ez=Eratio, 
+                              nu_xy=nu*Eratio, nu_xz=nu, nu_yz=nu,
+                              G_xy=0.3, G_xz=0.3, G_yz=0.3) \
+               for j in np.arange(int(nely/2),nely)]
         cs = np.tile(np.stack(cs),(nelx*nelz,1,1))
         # lin. expansion coefficient
-        a = np.hstack( (np.full( (int(nely/2)), fill_value=a1 ), 
-                        np.full( (int(nely/2)), fill_value=a2 )))
-        a = np.tile(a,(nelx*nelz))
+        a = np.stack([np.diag([a1,a2,a2]) for i in np.arange(int(nely/2))]+\
+                     [np.diag([a2,a1,a2]) for i in np.arange(int(nely/2))])
+        a = np.tile(a,(nelx*nelz,1,1))
     # get element stiffness matrix and element of freedom matrix
     nT_ndof = 1
     if ndim == 2:
@@ -154,7 +162,7 @@ def fem_heat_expansion(nelx, nely, nelz=None,
     #
     T = np.ones((nTdof,1))
     # interpolate material properties
-    E = (Emin+(xPhys)** penal*(Emax-Emin))
+    E = (Emin+xPhys**penal*(Emax-Emin))
     # entries of stiffness matrix
     if assembly_mode == "full":
         sK = (E[:,None,None] * KE).flatten()
@@ -167,14 +175,13 @@ def fem_heat_expansion(nelx, nely, nelz=None,
     if ndim == 2:
         fTe = _fk_heatexp_2d(xe=xe,
                              c=cs,
-                             a=np.eye(ndim),
+                             a=a,
                              DeltaT=T[TedofMat][:,:,0])
     elif ndim == 3:
         fTe = _fk_heatexp_3d(xe=xe,
                              c=cs,
-                             a=np.eye(ndim),
+                             a=a,
                              DeltaT=T[TedofMat][:,:,0])
-    fTe = fTe * a[:,None]
     # assemble
     fT = np.zeros(f.shape)
     np.add.at(fT[:,0],
@@ -201,12 +208,12 @@ def fem_heat_expansion(nelx, nely, nelz=None,
                    u=T)
         export_vtk(filename=file+"E-"+str(ndim),
                    nelx=nelx,nely=nely,nelz=nelz,
-                   xPhys=1/a,
+                   xPhys=1/a[:,0,0],
                    u=u,f=f+fT)
     return
 
 if __name__ == "__main__":
-    nelx=1000
-    nely=1000
-    nelz=None
+    nelx=50
+    nely=10
+    nelz=5
     fem_heat_expansion(nelx=nelx,nely=nely,nelz=nelz)

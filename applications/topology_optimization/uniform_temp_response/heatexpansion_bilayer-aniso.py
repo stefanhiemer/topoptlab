@@ -619,7 +619,7 @@ if __name__ == "__main__":
         bcs=selffolding_3d
     #
     l = np.zeros((2*(nelx+1)*(nely+1),1))
-    l[2*nelx*(nely+1),0] = -1
+    l[2 *(nelx+1)*(nely+1) - 2 * (nely+1) + 1,0] = -1
     #
     main(nelx=nelx,nely=nely,volfrac=volfrac,penal=penal,rmin=rmin,ft=ft,
          obj_func=var_maximization ,obj_kw={"l": l},

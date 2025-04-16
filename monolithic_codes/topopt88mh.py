@@ -193,9 +193,8 @@ def main(nelx,nely,volfrac,penal,rmin,ft,solver="lu"):
         dc[:]= penal*xPhys**(penal-1)*(\
                 (k2-k1)*(np.dot(hT[edofMatT,0], KeT)*T[edofMatT,0]).sum(1)\
                 +(E2-E1)*( np.dot(hE[edofMatE,0], KeE)*u[edofMatE,0] \
-                                - E[:,None] * (a2-a1) *\
-                                  hE[edofMatE,0]*fTe[:,:,0] 
-                                - a[:,None] * hE[edofMatE,0]*fTe[:,:,0]).sum(1))
+                           - E[:,None] * (a2-a1) * hE[edofMatE,0]*fTe[:,:,0] 
+                           - a[:,None] * hE[edofMatE,0]*fTe[:,:,0]).sum(1))
         #kappa1*kappa2 / (kappa1-kappa2) *(a1-a2)/(kappa[:,None]**2) * 1/(2*(1-nu)) *\
         #
         dv[:] = np.ones(nely*nelx)
