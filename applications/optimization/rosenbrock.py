@@ -16,12 +16,29 @@ def demonstrate_diis(nvars=3,q=5,q0=20,
     
     Parameters
     ----------
-    nvars : float
+    nvars : int
         number of variables.
+    accel_freq : int
+        acceleration frequency.
+    accel_start : int
+        first iteration to start using acceleration.
+    max_history : int
+        maximum number of past results used for acceleration.
+    damp : float
+        damping of the DIIS update.
+    mix : float
+        mixing if not DIIS update is done.
+    verbose : bool
+        if True, information about the iteration is printed.
     
     Returns
     -------
-    None
+    x : np.ndarray shape (nvars)
+        final iterate.
+    dobj : np.ndarray (nvars)
+        final gradient.
+    it : int
+        number of iterations until final result.
     """
     #
     np.random.seed(1)
@@ -67,23 +84,40 @@ def demonstrate_diis(nvars=3,q=5,q0=20,
     print("after {0} iterations".format(int(i+1)))
     return
 
-def demonstrate_periodicanderson(nvars=3,q=5,q0=20,
-                                 max_history=5,
-                                 damp=0.9,
-                                 mix=0.9,
-                                 verbose=False):
+def demonstrate_anderson(nvars=3,accel_freq=5,accel_start=20,
+                         max_history=5,
+                         damp=0.9,
+                         mix=0.9,
+                         verbose=False):
     """
     Simple demonstration code for the use of the periodic anderson acceleration 
     as optimizer by minimizing the rosenbrock function in the interval [-1.5,1.5].
     
     Parameters
     ----------
-    nvars : float
+    nvars : int
         number of variables.
+    accel_freq : int
+        acceleration frequency.
+    accel_start : int
+        first iteration to start using acceleration.
+    max_history : int
+        maximum number of past results used for acceleration.
+    damp : float
+        damping of the Anderson update.
+    mix : float
+        mixing if not Anderson update is done.
+    verbose : bool
+        if True, information about the iteration is printed.
     
     Returns
     -------
-    None
+    x : np.ndarray shape (nvars)
+        final iterate.
+    dobj : np.ndarray (nvars)
+        final gradient.
+    it : int
+        number of iterations until final result.
     """
     #
     np.random.seed(1)
@@ -107,7 +141,7 @@ def demonstrate_periodicanderson(nvars=3,q=5,q0=20,
                              el_flags=None, move=0.1)
         dobjold[:] = dobj
         #
-        if ((i-q0) % q) == 0 and i >= q0:
+        if ((i-accel_start) % accel_freq) == 0 and i >= accel_start:
             x = anderson(x=x,xhist=xhist,
                          max_history=max_history,
                          damp=damp)
@@ -117,7 +151,7 @@ def demonstrate_periodicanderson(nvars=3,q=5,q0=20,
         xhist.append(x)
         change = np.abs(x - xhist[-2]).max()
         if len(xhist)> max_history+1:
-            xhist = xhist[-q-1:]
+            xhist = xhist[-max_history-1:]
         #
         if verbose:
             print("it.: {0} obj.: {1:.10f}, ch.: {2:.10f}".format(
@@ -127,7 +161,7 @@ def demonstrate_periodicanderson(nvars=3,q=5,q0=20,
     print("final x: ", x)
     print("final gradient: ", dobj)
     print("after {0} iterations".format(int(i+1)))
-    return
+    return x, dobj,i+1
 
 def demonstrate_gradient_descent(nvars=3,
                                  verbose=False):
@@ -181,7 +215,7 @@ def demonstrate_gradient_descent(nvars=3,
     print("final x: ", x)
     print("final gradient: ", dobj)
     print("after {0} iterations".format(int(i+1)))
-    return
+    return x, dobj,i+1
 
 def demonstrate_barzilai_borwein(nvars=3,
                                  verbose=False):
@@ -301,12 +335,12 @@ def demonstrate_mma(nvars=3,
     print("final x: ", x)
     print("final gradient: ", dobj)
     print("after {0} iterations".format(int(i+1)))
-    return
+    return x, dobj,i+1
 
 if __name__ == "__main__":
     
     #demonstrate_barzilai_borwein()
     #demonstrate_mma()
     #demonstrate_gradient_descent()
-    #demonstrate_periodicanderson(mix=1.,damp=1.)
-    demonstrate_diis(mix=0.5,damp=0.5,verbose=True)
+    demonstrate_anderson(mix=1.,damp=1.)
+    #demonstrate_diis(mix=0.5,damp=0.5,verbose=True)

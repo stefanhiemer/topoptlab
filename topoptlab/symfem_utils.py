@@ -149,6 +149,8 @@ def stifftens_isotropic(ndim,plane_stress=True):
     
     Parameters
     ----------
+    ndim : int
+        number of dimensions
     plane_stress : bool
         if True, return stiffness tensor for plane stress, otherwise return
         stiffness tensor for plane strain
@@ -373,14 +375,14 @@ def scale_cell(vertices):
     for i in range(ndim):
         R[i][i] = 1
     for i in range(ndim-1):
-        R[0][i+1] = tan(g[i])
+        R[0][i+1] = tan(g[i][0])
     R = MatrixFunction(R)
     # cell lengths
     l = generate_constMatrix(ncol=1,nrow=ndim,name="l")
     # create stretch matrix
     S = [ [0 for j in range(ndim)] for i in range(ndim)]
     for i in range(ndim):
-        S[i][i] = l[i]
+        S[i][i] = l[i][0]
     S = MatrixFunction(S)
     # affine transformation matrix
     return vertices@(R@S).transpose()

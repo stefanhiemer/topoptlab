@@ -14,8 +14,9 @@ import matplotlib.pyplot as plt
 
 from topoptlab.output_designs import export_vtk
 from topoptlab.filters import AMfilter,find_eta
-from topoptlab.fem import lk_linear_elast_2D, update_indices
-from topoptlab.mma_utils import update_mma
+from topoptlab.fem import update_indices
+from topoptlab.elements.linear_elasticity_2d import lk_linear_elast_2d
+from topoptlab.optimizer.mma_utils import update_mma
 
 from mmapy import gcmmasub,asymp,concheck,raaupdate
     
@@ -200,7 +201,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     else:
         raise ValueError("Unknown solver: ", solver)
     # FE: Build the index vectors for the for coo matrix format.
-    KE = lk_linear_elast_2D()
+    KE = lk_linear_elast_2d()
     elx,ely = np.arange(nelx)[:,None], np.arange(nely)[None,:]
     el = np.arange(nelx*nely)
     n1 = ((nely+1)*elx+ely).flatten()
@@ -777,12 +778,12 @@ def oc(nelx, nely, x, volfrac, dc, dv, g, baseplate, pass_el,
 # The real main driver
 if __name__ == "__main__":
     # Default input parameters
-    nelx = 150  # 180
+    nelx = 60  # 180
     nely = int(nelx/3)  # 60
     volfrac = 0.5  # 0.4
-    rmin = 0.03*nelx  # 5.4
+    rmin = 0.04*nelx  # 5.4
     penal = 3.0
-    ft = 7 # ft==0 -> sens, ft==1 -> dens
+    ft = 1 # ft==0 -> sens, ft==1 -> dens
     import sys
     if len(sys.argv) > 1:
         nelx = int(sys.argv[1])

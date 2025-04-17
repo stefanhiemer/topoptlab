@@ -1,7 +1,7 @@
 import numpy as np
 
 from topoptlab.fem import get_integrpoints
-from topoptlab.elements.bilinear_quadrilateral import jacobian,shape_functions
+from topoptlab.elements.bilinear_quadrilateral import shape_functions
 
 def _lm_mass_2d(xe,
                 p=np.array([1.]),

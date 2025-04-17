@@ -37,7 +37,6 @@ from topoptlab.utils import map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel
 # logging related stuff
 from topoptlab.log_utils import init_logging
 
-
 # MAIN DRIVER
 def main(nelx, nely, volfrac, penal, rmin, ft,
          nelz=None,
@@ -48,7 +47,11 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
          obj_func=compliance, obj_kw={},
          el_flags=None,
          optimizer="oc", optimizer_kw = None,
-         alpha=None,
+         mix=None, 
+         accelerator_kw={"accel_freq": 4, 
+                         "accel_start": 20,
+                         "max_history": 0,
+                         "accelerator": None},
          nouteriter=2000, ninneriter=15,
          file="topopt",
          display=True,export=True,write_log=True,
@@ -109,7 +112,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         covergent method of moving asymptotes.
     optimizer_kw : dict
         dictionary with parameters for optimizer.
-    alpha : None or float,
+    mix : None or float,
         mixing parameter for design variable update.
     nouteriter: int
         number of TO iterations
@@ -165,7 +168,6 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         n = nelx * nely * nelz
     # Allocate design variables (as array), initialize and allocate sens.
     x = volfrac * np.ones(n, dtype=float,order='F')
-    xold = x.copy()
     xTilde = x.copy()
     xPhys = x.copy()
     # initialize arrays for gradients
@@ -176,17 +178,17 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         if optimizer in ["oc","ocm","ocg"]:
             # must be initialized to use the NGuyen/Paulino OC approach
             g = 0
+            #
+            max_history = 2
         elif optimizer == "mma":
             # mma needs results of the two previous iterations
-            nhistory = 2
-            xhist = [x.copy(),x.copy()]
+            max_history = 3
             #
             if optimizer_kw is None:
                 optimizer_kw = mma_defaultkws(x.shape[0],ft=ft,n_constr=1)
         elif optimizer == "gcmma":
             # gcmma needs results of the two previous iterations
-            nhistory = 2
-            xhist = [x.copy(),x.copy()]
+            max_history = 3
             #
             if optimizer_kw is None:
                 optimizer_kw = gcmma_defaultkws(x.shape[0],ft=ft,n_constr=1)
@@ -281,6 +283,13 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                        labelleft=False)
         ax.axis("off")
         fig.show()
+    # initialize iteration history
+    if max_history and accelerator_kw is None:
+        xhist = [x.copy() for i in np.arange(max_history)]
+    elif max_history >= accelerator_kw["max_history"]:
+        xhist = [x.copy() for i in np.arange(max_history)]
+    elif max_history < accelerator_kw["max_history"]:
+        xhist = [x.copy() for i in np.arange(accelerator_kw["max_history"])]
     # optimization loop
     for loop in np.arange(nouteriter):
         # solve FEM, calculate obj. func. and gradients.
@@ -386,8 +395,8 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                    loop,
                    np.max(dobj),
                    np.min(dv)))
-        # density update by solver
-        xold[:] = x
+        # density update by optimizer
+        #xold[:] = x
         # optimality criteria
         if optimizer=="oc":
             (x[:], g) = oc_top88(x=x, volfrac=volfrac, 
@@ -403,10 +412,9 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                                        el_flags=el_flags)
         # method of moving asymptotes
         elif optimizer=="mma":
-            xval = x.copy()[None].T
             xmma,ymma,zmma,lam,xsi,eta,mu,zet,s,low,upp = update_mma(x=x,
-                                                                xold1=xhist[-1],
-                                                                xold2=xhist[-2],
+                                                                xold1=xhist[-2][:,None],
+                                                                xold2=xhist[-3][:,None],
                                                                 xPhys=xPhys,
                                                                 obj=obj,
                                                                 dobj=dobj,
@@ -418,37 +426,28 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             optimizer_kw["low"] = low
             optimizer_kw["upp"] = upp
             # delete oldest element of iteration history
-            xhist.pop(0)
-            xhist.append(xval)
-            del xval
+            #xhist.pop(0)
+            #xhist.append(xval)
+            #del xval
             x = xmma.copy().flatten()
-        # mixing
-        if alpha is not None:
-            x = x*(1-alpha) + alpha * xold
-        #
-        # Anderson acceleration every q steps after q0 iterations
-        #if (loop-q0) % q == 0:
-        #    # assemble to adequate matrix
-        #    xhist = np.column_stack(xhist)
-        #    rhist = np.column_stack(rhist)
-        #    # differences of x and residuals
-        #    dx = xhist[:,1:] - xhist[,:-1]
-        #    dr = rhist[:,1:] - rhist[,:-1]
-        #    # Solve for optimal update
-        #    gamma = lsq_linear(r,np.zeros(n))
-        #    # Anderson update
-        #    if gamma.success:
-        #        x = history_x[-1] - (F[-1] @ gamma).reshape(x.shape)
-        #
-        # update history
-        #else:
-        #    xhist.append(x)
-        #    rhist.append(x-xold)
-        #    # boils effectively down to standard mixing
-        #    x += alpha * rhist[-1]
-        #
         if debug:
             print("Post Density Update: it.: {0}, med. x.: {1:.10f}, med. xTilde: {2:.10f}, med. xPhys: {3:.10f}".format(
+                   loop, np.median(x),np.median(xTilde),np.median(xPhys)))
+        # mixing
+        if ((loop-accelerator_kw["accel_start"])%accelerator_kw["accel_freq"])==0 \
+            and loop >= accelerator_kw["accel_start"] and \
+            accelerator_kw["accelerator"] is not None:
+            x = accelerator_kw["accelerator"](x=x,xhist=xhist,
+                                             **accelerator_kw)
+        elif mix is not None:
+            x = xhist[-1]*(1-mix) + x*mix
+        # append history
+        xhist.append(x.copy())
+        # prune history if too long
+        if len(xhist)> max_history+1:
+            xhist = xhist[-max_history-1:]
+        if debug:
+            print("Post Mixing Update: it.: {0}, med. x.: {1:.10f}, med. xTilde: {2:.10f}, med. xPhys: {3:.10f}".format(
                    loop, np.median(x),np.median(xTilde),np.median(xPhys)))
         # Filter design variables
         if ft == 0:
@@ -469,7 +468,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             print("Post Density Filter: it.: {0}, med. x.: {1:.10f}, med. xTilde: {2:.10f}, med. xPhys: {3:.10f}".format(
                    loop, np.median(x),np.median(xTilde),np.median(xPhys)))
         # Compute the change by the inf. norm
-        change = np.abs(x-xold).max()
+        change = np.abs(xhist[-1] - xhist[-2]).max()
         # Plot to screen
         if display:
             if ndim == 2:

@@ -7,7 +7,6 @@ from topoptlab.objectives import var_maximization
 
 # The real main driver
 if __name__ == "__main__":
-    
     # Default input parameters
     nelx = 40
     nely = 20

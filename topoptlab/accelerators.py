@@ -2,7 +2,7 @@ import numpy as np
 from scipy.linalg import lstsq
 
 def anderson(x,xhist,max_history,
-             damp=0.9):
+             damp=0.9,**kws):
     """
     Anderson acceleration to achieve convergence acceleration. It assumes 
     that the numerical process resembles a fixed point iteration
