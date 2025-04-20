@@ -226,12 +226,15 @@ def compare_elast_3d(xe = np.array([[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
 if __name__ == "__main__":
     #
     compare_mass_2d()
-    #
     compare_mass_3d()
     #
     compare_laplacian_aniso_2d()
+    compare_laplacian_aniso_3d()
     #
     compare_laplacian_iso_3d()
+    #
+    compare_elast_2d()
+    compare_elast_3d()
     #
     compare_heatexp_iso_2d()
     compare_heatexp_iso_2d(DeltaT=None)

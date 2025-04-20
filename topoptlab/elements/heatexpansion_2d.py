@@ -44,6 +44,7 @@ def _fk_heatexp_2d(xe,c,
     #
     if len(xe.shape) == 2:
         xe = xe[None,:,:]
+    nel = xe.shape[0]
     # convert linear heat expansion tensor to Voigt notation (nel,3,1)
     if len(a.shape) == 2:
         a = a[None,:,:]
@@ -68,20 +69,21 @@ def _fk_heatexp_2d(xe,c,
     # shape functions at integration points
     N = shape_functions(xi,eta)[None,:,:,None]
     # 
-    B = bmatrix(xi, eta, xe, all_elems=True)
+    B,detJ = bmatrix(xi=xi, eta=eta, xe=xe, 
+                     all_elems=True, 
+                     return_detJ=True)
+    detJ = detJ.reshape(nel,nq)
     B = B.reshape(nel, nq,  B.shape[-2], B.shape[-1])
     #
-    fe = B.transpose([0,1,3,2])@c[:,None,:,:]
-    fe = fe@a[:,None,:,:]@N.transpose([0,1,3,2])
-    # calculate integral via quadrature
-    fe = (w[:,None,None]*fe).sum(axis=1)
-    #
-    fe = t[:,None,None] * fe
+    integral = B.transpose([0,1,3,2])@c[:,None,:,:]
+    integral = integral@a[:,None,:,:]@N.transpose([0,1,3,2])
+    # multiply by determinant and quadrature
+    fe = (w[None,:,None,None]*integral*detJ[:,:,None,None]).sum(axis=1)
     if DeltaT is None:
-        return fe
+        return t[:,None,None] * fe
     else:
         # this is basically a matrix product
-        return np.sum(fe*DeltaT[:,None,:],axis=2)
+        return np.sum(t[:,None,None] * fe * DeltaT[:,None,:],axis=2)
 
 def fk_heatexp_2d(E,nu, 
                   a,DeltaT=None,

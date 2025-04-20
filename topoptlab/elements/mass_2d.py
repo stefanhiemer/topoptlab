@@ -1,7 +1,7 @@
 import numpy as np
 
 from topoptlab.fem import get_integrpoints
-from topoptlab.elements.bilinear_quadrilateral import shape_functions
+from topoptlab.elements.bilinear_quadrilateral import shape_functions, jacobian
 
 def _lm_mass_2d(xe,
                 p=np.array([1.]),
@@ -36,12 +36,13 @@ def _lm_mass_2d(xe,
     #
     if len(xe.shape) == 2:
         xe = xe[None,:,:]
-    #
-    if isinstance(t,float):
-        t = np.array([t])
+    nel = xe.shape[0]
     #
     if isinstance(p,float) or (p.shape[0] == 1 and xe.shape[0] !=1):
         p = np.full(xe.shape[0], p)
+    #
+    if isinstance(t,float):
+        t = np.array([t])
     #
     x,w=get_integrpoints(ndim=2,nq=nquad,method=quadr_method)
     #
@@ -49,14 +50,13 @@ def _lm_mass_2d(xe,
     #
     N = shape_functions(xi=xi,eta=eta)
     #
-    integral = N[None,:,:,None]@N[None,:,:,None,].transpose([0,1,3,2])
-    # multiply by determinant
-    #integral = integral * detJ[:,None,None]
-    #
-    Ke = (w[:,None,None]*integral).sum(axis=1)
+    integral = N[None,:,:,None]@N[None,:,:,None].transpose([0,1,3,2])
+    # calculate determinant of jacobian
+    J = jacobian(xi=xi,eta=eta,xe=xe,all_elems=True)
+    detJ = ((J[:,0,0]*J[:,1,1]) - (J[:,1,0]*J[:,0,1])).reshape(nel,nquad*nquad)
+    # multiply by determinant and quadrature
+    Ke = (w[None,:,None,None]*integral*detJ[:,:,None,None]).sum(axis=1)
     # 
-    #J = jacobian(xi,eta,xe,all_elems=False)
-    #det = (J[:,0,0]*J[:,1,1]) - (J[:,1,0]*J[:,0,1])
     return t[:,None,None] * p[:,None,None] * Ke
 
 def lm_mass_symfem(p=1.,t=1.):

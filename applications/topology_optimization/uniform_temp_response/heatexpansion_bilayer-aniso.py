@@ -598,8 +598,8 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
 # The real main driver    
 if __name__ == "__main__":
     # Default input parameters
-    nelx=120
-    nely=40
+    nelx=60
+    nely=20
     nelz=None
     volfrac=0.5
     rmin=2.4

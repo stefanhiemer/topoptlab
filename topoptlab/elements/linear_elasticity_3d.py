@@ -33,26 +33,30 @@ def _lk_linear_elast_3d(xe,c,
         
     """
     #
+    if len(xe.shape) == 2:
+        xe = xe[None,:,:]
+    nel = xe.shape[0]
+    #
     if len(c.shape) == 2:
         c = c[None,:,:]
     #
-    if len(xe.shape) == 2:
-        xe = xe[None,:,:]
-    #
     x,w=get_integrpoints(ndim=3,nq=nquad,method=quadr_method)
+    nq =w.shape[0]
     #
     xi,eta,zeta = [_x[:,0] for _x in np.split(x, 3,axis=1)]
     #
     nel = xe.shape[0]
     nq =w.shape[0]
     # 
-    B = bmatrix(xi, eta, zeta, xe, all_elems=True)
+    B,detJ = bmatrix(xi=xi, eta=eta, zeta=zeta, xe=xe, 
+                     all_elems=True, 
+                     return_detJ=True)
+    detJ = detJ.reshape(nel,nq)
     B = B.reshape(nel, nq,  B.shape[-2], B.shape[-1])
     #
     integral = B.transpose([0,1,3,2])@c[:,None,:,:]@B
-    #
-    Ke = (w[:,None,None]*integral).sum(axis=1)
-    return Ke
+    # multiply by determinant and quadrature
+    return (w[None,:,None,None]*integral*detJ[:,:,None,None]).sum(axis=1)
 
 def lk_linear_elast_3d(E=1,nu=0.3):
     """

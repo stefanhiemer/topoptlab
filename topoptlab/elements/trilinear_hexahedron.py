@@ -239,7 +239,8 @@ def jacobian(xi,eta,zeta,xe,all_elems=False):
     xi,eta,zeta,xe = check_inputs(xi,eta,zeta,xe,all_elems)
     return shape_functions_dxi(xi,eta,zeta).transpose([0,2,1]) @ xe
 
-def invjacobian(xi,eta,zeta,xe,all_elems=False):
+def invjacobian(xi,eta,zeta,xe,
+                all_elems=False,return_det=False):
     """
     Inverse Jacobian for bilinear quadrilateral Lagrangian element. 
     
@@ -262,6 +263,8 @@ def invjacobian(xi,eta,zeta,xe,all_elems=False):
     all_elems : bool
         if True, coordinates are evaluated for all elements. Useful for 
         creating elements etc.
+    return_det : bool
+        if True, return determinant of Jacobian.
         
     Returns
     -------
@@ -272,7 +275,7 @@ def invjacobian(xi,eta,zeta,xe,all_elems=False):
     # jacobian
     J = jacobian(xi,eta,zeta,xe,all_elems=all_elems)
     # determinant
-    det = (J[:,0,0]*(J[:,1,1,]*J[:,2,2] - J[:,1,2]*J[:,2,1])-
+    det = (J[:,0,0]*(J[:,1,1]*J[:,2,2] - J[:,1,2]*J[:,2,1])-
            J[:,0,1]*(J[:,1,0]*J[:,2,2] - J[:,1,2]*J[:,2,0])+
            J[:,0,2]*(J[:,1,0]*J[:,2,1] - J[:,1,1]*J[:,2,0]))
     # raise warning if determinant close to zero
@@ -294,7 +297,10 @@ def invjacobian(xi,eta,zeta,xe,all_elems=False):
     adj[:,2,1] = -(J[:,0,0]*J[:,2,1] - J[:,0,1]*J[:,2,0])
     adj[:,2,2] = J[:,0,0]*J[:,1,1] - J[:,0,1]*J[:,1,0]
     # return inverse
-    return adj/det[:,None,None]
+    if not return_det:
+        return adj/det[:,None,None]
+    else:
+        return adj/det[:,None,None], det
 
 def jacobian_cuboid(a,b,c):
     """
@@ -338,7 +344,8 @@ def invjacobian_cuboid(a,b,c):
     """ 
     return 2 * np.array([[1/a,0,0],[0,1/b,0],[0,0,1/c]])
 
-def bmatrix(xi,eta,zeta,xe,all_elems=False):
+def bmatrix(xi,eta,zeta,xe,
+            all_elems=False, return_detJ=False):
     """
     B matrix for bilinear quadrilateral Lagrangian element to calculate
     to calculate strains, stresses etc. from nodal values
@@ -362,7 +369,8 @@ def bmatrix(xi,eta,zeta,xe,all_elems=False):
     all_elems : bool
         if True, coordinates are evaluated for all elements. Useful for 
         creating elements etc.
-        
+    return_det : bool
+        if True, return determinant of Jacobian.
         
     Returns
     -------
@@ -374,6 +382,12 @@ def bmatrix(xi,eta,zeta,xe,all_elems=False):
     xi,eta,zeta,xe = check_inputs(xi,eta,zeta,xe,all_elems) 
     # collect inverse jacobians
     invJ = invjacobian(xi,eta,zeta,xe)
+    if not return_detJ:
+        invJ = invjacobian(xi=xi,eta=eta,zeta=zeta,xe=xe,
+                           return_det=return_detJ)
+    else:
+        invJ,detJ = invjacobian(xi=xi,eta=eta,zeta=zeta,xe=xe,
+                                return_det=return_detJ)
     # helper array to collect shape function derivatives
     helper = np.zeros((invJ.shape[0],9,24)) # shape (nel,9,24)
     shp = shape_functions_dxi(xi,eta,zeta).transpose([0,2,1])
@@ -387,7 +401,10 @@ def bmatrix(xi,eta,zeta,xe,all_elems=False):
                   [0,0,0,0,0,1,0,1,0],
                   [0,0,1,0,0,0,1,0,0],
                   [0,1,0,1,0,0,0,0,0]])@np.kron(np.eye(3),invJ)@helper
-    return B
+    if not return_detJ:
+        return B
+    else:
+        return B, detJ
 
 def bmatrix_cuboid(xi,eta,zeta,a,b,c):
     """

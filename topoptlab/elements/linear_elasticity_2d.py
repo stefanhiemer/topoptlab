@@ -34,36 +34,32 @@ def _lk_linear_elast_2d(xe,c,
         
     """
     #
+    if len(xe.shape) == 2:
+        xe = xe[None,:,:]
+    nel = xe.shape[0]
+    #
     if len(c.shape) == 2:
         c = c[None,:,:]
     #
-    if len(xe.shape) == 2:
-        xe = xe[None,:,:]
+    if isinstance(t,float):
+        t = np.array([t])
     #
     x,w=get_integrpoints(ndim=2,nq=nquad,method=quadr_method)
+    nq =w.shape[0]
     #
     xi,eta = [_x[:,0] for _x in np.split(x, 2,axis=1)]
-    #
-    nel = xe.shape[0]
-    nq =w.shape[0]
     # 
     B,detJ = bmatrix(xi=xi, eta=eta, xe=xe, 
                      all_elems=True, 
                      return_detJ=True)
-    #print("detJ",detJ.shape)
+    detJ = detJ.reshape(nel,nq)
     B = B.reshape(nel, nq,  B.shape[-2], B.shape[-1])
-    #print("bmat",B.shape)
     #
     integral = B.transpose([0,1,3,2])@c[:,None,:,:]@B
-    #print("integral",integral.shape)
-    # multiply by determinant
-    #integral = integral * detJ[:,None,None]
-    #
-    Ke = (w[:,None,None]*integral).sum(axis=1)
-    #print("Ke",Ke.shape)
+    # multiply by determinant and quadrature
+    Ke = (w[None,:,None,None]*integral*detJ[:,:,None,None]).sum(axis=1)
     # multiply thickness
-    Ke = t[:,None,None] * Ke  
-    return Ke
+    return t[:,None,None] * Ke
 
 def lk_linear_elast_2d(E=1,nu=0.3):
     """

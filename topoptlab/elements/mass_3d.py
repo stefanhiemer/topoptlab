@@ -33,7 +33,7 @@ def _lm_mass_3d(xe,p=1.0,
     #
     if len(xe.shape) == 2:
         xe = xe[None,:,:]
-    #
+    nel = xe.shape[0]
     #
     if isinstance(p,float) or (p.shape[0] == 1 and xe.shape[0] !=1):
         p = np.full(xe.shape[0], p)
@@ -44,14 +44,16 @@ def _lm_mass_3d(xe,p=1.0,
     #
     N = shape_functions(xi=xi,eta=eta,zeta=zeta)
     #
-    integral = N[None,:,:,None]@N[None,:,:,None,].transpose([0,1,3,2])
-    # multiply by determinant
-    #integral = integral * detJ[:,None,None]
-    #
-    Ke = (w[:,None,None]*integral).sum(axis=1)
+    integral = N[None,:,:,None]@N[None,:,:,None].transpose([0,1,3,2])
+    # calculate determinant of jacobiann
+    J = jacobian(xi=xi,eta=eta,zeta=zeta,xe=xe,all_elems=True)
+    detJ = (J[:,0,0]*(J[:,1,1]*J[:,2,2] - J[:,1,2]*J[:,2,1])-
+            J[:,0,1]*(J[:,1,0]*J[:,2,2] - J[:,1,2]*J[:,2,0])+
+            J[:,0,2]*(J[:,1,0]*J[:,2,1] - J[:,1,1]*J[:,2,0]))\
+            .reshape(nel,nquad*nquad*nquad)
+    # multiply by determinant and quadrature
+    Ke = (w[None,:,None,None]*integral*detJ[:,:,None,None]).sum(axis=1)
     # 
-    #J = jacobian(xi,eta,xe,all_elems=False)
-    #det = (J[:,0,0]*J[:,1,1]) - (J[:,1,0]*J[:,0,1])
     return p[:,None,None] * Ke
 
 def lm_mass_3d(p=1.0):

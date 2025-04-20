@@ -1,7 +1,7 @@
 import numpy as np
 
 from topoptlab.fem import get_integrpoints
-from topoptlab.elements.trilinear_hexahedron import jacobian,shape_functions_dxi
+from topoptlab.elements.trilinear_hexahedron import invjacobian,shape_functions_dxi
 
 def _lk_poisson_3d(xe,k,
                    quadr_method="gauss-legendre",
@@ -32,27 +32,28 @@ def _lk_poisson_3d(xe,k,
         
     """
     #
+    if len(xe.shape) == 2:
+        xe = xe[None,:,:]
+    nel = xe.shape[0]
+    #
     if len(k.shape) == 2:
         k = k[None,:,:]
     #
-    if len(xe.shape) == 2:
-        xe = xe[None,:,:]
-    #
     x,w=get_integrpoints(ndim=3,nq=nquad,method=quadr_method)
+    nq =w.shape[0]
     #
     xi,eta,zeta = [_x[:,0] for _x in np.split(x, 3,axis=1)]
     #
-    gradN = shape_functions_dxi(xi=xi,eta=eta,zeta=zeta)
+    Jinv,detJ = invjacobian(xi=xi,eta=eta,zeta=zeta,xe=xe,
+                            all_elems=True,return_det=True)
+    Jinv = Jinv.reshape(nel,nq,3,3)
+    detJ = detJ.reshape(nel,nq)
+    gradN = shape_functions_dxi(xi=xi,eta=eta,zeta=zeta)[None,:,:,:]@\
+            Jinv.transpose((0,1,3,2))
     #
-    integral = gradN[None,:,:,:]@k[:,None,:,:]@gradN[None,:,:,:].transpose([0,1,3,2])
-    # multiply by determinant
-    #integral = integral * detJ[:,None,None]
-    #
-    Ke = (w[:,None,None]*integral).sum(axis=1)
-    # 
-    #J = jacobian(xi,eta,xe,all_elems=False)
-    #det = (J[:,0,0]*J[:,1,1]) - (J[:,1,0]*J[:,0,1])
-    return Ke
+    integral = gradN@k[:,None,:,:]@gradN.transpose([0,1,3,2])
+    # multiply by determinant and quadrature
+    return (w[None,:,None,None]*integral*detJ[:,:,None,None]).sum(axis=1)
 
 def lk_poisson_3d(k=1):
     """

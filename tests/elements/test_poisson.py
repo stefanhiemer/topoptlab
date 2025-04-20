@@ -1,4 +1,4 @@
-from numpy import array,stack,eye
+from numpy import array,stack,eye,vstack
 from numpy.testing import assert_almost_equal
 
 import pytest
@@ -104,4 +104,29 @@ def test_anisotrop_poisson_3d(ks,xe):
     #
     assert_almost_equal(_lk_poisson_3d(xe,k=ks),
                         Kes)
+    return
+
+@pytest.mark.parametrize('xe',
+                         [(array([[[-1,-1],[1,-1],[1,1],[-1,1]],
+                                  [[-2,-2.1],[2.1,-2],[2,2],[-2,2]]])),
+                          array([[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
+                                  [-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]],
+                                 [[-2.1,-2,-2],[2.1,-2,-2],[2,2.1,-2],[-2,2,-2],
+                                  [-2,-2,2],[2,-2,2.1],[2,2,2],[-2,2.1,2]]])])
+
+def test_consist(xe):
+    ndim = xe.shape[-1]
+    k = stack([ eye(ndim)*(i+1) for i in range(xe.shape[0])] )
+    if ndim == 2:
+        #
+        Kes = vstack([_lk_poisson_2d(xe[i],k=k[i]) for i in range(xe.shape[0])])
+        #
+        assert_almost_equal(_lk_poisson_2d(xe,k=k),
+                            Kes)
+    elif ndim == 3:
+        #
+        Kes = vstack([_lk_poisson_3d(xe[i],k=k[i]) for i in range(xe.shape[0])])
+        #
+        assert_almost_equal(_lk_poisson_3d(xe,k=k),
+                            Kes)
     return
