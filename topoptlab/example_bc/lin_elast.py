@@ -40,7 +40,7 @@ def mbb_2d(nelx,nely,ndof,**kwargs):
 
 def mbb_3d(nelx,nely,nelz,ndof,**kwargs):
     """
-    This is the standard case from the 88 line code paper.
+    This is an equivalent to the standard case from the 88 line code paper.
     
     Parameters
     ----------
@@ -340,7 +340,7 @@ def xcenteredbeam_2d(nelx,nely,ndof,**kwargs):
     """
     Both displacements fixed at the middle of the left and right boundary. No
     forces. This test case is mainly for cases where a force source due to 
-    another field (e. g. thermal stresses) appear
+    another field (e. g. thermal stresses) appears.
     
     Parameters
     ----------
@@ -379,6 +379,118 @@ def xcenteredbeam_2d(nelx,nely,ndof,**kwargs):
     fixed = np.hstack(([0,2*nely], # xdofs fixed left side
                        [nely+1],
                        [2*nelx*(nely+1) + nely+1])) # bottom right 
+    return u,f,fixed,np.setdiff1d(dofs,fixed),None
+
+def tensiletest_2d(nelx,nely,ndof,
+                   ymirror=True,
+                   **kwargs):
+    """
+    Tensile test with force applied in x direction with -x side fixed in terms 
+    of x dofs. BC details depend on options.
+    
+    Parameters
+    ----------
+    nelx : int
+        number of elements in x direction.
+    nely : int
+        number of elements in y direction.
+    ndof : int
+        number of degrees of freedom.
+    ymirror : bool
+        if True, mirror axis at y=0 by setting the y dofs to zero. if False, 
+        then ydofs at x=0,y=Ly/2 and x=Lx,y=Ly/2
+
+    Returns
+    -------
+    u : np.ndarray
+        array of zeros for state variable (displacement, temperature) to be 
+        filled of shape (ndof).
+    f : np.ndarray
+        array of zeros for state flow variables (forces, flow).
+    fixed : np.ndarray
+        indices of fixed dofs (nfixed).
+    free : np.ndarray
+        indices of free dofs (ndofs - nfixed).
+    springs : list
+        contains two 1D np.ndarrays of equal length. first is of integer type 
+        and contains the indices of dofs attached to a spring. second contains
+        the spring constants. 
+
+    """
+    if nely%2 !=0:
+        raise ValueError("This example works only for nely equal to an even number.")
+    # BC's
+    dofs = np.arange(ndof)
+    # Solution and RHS vectors
+    f = np.zeros((ndof, 1))
+    u = np.zeros((ndof, 1))
+    # applied force for tension
+    f[-2:-(2*(nely+2)):-2] = 1.
+    # fixed dofs
+    # x mirror axis
+    fixed = [np.arange(0,(nely+1)*2,2)]
+    # y mirror axis
+    if ymirror:
+        fixed += [np.arange(1,ndof,2*(nely+1))] 
+    else:
+        fixed += [nely+1,ndof-nely-1]
+    fixed = np.hstack(fixed)
+    #
+    return u,f,fixed,np.setdiff1d(dofs,fixed),None
+
+def tensiletest_3d(nelx,nely,nelz,ndof,
+                   **kwargs):
+    """
+    x displacements fixed at left side and uniform force applied at right hand 
+    side. One y dof is fixed in the middle of the left side.
+    
+    Parameters
+    ----------
+    nelx : int
+        number of elements in x direction.
+    nely : int
+        number of elements in y direction.
+    nelz : int
+        number of elements in z direction.
+    ndof : int
+        number of degrees of freedom.
+
+    Returns
+    -------
+    u : np.ndarray
+        array of zeros for state variable (displacement, temperature) to be 
+        filled of shape (ndof).
+    f : np.ndarray
+        array of zeros for state flow variables (forces, flow).
+    fixed : np.ndarray
+        indices of fixed dofs (nfixed).
+    free : np.ndarray
+        indices of free dofs (ndofs - nfixed).
+
+    """
+    #
+    dofs = np.arange(ndof)
+    # Solution and RHS vectors
+    f = np.zeros((ndof, 1))
+    u = np.zeros((ndof, 1))
+    # symmetry bc (fix x displacements to zero)
+    xsymmetry = np.arange(0,3*(nely+1),3)
+    xsymmetry = np.tile(xsymmetry,nelz+1)+\
+                np.repeat(np.arange(0,ndof,3*(nelx+1)*(nely+1)),nely+1)
+    # symmetry bc (fix y displacements to zero)
+    ysymmetry = np.arange(1,ndof,3*(nely+1))
+    # symmetry bc (fix z displacements to zero)
+    zsymmetry = np.arange(2,(nelx+1)*(nely+1)*3,3)
+    #
+    fixed = np.hstack((xsymmetry, 
+                       ysymmetry,
+                       zsymmetry))
+    # force pulling
+    tension = np.arange(0,3*(nely+1),3)
+    tension = np.tile(tension,nelz+1)+\
+              np.repeat(np.arange(0,ndof,3*(nelx+1)*(nely+1)),nely+1)
+    tension = tension + (nely+1)*3*nelx
+    f[tension,0] = 1.
     return u,f,fixed,np.setdiff1d(dofs,fixed),None
 
 def selffolding_2d(nelx,nely,ndof,**kwargs):
