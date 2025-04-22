@@ -22,7 +22,8 @@ dependencies = ["numpy",
                 "scipy",
                 "cvxopt",
                 "mmapy",
-                "meshio"]
+                "meshio",
+                "scikit-image"]
 
 [project.optional-dependencies]
 tests = ['pytest']

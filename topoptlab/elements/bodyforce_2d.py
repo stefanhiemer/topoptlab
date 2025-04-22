@@ -1,13 +1,10 @@
 import numpy as np
 
-from topoptlab.fem import get_integrpoints
-from topoptlab.elements.bilinear_quadrilateral import shape_functions, jacobian
-
-def _lm_mass_2d(xe,
-                p=np.array([1.]),
-                t=np.array([1.]),
-                quadr_method="gauss-legendre",
-                nquad=2):
+def _lf_bodyforce_2d(xe,
+                     p=np.array([1.]),
+                     t=np.array([1.]),
+                     quadr_method="gauss-legendre",
+                     nquad=2):
     """
     Create element mass matrix in 2D with bilinear quadrilateral elements.
 
@@ -17,7 +14,7 @@ def _lm_mass_2d(xe,
         coordinates of element nodes. Please look at the
         definition/function of the shape function, then the node ordering is
         clear.
-    p : np.ndarray of shape (nels) or (1)
+    b : np.ndarray of shape (nels,2) or (2)
         density of element
     t : np.ndarray of shape (nels) or (1)
         thickness of element
@@ -38,8 +35,8 @@ def _lm_mass_2d(xe,
         xe = xe[None,:,:]
     nel = xe.shape[0]
     #
-    if isinstance(p,float) or (p.shape[0] == 1 and xe.shape[0] !=1):
-        p = np.full(xe.shape[0], p)
+    if (len(b.shape[0]) == 1 and b.shape[0] == 2 and xe.shape[0] !=1):
+        b = np.full((xe.shape[0],2), b)
     #
     if isinstance(t,float):
         t = np.array([t])
@@ -59,42 +56,30 @@ def _lm_mass_2d(xe,
     #
     return t[:,None,None] * p[:,None,None] * Ke
 
-def lm_mass_symfem(p=1.,t=1.):
+def lf_bodyforce_2d(b=np.array([0,-1]).,t=1.):
     """
-    Create mass matrix for 2D with bilinear quadrilateral Lagrangian
+    Create body force for 2D with bilinear quadrilateral Lagrangian
     elements.
 
     Parameters
     ----------
-    p : float
-        density of element
+    b : np.ndarray shape (2)
+        body force
     t : float
         thickness of element
 
     Returns
     -------
-    Ke : np.ndarray, shape (4,4)
+    Ke : np.ndarray, shape (8,1)
         element stiffness matrix.
 
     """
 
-    return p*t*np.array([[4/9,2/9,1/9,2/9],
-                         [2/9,4/9,2/9,1/9],
-                         [1/9,2/9,4/9,2/9],
-                         [2/9,1/9,2/9,4/9]])
-
-def lm_mass_2d():
-    """
-    Create mass matrix for 2D with bilinear quadrilateral Lagrangian
-    elements. Taken from the 88 lines code and slightly modified.
-
-    Returns
-    -------
-    Ke : np.ndarray, shape (4,4)
-        element stiffness matrix.
-
-    """
-    return np.array([[1/9, 1/18, 1/36, 1/18],
-                     [1/18, 1/9, 1/18, 1/36],
-                     [1/36, 1/18, 1/9, 1/18],
-                     [1/18, 1/36, 1/18, 1/9]])
+    return t*np.array([[b[0]*l1*l2],
+                       [b[1]*l1*l2],
+                       [b[0]*l1*l2],
+                       [b[1]*l1*l2],
+                       [b[0]*l1*l2],
+                       [b[1]*l1*l2],
+                       [b[0]*l1*l2],
+                       [b[1]*l1*l2]])

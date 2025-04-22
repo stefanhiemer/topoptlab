@@ -1,7 +1,7 @@
 from symfem.symbols import x
 
 from topoptlab.symfem_utils import base_cell, small_strain_matrix, generate_constMatrix
-from topoptlab.symfem_utils import convert_to_code
+from topoptlab.symfem_utils import convert_to_code, jacobian
 
 def linelast(ndim,
              element_type="Lagrange",
@@ -34,16 +34,14 @@ def linelast(ndim,
     b = small_strain_matrix(ndim=ndim,
                             nd_inds=nd_inds,
                             basis=basis)
-    #
+    # create full integral and multiply with determinant
     integrand = b.transpose()@c@b
     return integrand.integral(ref,x)
 
 if __name__ == "__main__":
-    
-    
+
+
     #
-    print(convert_to_code(linelast(ndim = 2),matrices = ["c"]))
-        
-    
-    
-    
+    print("1D ",convert_to_code(linelast(ndim = 1),matrices = ["c"]),"\n")
+    print("2D ",convert_to_code(linelast(ndim = 2),matrices = ["c"]),"\n")
+    #print("3D ",convert_to_code(linelast(ndim = 3),matrices = ["c"]),"\n")

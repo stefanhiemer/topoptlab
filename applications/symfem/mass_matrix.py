@@ -2,7 +2,7 @@ from symfem.functions import MatrixFunction
 from symfem.symbols import x
 
 from topoptlab.symfem_utils import base_cell,scale_cell
-from topoptlab.symfem_utils import convert_to_code
+from topoptlab.symfem_utils import convert_to_code, jacobian
 
 def mass(ndim,
          element_type="Lagrange",
@@ -21,7 +21,7 @@ def mass(ndim,
 
     Returns
     -------
-    stiffness_matrix : list
+    stiffness_matrix : symfem.functions.MatrixFunction
         symbolic stiffness matrix as list of lists .
 
     """
@@ -29,14 +29,16 @@ def mass(ndim,
     vertices, nd_inds, ref, basis  = base_cell(ndim)
     # get shape functions as a column vector/matrix
     N = MatrixFunction([[b] for b in basis])
-    #
-    integrand = N@N.transpose()
+    # create integral
+    Jdet = jacobian(ndim=ndim, element_type=element_type, order=order,
+                    return_J=False, return_inv=False, return_det=True)
+    integrand = N@N.transpose() * Jdet
     return integrand.integral(ref,x)
 
 if __name__ == "__main__":
-    
-    
+
+
     #
-    #print(convert_to_code(mass(ndim = 3)))
-    vertices, nd_inds, ref, basis  = base_cell(ndim=2)
-    scale_cell(vertices)
+    print("1D ",convert_to_code(mass(ndim = 1)),"\n")
+    print("2D ",convert_to_code(mass(ndim = 2)),"\n")
+    print("3D ",convert_to_code(mass(ndim = 3)),"\n")

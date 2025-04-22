@@ -3,7 +3,7 @@ from symfem.symbols import x
 from sympy import symbols
 
 from topoptlab.symfem_utils import base_cell,shape_function_matrix,generate_constMatrix
-from topoptlab.symfem_utils import convert_to_code
+from topoptlab.symfem_utils import convert_to_code, jacobian
 
 def body_force(ndim,field="vector",
                element_type="Lagrange",
@@ -37,15 +37,17 @@ def body_force(ndim,field="vector",
     else:
         body_force = generate_constMatrix(ncol=1,nrow=ndim,name="b")
         N = shape_function_matrix(basis=basis,nedof=ndim,mode="col")
-    # get shape functions as a column vector/matrix
-    integrand = N@body_force
+    # get shape functions as a column vector/matrix and multiply with
+    # determinant of jacobian of isoparametric mapping
+    Jdet = jacobian(ndim=ndim, element_type=element_type, order=order,
+                    return_J=False, return_inv=False, return_det=True)
+    integrand = N@body_force*Jdet
     return integrand.integral(ref,x)
 
 if __name__ == "__main__":
-    
-    
+
+
     #
-    print(convert_to_code(body_force(ndim = 3)))
-    
-    
-    
+    print("1D\n",convert_to_code(body_force(ndim = 1),vectors=["b"]),"\n")
+    print("2D\n",convert_to_code(body_force(ndim = 2),vectors=["b"]),"\n")
+    print("3D\n",convert_to_code(body_force(ndim = 3),vectors=["b"]),"\n")
