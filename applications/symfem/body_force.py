@@ -48,6 +48,6 @@ if __name__ == "__main__":
 
 
     #
-    print("1D\n",convert_to_code(body_force(ndim = 1),vectors=["b"]),"\n")
-    print("2D\n",convert_to_code(body_force(ndim = 2),vectors=["b"]),"\n")
-    print("3D\n",convert_to_code(body_force(ndim = 3),vectors=["b"]),"\n")
+    for dim in range(1,4):
+        print(str(dim)+"D")
+        print(convert_to_code(body_force(ndim = dim),vectors=["b","l"]))

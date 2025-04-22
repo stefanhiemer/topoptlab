@@ -39,6 +39,6 @@ if __name__ == "__main__":
 
 
     #
-    print("1D ",convert_to_code(mass(ndim = 1)),"\n")
-    print("2D ",convert_to_code(mass(ndim = 2)),"\n")
-    print("3D ",convert_to_code(mass(ndim = 3)),"\n")
+    for dim in range(1,4):
+        print(str(dim)+"D")
+        print(convert_to_code(mass(ndim = dim),vectors=["l"]),"\n")

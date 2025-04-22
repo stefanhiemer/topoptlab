@@ -783,7 +783,7 @@ if __name__ == "__main__":
     volfrac = 0.5  # 0.4
     rmin = 0.04*nelx  # 5.4
     penal = 3.0
-    ft = 1 # ft==0 -> sens, ft==1 -> dens
+    ft = 7 # ft==0 -> sens, ft==1 -> dens
     import sys
     if len(sys.argv) > 1:
         nelx = int(sys.argv[1])

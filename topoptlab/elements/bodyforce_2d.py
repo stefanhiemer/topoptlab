@@ -1,7 +1,10 @@
 import numpy as np
 
+from topoptlab.elements.bilinear_quadrilateral import shape_functions,jacobian
+from topoptlab.fem import get_integrpoints
+
 def _lf_bodyforce_2d(xe,
-                     p=np.array([1.]),
+                     b=np.array([0,-1.]),
                      t=np.array([1.]),
                      quadr_method="gauss-legendre",
                      nquad=2):
@@ -26,7 +29,7 @@ def _lf_bodyforce_2d(xe,
         number of quadrature points
     Returns
     -------
-    Ke : np.ndarray, shape (nels,4,4)
+    Ke : np.ndarray, shape (nels,8,1)
         element stiffness matrix.
 
     """
@@ -35,28 +38,36 @@ def _lf_bodyforce_2d(xe,
         xe = xe[None,:,:]
     nel = xe.shape[0]
     #
-    if (len(b.shape[0]) == 1 and b.shape[0] == 2 and xe.shape[0] !=1):
+    if (len(b.shape) == 1) or (b.shape[0] == 1):
         b = np.full((xe.shape[0],2), b)
     #
     if isinstance(t,float):
         t = np.array([t])
     #
     x,w=get_integrpoints(ndim=2,nq=nquad,method=quadr_method)
+    nq =w.shape[0]
     #
     xi,eta = [_x[:,0] for _x in np.split(x, 2,axis=1)]
     #
-    N = shape_functions(xi=xi,eta=eta)
+    shpfcts = shape_functions(xi=xi,eta=eta)
+    N = np.zeros((xi.shape[0],2*shpfcts.shape[0],2))
+    for i in np.arange(2):
+        N[:,i::2,i] = shpfcts
+    
     #
-    integral = N[None,:,:,None]@N[None,:,:,None].transpose([0,1,3,2])
+    integral = N[None,:,:,:] @ b[:,None,None,:].transpose(0,1,3,2)
+    #integral = b[:,None,None,:] @ N[None,:,:,:].transpose(0,1,3,2)
     # calculate determinant of jacobian
     J = jacobian(xi=xi,eta=eta,xe=xe,all_elems=True)
-    detJ = ((J[:,0,0]*J[:,1,1]) - (J[:,1,0]*J[:,0,1])).reshape(nel,nquad*nquad)
+    detJ = ((J[:,0,0]*J[:,1,1]) - (J[:,1,0]*J[:,0,1])).reshape(nel,nq)
     # multiply by determinant and quadrature
-    Ke = (w[None,:,None,None]*integral*detJ[:,:,None,None]).sum(axis=1)
+    fe = (w[None,:,None,None]*integral*detJ[:,:,None,None]).sum(axis=1)
     #
-    return t[:,None,None] * p[:,None,None] * Ke
+    return t[:,None,None] * fe
 
-def lf_bodyforce_2d(b=np.array([0,-1]).,t=1.):
+def lf_bodyforce_2d(b=np.array([0,-1]), 
+                    l=np.array([1.,1.]), 
+                    t=1.):
     """
     Create body force for 2D with bilinear quadrilateral Lagrangian
     elements.
@@ -65,6 +76,8 @@ def lf_bodyforce_2d(b=np.array([0,-1]).,t=1.):
     ----------
     b : np.ndarray shape (2)
         body force
+    l : np.ndarray (2)
+        side length of element
     t : float
         thickness of element
 
@@ -74,12 +87,12 @@ def lf_bodyforce_2d(b=np.array([0,-1]).,t=1.):
         element stiffness matrix.
 
     """
-
-    return t*np.array([[b[0]*l1*l2],
-                       [b[1]*l1*l2],
-                       [b[0]*l1*l2],
-                       [b[1]*l1*l2],
-                       [b[0]*l1*l2],
-                       [b[1]*l1*l2],
-                       [b[0]*l1*l2],
-                       [b[1]*l1*l2]])
+    A = l[0]*l[1]
+    return t*A*np.array([[b[0]],
+                         [b[1]],
+                         [b[0]],
+                         [b[1]],
+                         [b[0]],
+                         [b[1]],
+                         [b[0]],
+                         [b[1]]])

@@ -77,15 +77,12 @@ def aniso_laplacian(ndim,
 if __name__ == "__main__":
 
     #
-    print("1D iso\n",
-          convert_to_code(iso_laplacian(ndim = 1)),"\n")
-    print("2D iso\n",
-          convert_to_code(iso_laplacian(ndim = 2)),"\n")
-    print("3D iso\n",
-          convert_to_code(iso_laplacian(ndim = 3)),"\n")
-    print("1D aniso\n",
-          convert_to_code(aniso_laplacian(ndim = 1),matrices = ["k"]),"\n")
-    print("2D aniso\n",
-          convert_to_code(aniso_laplacian(ndim = 2),matrices = ["k"]),"\n")
-    print("3D aniso\n",
-          convert_to_code(aniso_laplacian(ndim = 3),matrices = ["k"]),"\n")
+    for dim in range(1,4):
+        print(str(dim)+"D")
+        print(convert_to_code(iso_laplacian(ndim = dim),
+                              matrices=["k"],vectors=["l","g"]),"\n")
+    #
+    for dim in range(1,4):
+        print(str(dim)+"D")
+        print(convert_to_code(aniso_laplacian(ndim = dim),
+                              matrices=["k"],vectors=["l","g"]),"\n")

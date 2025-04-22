@@ -45,6 +45,7 @@ def _lm_mass_2d(xe,
         t = np.array([t])
     #
     x,w=get_integrpoints(ndim=2,nq=nquad,method=quadr_method)
+    nq =w.shape[0]
     #
     xi,eta = [_x[:,0] for _x in np.split(x, 2,axis=1)]
     #
@@ -53,13 +54,15 @@ def _lm_mass_2d(xe,
     integral = N[None,:,:,None]@N[None,:,:,None].transpose([0,1,3,2])
     # calculate determinant of jacobian
     J = jacobian(xi=xi,eta=eta,xe=xe,all_elems=True)
-    detJ = ((J[:,0,0]*J[:,1,1]) - (J[:,1,0]*J[:,0,1])).reshape(nel,nquad*nquad)
+    detJ = ((J[:,0,0]*J[:,1,1]) - (J[:,1,0]*J[:,0,1])).reshape(nel,nq)
     # multiply by determinant and quadrature
     Ke = (w[None,:,None,None]*integral*detJ[:,:,None,None]).sum(axis=1)
     #
     return t[:,None,None] * p[:,None,None] * Ke
 
-def lm_mass_symfem(p=1.,t=1.):
+def lm_mass_2d(p=1.,
+               l=np.array([1.,1.]), 
+               t=1.):
     """
     Create mass matrix for 2D with bilinear quadrilateral Lagrangian
     elements.
@@ -68,6 +71,8 @@ def lm_mass_symfem(p=1.,t=1.):
     ----------
     p : float
         density of element
+    l : np.ndarray (2)
+        side length of element
     t : float
         thickness of element
 
@@ -77,13 +82,13 @@ def lm_mass_symfem(p=1.,t=1.):
         element stiffness matrix.
 
     """
+    a = l[0]*l[1]
+    return p*t*np.array([[4*a/9, 2*a/9, a/9, 2*a/9],
+                         [2*a/9, 4*a/9, 2*a/9, a/9],
+                         [a/9, 2*a/9, 4*a/9, 2*a/9],
+                         [2*a/9, a/9, 2*a/9, 4*a/9]])
 
-    return p*t*np.array([[4/9,2/9,1/9,2/9],
-                         [2/9,4/9,2/9,1/9],
-                         [1/9,2/9,4/9,2/9],
-                         [2/9,1/9,2/9,4/9]])
-
-def lm_mass_2d():
+def lm_mass_2d_legacy():
     """
     Create mass matrix for 2D with bilinear quadrilateral Lagrangian
     elements. Taken from the 88 lines code and slightly modified.

@@ -39,6 +39,7 @@ def _lm_mass_3d(xe,p=1.0,
         p = np.full(xe.shape[0], p)
     #
     x,w=get_integrpoints(ndim=3,nq=nquad,method=quadr_method)
+    nq =w.shape[0]
     #
     xi,eta,zeta = [_x[:,0] for _x in np.split(x, 3,axis=1)]
     #
@@ -49,16 +50,23 @@ def _lm_mass_3d(xe,p=1.0,
     J = jacobian(xi=xi,eta=eta,zeta=zeta,xe=xe,all_elems=True)
     detJ = (J[:,0,0]*(J[:,1,1]*J[:,2,2] - J[:,1,2]*J[:,2,1])-
             J[:,0,1]*(J[:,1,0]*J[:,2,2] - J[:,1,2]*J[:,2,0])+
-            J[:,0,2]*(J[:,1,0]*J[:,2,1] - J[:,1,1]*J[:,2,0]))\
-            .reshape(nel,nquad*nquad*nquad)
+            J[:,0,2]*(J[:,1,0]*J[:,2,1] - J[:,1,1]*J[:,2,0])).reshape(nel,nq)
     # multiply by determinant and quadrature
     Ke = (w[None,:,None,None]*integral*detJ[:,:,None,None]).sum(axis=1)
     # 
     return p[:,None,None] * Ke
 
-def lm_mass_3d(p=1.0):
+def lm_mass_3d(p=1.0,
+               l=np.array([1.,1.,1.])):
     """
     Create element mass matrix in 3D with trilinear hexahedral elements. 
+    
+    Parameters
+    ----------
+    p : float
+        density of element
+    l : np.ndarray (3)
+        side length of element
     
     Returns
     -------
@@ -66,11 +74,12 @@ def lm_mass_3d(p=1.0):
         element stiffness matrix.
         
     """
-    return p*np.array([[8/27,4/27,2/27,4/27,4/27,2/27,1/27,2/27],
-                       [4/27,8/27,4/27,2/27,2/27,4/27,2/27,1/27],
-                       [2/27,4/27,8/27,4/27,1/27,2/27,4/27,2/27],
-                       [4/27,2/27,4/27,8/27,2/27,1/27,2/27,4/27],
-                       [4/27,2/27,1/27,2/27,8/27,4/27,2/27,4/27],
-                       [2/27,4/27,2/27,1/27,4/27,8/27,4/27,2/27],
-                       [1/27,2/27,4/27,2/27,2/27,4/27,8/27,4/27],
-                       [2/27,1/27,2/27,4/27,4/27,2/27,4/27,8/27]])
+    v = l[0]*l[1]*l[2]
+    return p*np.array([[8*v/27, 4*v/27, 2*v/27, 4*v/27, 4*v/27, 2*v/27, v/27, 2*v/27],
+                       [4*v/27, 8*v/27, 4*v/27, 2*v/27, 2*v/27, 4*v/27, 2*v/27, v/27],
+                       [2*v/27, 4*v/27, 8*v/27, 4*v/27, v/27, 2*v/27, 4*v/27, 2*v/27],
+                       [4*v/27, 2*v/27, 4*v/27, 8*v/27, 2*v/27, v/27, 2*v/27, 4*v/27],
+                       [4*v/27, 2*v/27, v/27, 2*v/27, 8*v/27, 4*v/27, 2*v/27, 4*v/27],
+                       [2*v/27, 4*v/27, 2*v/27, v/27, 4*v/27, 8*v/27, 4*v/27, 2*v/27],
+                       [v/27, 2*v/27, 4*v/27, 2*v/27, 2*v/27, 4*v/27, 8*v/27, 4*v/27],
+                       [2*v/27, v/27, 2*v/27, 4*v/27, 4*v/27, 2*v/27, 4*v/27, 8*v/27]])

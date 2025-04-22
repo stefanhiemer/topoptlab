@@ -41,6 +41,7 @@ def _fk_heatexp_3d(xe,c,
     #
     if len(xe.shape) == 2:
         xe = xe[None,:,:]
+    nel = xe.shape[0]
     # convert linear heat expansion tensor to Voigt notation (nel,3,1)
     if len(a.shape) == 2:
         a = a[None,:,:]
@@ -54,8 +55,6 @@ def _fk_heatexp_3d(xe,c,
             DeltaT = DeltaT[None,:]
     #
     x,w=get_integrpoints(ndim=3,nq=nquad,method=quadr_method)
-    #
-    nel = xe.shape[0]
     nq =w.shape[0]
     #
     xi,eta,zeta = [_x[:,0] for _x in np.split(x, 3,axis=1)]

@@ -61,8 +61,6 @@ def _fk_heatexp_2d(xe,c,
         t = np.array([t])    
     #
     x,w=get_integrpoints(ndim=2,nq=nquad,method=quadr_method)
-    #
-    nel = xe.shape[0]
     nq =w.shape[0]
     #
     xi,eta = [_x[:,0] for _x in np.split(x, 2,axis=1)]
