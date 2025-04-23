@@ -171,10 +171,11 @@ def compare_laplacian_aniso_2d(xe = np.array([[[-1.,-1.],
                                                [1.,1.], 
                                                [-1.,1.]]]),
                                k = np.eye(2)):
+    l = (xe.max(axis=1)-xe.min(axis=1))[0]/2
     #
     Ke_quad = _lk_poisson_2d(xe=xe,k=k)
     #
-    Ke_analyt = lk_poisson_aniso_2d(k=k) 
+    Ke_analyt = lk_poisson_aniso_2d(k=k,l=l) 
     #
     np.testing.assert_allclose(Ke_quad[0],
                                Ke_analyt)
@@ -183,10 +184,11 @@ def compare_laplacian_aniso_2d(xe = np.array([[[-1.,-1.],
 def compare_laplacian_3d(xe = np.array([[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
                                          [-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]]]),
                          k = np.eye(3)):
+    l = (xe.max(axis=1)-xe.min(axis=1))[0]/2
     #
     Ke_quad = _lk_poisson_3d(xe=xe,k=k)
     #
-    Ke_analyt = lk_poisson_3d(k=1)
+    Ke_analyt = lk_poisson_3d(k=1,l=l)
     #
     np.testing.assert_allclose(Ke_quad[0],
                                Ke_analyt,
@@ -199,10 +201,11 @@ def compare_laplacian_iso_3d(xe = np.array([[[-1,-1,-1],[1,-1,-1],
                                              [-1,-1,1],[1,-1,1],
                                              [1,1,1],[-1,1,1]]]),
                              k = np.eye(3)):
+    l = (xe.max(axis=1)-xe.min(axis=1))[0]/2
     #
     Ke_quad = _lk_poisson_3d(xe=xe,k=k)
     #
-    Ke_analyt = lk_poisson_aniso_3d(k=k)
+    Ke_analyt = lk_poisson_aniso_3d(k=k,l=l)
     #
     np.testing.assert_allclose(Ke_quad[0],
                                Ke_analyt,
@@ -215,10 +218,11 @@ def compare_laplacian_aniso_3d(xe = np.array([[[-1,-1,-1],[1,-1,-1],
                                                [-1,-1,1],[1,-1,1],
                                                [1,1,1],[-1,1,1]]]),
                          k = np.eye(3)):
+    l = (xe.max(axis=1)-xe.min(axis=1))[0]/2
     #
     Ke_quad = _lk_poisson_3d(xe=xe,k=k)
     #
-    Ke_analyt = lk_poisson_3d(k=1)
+    Ke_analyt = lk_poisson_3d(k=1,l=l)
     #
     np.testing.assert_allclose(Ke_quad[0],
                                Ke_analyt,
@@ -265,11 +269,13 @@ if __name__ == "__main__":
     #
     compare_laplacian_aniso_2d(xe=2*np.array([[[-1,-1],[1,-1],[1,1],[-1,1]],
                                         [[-1,-1],[1,-1],[1,1],[-1,1]]]))
-    compare_laplacian_aniso_3d()
+    compare_laplacian_aniso_3d(xe=2*np.array([[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
+                                         [-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]]]))
     #
-    compare_laplacian_2d(xe=2*np.array([[[-1,-1],[1,-1],[1,1],[-1,1]],
+    compare_laplacian_2d(xe=np.array([[[-1,-1],[1,-1],[1,1],[-1,1]],
                                         [[-1,-1],[1,-1],[1,1],[-1,1]]]))
-    compare_laplacian_iso_3d()
+    compare_laplacian_iso_3d(xe=2*np.array([[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
+                                         [-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]]]))
     #
     compare_elast_2d()
     compare_elast_3d()

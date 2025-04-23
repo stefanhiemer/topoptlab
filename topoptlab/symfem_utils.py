@@ -308,7 +308,7 @@ def shape_function_matrix(basis,nedof,
     else:
         return MatrixFunction(shpfc_matr)
 
-def small_strain_matrix(ndim,nd_inds,basis):
+def small_strain_matrix(ndim,nd_inds,basis,isoparam_kws):
     """
     Create the small strain matrix commonly referred to as B matrix.
 
@@ -332,7 +332,10 @@ def small_strain_matrix(ndim,nd_inds,basis):
     nrows = int((ndim**2 + ndim) /2)
     ncols = int(ndim * len(nd_inds))
     # compute gradients of basis functions
-    gradN_T = VectorFunction(basis).grad(ndim).transpose()
+    Jinv = jacobian(ndim=ndim, 
+                    return_J=False, return_inv=True, return_det=False, 
+                    **isoparam_kws)
+    gradN_T = (VectorFunction(basis).grad(ndim)@Jinv).transpose()
     #
     bmatrix = [[0 for j in range(ncols)] for i in range(nrows)]
     # tension

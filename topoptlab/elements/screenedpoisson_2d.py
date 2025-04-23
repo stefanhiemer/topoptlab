@@ -1,5 +1,5 @@
-from topoptlab.elements.poisson_2d import lk_poisson_2d,lk_poisson_aniso_2d
-from topoptlab.elements.mass_2d import lm_mass_2d 
+from topoptlab.elements.poisson_2d import lk_poisson_2d ,lk_poisson_aniso_2d
+from topoptlab.elements.mass_2d import lm_mass_2d_legacy
 
 def lk_screened_poisson_2d(k):
     """
@@ -18,7 +18,7 @@ def lk_screened_poisson_2d(k):
         element stiffness matrix.
         
     """
-    Ke = lk_poisson_2d(k) + lm_mass_2d()
+    Ke = lk_poisson_2d(k) + lm_mass_2d_legacy()
     return Ke
 
 def lk_screened_poisson_aniso_2d(k):
@@ -39,5 +39,5 @@ def lk_screened_poisson_aniso_2d(k):
         element stiffness matrix.
         
     """
-    Ke = lk_poisson_aniso_2d(k) + lm_mass_2d()
+    Ke = lk_poisson_aniso_2d(k) + lm_mass_2d_legacy()
     return Ke

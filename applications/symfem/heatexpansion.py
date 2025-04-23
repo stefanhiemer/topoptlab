@@ -30,16 +30,18 @@ def heatexp_iso(ndim,
     # anisotropic stiffness tensor or equivalent in Voigt notation
     c = stifftens_isotropic(ndim)
     # transpose of shape functions
-    N = MatrixFunction([[b] for b in basis])
+    NT = MatrixFunction([basis])
     # heat expansion coeff. tensor in Voigt notation
     a = MatrixFunction([[1] for i in range(ndim)]+\
                         [[0] for i in range(int((ndim**2 + ndim) /2)-ndim)])
     #
     b = small_strain_matrix(ndim=ndim,
                             nd_inds=nd_inds,
-                            basis=basis)
+                            basis=basis,
+                            isoparam_kws={"element_type": element_type,
+                                          "order": order})
     #
-    integrand = b.transpose()@c@a@N.transpose()
+    integrand = b.transpose()@c@a@NT
     return simplify_matrix(integrand.integral(ref,x))
 
 def heatexp_aniso(ndim,
@@ -76,24 +78,28 @@ def heatexp_aniso(ndim,
                              nrow=int((ndim**2 + ndim) /2),
                              name="a")
     #
-    b = bmatrix(ndim=ndim,
-                nd_inds=nd_inds,
-                basis=basis)
+    b = small_strain_matrix(ndim=ndim,
+                            nd_inds=nd_inds,
+                            basis=basis,
+                            isoparam_kws={"element_type": element_type,
+                                          "order": order})
     #
     integrand = b.transpose()@c@a@NT
     return integrand.integral(ref,x)
 
 if __name__ == "__main__":
     
-    
     #
-    #print(heatexp_aniso(ndim=2))
-    print(convert_to_code(heatexp_aniso(ndim=3),
-                          matrices=["c"],
-                          vectors=["a"]))
-    print(convert_to_code(heatexp_iso(ndim=3),
-                          matrices=[],
-                          vectors=[]))
+    for dim in range(1,4):
+        print(str(dim)+"D")
+        print(convert_to_code(heatexp_aniso(ndim = dim),
+                              matrices=["c"],vectors=["l","g","a"]),"\n")
+    import sys 
+    sys.exit()
+    for dim in range(1,4):
+        print(str(dim)+"D")
+        print(convert_to_code(heatexp_iso(ndim = dim),
+                              matrices=["c"],vectors=["l","g","a"]),"\n")
     
     
     

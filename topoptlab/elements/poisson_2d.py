@@ -71,11 +71,13 @@ def lk_poisson_2d(k=1.,
     Parameters
     ----------
     k : float
-        heat conductivity
+        heat conductivity.
     l : np.ndarray (2)
-        side length of element
+        side length of element.
+    g : np.ndarray (1)
+        angle of parallelogram.
     t : float
-        thickness of element
+        thickness of element.
     
     Returns
     -------
@@ -84,22 +86,22 @@ def lk_poisson_2d(k=1.,
         
     """
     
-    return np.array([[l[0]/(3*l[1]) - np.tan(g[0])/2 + l[1]/(3*l[0]*np.cos(g[0])**2), 
-                      l[0]/(6*l[1]) - l[1]/(3*l[0]*np.cos(g[0])**2), 
-                      -l[0]/(6*l[1]) + np.tan(g[0])/2 - l[1]/(6*l[0]*np.cos(g[0])**2), 
-                      -l[0]/(3*l[1]) + l[1]/(6*l[0]*np.cos(g[0])**2)],
-                     [l[0]/(6*l[1]) - l[1]/(3*l[0]*np.cos(g[0])**2), 
-                      l[0]/(3*l[1]) + np.tan(g[0])/2 + l[1]/(3*l[0]*np.cos(g[0])**2), 
-                      -l[0]/(3*l[1]) + l[1]/(6*l[0]*np.cos(g[0])**2), 
-                      -l[0]/(6*l[1]) - np.tan(g[0])/2 - l[1]/(6*l[0]*np.cos(g[0])**2)],
-                     [-l[0]/(6*l[1]) + np.tan(g[0])/2 - l[1]/(6*l[0]*np.cos(g[0])**2), 
-                      -l[0]/(3*l[1]) + l[1]/(6*l[0]*np.cos(g[0])**2), 
-                      l[0]/(3*l[1]) - np.tan(g[0])/2 + l[1]/(3*l[0]*np.cos(g[0])**2), 
-                      l[0]/(6*l[1]) - l[1]/(3*l[0]*np.cos(g[0])**2)],
-                     [-l[0]/(3*l[1]) + l[1]/(6*l[0]*np.cos(g[0])**2), 
-                      -l[0]/(6*l[1]) - np.tan(g[0])/2 - l[1]/(6*l[0]*np.cos(g[0])**2), 
-                      l[0]/(6*l[1]) - l[1]/(3*l[0]*np.cos(g[0])**2), 
-                      l[0]/(3*l[1]) + np.tan(g[0])/2 + l[1]/(3*l[0]*np.cos(g[0])**2)]])
+    return k*np.array([[l[0]/(3*l[1]) - np.tan(g[0])/2 + l[1]/(3*l[0]*np.cos(g[0])**2), 
+                        l[0]/(6*l[1]) - l[1]/(3*l[0]*np.cos(g[0])**2), 
+                        -l[0]/(6*l[1]) + np.tan(g[0])/2 - l[1]/(6*l[0]*np.cos(g[0])**2), 
+                        -l[0]/(3*l[1]) + l[1]/(6*l[0]*np.cos(g[0])**2)],
+                       [l[0]/(6*l[1]) - l[1]/(3*l[0]*np.cos(g[0])**2), 
+                        l[0]/(3*l[1]) + np.tan(g[0])/2 + l[1]/(3*l[0]*np.cos(g[0])**2), 
+                        -l[0]/(3*l[1]) + l[1]/(6*l[0]*np.cos(g[0])**2), 
+                        -l[0]/(6*l[1]) - np.tan(g[0])/2 - l[1]/(6*l[0]*np.cos(g[0])**2)],
+                       [-l[0]/(6*l[1]) + np.tan(g[0])/2 - l[1]/(6*l[0]*np.cos(g[0])**2), 
+                        -l[0]/(3*l[1]) + l[1]/(6*l[0]*np.cos(g[0])**2), 
+                        l[0]/(3*l[1]) - np.tan(g[0])/2 + l[1]/(3*l[0]*np.cos(g[0])**2), 
+                        l[0]/(6*l[1]) - l[1]/(3*l[0]*np.cos(g[0])**2)],
+                       [-l[0]/(3*l[1]) + l[1]/(6*l[0]*np.cos(g[0])**2), 
+                        -l[0]/(6*l[1]) - np.tan(g[0])/2 - l[1]/(6*l[0]*np.cos(g[0])**2), 
+                        l[0]/(6*l[1]) - l[1]/(3*l[0]*np.cos(g[0])**2), 
+                        l[0]/(3*l[1]) + np.tan(g[0])/2 + l[1]/(3*l[0]*np.cos(g[0])**2)]])
 
 def lk_poisson_aniso_2d(k,
                         l=np.array([1.,1.]), g = [0.],
