@@ -161,7 +161,9 @@ def stifftens_isotropic(ndim,plane_stress=True):
         stiffness tensor.
     """
     E,nu = symbols("E nu")
-    if ndim == 2:
+    if ndim == 1:
+        return MatrixFunction([[E]])
+    elif ndim == 2:
         if plane_stress:
             return E/(1-nu**2)*MatrixFunction([[1,nu,0],
                                                [nu,1,0],
