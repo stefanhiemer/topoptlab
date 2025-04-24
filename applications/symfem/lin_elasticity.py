@@ -86,9 +86,9 @@ if __name__ == "__main__":
         print(str(dim)+"D")
         print(convert_to_code(linelast_iso(ndim = dim),
                               matrices=["c"],vectors=["l","g"]),"\n")
-    import sys 
+    import sys
     sys.exit()
-    
+
     for dim in range(1,4):
         print(str(dim)+"D")
         print(convert_to_code(linelast(ndim = dim),

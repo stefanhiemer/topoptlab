@@ -1,4 +1,4 @@
-import numpy as np 
+import numpy as np
 
 from topoptlab.elements.bilinear_quadrilateral import bmatrix
 from topoptlab.fem import get_integrpoints
@@ -8,21 +8,21 @@ def _lk_linear_elast_2d(xe,c,
                         t=np.array([1.]),
                         nquad=2):
     """
-    Create element stiffness matrix for 2D linear elasticity with 
+    Create element stiffness matrix for 2D linear elasticity with
     bilinear quadrilateral Lagrangian elements in plane stress.
-    
+
     Parameters
     ----------
     xe : np.ndarray, shape (nels,4,2)
-        coordinates of element nodes. Please look at the 
-        definition/function of the shape function, then the node ordering is 
+        coordinates of element nodes. Please look at the
+        definition/function of the shape function, then the node ordering is
         clear.
-    c : np.ndarray, shape (nels,3,3) or 
+    c : np.ndarray, shape (nels,3,3) or
         stiffness tensor.
     quadr_method: str or callable
-        name of quadrature method or function/callable that returns coordinates of 
-        quadrature points and weights. Check function get_integrpoints for 
-        available options. 
+        name of quadrature method or function/callable that returns coordinates of
+        quadrature points and weights. Check function get_integrpoints for
+        available options.
     t : np.ndarray of shape (nels) or (1)
         thickness of element
     nquad : int
@@ -31,7 +31,7 @@ def _lk_linear_elast_2d(xe,c,
     -------
     Ke : np.ndarray, shape (nels,8,8)
         element stiffness matrix.
-        
+
     """
     #
     if len(xe.shape) == 2:
@@ -48,9 +48,9 @@ def _lk_linear_elast_2d(xe,c,
     nq =w.shape[0]
     #
     xi,eta = [_x[:,0] for _x in np.split(x, 2,axis=1)]
-    # 
-    B,detJ = bmatrix(xi=xi, eta=eta, xe=xe, 
-                     all_elems=True, 
+    #
+    B,detJ = bmatrix(xi=xi, eta=eta, xe=xe,
+                     all_elems=True,
                      return_detJ=True)
     detJ = detJ.reshape(nel,nq)
     B = B.reshape(nel, nq,  B.shape[-2], B.shape[-1])
@@ -61,43 +61,99 @@ def _lk_linear_elast_2d(xe,c,
     # multiply thickness
     return t[:,None,None] * Ke
 
-def lk_linear_elast_2d(E=1,nu=0.3):
+def lk_linear_elast_2d(E=1,nu=0.3,
+                       l=np.array([1.,1.]), g = [0.],
+                       t=1.):
     """
-    Create element stiffness matrix for 2D isotropic linear elasticity with 
-    bilinear quadrilateral Lagrangian elements in plane stress. 
-    
+    Create element stiffness matrix for 2D isotropic linear elasticity with
+    bilinear quadrilateral Lagrangian elements in plane stress.
+
     Parameters
     ----------
     E : float
         Young's modulus.
     nu : float
         Poisson' ratio.
-    
+
     Returns
     -------
     Ke : np.ndarray, shape (8,8)
         element stiffness matrix.
-        
+
     """
-    k = np.array([1/2-nu/6, 1/8+nu/8, -1/4-nu/12, -1/8+3*nu /
-                 8, -1/4+nu/12, -1/8-nu/8, nu/6, 1/8-3*nu/8])
-    Ke = E/(1-nu**2)*np.array([[k[0], k[1], k[2], k[3], k[4], k[5], k[6], k[7]],
-                               [k[1], k[0], k[7], k[6], k[5], k[4], k[3], k[2]],
-                               [k[2], k[7], k[0], k[5], k[6], k[3], k[4], k[1]],
-                               [k[3], k[6], k[5], k[0], k[7], k[2], k[1], k[4]],
-                               [k[4], k[5], k[6], k[7], k[0], k[1], k[2], k[3]],
-                               [k[5], k[4], k[3], k[2], k[1], k[0], k[7], k[6]],
-                               [k[6], k[3], k[4], k[1], k[2], k[7], k[0], k[5]],
-                               [k[7], k[2], k[1], k[4], k[3], k[6], k[5], k[0]]])
+    Ke = np.array([[E*(l[0]**2*nu - l[0]**2 + 3*l[1]**2*np.tan(g[0]) - 2*l[1]**2/np.cos(g[0])**2)/(6*l[0]*l[1]*(nu**2 - 1)),
+                    E*(4*np.tan(g[0]) - 3)/(24*(nu - 1)),
+                    E*(l[0]**2*nu - l[0]**2 - 2*l[1]**2*np.tan(g[0])**2 + 4*l[1]**2)/(12*l[0]*l[1]*(nu**2 - 1)),
+                    E*(2*nu*np.tan(g[0]) - 9*nu + 2*np.tan(g[0]) + 3)/(24*(nu**2 - 1)),
+                    E*(-l[0]**2*nu + l[0]**2 - 6*l[1]**2*np.tan(g[0]) + 2*l[1]**2/np.cos(g[0])**2)/(12*l[0]*l[1]*(nu**2 - 1)),
+                    E*(3 - 2*np.tan(g[0]))/(24*(nu - 1)),
+                    E*(-l[0]**2*nu + l[0]**2 + 2*l[1]**2*np.tan(g[0])**2 - l[1]**2)/(6*l[0]*l[1]*(nu**2 - 1)),
+                    E*(-4*nu*np.tan(g[0]) + 9*nu - 4*np.tan(g[0]) - 3)/(24*(nu**2 - 1))],
+                   [E*(4*np.tan(g[0]) - 3)/(24*(nu - 1)),
+                    E*(-4*l[0]**2 - 3*l[1]**2*nu*np.tan(g[0]) + 2*l[1]**2*nu/np.cos(g[0])**2 + 3*l[1]**2*np.tan(g[0]) - 2*l[1]**2/np.cos(g[0])**2)/(12*l[0]*l[1]*(nu**2 - 1)),
+                    E*(2*nu*np.tan(g[0]) + 9*nu + 2*np.tan(g[0]) - 3)/(24*(nu**2 - 1)),
+                    E*(-2*l[0]**2 + l[1]**2*nu*np.tan(g[0])**2 - 2*l[1]**2*nu - l[1]**2*np.tan(g[0])**2 + 2*l[1]**2)/(12*l[0]*l[1]*(nu**2 - 1)),
+                    E*(3 - 2*np.tan(g[0]))/(24*(nu - 1)),
+                    E*(2*l[0]**2 + 3*l[1]**2*nu*np.tan(g[0]) - l[1]**2*nu/np.cos(g[0])**2 - 3*l[1]**2*np.tan(g[0]) + l[1]**2/np.cos(g[0])**2)/(12*l[0]*l[1]*(nu**2 - 1)),
+                    E*(-4*nu*np.tan(g[0]) - 9*nu - 4*np.tan(g[0]) + 3)/(24*(nu**2 - 1)),
+                    E*(4*l[0]**2 - 2*l[1]**2*nu*np.tan(g[0])**2 + l[1]**2*nu + 2*l[1]**2*np.tan(g[0])**2 - l[1]**2)/(12*l[0]*l[1]*(nu**2 - 1))],
+                   [E*(l[0]**2*nu - l[0]**2 - 2*l[1]**2*np.tan(g[0])**2 + 4*l[1]**2)/(12*l[0]*l[1]*(nu**2 - 1)),
+                    E*(2*nu*np.tan(g[0]) + 9*nu + 2*np.tan(g[0]) - 3)/(24*(nu**2 - 1)),
+                    E*(l[0]**2*nu - l[0]**2 - 3*l[1]**2*np.tan(g[0]) - 2*l[1]**2/np.cos(g[0])**2)/(6*l[0]*l[1]*(nu**2 - 1)),
+                    E*(4*np.tan(g[0]) + 3)/(24*(nu - 1)),
+                    E*(-l[0]**2*nu + l[0]**2 + 2*l[1]**2*np.tan(g[0])**2 - l[1]**2)/(6*l[0]*l[1]*(nu**2 - 1)),
+                    E*(-4*nu*np.tan(g[0]) - 9*nu - 4*np.tan(g[0]) + 3)/(24*(nu**2 - 1)),
+                    E*(-l[0]**2*nu + l[0]**2 + 6*l[1]**2*np.tan(g[0]) + 2*l[1]**2/np.cos(g[0])**2)/(12*l[0]*l[1]*(nu**2 - 1)),
+                    -E*(2*np.tan(g[0]) + 3)/(24*nu - 24)],
+                   [E*(2*nu*np.tan(g[0]) - 9*nu + 2*np.tan(g[0]) + 3)/(24*(nu**2 - 1)),
+                    E*(-2*l[0]**2 + l[1]**2*nu*np.tan(g[0])**2 - 2*l[1]**2*nu - l[1]**2*np.tan(g[0])**2 + 2*l[1]**2)/(12*l[0]*l[1]*(nu**2 - 1)),
+                    E*(4*np.tan(g[0]) + 3)/(24*(nu - 1)),
+                    E*(3*l[1]**2*(nu**2 - 1)*np.tan(g[0]) + 2*l[1]**2*(nu**2 - 1) + (2*nu + 2)*(-2*l[0]**2 + l[1]**2*nu*np.tan(g[0])**2 - l[1]**2*np.tan(g[0])**2))/(12*l[0]*l[1]*(nu + 1)*(nu**2 - 1)),
+                    E*(-4*nu*np.tan(g[0]) + 9*nu - 4*np.tan(g[0]) - 3)/(24*(nu**2 - 1)),
+                    E*(4*l[0]**2 - 2*l[1]**2*nu*np.tan(g[0])**2 + l[1]**2*nu + 2*l[1]**2*np.tan(g[0])**2 - l[1]**2)/(12*l[0]*l[1]*(nu**2 - 1)),
+                    -E*(2*np.tan(g[0]) + 3)/(24*nu - 24),
+                    E*(2*l[0]**2 - 3*l[1]**2*nu*np.tan(g[0]) - l[1]**2*nu/np.cos(g[0])**2 + 3*l[1]**2*np.tan(g[0]) + l[1]**2/np.cos(g[0])**2)/(12*l[0]*l[1]*(nu**2 - 1))],
+                   [E*(-l[0]**2*nu + l[0]**2 - 6*l[1]**2*np.tan(g[0]) + 2*l[1]**2/np.cos(g[0])**2)/(12*l[0]*l[1]*(nu**2 - 1)),
+                    E*(3 - 2*np.tan(g[0]))/(24*(nu - 1)),
+                    E*(-l[0]**2*nu + l[0]**2 + 2*l[1]**2*np.tan(g[0])**2 - l[1]**2)/(6*l[0]*l[1]*(nu**2 - 1)),
+                    E*(-4*nu*np.tan(g[0]) + 9*nu - 4*np.tan(g[0]) - 3)/(24*(nu**2 - 1)),
+                    E*(l[0]**2*nu - l[0]**2 + 3*l[1]**2*np.tan(g[0]) - 2*l[1]**2/np.cos(g[0])**2)/(6*l[0]*l[1]*(nu**2 - 1)),
+                    E*(4*np.tan(g[0]) - 3)/(24*(nu - 1)),
+                    E*(l[0]**2*nu - l[0]**2 - 2*l[1]**2*np.tan(g[0])**2 + 4*l[1]**2)/(12*l[0]*l[1]*(nu**2 - 1)),
+                    E*(2*nu*np.tan(g[0]) - 9*nu + 2*np.tan(g[0]) + 3)/(24*(nu**2 - 1))],
+                   [E*(3 - 2*np.tan(g[0]))/(24*(nu - 1)),
+                    E*(2*l[0]**2 + 3*l[1]**2*nu*np.tan(g[0]) - l[1]**2*nu/np.cos(g[0])**2 - 3*l[1]**2*np.tan(g[0]) + l[1]**2/np.cos(g[0])**2)/(12*l[0]*l[1]*(nu**2 - 1)),
+                    E*(-4*nu*np.tan(g[0]) - 9*nu - 4*np.tan(g[0]) + 3)/(24*(nu**2 - 1)),
+                    E*(4*l[0]**2 - 2*l[1]**2*nu*np.tan(g[0])**2 + l[1]**2*nu + 2*l[1]**2*np.tan(g[0])**2 - l[1]**2)/(12*l[0]*l[1]*(nu**2 - 1)),
+                    E*(4*np.tan(g[0]) - 3)/(24*(nu - 1)),
+                    E*(-3*l[1]**2*(nu**2 - 1)*np.tan(g[0]) + 2*l[1]**2*(nu**2 - 1) + (2*nu + 2)*(-2*l[0]**2 + l[1]**2*nu*np.tan(g[0])**2 - l[1]**2*np.tan(g[0])**2))/(12*l[0]*l[1]*(nu + 1)*(nu**2 - 1)),
+                    E*(2*nu*np.tan(g[0]) + 9*nu + 2*np.tan(g[0]) - 3)/(24*(nu**2 - 1)),
+                    E*(-2*l[0]**2 + l[1]**2*nu*np.tan(g[0])**2 - 2*l[1]**2*nu - l[1]**2*np.tan(g[0])**2 + 2*l[1]**2)/(12*l[0]*l[1]*(nu**2 - 1))],
+                   [E*(-l[0]**2*nu + l[0]**2 + 2*l[1]**2*np.tan(g[0])**2 - l[1]**2)/(6*l[0]*l[1]*(nu**2 - 1)),
+                    E*(-4*nu*np.tan(g[0]) - 9*nu - 4*np.tan(g[0]) + 3)/(24*(nu**2 - 1)),
+                    E*(-l[0]**2*nu + l[0]**2 + 6*l[1]**2*np.tan(g[0]) + 2*l[1]**2/np.cos(g[0])**2)/(12*l[0]*l[1]*(nu**2 - 1)),
+                    -E*(2*np.tan(g[0]) + 3)/(24*nu - 24),
+                    E*(l[0]**2*nu - l[0]**2 - 2*l[1]**2*np.tan(g[0])**2 + 4*l[1]**2)/(12*l[0]*l[1]*(nu**2 - 1)),
+                    E*(2*nu*np.tan(g[0]) + 9*nu + 2*np.tan(g[0]) - 3)/(24*(nu**2 - 1)),
+                    E*(l[0]**2*nu - l[0]**2 - 3*l[1]**2*np.tan(g[0]) - 2*l[1]**2/np.cos(g[0])**2)/(6*l[0]*l[1]*(nu**2 - 1)),
+                    E*(4*np.tan(g[0]) + 3)/(24*(nu - 1))],
+                   [E*(-4*nu*np.tan(g[0]) + 9*nu - 4*np.tan(g[0]) - 3)/(24*(nu**2 - 1)),
+                    E*(4*l[0]**2 - 2*l[1]**2*nu*np.tan(g[0])**2 + l[1]**2*nu + 2*l[1]**2*np.tan(g[0])**2 - l[1]**2)/(12*l[0]*l[1]*(nu**2 - 1)),
+                    -E*(2*np.tan(g[0]) + 3)/(24*nu - 24),
+                    E*(2*l[0]**2 - 3*l[1]**2*nu*np.tan(g[0]) - l[1]**2*nu/np.cos(g[0])**2 + 3*l[1]**2*np.tan(g[0]) + l[1]**2/np.cos(g[0])**2)/(12*l[0]*l[1]*(nu**2 - 1)),
+                    E*(2*nu*np.tan(g[0]) - 9*nu + 2*np.tan(g[0]) + 3)/(24*(nu**2 - 1)),
+                    E*(-2*l[0]**2 + l[1]**2*nu*np.tan(g[0])**2 - 2*l[1]**2*nu - l[1]**2*np.tan(g[0])**2 + 2*l[1]**2)/(12*l[0]*l[1]*(nu**2 - 1)),
+                    E*(4*np.tan(g[0]) + 3)/(24*(nu - 1)),
+                    E*(-4*l[0]**2 + 3*l[1]**2*nu*np.tan(g[0]) + 2*l[1]**2*nu/np.cos(g[0])**2 - 3*l[1]**2*np.tan(g[0]) - 2*l[1]**2/np.cos(g[0])**2)/(12*l[0]*l[1]*(nu**2 - 1))]])
     return Ke
 
 def lk_linear_elast_aniso_2d(c,
                              l=np.array([1.,1.]), g = [0.],
                              t=1.):
     """
-    Create element stiffness matrix for 2D anisotropic linear elasticity with 
-    bilinear quadrilateral elements. 
-    
+    Create element stiffness matrix for 2D anisotropic linear elasticity with
+    bilinear quadrilateral elements.
+
     Parameters
     ----------
     c : np.ndarray, shape (3,3)
@@ -108,12 +164,12 @@ def lk_linear_elast_aniso_2d(c,
         angle of parallelogram.
     t : float
         thickness of element.
-    
+
     Returns
     -------
     Ke : np.ndarray, shape (8,8)
         element stiffness matrix.
-        
+
     """
     return t * np.array([[-c[0,0]*l[1]*np.tan(g[0])/(2*l[0]) + c[0,0]*l[1]/(3*l[0]*np.cos(g[0])**2) - c[0,2]*np.tan(g[0])/3 + c[0,2]/4 - c[2,0]*np.tan(g[0])/3 + c[2,0]/4 + c[2,2]*l[0]/(3*l[1]),
                           -c[0,1]*np.tan(g[0])/3 + c[0,1]/4 - c[0,2]*l[1]*np.tan(g[0])/(2*l[0]) + c[0,2]*l[1]/(3*l[0]*np.cos(g[0])**2) + c[2,1]*l[0]/(3*l[1]) - c[2,2]*np.tan(g[0])/3 + c[2,2]/4,
@@ -178,4 +234,4 @@ def lk_linear_elast_aniso_2d(c,
                           -c[1,0]*np.tan(g[0])/6 + c[1,0]/4 + c[1,2]*l[0]/(6*l[1]) + c[2,0]*l[1]*np.tan(g[0])**2/(6*l[0]) - c[2,0]*l[1]/(3*l[0]) - c[2,2]*np.tan(g[0])/6 - c[2,2]/4,
                           c[1,1]*l[0]/(6*l[1]) - c[1,2]*np.tan(g[0])/6 + c[1,2]/4 - c[2,1]*np.tan(g[0])/6 - c[2,1]/4 + c[2,2]*l[1]*np.tan(g[0])**2/(6*l[0]) - c[2,2]*l[1]/(3*l[0]),
                           -c[1,0]*np.tan(g[0])/3 - c[1,0]/4 + c[1,2]*l[0]/(3*l[1]) + c[2,0]*l[1]*np.tan(g[0])/(2*l[0]) + c[2,0]*l[1]/(3*l[0]*np.cos(g[0])**2) - c[2,2]*np.tan(g[0])/3 - c[2,2]/4,
-                          c[1,1]*l[0]/(3*l[1]) - c[1,2]*np.tan(g[0])/3 - c[1,2]/4 - c[2,1]*np.tan(g[0])/3 - c[2,1]/4 + c[2,2]*l[1]*np.tan(g[0])/(2*l[0]) + c[2,2]*l[1]/(3*l[0]*np.cos(g[0])**2)]]) 
+                          c[1,1]*l[0]/(3*l[1]) - c[1,2]*np.tan(g[0])/3 - c[1,2]/4 - c[2,1]*np.tan(g[0])/3 - c[2,1]/4 + c[2,2]*l[1]*np.tan(g[0])/(2*l[0]) + c[2,2]*l[1]/(3*l[0]*np.cos(g[0])**2)]])

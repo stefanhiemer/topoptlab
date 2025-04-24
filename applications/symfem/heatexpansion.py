@@ -1,8 +1,9 @@
 from symfem.functions import MatrixFunction
 from symfem.symbols import x
+from sympy import symbols
 from topoptlab.symfem_utils import base_cell, small_strain_matrix, generate_constMatrix
 from topoptlab.symfem_utils import convert_to_code,stifftens_isotropic
-from topoptlab.symfem_utils import simplify_matrix
+from topoptlab.symfem_utils import simplify_matrix, jacobian
 
 def heatexp_iso(ndim,
                 element_type="Lagrange",
@@ -32,7 +33,7 @@ def heatexp_iso(ndim,
     # transpose of shape functions
     NT = MatrixFunction([basis])
     # heat expansion coeff. tensor in Voigt notation
-    a = MatrixFunction([[1] for i in range(ndim)]+\
+    a = MatrixFunction([[symbols("a")] for i in range(ndim)]+\
                         [[0] for i in range(int((ndim**2 + ndim) /2)-ndim)])
     #
     b = small_strain_matrix(ndim=ndim,
@@ -41,7 +42,9 @@ def heatexp_iso(ndim,
                             isoparam_kws={"element_type": element_type,
                                           "order": order})
     #
-    integrand = b.transpose()@c@a@NT
+    Jdet = jacobian(ndim=ndim, element_type=element_type, order=order,
+                    return_J=False, return_inv=False, return_det=True)
+    integrand = b.transpose()@c@a@NT * Jdet
     return simplify_matrix(integrand.integral(ref,x))
 
 def heatexp_aniso(ndim,
@@ -84,22 +87,19 @@ def heatexp_aniso(ndim,
                             isoparam_kws={"element_type": element_type,
                                           "order": order})
     #
-    integrand = b.transpose()@c@a@NT
+    Jdet = jacobian(ndim=ndim, element_type=element_type, order=order,
+                    return_J=False, return_inv=False, return_det=True)
+    integrand = b.transpose()@c@a@NT * Jdet
     return integrand.integral(ref,x)
 
 if __name__ == "__main__":
-    
+
     #
+    for dim in range(1,4):
+        print(str(dim)+"D")
+        print(convert_to_code(heatexp_iso(ndim = dim),
+                              matrices=["c"],vectors=["l","g"]),"\n") 
     for dim in range(1,4):
         print(str(dim)+"D")
         print(convert_to_code(heatexp_aniso(ndim = dim),
                               matrices=["c"],vectors=["l","g","a"]),"\n")
-    import sys 
-    sys.exit()
-    for dim in range(1,4):
-        print(str(dim)+"D")
-        print(convert_to_code(heatexp_iso(ndim = dim),
-                              matrices=["c"],vectors=["l","g","a"]),"\n")
-    
-    
-    
