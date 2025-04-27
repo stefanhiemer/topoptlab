@@ -1,6 +1,5 @@
 import numpy as np
 
-# MAIN DRIVER
 def sphere(nelx, nely, center, radius, fill_value=1):
     """
     Create element flags for a sphere located at center with specified radius.
@@ -27,7 +26,7 @@ def sphere(nelx, nely, center, radius, fill_value=1):
     el = np.arange(nelx*nely)
     i = np.floor(el/nely)
     j = el%nely
-    mask = (i-center[0])**2 + (j-center[1])**2 < radius**2 #nely/3
+    mask = (i-center[0])**2 + (j-center[1])**2 <= radius**2 #nely/3
     
     #
     el_flags = np.zeros(nelx*nely)

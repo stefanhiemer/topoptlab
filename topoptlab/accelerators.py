@@ -1,3 +1,5 @@
+from warnings import warn
+
 import numpy as np
 from scipy.linalg import lstsq
 
@@ -101,6 +103,7 @@ def diis(x, xhist,
     x : np.ndarray
         updated iterate.
     """ 
+    warn("Currently not tested and might still contain bugs.")
     n = len(xhist)
     if n < 2 and rhist is not None:
         raise ValueError("Need at least two past result for DIIS acceleration.")

@@ -47,7 +47,6 @@ def solve_lin(K,rhs,solver,
         B = matrix(rhs)
         linsolve(K,B)
         return np.array(B), None, None
-    
     # iterative solvers
     if P is None and preconditioner is not None:
         if preconditioner == "scipy-ilu":

@@ -9,7 +9,7 @@ def bdf_coefficients(k):
     Parameters
     ----------
     k : int
-        order of BD.
+        order of BD. must be equal or smaller 6.
 
     Returns
     -------
@@ -18,7 +18,7 @@ def bdf_coefficients(k):
         the right hand side with the mass matrix and the history of the function.
     """
     if k > 6:
-        raise NotImplementedError("Not implemented yet for order higher than 6.")
+        raise NotImplementedError("Not implemented for order higher than 6.")
     return np.array([[1,1],
                     [2/3,4/3,-1/3],
                     [6/11,18/11,-9/11,2/11],
