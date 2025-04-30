@@ -3,7 +3,7 @@ import numpy as np
 def mbb_2d(nelx,nely,ndof,**kwargs):
     """
     This is the standard case from the 88 line code paper.
-    
+
     Parameters
     ----------
     nelx : int
@@ -16,7 +16,7 @@ def mbb_2d(nelx,nely,ndof,**kwargs):
     Returns
     -------
     u : np.ndarray
-        array of zeros for state variable (displacement, temperature) to be 
+        array of zeros for state variable (displacement, temperature) to be
         filled of shape (ndof).
     f : np.ndarray
         array of zeros for state flow variables (forces, flow).
@@ -32,7 +32,7 @@ def mbb_2d(nelx,nely,ndof,**kwargs):
     f = np.zeros((ndof, 1))
     u = np.zeros((ndof, 1))
     # symmetry bc (fix x displacements to zero)
-    fixed = np.hstack((np.arange(0,2*(nely+1),2), # symmetry 
+    fixed = np.hstack((np.arange(0,2*(nely+1),2), # symmetry
                        np.array([ndof-1]))) # fixation bottom right
     # force pushing down at left top
     f[1, 0] = -1
@@ -41,7 +41,7 @@ def mbb_2d(nelx,nely,ndof,**kwargs):
 def mbb_3d(nelx,nely,nelz,ndof,**kwargs):
     """
     This is an equivalent to the standard case from the 88 line code paper.
-    
+
     Parameters
     ----------
     nelx : int
@@ -56,7 +56,7 @@ def mbb_3d(nelx,nely,nelz,ndof,**kwargs):
     Returns
     -------
     u : np.ndarray
-        array of zeros for state variable (displacement, temperature) to be 
+        array of zeros for state variable (displacement, temperature) to be
         filled of shape (ndof).
     f : np.ndarray
         array of zeros for state flow variables (forces, flow).
@@ -90,7 +90,7 @@ def mbb_3d(nelx,nely,nelz,ndof,**kwargs):
 def cantilever_2d(nelx,nely,ndof,**kwargs):
     """
     This is the corrected example 5.1 from the 88 line code paper.
-    
+
     Parameters
     ----------
     nelx : int
@@ -103,7 +103,7 @@ def cantilever_2d(nelx,nely,ndof,**kwargs):
     Returns
     -------
     u : np.ndarray
-        array of zeros for state variable (displacement, temperature) to be 
+        array of zeros for state variable (displacement, temperature) to be
         filled of shape (ndof).
     f : np.ndarray
         array of zeros for state flow variables (forces, flow).
@@ -128,7 +128,7 @@ def cantilever_2d(nelx,nely,ndof,**kwargs):
 def cantilever_2d_twoloads(nelx,nely,ndof,**kwargs):
     """
     This is the corrected example 5.2 from the 88 line code paper.
-    
+
     Parameters
     ----------
     nelx : int
@@ -141,7 +141,7 @@ def cantilever_2d_twoloads(nelx,nely,ndof,**kwargs):
     Returns
     -------
     u : np.ndarray
-        array of zeros for state variable (displacement, temperature) to be 
+        array of zeros for state variable (displacement, temperature) to be
         filled of shape (ndof).
     f : np.ndarray
         array of zeros for state flow variables (forces, flow).
@@ -169,7 +169,7 @@ def cantilever_2d_twoloads_wrong(nelx,nely,ndof,**kwargs):
     This is the example 5.2 from the 88 line code paper. It is actually wrong
     as it misses out on fixing the last dof in y direction on the left wall. It
     is here purely for testing.
-    
+
     Parameters
     ----------
     nelx : int
@@ -182,7 +182,7 @@ def cantilever_2d_twoloads_wrong(nelx,nely,ndof,**kwargs):
     Returns
     -------
     u : np.ndarray
-        array of zeros for state variable (displacement, temperature) to be 
+        array of zeros for state variable (displacement, temperature) to be
         filled of shape (ndof).
     f : np.ndarray
         array of zeros for state flow variables (forces, flow).
@@ -191,7 +191,7 @@ def cantilever_2d_twoloads_wrong(nelx,nely,ndof,**kwargs):
     free : np.ndarray
         indices of free dofs (ndofs - nfixed).
     springs : None
-    
+
     """
     #
     dofs = np.arange(ndof)
@@ -211,7 +211,7 @@ def cantilever_2d_wrong(nelx,nely,ndof,**kwargs):
     This is the example 5.1 from the 88 line code paper. It is actually wrong
     as it misses out on fixing the last dof in y direction on the left wall. It
     is here purely for testing.
-    
+
     Parameters
     ----------
     nelx : int
@@ -221,11 +221,11 @@ def cantilever_2d_wrong(nelx,nely,ndof,**kwargs):
     ndof : int
         number of degrees of freedom.
     springs : None
-    
+
     Returns
     -------
     u : np.ndarray
-        array of zeros for state variable (displacement, temperature) to be 
+        array of zeros for state variable (displacement, temperature) to be
         filled of shape (ndof).
     f : np.ndarray
         array of zeros for state flow variables (forces, flow).
@@ -235,7 +235,7 @@ def cantilever_2d_wrong(nelx,nely,ndof,**kwargs):
         indices of free dofs (ndofs - nfixed).
     springs : None
     """
-    
+
     #
     dofs = np.arange(ndof)
     # Solution and RHS vectors
@@ -249,10 +249,10 @@ def cantilever_2d_wrong(nelx,nely,ndof,**kwargs):
 
 def forceinverter_2d(nelx,nely,ndof,**kwargs):
     """
-    Heat conduction problem with an evenly heated plate attached to a heat 
-    sink at the negative x side. Example case taken from the standard TO 
+    Heat conduction problem with an evenly heated plate attached to a heat
+    sink at the negative x side. Example case taken from the standard TO
     textbook by Sigmund and Bendsoe page 271.
-    
+
     Parameters
     ----------
     nelx : int
@@ -265,7 +265,7 @@ def forceinverter_2d(nelx,nely,ndof,**kwargs):
     Returns
     -------
     u : np.ndarray
-        array of zeros for state variable (displacement, temperature) to be 
+        array of zeros for state variable (displacement, temperature) to be
         filled of shape (ndof).
     f : np.ndarray
         array of zeros for state flow variables (forces, flow).
@@ -274,9 +274,9 @@ def forceinverter_2d(nelx,nely,ndof,**kwargs):
     free : np.ndarray
         indices of free dofs (ndofs - nfixed).
     springs : list
-        contains two 1D np.ndarrays of equal length. first is of integer type 
+        contains two 1D np.ndarrays of equal length. first is of integer type
         and contains the indices of dofs attached to a spring. second contains
-        the spring constants. 
+        the spring constants.
 
     """
     # BC's
@@ -296,8 +296,8 @@ def forceinverter_2d(nelx,nely,ndof,**kwargs):
 def threepointbending_2d(nelx,nely,ndof,**kwargs):
     """
     both displacement fixed at bottom left and bottom right and force pushes
-    down on the middle top. 
-    
+    down on the middle top.
+
     Parameters
     ----------
     nelx : int
@@ -310,7 +310,7 @@ def threepointbending_2d(nelx,nely,ndof,**kwargs):
     Returns
     -------
     u : np.ndarray
-        array of zeros for state variable (displacement, temperature) to be 
+        array of zeros for state variable (displacement, temperature) to be
         filled of shape (ndof).
     f : np.ndarray
         array of zeros for state flow variables (forces, flow).
@@ -319,9 +319,9 @@ def threepointbending_2d(nelx,nely,ndof,**kwargs):
     free : np.ndarray
         indices of free dofs (ndofs - nfixed).
     springs : list
-        contains two 1D np.ndarrays of equal length. first is of integer type 
+        contains two 1D np.ndarrays of equal length. first is of integer type
         and contains the indices of dofs attached to a spring. second contains
-        the spring constants. 
+        the spring constants.
 
     """
     # BC's
@@ -331,7 +331,7 @@ def threepointbending_2d(nelx,nely,ndof,**kwargs):
     u = np.zeros((ndof, 1))
     # heat sink
     fixed = np.hstack(([2*nely,2*(nely+1)-1], # bottom left
-                       [ndof-2,ndof-1])) # bottom right 
+                       [ndof-2,ndof-1])) # bottom right
     # load/source
     f[nelx*(nely+1) + 1,0] = -1
     return u,f,fixed,np.setdiff1d(dofs,fixed),None
@@ -339,9 +339,9 @@ def threepointbending_2d(nelx,nely,ndof,**kwargs):
 def xcenteredbeam_2d(nelx,nely,ndof,**kwargs):
     """
     Both displacements fixed at the middle of the left and right boundary. No
-    forces. This test case is mainly for cases where a force source due to 
+    forces. This test case is mainly for cases where a force source due to
     another field (e. g. thermal stresses) appears.
-    
+
     Parameters
     ----------
     nelx : int
@@ -354,7 +354,7 @@ def xcenteredbeam_2d(nelx,nely,ndof,**kwargs):
     Returns
     -------
     u : np.ndarray
-        array of zeros for state variable (displacement, temperature) to be 
+        array of zeros for state variable (displacement, temperature) to be
         filled of shape (ndof).
     f : np.ndarray
         array of zeros for state flow variables (forces, flow).
@@ -363,9 +363,9 @@ def xcenteredbeam_2d(nelx,nely,ndof,**kwargs):
     free : np.ndarray
         indices of free dofs (ndofs - nfixed).
     springs : list
-        contains two 1D np.ndarrays of equal length. first is of integer type 
+        contains two 1D np.ndarrays of equal length. first is of integer type
         and contains the indices of dofs attached to a spring. second contains
-        the spring constants. 
+        the spring constants.
 
     """
     if nely%2 !=0:
@@ -378,16 +378,16 @@ def xcenteredbeam_2d(nelx,nely,ndof,**kwargs):
     # heat sink
     fixed = np.hstack(([0,2*nely], # xdofs fixed left side
                        [nely+1],
-                       [2*nelx*(nely+1) + nely+1])) # bottom right 
+                       [2*nelx*(nely+1) + nely+1])) # bottom right
     return u,f,fixed,np.setdiff1d(dofs,fixed),None
 
 def tensiletest_2d(nelx,nely,ndof,
                    ymirror=True,
                    **kwargs):
     """
-    Tensile test with force applied in x direction with -x side fixed in terms 
+    Tensile test with force applied in x direction with -x side fixed in terms
     of x dofs. BC details depend on options.
-    
+
     Parameters
     ----------
     nelx : int
@@ -397,13 +397,13 @@ def tensiletest_2d(nelx,nely,ndof,
     ndof : int
         number of degrees of freedom.
     ymirror : bool
-        if True, mirror axis at y=0 by setting the y dofs to zero. if False, 
+        if True, mirror axis at y=0 by setting the y dofs to zero. if False,
         then ydofs at x=0,y=Ly/2 and x=Lx,y=Ly/2
 
     Returns
     -------
     u : np.ndarray
-        array of zeros for state variable (displacement, temperature) to be 
+        array of zeros for state variable (displacement, temperature) to be
         filled of shape (ndof).
     f : np.ndarray
         array of zeros for state flow variables (forces, flow).
@@ -412,9 +412,9 @@ def tensiletest_2d(nelx,nely,ndof,
     free : np.ndarray
         indices of free dofs (ndofs - nfixed).
     springs : list
-        contains two 1D np.ndarrays of equal length. first is of integer type 
+        contains two 1D np.ndarrays of equal length. first is of integer type
         and contains the indices of dofs attached to a spring. second contains
-        the spring constants. 
+        the spring constants.
 
     """
     if nely%2 !=0:
@@ -431,7 +431,7 @@ def tensiletest_2d(nelx,nely,ndof,
     fixed = [np.arange(0,(nely+1)*2,2)]
     # y mirror axis
     if ymirror:
-        fixed += [np.arange(1,ndof,2*(nely+1))] 
+        fixed += [np.arange(1,ndof,2*(nely+1))]
     else:
         fixed += [nely+1,ndof-nely-1]
     fixed = np.hstack(fixed)
@@ -441,9 +441,9 @@ def tensiletest_2d(nelx,nely,ndof,
 def tensiletest_3d(nelx,nely,nelz,ndof,
                    **kwargs):
     """
-    x displacements fixed at left side and uniform force applied at right hand 
+    x displacements fixed at left side and uniform force applied at right hand
     side. One y dof is fixed in the middle of the left side.
-    
+
     Parameters
     ----------
     nelx : int
@@ -458,7 +458,7 @@ def tensiletest_3d(nelx,nely,nelz,ndof,
     Returns
     -------
     u : np.ndarray
-        array of zeros for state variable (displacement, temperature) to be 
+        array of zeros for state variable (displacement, temperature) to be
         filled of shape (ndof).
     f : np.ndarray
         array of zeros for state flow variables (forces, flow).
@@ -482,7 +482,7 @@ def tensiletest_3d(nelx,nely,nelz,ndof,
     # symmetry bc (fix z displacements to zero)
     zsymmetry = np.arange(2,(nelx+1)*(nely+1)*3,3)
     #
-    fixed = np.hstack((xsymmetry, 
+    fixed = np.hstack((xsymmetry,
                        ysymmetry,
                        zsymmetry))
     # force pulling
@@ -495,11 +495,11 @@ def tensiletest_3d(nelx,nely,nelz,ndof,
 
 def selffolding_2d(nelx,nely,ndof,**kwargs):
     """
-    Symmetry axis on left side (x dofs fixed) and bottom node on left side has 
-    fixed y displacement as well. No forces applied as this is thought to be 
-    used with another physical phenomenon that induces forces by itself 
+    Symmetry axis on left side (x dofs fixed) and bottom node on left side has
+    fixed y displacement as well. No forces applied as this is thought to be
+    used with another physical phenomenon that induces forces by itself
     e. g. heat expansion.
-    
+
     Parameters
     ----------
     nelx : int
@@ -512,7 +512,7 @@ def selffolding_2d(nelx,nely,ndof,**kwargs):
     Returns
     -------
     u : np.ndarray
-        array of zeros for state variable (displacement, temperature) to be 
+        array of zeros for state variable (displacement, temperature) to be
         filled of shape (ndof).
     f : np.ndarray
         array of zeros for state flow variables (forces, flow).
@@ -521,29 +521,32 @@ def selffolding_2d(nelx,nely,ndof,**kwargs):
     free : np.ndarray
         indices of free dofs (ndofs - nfixed).
     springs : None
-        contains two 1D np.ndarrays of equal length. first is of integer type 
+        contains two 1D np.ndarrays of equal length. first is of integer type
         and contains the indices of dofs attached to a spring. second contains
-        the spring constants. 
+        the spring constants.
 
     """
     if nely%2 !=0:
         raise ValueError("This example works only for nely equal to an even number.")
     # BC's
     dofs = np.arange(ndof)
-    fixed = np.union1d(dofs[0:2*(nely+1):2], # symmetry 
+    fixed = np.union1d(dofs[0:2*(nely+1):2], # symmetry
                        np.array([2*(nely+1)-1])) # bottom support
     # Solution and RHS vectors
     f = np.zeros((ndof, 1))
     u = np.zeros((ndof, 1))
-    return u,f,fixed,np.setdiff1d(dofs,fixed),None
+    #
+    springs = [np.array([2*nelx*(nely+1)+1]),
+               np.array([0.01])]
+    return u,f,fixed,np.setdiff1d(dofs,fixed),springs
 
 def selffolding_3d(nelx,nely,nelz,ndof,**kwargs):
     """
-    Symmetry axis on left side (x dofs fixed) and bottom node on left side has 
-    fixed y displacement as well. No forces applied as this is thought to be 
-    used with another physical phenomenon that induces forces by itself 
+    Symmetry axis on left side (x dofs fixed) and bottom node on left side has
+    fixed y displacement as well. No forces applied as this is thought to be
+    used with another physical phenomenon that induces forces by itself
     e. g. heat expansion.
-    
+
     Parameters
     ----------
     nelx : int
@@ -558,7 +561,7 @@ def selffolding_3d(nelx,nely,nelz,ndof,**kwargs):
     Returns
     -------
     u : np.ndarray
-        array of zeros for state variable (displacement, temperature) to be 
+        array of zeros for state variable (displacement, temperature) to be
         filled of shape (ndof).
     f : np.ndarray
         array of zeros for state flow variables (forces, flow).
@@ -567,9 +570,9 @@ def selffolding_3d(nelx,nely,nelz,ndof,**kwargs):
     free : np.ndarray
         indices of free dofs (ndofs - nfixed).
     springs : None
-        contains two 1D np.ndarrays of equal length. first is of integer type 
+        contains two 1D np.ndarrays of equal length. first is of integer type
         and contains the indices of dofs attached to a spring. second contains
-        the spring constants. 
+        the spring constants.
 
     """
     #

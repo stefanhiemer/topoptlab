@@ -46,15 +46,15 @@ from topoptlab.log_utils import init_logging
 
 # MAIN DRIVER
 def main(nelx, nely, volfrac, penal, rmin, ft,
-         eps=1e-9, nu=0.3, 
+         eps=1e-9, nu=0.3,
          kmax=1.0, kmin=1e-9,
-         a1=1e-1,a2=5e-2,
+         a1=5e-2,a2=1e-1,
          Eratio = 0.35,kratio=3,
          nelz=None,
          filter_mode="matrix",
          lin_solver="scipy-direct", preconditioner=None,
          assembly_mode="full",
-         bcs=selffolding_2d, 
+         bcs=selffolding_2d,
          obj_func=var_maximization, obj_kw={},
          el_flags=None,
          optimizer="mma", optimizer_kw = None,
@@ -64,7 +64,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
          display=True,export=True,write_log=True,
          debug=0):
     """
-    Run topology optimization for self bending film consisting of two sheets of 
+    Run topology optimization for self bending film consisting of two sheets of
     different materials.
 
     Parameters
@@ -91,22 +91,22 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         implemented via a sparse matrix and applied by multiplying
         said matrix with the densities/sensitivities.
     solver : str
-        solver for linear systems. Check function lin solve for available 
+        solver for linear systems. Check function lin solve for available
         options.
     preconditioner : str or None
-        preconditioner for linear systems. 
+        preconditioner for linear systems.
     assembly_mode : str
-        whether full or only lower triangle of linear system / matrix is 
+        whether full or only lower triangle of linear system / matrix is
         created.
     bcs : str or callable
         returns the boundary conditions
     obj_func : callable
         objective function. Should update the objective value, the rhs of the
-        the adjoint problem (currently only for stationary lin. problems) and 
+        the adjoint problem (currently only for stationary lin. problems) and
         a flag indicating whether the objective is self adjoint.
     obj_kw : dict
-        keywords needed for the objective function. E. g. for a compliant 
-        mechanism and maximization of the displacement it would be the 
+        keywords needed for the objective function. E. g. for a compliant
+        mechanism and maximization of the displacement it would be the
         indicator array for output nodes. Check the objective for the necessary
         entries.
     el_flags : np.ndarray or None
@@ -180,9 +180,9 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     xPhys = x.copy()
     #
     if ndim == 2:
-        xe = np.array([[[-1.,-1.], 
-                        [1.,-1.], 
-                        [1.,1.], 
+        xe = np.array([[[-1.,-1.],
+                        [1.,-1.],
+                        [1.,1.],
                         [-1.,1.]]]) * np.ones(xPhys.shape)[:,None,None]
     elif ndim == 3:
         xe = np.array([[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
@@ -193,7 +193,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     if ndim ==2:
         # stiffness tensor
         cs = [orthotropic_2d(Ex=1., Ey=Eratio, nu_xy=nu, G_xy=0.3) \
-              for i in np.arange(int(nely/2))] 
+              for i in np.arange(int(nely/2))]
         cs += [orthotropic_2d(Ex=Eratio, Ey=1., nu_xy=nu*Eratio, G_xy=0.3) \
                for j in np.arange(int(nely/2),nely)]
         cs = np.tile(np.stack(cs),(nelx,1,1))
@@ -203,11 +203,11 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         a = np.tile(a,(nelx,1,1))
     if ndim ==3:
         # stiffness tensor
-        cs = [orthotropic_3d(Ex=Emax, Ey=Eratio, Ez=Eratio, 
+        cs = [orthotropic_3d(Ex=Emax, Ey=Eratio, Ez=Eratio,
                              nu_xy=nu, nu_xz=nu, nu_yz=nu,
                              G_xy=0.3, G_xz=0.3, G_yz=0.3) \
-              for i in np.arange(int(nely/2))] 
-        cs += [orthotropic_3d(Ex=Eratio, Ey=Emax, Ez=Eratio, 
+              for i in np.arange(int(nely/2))]
+        cs += [orthotropic_3d(Ex=Eratio, Ey=Emax, Ez=Eratio,
                               nu_xy=nu*Eratio, nu_xz=nu, nu_yz=nu,
                               G_xy=0.3, G_xz=0.3, G_yz=0.3) \
                for j in np.arange(int(nely/2),nely)]
@@ -220,7 +220,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     dobj = np.zeros(x.shape[0],order="F")
     dv = np.ones(x.shape[0],order="F")
     # initialize solver
-    if optimizer_kw is None:        
+    if optimizer_kw is None:
         if optimizer in ["oc","ocm","ocg"]:
             # must be initialized to use the NGuyen/Paulino OC approach
             g = 0
@@ -242,7 +242,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             raise ValueError("Unknown optimizer: ", optimizer)
     # get element matrices
     if ndim == 2:
-        KE = _lk_linear_elast_2d(xe=xe,c=cs) 
+        KE = _lk_linear_elast_2d(xe=xe,c=cs)
         KT = lk_poisson_2d()
         # infer nodal degrees of freedom assuming that we have 4/8 nodes in 2/3
         n_ndof = int(KE.shape[-1]/4)
@@ -326,7 +326,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         elif ndim == 3:
             raise NotImplementedError("Plotting in 3D not yet implemented.")
             # marching cubes to find contour line
-            verts, faces, normals, values = marching_cubes(mapping(-xPhys), 
+            verts, faces, normals, values = marching_cubes(mapping(-xPhys),
                                                           level=volfrac)
             fig, ax = plt.subplots(1,1,subplot_kw={"projection": "3d"})
             #
@@ -355,7 +355,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         if optimizer in ["oc","mma", "ocm","ocg"] or\
            (optimizer in ["gcmma"] and ninneriter==0) or\
            loop==0:
-            # update physical properties of the elements and thus the entries 
+            # update physical properties of the elements and thus the entries
             # of the elements
             if assembly_mode == "full":
                 sK = (scale[:,None,None] * KE).flatten()
@@ -377,7 +377,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             K = apply_bc(K=K,solver=lin_solver,
                          free=free,fixed=fixed)
             # solve linear system. fact is a factorization and precond a preconditioner
-            u[free, :], fact, precond = solve_lin(K=K, rhs=rhs[free], 
+            u[free, :], fact, precond = solve_lin(K=K, rhs=rhs[free],
                                                   solver=lin_solver,
                                                   preconditioner=preconditioner)
             # Objective and objective gradient
@@ -385,7 +385,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             dobj[:] = np.zeros(x.shape[0])
             for i in np.arange(f.shape[1]):
                 # obj. value, selfadjoint variables, self adjoint flag
-                obj,rhs_adj,self_adj = obj_func(obj=obj, 
+                obj,rhs_adj,self_adj = obj_func(obj=obj,
                                                 xPhys=xPhys,u=u[:,i],
                                                 KE=KE,edofMat=edofMat,
                                                 Amax=1.,Amin=eps,
@@ -411,7 +411,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                     #penal*xPhys**(penal-1)*(\
                     #(k2-k1)*(np.dot(hT[edofMatT,0], KeT)*T[edofMatT,0]).sum(1)\
                     #+(E2-E1)*( np.dot(hE[edofMatE,0], KeE)*u[edofMatE,0] \
-                    #- E[:,None] * (a2-a1) * hE[edofMatE,0]*fTe[:,:,0] 
+                    #- E[:,None] * (a2-a1) * hE[edofMatE,0]*fTe[:,:,0]
                     #- a[:,None] * hE[edofMatE,0]*fTe[:,:,0]).sum(1))
                     #
                 if debug:
@@ -469,16 +469,16 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         xold[:] = x
         # optimality criteria
         if optimizer=="oc":
-            (x[:], g) = oc_top88(x=x, volfrac=volfrac, 
-                                 dc=dobj, dv=dv, g=g, 
+            (x[:], g) = oc_top88(x=x, volfrac=volfrac,
+                                 dc=dobj, dv=dv, g=g,
                                  el_flags=el_flags)
         elif optimizer=="ocm":
-            (x[:], g) = oc_mechanism(x=x, volfrac=volfrac, 
-                                     dc=dobj, dv=dv, g=g, 
+            (x[:], g) = oc_mechanism(x=x, volfrac=volfrac,
+                                     dc=dobj, dv=dv, g=g,
                                      el_flags=el_flags)
         elif optimizer=="ocg":
-            (x[:], g) = oc_generalized(x=x, volfrac=volfrac, 
-                                       dc=dobj, dv=dv, g=g, 
+            (x[:], g) = oc_generalized(x=x, volfrac=volfrac,
+                                       dc=dobj, dv=dv, g=g,
                                        el_flags=el_flags)
         # method of moving asymptotes
         elif optimizer=="mma":
@@ -493,7 +493,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                                                                 dconstr=dv,
                                                                 iteration=loop,
                                                                 **optimizer_kw)
-            # update asymptotes 
+            # update asymptotes
             optimizer_kw["low"] = low
             optimizer_kw["upp"] = upp
             # delete oldest element of iteration history
@@ -542,7 +542,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         # convergence check
         if change < 0.01:
             break
-    
+
     #
     if display:
         plt.show()
@@ -551,7 +551,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     xThresh = threshold(xPhys,
                         volfrac)
     scale = (eps+xThresh**penal*(1-eps))
-    # update physical properties of the elements and thus the entries 
+    # update physical properties of the elements and thus the entries
     # of the elements
     if assembly_mode == "full":
         sK = (scale[:,None,None] * KE).flatten()
@@ -560,7 +560,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     # assemble system matrix
     K = assemble_matrix(sK=sK,iK=iK,jK=jK,
                         ndof=ndof,solver=lin_solver,
-                        springs=springs)
+                        springs=None)
     # assemble temperature expansion induced forces
     fTe = KeET@T[edofMatT]
     fT = np.zeros(f.shape)
@@ -574,11 +574,11 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                  free=free,fixed=fixed)
     # solve linear system. fact is a factorization and precond a preconditioner
     u_bw = np.zeros(u.shape)
-    u_bw[free, :], fact, precond = solve_lin(K=K, rhs=rhs[free], 
+    u_bw[free, :], fact, precond = solve_lin(K=K, rhs=rhs[free],
                                           solver=lin_solver,
                                           preconditioner=preconditioner)
     #
-    obj,rhs_adj,self_adj = obj_func(obj=obj, 
+    obj,rhs_adj,self_adj = obj_func(obj=obj,
                                     xPhys=xThresh,u=u_bw[:,0],
                                     KE=KE,edofMat=edofMat,
                                     Amax=1.,Amin=eps,
@@ -592,14 +592,15 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         export_vtk(filename=file,
                    nelx=nelx,nely=nely,nelz=nelz,
                    xPhys=xPhys,x=x,
-                   u=u,f=f,volfrac=volfrac)
+                   u=u_bw,f=f+ft,
+                   volfrac=volfrac)
     return x, obj
 
-# The real main driver    
+# The real main driver
 if __name__ == "__main__":
     # Default input parameters
-    nelx=60
-    nely=20
+    nelx=240
+    nely=80
     nelz=None
     volfrac=0.5
     rmin=2.4
@@ -619,7 +620,7 @@ if __name__ == "__main__":
         bcs=selffolding_3d
     #
     l = np.zeros((2*(nelx+1)*(nely+1),1))
-    l[2 *(nelx+1)*(nely+1) - 2 * (nely+1) + 1,0] = -1
+    l[2 *nelx*(nely+1) + 1,0] = 1
     #
     main(nelx=nelx,nely=nely,volfrac=volfrac,penal=penal,rmin=rmin,ft=ft,
          obj_func=var_maximization ,obj_kw={"l": l},
