@@ -13,7 +13,7 @@ if __name__ == "__main__":
     ft = 0 # ft==0 -> sens, ft==1 -> dens
     center = (nelx/3 - 1, nely/2 - 1)
     radius = nely/3
-    pass_el = sphere(nelx, nely, center, radius)
-    main(nelx=nelx, nely=nely, volfrac=volfrac, penal=penal, rmin=rmin, 
+    pass_el = sphere(nelx=nelx, nely=nely, center=center, radius=radius)
+    main(nelx=nelx, nely=nely, volfrac=volfrac, penal=penal, rmin=rmin,
          ft=ft, el_flags = pass_el ,filter_mode = "matrix",optimizer="oc",
          bcs=cantilever_2d,debug=False,display=True)

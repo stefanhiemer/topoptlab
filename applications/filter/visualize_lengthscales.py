@@ -8,19 +8,19 @@ import matplotlib.pyplot as plt
 
 from topoptlab.filters import assemble_convolution_filter,assemble_matrix_filter
 from topoptlab.utils import map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel
-from topoptlab.geometries import sphere 
+from topoptlab.geometries import sphere
 from topoptlab.output_designs import threshold
 
 def strel(radius, fill_value=1):
     """
     Create element flags for a sphere located at center with specified radius.
-    
+
     Parameters
     ----------
     geo : str
         name of geometry.
     radius : float
-        sphere radius. 
+        sphere radius.
     fill_value: int
         value that is prescribed to elements within sphere.
 
@@ -37,7 +37,7 @@ def strel(radius, fill_value=1):
     i = np.floor(el/l)
     j = el%l
     mask = (i-center[0])**2 + (j-center[1])**2 <= radius**2 #nely/3
-    
+
     #
     el_flags = np.zeros(el.shape)
     el_flags[mask] = fill_value
@@ -61,12 +61,17 @@ def display(x,nelx,nely,r):
                        radius=r,fill_value=1.)
     structure = map_eltoimg(structure, l, l)
     #
-    solidviolation = x-grey_opening(x,size=structure.shape,
-                                    structure=structure,
-                                    mode="nearest",cval=0.)
-    voidviolation = grey_closing(x,size=structure.shape,
-                                 structure=structure,
-                                 mode="nearest",cval=0.)-x
+    #solidviolation = x-grey_opening(x,size=structure.shape,
+    #                                structure=structure,
+    #                                mode="nearest",cval=0.)
+    #voidviolation = grey_closing(x,size=structure.shape,
+    #                             structure=structure,
+    #                             mode="nearest",cval=0.)-x
+    solidviolation, voidviolation = lengthscale_violations(x=x,
+                                                           nelx=nelx,
+                                                           nely=nely,
+                                                           r=r,
+                                                           nelz=nelz)
     #
     R = int(2*r)
     L = 1+int(2*R)
@@ -93,25 +98,25 @@ def display(x,nelx,nely,r):
     img = np.ones(x.shape + tuple([3]))
     img[x==1] = [0,0,0]
     img[solidviolation == 1] = [1, 0, 0]
-    img[voidviolation == 1] = [0, 1, 0] 
+    img[voidviolation == 1] = [0, 1, 0]
     ax[0,0].imshow(img)
     # img with "safe" regions
     img = np.ones(x.shape + tuple([3]))
     img[x==1] = [0,0,0]
     img[solidsafe == 1] = [1, 0, 0]
-    img[voidsafe == 1] = [0, 1, 0] 
+    img[voidsafe == 1] = [0, 1, 0]
     ax[0,1].imshow(img)
     # img with erosion
     img = np.ones(x.shape + tuple([3]))
     img[x==1] = [0,0,0]
     img[solidviolation == 1] = [1, 1, 1]
-    img[voiderosion-1 == 1] = [1, 1, 1] 
+    img[voiderosion-1 == 1] = [1, 1, 1]
     ax[1,0].imshow(img)
     # img with "safe" regions
     img = np.ones(x.shape + tuple([3]))
     img[x==1] = [0,0,0]
     img[soliddilation-1 == 1] = [0, 0, 1]
-    img[voidviolation == 1] = [0, 0, 0] 
+    img[voidviolation == 1] = [0, 0, 0]
     ax[1,1].imshow(img)
     # img with counter measures
     for i in range(4):
@@ -135,4 +140,3 @@ if __name__ == "__main__":
     x = np.loadtxt("mbb2d_240x80_v0.5_ft0.csv",delimiter=",")
     x = threshold(xPhys=x,volfrac=0.5)
     display(x=x,nelx=nelx,nely=nely,r=r)
-    

@@ -2,8 +2,9 @@ import numpy as np
 
 def sphere(nelx, nely, center, radius, fill_value=1):
     """
-    Create element flags for a sphere located at center with specified radius.
-    
+    Create element flags for a sphere located at the specified center with the
+    specified radius.
+
     Parameters
     ----------
     nelx : int
@@ -11,9 +12,9 @@ def sphere(nelx, nely, center, radius, fill_value=1):
     nely : int
         number of elements in y direction.
     center : list or tuple or np.ndarray
-        coordinates of sphere center. 
+        coordinates of sphere center.
     radius : float
-        sphere radius. 
+        sphere radius.
     fill_value: int
         value that is prescribed to elements within sphere.
 
@@ -23,21 +24,56 @@ def sphere(nelx, nely, center, radius, fill_value=1):
         element flags of shape (nelx*nely)
 
     """
-    el = np.arange(nelx*nely)
-    i = np.floor(el/nely)
-    j = el%nely
-    mask = (i-center[0])**2 + (j-center[1])**2 <= radius**2 #nely/3
-    
+    n = nelx*nely
+    el = np.arange(n, dtype=np.int32)
+    i,j = np.divmod(el,nely)
+    mask = (i-center[0])**2 + (j-center[1])**2 <= radius**2
     #
-    el_flags = np.zeros(nelx*nely)
+    el_flags = np.zeros(n,dtype=np.int32)
+    el_flags[mask] = fill_value
+    return el_flags
+
+def ball(nelx, nely, nelz, center, radius, fill_value=1):
+    """
+    Create element flags for a ball located at the specified center with the
+    specified radius.
+
+    Parameters
+    ----------
+    nelx : int
+        number of elements in x direction.
+    nely : int
+        number of elements in y direction.
+    nelz : int
+        number of elements in z direction.
+    center : list or tuple or np.ndarray
+        coordinates of sphere center.
+    radius : float
+        sphere radius.
+    fill_value: int
+        value that is prescribed to elements within ball.
+
+    Returns
+    -------
+    el_flags : np.ndarray
+        element flags of shape (nelx*nely*nelz)
+
+    """
+    n = nelx*nely*nelz
+    el = np.arange(n, dtype=np.int32)
+    k,ij = np.divmod(el,nelx*nely)
+    i,j = np.divmod(ij,nely)
+    mask = (i-center[0])**2 + (j-center[1])**2 + (k-center[2])**2 <= radius**2
+    #
+    el_flags = np.zeros(n, dtype=np.int32)
     el_flags[mask] = fill_value
     return el_flags
 
 def bounding_rectangle(nelx,nely,faces=["b","t","r","l"]):
     """
-    Create element flags for a bounding box of one element thickness. It is 
+    Create element flags for a bounding box of one element thickness. It is
     possible to draw only specified faces of the bounding box.
-    
+
     Parameters
     ----------
     nelx : int
@@ -80,5 +116,3 @@ def bounding_rectangle(nelx,nely,faces=["b","t","r","l"]):
     # set to active
     el_flags[indices] = 2
     return el_flags
-    
-    
