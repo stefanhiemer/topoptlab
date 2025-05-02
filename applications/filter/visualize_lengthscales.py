@@ -10,6 +10,7 @@ from topoptlab.filters import assemble_convolution_filter,assemble_matrix_filter
 from topoptlab.utils import map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel
 from topoptlab.geometries import sphere
 from topoptlab.output_designs import threshold
+from topoptlab.design_analysis import lengthscale_violations
 
 def strel(radius, fill_value=1):
     """
@@ -52,8 +53,6 @@ def diracdelta(nelx,nely):
 
 def display(x,nelx,nely,r):
     #
-    x = map_eltoimg(quant=x, nelx=nelx, nely=nely)
-    #
     r = int(r)
     l = 1+int(2*r)
     structure = sphere(l,l,
@@ -72,6 +71,7 @@ def display(x,nelx,nely,r):
                                                            nely=nely,
                                                            r=r,
                                                            nelz=nelz)
+    x = map_eltoimg(quant=x, nelx=nelx, nely=nely)
     #
     R = int(2*r)
     L = 1+int(2*R)
@@ -100,24 +100,28 @@ def display(x,nelx,nely,r):
     img[solidviolation == 1] = [1, 0, 0]
     img[voidviolation == 1] = [0, 1, 0]
     ax[0,0].imshow(img)
+    ax[0,0].set_title("original with highlighted violations")
     # img with "safe" regions
     img = np.ones(x.shape + tuple([3]))
     img[x==1] = [0,0,0]
     img[solidsafe == 1] = [1, 0, 0]
     img[voidsafe == 1] = [0, 1, 0]
     ax[0,1].imshow(img)
+    ax[0,1].set_title("safe regions")
     # img with erosion
     img = np.ones(x.shape + tuple([3]))
     img[x==1] = [0,0,0]
     img[solidviolation == 1] = [1, 1, 1]
     img[voiderosion-1 == 1] = [1, 1, 1]
     ax[1,0].imshow(img)
+    ax[1,0].set_title("Erosion")
     # img with "safe" regions
     img = np.ones(x.shape + tuple([3]))
     img[x==1] = [0,0,0]
     img[soliddilation-1 == 1] = [0, 0, 1]
     img[voidviolation == 1] = [0, 0, 0]
     ax[1,1].imshow(img)
+    ax[1,1].set_title("Dilation")
     # img with counter measures
     for i in range(4):
         row,col = int(i%2),int(np.floor(i/2))
