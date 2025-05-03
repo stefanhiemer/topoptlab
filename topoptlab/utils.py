@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.ndiamge import zoom
 
 def bdf_coefficients(k):
     """
@@ -306,3 +307,52 @@ def elid_to_coords(el,nelx,nely,nelz=None,**kwargs):
         z,rest = np.divmod(el,nelx*nely)
         x,y = np.divmod(rest,nely)
         return x,y,z
+
+def upsampling(x, magnification,
+               nelx,nely,nelz=None,
+               return_flat=True, order=0):
+    """
+    Upsample current design variables defined on the standard regular grid to 
+    a larger design by interpolation. With order 0 the design is replicated on
+    a finer scale in a volume conserving fashion, otherwise spline 
+    interpolation might violate this.
+
+    Parameters
+    ----------
+    x : np.ndarray shape (n)
+        design variables.
+    magnification : float
+        magnification factor.
+    nelx : int
+        number of elements in x direction.
+    nely : int
+        number of elements in y direction.
+    nelz : int or None, optional
+        number of elements in z direction. The default is None.
+    return_flat : bool, optional
+        return the design variables flattened. If false returns an image or a 
+        voxel graphic. The default is True.
+    order : int, optional
+        order of spline interpolation for upsampling. The default is 0.
+
+    Returns
+    -------
+    x_new : np.ndarray shape (n) or shape (nely,nelx) or shape (nelz,nely,nelx)
+        upsampled design variables.
+
+    """
+    
+    if nelz is None:
+        x = map_eltoimg(quant=x, nelx=nelx, nely=nely)
+    else:
+        x = map_eltovoxel(quant=x, nelx=nelx, nely=nely, nelz=nelz)
+    #
+    x = zoom(x,zoom=magnification,
+             order=order,mode="nearest",cval=0.)
+    #
+    if return_flat:
+        if nelz is None:
+            x = map_imgtoel(quant=x, nelx=nelx, nely=nely)
+        else:
+            x = map_voxeltoel(quant=x, nelx=nelx, nely=nely, nelz=nelz)
+    return x

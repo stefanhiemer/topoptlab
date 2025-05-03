@@ -44,10 +44,12 @@ def strel(radius, fill_value=1):
     el_flags[mask] = fill_value
     return el_flags.reshape(l,l)
 
-def diracdelta(nelx,nely):
+def diracdelta(nelx,nely,center=None):
+    if center is None:
+        center = ((nelx-1)/2,(nely-1)/2)
     # densities
     x = sphere(nelx,nely,
-               ((nelx-1)/2,(nely-1)/2),
+               center=center,
                radius=1,fill_value=1.)
     return x
 
@@ -93,7 +95,7 @@ def display(x,nelx,nely,r):
                                         structure=structure,
                                         mode="nearest",cval=0.)
     #
-    fig,ax = plt.subplots(2,2)
+    fig,ax = plt.subplots(3,2)
     # img with violations highlighted
     img = np.ones(x.shape + tuple([3]))
     img[x==1] = [0,0,0]
@@ -118,13 +120,13 @@ def display(x,nelx,nely,r):
     # img with "safe" regions
     img = np.ones(x.shape + tuple([3]))
     img[x==1] = [0,0,0]
-    img[soliddilation-1 == 1] = [0, 0, 1]
-    img[voidviolation == 1] = [0, 0, 0]
+    img[soliddilation-1 == 1] = [1, 0, 0]
+    img[voidviolation == 1] = [0, 1, 0]
     ax[1,1].imshow(img)
     ax[1,1].set_title("Dilation")
     # img with counter measures
-    for i in range(4):
-        row,col = int(i%2),int(np.floor(i/2))
+    for i in range(6):
+        row,col = int(i%3),int(np.floor(i/3))
         ax[row,col].tick_params(axis='both',
                                 which='both',
                                 bottom=False,
