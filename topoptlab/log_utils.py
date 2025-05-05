@@ -87,4 +87,5 @@ class WindowsLogging:
         """
         with open(self.file,"a") as f:
             f.write(msg)
+        print(msg)
         return

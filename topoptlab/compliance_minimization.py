@@ -1,6 +1,3 @@
-from os.path import isfile
-from os import remove
-import logging
 from functools import partial
 #
 import numpy as np
@@ -21,6 +18,7 @@ from topoptlab.fem import create_matrixinds
 from topoptlab.elements.bilinear_quadrilateral import create_edofMat as create_edofMat2d
 from topoptlab.elements.trilinear_hexahedron import create_edofMat as create_edofMat3d
 # different elements/physics
+from topoptlab.elements.poisson_2d import lk_poisson_2d
 from topoptlab.elements.linear_elasticity_2d import lk_linear_elast_2d
 from topoptlab.elements.linear_elasticity_3d import lk_linear_elast_3d
 # generic functions for solving phys. problem
@@ -43,7 +41,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
          filter_mode="matrix",
          lin_solver="scipy-direct", preconditioner=None,
          assembly_mode="full",
-         bcs=mbb_2d, 
+         bcs=mbb_2d, lk=None, l=(1,1),
          obj_func=compliance, obj_kw={},
          el_flags=None,
          optimizer="oc", optimizer_kw = None,
@@ -58,7 +56,8 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
          debug=0):
     """
     Topology optimization workflow with the SIMP method based on
-    the default direct solver of scipy sparse.
+    the default direct solver of scipy sparse. Can treat single physics 
+    problems.
 
     Parameters
     ----------
@@ -93,6 +92,8 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         created.
     bcs : str or callable
         returns the boundary conditions
+    lk : None or callable
+        element stiffness matrix
     obj_func : callable
         objective function. Should update the objective value, the rhs of the
         the adjoint problem (currently only for stationary lin. problems) and 
@@ -134,10 +135,16 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     None.
 
     """
+    #
     if nelz is None:
         ndim = 2
     else:
         ndim = 3
+    #
+    if lk is None and ndim == 2:
+        lk = lk_linear_elast_2d
+    elif lk is None and ndim == 3:
+        lk = lk_linear_elast_3d
     #
     if write_log:
         # check if log file exists and if True delete
@@ -198,8 +205,8 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     Emin = 1e-9
     Emax = 1.0
     # get element stiffness matrix
+    KE = lk()
     if ndim == 2:
-        KE = lk_linear_elast_2d() #lk_poisson_2d()#
         # infer nodal degrees of freedom assuming that we have 4/8 nodes in 2/3
         n_ndof = int(KE.shape[-1]/4)
         # number of degrees of freedom
@@ -208,7 +215,6 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         edofMat, n1, n2, n3, n4 = create_edofMat2d(nelx=nelx,nely=nely,
                                                    nnode_dof=n_ndof)
     elif ndim == 3:
-        KE = lk_linear_elast_3d()
         # infer nodal degrees of freedom assuming that we have 4/8 nodes in 2/3
         n_ndof = int(KE.shape[-1]/8)
         # number of degrees of freedom

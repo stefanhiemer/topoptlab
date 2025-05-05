@@ -106,9 +106,12 @@ def var_squarederror(u,u0,l,
         obj. is not selfadjoint, so adjoint problem has to be solved
 
     """
+    #
+    if isinstance(u0, float):
+        u0 = np.array([u0])
     mask = l[:,0]!=0
     obj += ((u[mask] - u0)**2).mean()
     rhs_adj = np.zeros(l.shape)
-    mask = l != 0
-    rhs_adj[mask,0] = (-2)*(u[mask,0]-u0) / u0.shape[0] 
+    #mask = l != 0
+    rhs_adj[mask,0] = (-2)*(u[mask]-u0) / u0.shape[0] 
     return obj, rhs_adj , False

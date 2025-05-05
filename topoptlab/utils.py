@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.ndiamge import zoom
+from scipy.ndimage import zoom
 
 def bdf_coefficients(k):
     """
