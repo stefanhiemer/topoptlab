@@ -1,7 +1,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-def cahn_hilliard_fd(dim=2, grid_size=128, dx=1.0, dt=0.01, epsilon=1.0, M=1.0, n_steps=500):
+def cahn_hilliard_fd(dim=2, grid_size=128, 
+                     dx=1.0, dt=0.01, 
+                     epsilon=1.0, M=1.0, 
+                     n_steps=500,
+                     display=True):
     """
     Solves the Cahn-Hilliard equation using finite differences.
     
@@ -45,7 +49,7 @@ def cahn_hilliard_fd(dim=2, grid_size=128, dx=1.0, dt=0.01, epsilon=1.0, M=1.0, 
         c += dt * M * laplacian(mu)
         
         # Optional: Visualization for 2D
-        if dim == 2 and step % (n_steps // 100) == 0:
+        if dim == 2 and step % (n_steps // 100) == 0 and display:
             plt.imshow(c, cmap='RdBu', origin='lower')
             plt.colorbar(label='Concentration')
             plt.title(f"Step {step}")
@@ -53,7 +57,7 @@ def cahn_hilliard_fd(dim=2, grid_size=128, dx=1.0, dt=0.01, epsilon=1.0, M=1.0, 
             plt.clf()
     
     # Final visualization
-    if dim == 2:
+    if dim == 2 and display:
         plt.imshow(c, cmap='RdBu', origin='lower')
         plt.colorbar(label='Concentration')
         plt.title("Final Step")
@@ -63,5 +67,22 @@ def cahn_hilliard_fd(dim=2, grid_size=128, dx=1.0, dt=0.01, epsilon=1.0, M=1.0, 
     
     return c
 
-# Run the simulation
-cahn_hilliard_fd(dim=2, grid_size=128, dx=1.0, dt=0.01, epsilon=1.0, M=1.0, n_steps=int(1e5))
+if __name__ == "__main__":
+    #
+    ndim = 2
+    n = 128
+    display=True
+    #
+    import sys
+    if len(sys.argv)>1: 
+        ndim = int(sys.argv[1])
+    if len(sys.argv)>2: 
+        n = int(sys.argv[2])
+    if len(sys.argv)>3: 
+        display = bool(int(sys.argv[3]))
+    # Run the simulation 
+    cahn_hilliard_fd(dim=ndim, grid_size=n, 
+                     dx=1.0, dt=0.01, 
+                     epsilon=1.0, M=1.0, 
+                     n_steps=int(1e5),
+                     display=display)

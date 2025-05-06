@@ -9,7 +9,8 @@ def demonstrate_diis(nvars=3,q=5,q0=20,
                      max_history=5,
                      damp=0.9,
                      mix=0.9,
-                     verbose=False):
+                     verbose=False,
+                     maxiter=2000):
     """
     Simple demonstration code for the use of the periodic anderson acceleration 
     as optimizer by minimizing the rosenbrock function in the interval [-1.5,1.5].
@@ -51,7 +52,7 @@ def demonstrate_diis(nvars=3,q=5,q0=20,
     # 
     dobj = np.zeros(dobjold.shape)
     #
-    for i in np.arange(1e5):
+    for i in np.arange(maxiter):
         #
         obj = rosen(x)
         dobj[:] = rosen_der(x)
@@ -88,7 +89,8 @@ def demonstrate_anderson(nvars=3,accel_freq=5,accel_start=20,
                          max_history=5,
                          damp=0.9,
                          mix=0.9,
-                         verbose=False):
+                         verbose=False,
+                         maxiter=2000):
     """
     Simple demonstration code for the use of the periodic anderson acceleration 
     as optimizer by minimizing the rosenbrock function in the interval [-1.5,1.5].
@@ -119,6 +121,8 @@ def demonstrate_anderson(nvars=3,accel_freq=5,accel_start=20,
     it : int
         number of iterations until final result.
     """
+    #
+    print("gradient descent with Anderson acceleration")
     #
     np.random.seed(1)
     #
@@ -164,7 +168,8 @@ def demonstrate_anderson(nvars=3,accel_freq=5,accel_start=20,
     return x, dobj,i+1
 
 def demonstrate_gradient_descent(nvars=3,
-                                 verbose=False):
+                                 verbose=False,
+                                 maxiter=2000):
     """
     Simple demonstration code for constrained gradient descent 
     optimizer by minimizing the rosenbrock function in the interval [-1.5,1.5].
@@ -178,6 +183,8 @@ def demonstrate_gradient_descent(nvars=3,
     -------
     None
     """
+    #
+    print("gradient descent")
     #
     q = 1
     #
@@ -218,7 +225,8 @@ def demonstrate_gradient_descent(nvars=3,
     return x, dobj,i+1
 
 def demonstrate_barzilai_borwein(nvars=3,
-                                 verbose=False):
+                                 verbose=False,
+                                 maxiter=2000):
     """
     Simple demonstration code for the use of the barizilai borwein optimizer
     by minimizing the rosenbrock function in the interval [-1.5,1.5].
@@ -232,6 +240,7 @@ def demonstrate_barzilai_borwein(nvars=3,
     -------
     None
     """
+    print("barzilai_borwein")
     #
     np.random.seed(1)
     #
@@ -245,7 +254,7 @@ def demonstrate_barzilai_borwein(nvars=3,
     # 
     dobj = np.zeros(dobjold.shape)
     #
-    for i in np.arange(2000):
+    for i in np.arange(maxiter):
         #
         obj = rosen(x)
         dobj[:] = rosen_der(x)
@@ -273,7 +282,8 @@ def demonstrate_barzilai_borwein(nvars=3,
     return
 
 def demonstrate_mma(nvars=3,
-                    verbose=False):
+                    verbose=False,
+                    maxiter=2000):
     """
     Simple demonstration code for the use of the method of moving asymptotes
     minimizing the rosenbrock function in the interval [-1.5,1.5].
@@ -297,7 +307,7 @@ def demonstrate_mma(nvars=3,
     # 
     dobj = np.zeros(x.shape)
     #
-    for i in np.arange(2000):
+    for i in np.arange(maxiter):
         #print(x)
         #
         obj = rosen(x)
@@ -339,8 +349,17 @@ def demonstrate_mma(nvars=3,
 
 if __name__ == "__main__":
     
-    #demonstrate_barzilai_borwein()
-    #demonstrate_mma()
-    #demonstrate_gradient_descent()
-    demonstrate_anderson(mix=1.,damp=1.)
-    #demonstrate_diis(mix=0.5,damp=0.5,verbose=True)
+    #
+    verbose = False
+    #
+    import sys
+    if len(sys.argv)>1: 
+        verbose = bool(int(sys.argv[1]))
+    if len(sys.argv)>2: 
+        maxiter = int(sys.argv[2])
+    #
+    demonstrate_barzilai_borwein(verbose=verbose, maxiter=maxiter)
+    demonstrate_mma(verbose=verbose, maxiter=maxiter)
+    demonstrate_gradient_descent(verbose=verbose, maxiter=maxiter)
+    demonstrate_anderson(mix=1.,damp=1.,verbose=verbose, maxiter=maxiter)
+    demonstrate_diis(mix=0.5,damp=0.5,verbose=verbose, maxiter=maxiter)

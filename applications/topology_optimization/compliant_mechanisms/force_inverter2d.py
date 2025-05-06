@@ -11,7 +11,7 @@ if __name__ == "__main__":
     volfrac = 0.3
     rmin = 1.2#0.04*nelx  # 5.4
     penal = 3.0
-    ft = 0 # ft==0 -> sens, ft==1 -> dens
+    ft = 1 # ft==0 -> sens, ft==1 -> dens
     display = True
     export = False
     #

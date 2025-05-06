@@ -150,5 +150,17 @@ def fem_tensiletest(nelx, nely, nelz=None,
     return
 
 if __name__ == "__main__":
-    
-    fem_tensiletest(nelx=100, nely=100, nelz=None)
+    #
+    nelx = 100
+    nely = 100
+    nelz = None
+    #
+    import sys
+    if len(sys.argv)>1: 
+        nelx = int(sys.argv[1])
+    if len(sys.argv)>2: 
+        nely = int(sys.argv[2])
+    if len(sys.argv)>3: 
+        nelz = int(sys.argv[2])
+    #
+    fem_tensiletest(nelx=nelx, nely=nely, nelz=nely)

@@ -54,7 +54,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
          filter_mode="matrix",
          lin_solver="scipy-direct", preconditioner=None,
          assembly_mode="full",
-         bcs=selffolding_2d,
+         bcs=selffolding_2d, l=1.,
          obj_func=var_maximization, obj_kw={},
          el_flags=None,
          optimizer="mma", optimizer_kw = None,
@@ -99,7 +99,9 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         whether full or only lower triangle of linear system / matrix is
         created.
     bcs : str or callable
-        returns the boundary conditions
+        returns the boundary conditions.
+    l : float or tuple of length (ndim) or np.ndarray of shape (ndim)
+        lengths of each element
     obj_func : callable
         objective function. Should update the objective value, the rhs of the
         the adjoint problem (currently only for stationary lin. problems) and
@@ -173,6 +175,9 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         n = nelx * nely
     elif ndim == 3:
         n = nelx * nely * nelz
+    # 
+    if isinstance(l,float):
+        l = np.array( [l for i in np.arange(ndim)])
     # Allocate design variables (as array), initialize and allocate sens.
     x = volfrac * np.ones(n, dtype=float,order='F')
     xold = x.copy()
@@ -183,11 +188,11 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         xe = np.array([[[-1.,-1.],
                         [1.,-1.],
                         [1.,1.],
-                        [-1.,1.]]]) * np.ones(xPhys.shape)[:,None,None]
+                        [-1.,1.]]]) * np.ones(xPhys.shape)[:,None,None]*l
     elif ndim == 3:
         xe = np.array([[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
                         [-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]]]) \
-            * np.ones(xPhys.shape)[:,None,None]
+            * np.ones(xPhys.shape)[:,None,None]*l
     # anisotropic bilayer
     Emax = 1.
     if ndim ==2:

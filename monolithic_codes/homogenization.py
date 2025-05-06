@@ -44,12 +44,10 @@ def homogenization(lx, ly, lambda_, mu, phi, x,
     if debug:
         print('--- edofMat ---')
         print(edofMat)
-
     # ASSEMBLE STIFFNESS MATRIX
     # Indexing vectors
     iK = np.kron(edofMat, np.ones((8, 1))).flatten()
     jK = np.kron(edofMat, np.ones((1, 8))).flatten()
-
     # Material properties in the different elements
     lambda_ = lambda_[0] * (x == 0) + lambda_[1] * (x == 1)
     mu = mu[0] * (x == 0) + mu[1] * (x == 1)

@@ -6,7 +6,7 @@ import numpy as np
 # The real main driver
 if __name__ == "__main__":
     # Default input parameters
-    nelx = 150
+    nelx = 120
     nely = int(nelx/3)
     volfrac = 0.5
     rmin = 2.4  # 5.4
@@ -45,6 +45,3 @@ if __name__ == "__main__":
                  nouteriter=1000,file="mbb_2d",
                  bcs=mbb_2d,
                  debug=False,display=display,export=export)
-   #main(nelx=nelx, nely=nely, volfrac=volfrac, penal=penal, rmin=rmin, 
-   #      ft=ft, filter_mode="convolution", optimizer="oc",nouteriter=1000,
-   #      bcs=mbb_2d,debug=False,export=False)

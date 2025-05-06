@@ -69,6 +69,45 @@ def ball(nelx, nely, nelz, center, radius, fill_value=1):
     el_flags[mask] = fill_value
     return el_flags
 
+def diracdelta(nelx,nely,nelz=None,location=None):
+    """
+    Create element flags for a Dirac delta located at the specified location. 
+    Depending on the location and the number of elements in each direction this
+    results in either a single element with flag 1 or 4/8 elements in 2/3 
+    dimensions.
+
+    Parameters
+    ----------
+    nelx : int
+        number of elements in x direction.
+    nely : int
+        number of elements in y direction.
+    nelz : int
+        number of elements in z direction.
+    location : list or tuple or np.ndarray
+        coordinate of Dirac delta.
+
+    Returns
+    -------
+    el_flags : np.ndarray shape (nelx*nely) or shape (nelx*nely*nelz)
+        element flags / densities
+
+    """
+    if location is None and nelz is None:
+        location = ((nelx-1)/2,(nely-1)/2)
+    elif location is None and nelz is not None:
+        location = ((nelx-1)/2,(nely-1)/2,(nelz-1)/2)
+    # densities
+    if nelz is None:
+        x = sphere(nelx=nelx,nely=nely,
+                   center=location,
+                   radius=1,fill_value=1.)
+    else:
+        x = ball(nelx=nelx,nely=nely,nelz=nelz,
+                 center=location,
+                 radius=1,fill_value=1.)
+    return x
+
 def bounding_rectangle(nelx,nely,faces=["b","t","r","l"]):
     """
     Create element flags for a bounding box of one element thickness. It is

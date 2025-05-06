@@ -18,7 +18,6 @@ from topoptlab.fem import create_matrixinds
 from topoptlab.elements.bilinear_quadrilateral import create_edofMat as create_edofMat2d
 from topoptlab.elements.trilinear_hexahedron import create_edofMat as create_edofMat3d
 # different elements/physics
-from topoptlab.elements.poisson_2d import lk_poisson_2d
 from topoptlab.elements.linear_elasticity_2d import lk_linear_elast_2d
 from topoptlab.elements.linear_elasticity_3d import lk_linear_elast_3d
 # generic functions for solving phys. problem
@@ -41,7 +40,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
          filter_mode="matrix",
          lin_solver="scipy-direct", preconditioner=None,
          assembly_mode="full",
-         bcs=mbb_2d, lk=None, l=(1,1),
+         bcs=mbb_2d, lk=None, l=1.,
          obj_func=compliance, obj_kw={},
          el_flags=None,
          optimizer="oc", optimizer_kw = None,
@@ -94,6 +93,8 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         returns the boundary conditions
     lk : None or callable
         element stiffness matrix
+    l : float or tuple of length (ndim) or np.ndarray of shape (ndim)
+        lengths of each element
     obj_func : callable
         objective function. Should update the objective value, the rhs of the
         the adjoint problem (currently only for stationary lin. problems) and 
@@ -141,11 +142,6 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     else:
         ndim = 3
     #
-    if lk is None and ndim == 2:
-        lk = lk_linear_elast_2d
-    elif lk is None and ndim == 3:
-        lk = lk_linear_elast_3d
-    #
     if write_log:
         # check if log file exists and if True delete
         to_log = init_logging(logfile=file)
@@ -173,6 +169,14 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         n = nelx * nely
     elif ndim == 3:
         n = nelx * nely * nelz
+    # 
+    if isinstance(l,float):
+        l = np.array( [l for i in np.arange(ndim)])
+    # get function of element stiffness matrix
+    if lk is None and ndim == 2:
+        lk = lk_linear_elast_2d
+    elif lk is None and ndim == 3:
+        lk = lk_linear_elast_3d
     # Allocate design variables (as array), initialize and allocate sens.
     x = volfrac * np.ones(n, dtype=float,order='F')
     xTilde = x.copy()
@@ -205,7 +209,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     Emin = 1e-9
     Emax = 1.0
     # get element stiffness matrix
-    KE = lk()
+    KE = lk(l=l)
     if ndim == 2:
         # infer nodal degrees of freedom assuming that we have 4/8 nodes in 2/3
         n_ndof = int(KE.shape[-1]/4)
@@ -384,9 +388,9 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             #dv[:] = H @ (dv/Hs)
         elif ft == 1 and filter_mode == "convolution":
             dobj[:] = invmapping(convolve(mapping(dobj/hs),
-                                        h,
-                                        mode="constant",
-                                        cval=0))
+                                          h,
+                                          mode="constant",
+                                          cval=0))
             dv[:] = invmapping(convolve(mapping(dv/hs),
                                         h,
                                         mode="constant",
@@ -402,7 +406,6 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                    np.max(dobj),
                    np.min(dv)))
         # density update by optimizer
-        #xold[:] = x
         # optimality criteria
         if optimizer=="oc":
             (x[:], g) = oc_top88(x=x, volfrac=volfrac, 
@@ -431,10 +434,6 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             # update asymptotes 
             optimizer_kw["low"] = low
             optimizer_kw["upp"] = upp
-            # delete oldest element of iteration history
-            #xhist.pop(0)
-            #xhist.append(xval)
-            #del xval
             x = xmma.copy().flatten()
         if debug:
             print("Post Density Update: it.: {0}, med. x.: {1:.10f}, med. xTilde: {2:.10f}, med. xPhys: {3:.10f}".format(

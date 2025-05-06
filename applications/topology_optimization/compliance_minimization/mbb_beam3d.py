@@ -11,7 +11,7 @@ if __name__ == "__main__":
     rmin = 2.4  # 5.4
     penal = 3.0
     ft = 1 # ft==0 -> sens, ft==1 -> dens
-    display = True
+    display = False
     export = False
     #
     import sys
@@ -36,8 +36,8 @@ if __name__ == "__main__":
     #
     main(nelx=nelx, nely=nely, nelz=nelz, volfrac=volfrac, penal=penal, 
          rmin=rmin, ft=ft, filter_mode="matrix", 
-         optimizer="oc", lin_solver = "cvxopt-cholmod",
-         nouteriter=2000,
+         optimizer="oc", lin_solver = "scipy-direct",
+         nouteriter=10,
          bcs=mbb_3d,
          file="mbb_3d",
          debug=False,display=display,

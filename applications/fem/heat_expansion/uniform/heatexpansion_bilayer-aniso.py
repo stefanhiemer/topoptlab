@@ -216,4 +216,13 @@ if __name__ == "__main__":
     nelx=50
     nely=10
     nelz=5
+    #
+    import sys
+    if len(sys.argv)>1: 
+        nelx = int(sys.argv[1])
+    if len(sys.argv)>2: 
+        nely = int(sys.argv[2])
+    if len(sys.argv)>3: 
+        nelz = int(sys.argv[2])
+    #
     fem_heat_expansion(nelx=nelx,nely=nely,nelz=nelz)
