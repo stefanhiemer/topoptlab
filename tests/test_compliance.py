@@ -68,3 +68,24 @@ def test_compliance_optimizers(optimizer,obj_ref):
     #
     assert_almost_equal(obj,obj_ref,decimal=5)
     return 
+
+@pytest.mark.parametrize('optimizer, obj_ref',
+                         [("mma",233.4879433637),])
+
+def test_compliance_heat(optimizer,obj_ref):
+    """
+    Test the minimum compliance problem with different filter settings. 
+    Does exactly the same as function below. Just to allow to have fast and 
+    slow tests in same file.
+    """
+    #
+    nelx, nely, volfrac, ft, rmin, filter_mode = 40,40,0.5,0,1.2,"matrix"
+    #
+    x, obj = main(nelx=nelx, nely=nely, volfrac=volfrac, penal=3.0, 
+                  rmin=rmin, ft=ft, filter_mode=filter_mode,
+                  optimizer=optimizer,
+                  bcs=mbb_2d,
+                  display=False,export=False,write_log=False)
+    #
+    assert_almost_equal(obj,obj_ref,decimal=5)
+    return 

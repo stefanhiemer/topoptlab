@@ -6,11 +6,15 @@ from topoptlab.utils import map_eltoimg, map_eltovoxel
 
 def gray_indicator(x):
     """
-    Gray level indicator to measure discreteness of the designs as done in
+    Gray level indicator to measure discreteness of the designs as in Eq. 41 
+    in 
     
     Sigmund, Ole. "Morphology-based black and white filters for topology 
     optimization." Structural and Multidisciplinary Optimization 33.4 (2007): 
         401-424.
+    
+    For a design with all densities at 1/2 returns 1, if all densities either
+    1 or 0 it returns 0.
 
     Parameters
     ----------
@@ -23,7 +27,7 @@ def gray_indicator(x):
         intermediate density indicator.
 
     """
-    return x.sum(axis=0)
+    return 4*(x*(1-x)).mean(axis=0)
 
 def lengthscale_violations(x,r,nelx,nely,nelz=None):
     """
