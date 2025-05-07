@@ -22,15 +22,14 @@ def homogenization(lx, ly, lambda_, mu, phi, x,
         print('--- feMu ---')
         print(feMu)
     # Node numbers and element degrees of freedom for full (not periodic) mesh
-    elx,ely = np.arange(nelx)[:,None], np.arange(nely)[None,:]
     # unique dofs:
     ndof = 2*nelx*nely
     # build indices for periodic matrix
-    yperiodic = np.arange(nely-1,nely*nelx+1,nely)
     edofMat = np.zeros((nelx*nely,8),int)
     elx,ely = np.arange(nelx)[:,None], np.arange(nely-1)[None,:]
     n1 = (nely*elx+ely).flatten()
     n2 = (nely*(elx+1)+ely).flatten()
+    yperiodic = np.arange(nely-1,nely*nelx+1,nely)
     edofMat[np.setdiff1d(np.arange(nelx*nely), yperiodic)] = np.column_stack((
                                                 2*n1+2, 2*n1+3, 2*n2+2, 2*n2+3, 
                                                 2*n2, 2*n2+1, 2*n1, 2*n1+1))
@@ -46,8 +45,8 @@ def homogenization(lx, ly, lambda_, mu, phi, x,
         print(edofMat)
     # ASSEMBLE STIFFNESS MATRIX
     # Indexing vectors
-    iK = np.kron(edofMat, np.ones((8, 1))).flatten()
-    jK = np.kron(edofMat, np.ones((1, 8))).flatten()
+    iK = np.tile(edofMat,8).flatten()
+    jK = np.repeat(edofMat,8).flatten()  
     # Material properties in the different elements
     lambda_ = lambda_[0] * (x == 0) + lambda_[1] * (x == 1)
     mu = mu[0] * (x == 0) + mu[1] * (x == 1)
@@ -212,9 +211,7 @@ def check_elementMatVec():
 
 if __name__ == "__main__":
     #
-    check_elementMatVec()
-    import sys 
-    sys.exit()
+    #check_elementMatVec()
     # Example usage:
     lambda_ = [0.01, 2.]
     mu = [0.02, 4.]
@@ -222,10 +219,11 @@ if __name__ == "__main__":
     phi = 90
     x = np.eye(3,dtype=int)
     homogenization(lx, ly, lambda_, mu, phi, x, 
-                   debug = True)
+                   debug = False)
     
     
     lx = ly = 1
     phi = 90
-    x = np.random.randint(0,2,(200,200))
+    np.random.seed(0)
+    x = np.random.randint(0,2,(20,20))
     homogenization(lx, ly, lambda_, mu, phi, x)

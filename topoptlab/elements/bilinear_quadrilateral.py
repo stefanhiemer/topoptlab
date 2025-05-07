@@ -40,6 +40,27 @@ def create_edofMat(nelx,nely,nnode_dof,dtype=np.int32,**kwargs):
     edofMat = edofMat + np.tile(np.arange(nnode_dof),4)[None,:]
     return edofMat, n1, n2, None, None
 
+def apply_pbc(edofMat,pbc,nelx,nely,nnode_dof):
+    #
+    nel = nelx*nely
+    # x
+    if pbc[0]:
+        # reassign indices
+        org = np.arange(nely)
+        pbc_x = np.arange(nel-nely,nel)
+        edofMat[pbc_x,nnode_dof:2*nnode_dof] = edofMat[org,:nnode_dof]
+        edofMat[pbc_x,2*nnode_dof:3*nnode_dof] = edofMat[org,-nnode_dof:]
+    # y
+    if pbc[-1]:
+        # update indices
+        edofMat = edofMat - np.floor(edofMat / (nnode_dof*(nely+1)) )*nnode_dof
+        # reassign indices
+        org = np.arange(0,nelx*nely,nely)
+        pbc_y = np.arange(nely-1,nelx*nely+1,nely)
+        edofMat[pbc_y,:nnode_dof] = edofMat[org,-nnode_dof:]
+        edofMat[pbc_y,nnode_dof:2*nnode_dof] = edofMat[org,2*nnode_dof:3*nnode_dof]
+    return edofMat
+
 def check_inputs(xi,eta,xe=None,all_elems=False):
     """
     Check coordinates and provided element node information to be consistent. 

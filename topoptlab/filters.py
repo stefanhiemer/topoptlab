@@ -305,13 +305,15 @@ def _eta_residual(eta,xTilde,beta,volfrac):
            (np.tanh(beta * eta) + np.tanh(beta * (1 - eta)))
     #grad = -beta * np.sinh(beta)**(-1) * np.cosh(beta * (xTilde - eta))**(-2) * \
     #        np.sinh(xTilde * beta) * np.sinh((1 - xTilde) * beta)
-    return np.abs(np.mean(xPhys) - volfrac)**2, None#, grad.mean()
+    return (np.mean(xPhys) - volfrac)**2, None#, grad.mean()
 
 def AMfilter(x, baseplate='S', sensitivities=None):
     """
     Applies the filter by 
     
-    Langelaar, Matthijs. "An additive manufacturing filter for topology optimization of print-ready designs." Structural and multidisciplinary optimization 55 (2017): 871-883.
+    Langelaar, Matthijs. "An additive manufacturing filter for topology 
+    optimization of print-ready designs." Structural and multidisciplinary 
+    optimization 55 (2017): 871-883.
     
     
     Applies a filter to densities that enforces that each density cannot be 
