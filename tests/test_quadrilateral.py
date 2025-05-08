@@ -102,3 +102,46 @@ def test_bmatrix(xe,xi,eta,a,b,all_elems):
     B = vstack([bmatrix_rectangle(xi,eta,_a,_b) for _a,_b in zip(a,b)])
     assert_almost_equal(bmatrix(xi,eta,xe,all_elems),B) 
     return
+
+from topoptlab.elements.bilinear_quadrilateral import create_edofMat, apply_pbc
+
+@pytest.mark.parametrize('pbc, nnode_dof, target',
+                         [((False,True), 1, 
+                           array([[1, 3, 2, 0],
+                                  [0, 2, 3, 1],
+                                  [3, 5, 4, 2],
+                                  [2, 4, 5, 3]])),
+                          ((True,False), 1, 
+                            array([[1, 4, 3, 0],
+                                   [2, 5, 4, 1],
+                                   [4, 1, 0, 3],
+                                   [5, 2, 1, 4]])),
+                          ((True,True), 1, 
+                            array([[1, 3, 2, 0],
+                                   [0, 2, 3, 1],
+                                   [3, 1, 0, 2],
+                                   [2, 0, 1, 3]])),
+                          ((False,True), 2, 
+                            array([[2, 3, 6, 7, 4, 5, 0, 1],
+                                   [0, 1, 4, 5, 6, 7, 2, 3],
+                                   [6, 7, 10, 11, 8, 9, 4, 5],
+                                   [4, 5, 8, 9, 10, 11, 6, 7]])),
+                          ((True,False), 2, 
+                            array([[ 2, 3, 8, 9, 6, 7, 0, 1],
+                                   [ 4, 5, 10, 11, 8, 9, 2, 3],
+                                   [ 8, 9, 2, 3, 0, 1, 6, 7],
+                                   [10, 11, 4, 5, 2, 3, 8, 9]])),
+                          ((True,True), 2, 
+                            array([[2, 3, 6, 7, 4, 5, 0, 1],
+                                   [0, 1, 4, 5, 6, 7, 2, 3],
+                                   [6, 7, 2, 3, 0, 1, 4, 5],
+                                   [4, 5, 0, 1, 2, 3, 6, 7]]))])
+
+def test_pbc(pbc,nnode_dof,target):
+    nelx,nely=2,2
+    
+    edofMat = create_edofMat(nelx=nelx, nely=nely, nnode_dof=nnode_dof)[0]
+    assert_almost_equal(apply_pbc(edofMat=edofMat,pbc=pbc,
+                                  nelx=nelx,nely=nely,nnode_dof=nnode_dof),
+                        target)
+    return

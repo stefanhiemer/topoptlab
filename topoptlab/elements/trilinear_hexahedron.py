@@ -46,6 +46,62 @@ def create_edofMat(nelx,nely,nelz,nnode_dof,dtype=np.int32):
     edofMat = edofMat + np.tile(np.arange(nnode_dof),8)[None,:]
     return edofMat, n1, n2, n3, n4
 
+def apply_pbc(edofMat,pbc,nelx,nely,nelz,nnode_dof,
+              dtype=np.int32,**kwargs):
+    # update indices
+    # x
+    if pbc[0] and not pbc[1]:
+        edofMat -= np.floor(edofMat/((nelx+1)*(nely+1)*nnode_dof))\
+                   .astype(dtype)*(nely+1)*nnode_dof
+    # y
+    elif not pbc[0] and pbc[1]:
+        edofMat -= np.floor(edofMat/((nely+1)*nnode_dof))\
+                   .astype(dtype)*nnode_dof
+    # x and y 
+    elif pbc[0] and pbc[1]:
+        edofMat -= (np.floor(edofMat/((nely+1)*nnode_dof)).astype(dtype)+\
+                   np.floor(edofMat/((nelx+1)*(nely+1)*nnode_dof))\
+                   .astype(dtype)*nely) * nnode_dof
+    # only z, no updates needed
+    elif not pbc[0] and not pbc[1] and pbc[2]:
+        pass
+    # no pbc
+    else:
+        return edofMat
+    # reassign indices
+    nel = nelx*nely*nelz
+    # x
+    if pbc[0]:
+        # find original and periodic elements
+        n_xy = nelx*nely
+        org = np.arange(nely)[None,:]+np.arange(nelz)[:,None]*n_xy
+        org = org.flatten()
+        pbc_x = np.arange(n_xy-nely,n_xy)[None,:]+np.arange(nelz)[:,None]*n_xy
+        pbc_x = pbc_x.flatten()
+        # reassign indices
+        edofMat[pbc_x,nnode_dof:2*nnode_dof] = edofMat[org,:nnode_dof]
+        edofMat[pbc_x,2*nnode_dof:3*nnode_dof] = edofMat[org,3*nnode_dof:4*nnode_dof]
+        edofMat[pbc_x,5*nnode_dof:6*nnode_dof] = edofMat[org,4*nnode_dof:5*nnode_dof]
+        edofMat[pbc_x,6*nnode_dof:7*nnode_dof] = edofMat[org,-nnode_dof:]
+    # y
+    if pbc[1]:
+        # find original and periodic elements
+        org = np.arange(0,nel,nely)
+        pbc_y = np.arange(nely-1,nel+1,nely)
+        # reassign indices
+        edofMat[pbc_y,:nnode_dof] = edofMat[org,3*nnode_dof:4*nnode_dof]
+        edofMat[pbc_y,nnode_dof:2*nnode_dof] = edofMat[org,2*nnode_dof:3*nnode_dof]
+        edofMat[pbc_y,4*nnode_dof:5*nnode_dof] = edofMat[org,-nnode_dof:]
+        edofMat[pbc_y,5*nnode_dof:6*nnode_dof] = edofMat[org,6*nnode_dof:7*nnode_dof]
+    # z
+    if pbc[2]:
+        # find original and periodic elements
+        org = np.arange(nelx*nely)
+        pbc_z = np.arange(nel-nelx*nely,nel)
+        # reassign indices
+        edofMat[pbc_z,4*nnode_dof:] = edofMat[org,:4*nnode_dof]
+    return edofMat
+
 def check_inputs(xi,eta,zeta,xe=None,all_elems=False):
     """
     Check coordinates and provided element node information to be consistent. 

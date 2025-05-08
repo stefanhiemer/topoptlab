@@ -40,7 +40,12 @@ def create_edofMat(nelx,nely,nnode_dof,dtype=np.int32,**kwargs):
     edofMat = edofMat + np.tile(np.arange(nnode_dof),4)[None,:]
     return edofMat, n1, n2, None, None
 
-def apply_pbc(edofMat,pbc,nelx,nely,nnode_dof):
+def apply_pbc(edofMat,pbc,nelx,nely,nnode_dof,
+              dtype=np.int32,**kwargs):
+    # update indices
+    if pbc[1]:
+        edofMat -= np.floor(edofMat / (nnode_dof*(nely+1)) \
+                            ).astype(dtype)*nnode_dof
     #
     nel = nelx*nely
     # x
@@ -51,9 +56,7 @@ def apply_pbc(edofMat,pbc,nelx,nely,nnode_dof):
         edofMat[pbc_x,nnode_dof:2*nnode_dof] = edofMat[org,:nnode_dof]
         edofMat[pbc_x,2*nnode_dof:3*nnode_dof] = edofMat[org,-nnode_dof:]
     # y
-    if pbc[-1]:
-        # update indices
-        edofMat = edofMat - np.floor(edofMat / (nnode_dof*(nely+1)) )*nnode_dof
+    if pbc[1]:
         # reassign indices
         org = np.arange(0,nelx*nely,nely)
         pbc_y = np.arange(nely-1,nelx*nely+1,nely)
