@@ -1,9 +1,8 @@
 import numpy as np
 from scipy.optimize import rosen, rosen_der
 
-from topoptlab.optimizer.gradient_descent import barzilai_borwein,gradient_descent
-from topoptlab.optimizer.mma_utils import mma_defaultkws,update_mma
-from topoptlab.accelerators import anderson,diis 
+from topoptlab.optimizer.mma_utils import mma_defaultkws,update_mma 
+from mmapy import kktcheck
 
 def demonstrate_mma(nvars=3,
                     verbose=False,
@@ -26,23 +25,23 @@ def demonstrate_mma(nvars=3,
     #
     x = np.random.rand(nvars)
     xhist = [x.copy(),x.copy()]
-    x = x / np.sqrt((x**2).sum()) 
+    #x = x * np.sqrt( nvars/(x**2).sum())
     #
     optimizer_kw = mma_defaultkws(x.shape[0],ft=None,n_constr=0)
     # lower and upper bound for densities
     optimizer_kw["xmin"] = np.ones((nvars,1))*(-1.5)
     optimizer_kw["xmax"] = np.ones((nvars,1))*1.5
+    #optimizer_kw["move"] = 0.05
     # 
     dobj = np.zeros(x.shape)
     #
-    print((x**2).sum())
     for i in np.arange(maxiter):
         #print(x)
         #
         obj = rosen(x)
         dobj[:] = rosen_der(x)
         #
-        constrs = np.array([(x**2).sum()-nvars])
+        constrs = np.array([(x**2).sum()/nvars])
         dconstr = 2*x / nvars
         #
         xval = x.copy()[None].T
@@ -69,7 +68,7 @@ def demonstrate_mma(nvars=3,
         if verbose:
             print("it.: {0} obj.: {1:.10f}, ch.: {2:.10f}".format(
                   i+1, obj, change))
-            print((x**2).sum())
+            print((x**2).sum()-nvars)
         if change <= 1e-9:
             break
     print("final x: ", x)
