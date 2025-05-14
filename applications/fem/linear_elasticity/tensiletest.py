@@ -20,12 +20,12 @@ def fem_tensiletest(nelx, nely, nelz=None,
                     xPhys=None, penal=3, 
                     Emax=1.0, Emin=1e-9, nu=0.3,
                     lin_solver="cvxopt-cholmod", preconditioner=None,
-                    assembly_mode="full",
+                    assembly_mode="full", l=1.,
                     file="tensiletest",
                     export=True):
     """
     Run a single finite element simulation on a regular grid performing a 
-    tensile test.
+    tensile test pulling along x-direction.
 
     Parameters
     ----------
@@ -54,6 +54,8 @@ def fem_tensiletest(nelx, nely, nelz=None,
     assembly_mode : str
         whether full or only lower triangle of linear system / matrix is 
         created.
+    l : float or tuple of length (ndim) or np.ndarray of shape (ndim)
+        side lengths of each element
     file : str
         name of output files
     export : bool
@@ -69,6 +71,9 @@ def fem_tensiletest(nelx, nely, nelz=None,
         ndim = 2
     else:
         ndim = 3
+    # 
+    if isinstance(l,float):
+        l = np.array( [l for i in np.arange(ndim)])
     # total number of design variables/elements
     if ndim == 2:
         n = nelx * nely
@@ -79,7 +84,7 @@ def fem_tensiletest(nelx, nely, nelz=None,
         xPhys = np.ones(n, dtype=float,order='F')
     # get element stiffness matrix and element of freedom matrix
     if ndim == 2:
-        KE = lk_linear_elast_2d(E=1.0, nu=nu)
+        KE = lk_linear_elast_2d(E=1.0, nu=nu, l=l)
         # infer nodal degrees of freedom assuming that we have 4/8 nodes in 2/3
         nd_ndof = int(KE.shape[0]/4)
         # number of degrees of freedom
@@ -88,7 +93,7 @@ def fem_tensiletest(nelx, nely, nelz=None,
         edofMat, n1, n2, n3, n4 = create_edofMat2d(nelx=nelx,nely=nely,
                                                    nnode_dof=nd_ndof)
     elif ndim == 3:
-        KE = lk_linear_elast_3d(E=1.0, nu=nu)
+        KE = lk_linear_elast_3d(E=1.0, nu=nu,l=l)
         # infer nodal degrees of freedom assuming that we have 4/8 nodes in 2/3
         nd_ndof = int(KE.shape[0]/8)
         # number of degrees of freedom
@@ -125,22 +130,24 @@ def fem_tensiletest(nelx, nely, nelz=None,
     u[free, :], fact, precond, = solve_lin(K=KE, rhs=rhs[free], 
                                            solver=lin_solver,
                                            preconditioner=preconditioner)
+    if isinstance(l,float):
+        l = tuple([l])*ndim
     if ndim == 2:
-        sigma = f.max()*(nely+1)/nely
+        sigma = f.max()*(nely+1)/l[1]
         print("sigma: ", sigma)
         print("eps_xx theory ",sigma/Emax)
         print("eps_yy theory ",sigma/Emax * nu)
-        print("eps_xx measured ",np.abs(u[::2]).max()/nelx)
-        print("eps_yy measured",np.abs(u[1::2].max())/nely)
+        print("eps_xx measured ",np.abs(u[::2]).max()/(nelx*l[0]) )
+        print("eps_yy measured",np.abs(u[1::2].max())/(nely*l[1]) )
     elif ndim == 3:
-        sigma = f.max() * (nely+1)*(nelz+1)/(nely*nelz)
+        sigma = f.max() * (nely+1)*(nelz+1)/(nely*nelz * l[1]*l[2])
         print("sigma: ",sigma)
         print("eps_xx theory ",sigma/Emax)
         print("eps_yy theory ",sigma/Emax * nu)
         print("eps_zz theory ",sigma/Emax * nu)
-        print("eps_xx measured ",np.abs(u[::3]).max()/nelx)
-        print("eps_yy measured",np.abs(u[1::3]).max()/nely)
-        print("eps_zz measured",np.abs(u[2::3]).max()/nelz)
+        print("eps_xx measured ",np.abs(u[::3]).max()/ (nelx*l[0]) )
+        print("eps_yy measured",np.abs(u[1::3]).max()/ (nely*l[1]) )
+        print("eps_zz measured",np.abs(u[2::3]).max()/ (nelz*l[2]) )
     #
     if export:
         export_vtk(filename=file,
@@ -161,6 +168,6 @@ if __name__ == "__main__":
     if len(sys.argv)>2: 
         nely = int(sys.argv[2])
     if len(sys.argv)>3: 
-        nelz = int(sys.argv[2])
+        nelz = int(sys.argv[3])
     #
     fem_tensiletest(nelx=nelx, nely=nely, nelz=nely)

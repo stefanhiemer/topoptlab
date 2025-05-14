@@ -62,7 +62,7 @@ def _lk_linear_elast_2d(xe,c,
     return t[:,None,None] * Ke
 
 def lk_linear_elast_2d(E=1,nu=0.3,
-                       l=np.array([1.,1.]), g = [0.],
+                       l=np.array([1.,1.]), g = np.array([0.]),
                        t=1.):
     """
     Create element stiffness matrix for 2D isotropic linear elasticity with
@@ -74,6 +74,12 @@ def lk_linear_elast_2d(E=1,nu=0.3,
         Young's modulus.
     nu : float
         Poisson' ratio.
+    l : np.ndarray (2)
+        side length of element.
+    g : np.ndarray (1)
+        angle of parallelogram.
+    t : float
+        thickness of element.
 
     Returns
     -------
@@ -148,7 +154,7 @@ def lk_linear_elast_2d(E=1,nu=0.3,
     return Ke
 
 def lk_linear_elast_aniso_2d(c,
-                             l=np.array([1.,1.]), g = [0.],
+                             l=np.array([1.,1.]), g = np.array([0.]),
                              t=1.):
     """
     Create element stiffness matrix for 2D anisotropic linear elasticity with
@@ -235,3 +241,78 @@ def lk_linear_elast_aniso_2d(c,
                           c[1,1]*l[0]/(6*l[1]) - c[1,2]*np.tan(g[0])/6 + c[1,2]/4 - c[2,1]*np.tan(g[0])/6 - c[2,1]/4 + c[2,2]*l[1]*np.tan(g[0])**2/(6*l[0]) - c[2,2]*l[1]/(3*l[0]),
                           -c[1,0]*np.tan(g[0])/3 - c[1,0]/4 + c[1,2]*l[0]/(3*l[1]) + c[2,0]*l[1]*np.tan(g[0])/(2*l[0]) + c[2,0]*l[1]/(3*l[0]*np.cos(g[0])**2) - c[2,2]*np.tan(g[0])/3 - c[2,2]/4,
                           c[1,1]*l[0]/(3*l[1]) - c[1,2]*np.tan(g[0])/3 - c[1,2]/4 - c[2,1]*np.tan(g[0])/3 - c[2,1]/4 + c[2,2]*l[1]*np.tan(g[0])/(2*l[0]) + c[2,2]*l[1]/(3*l[0]*np.cos(g[0])**2)]])
+
+def lf_strain_2d(eps, E=1,nu=0.3,  
+                 l=np.array([1.,1.]), g = np.array([0.]),
+                 t=1.):
+    """
+    Compute nodal forces on bilinear quadrilateral Lagrangian element 
+    (1st order) due to a uniform strain via analytical integration. 
+    Element shape is a parallelogram and we assume isotropic elasticity.
+
+    Parameters
+    ----------
+    eps : np.ndarray shape (3)
+        uniform strain in Voigt notation.
+    E : float
+        Young's modulus.
+    nu : float
+        Poisson' ratio.
+    l : np.ndarray (2)
+        side length of element
+    g : np.ndarray (1)
+        angle of parallelogram.
+    t : float
+        thickness of element
+
+    Returns
+    -------
+    fe : np.ndarray, shape (8,1)
+        nodal forces.
+
+    """
+    return t*np.array([[E*(-2*eps[0]*l[1]*np.tan(g[0]) + 2*eps[0]*l[1] - 2*eps[1]*l[1]*nu*np.tan(g[0]) + 2*eps[1]*l[1]*nu - eps[2]*l[0]*nu + eps[2]*l[0])/(2*(nu**2 - 1))],
+                       [E*(2*eps[0]*l[0]*nu + 2*eps[1]*l[0] + eps[2]*l[1]*nu*np.tan(g[0]) - eps[2]*l[1]*nu - eps[2]*l[1]*np.tan(g[0]) + eps[2]*l[1])/(2*(nu**2 - 1))],
+                       [E*(-2*eps[0]*l[1]*np.tan(g[0]) - 2*eps[1]*l[1]*nu*np.tan(g[0]) - eps[2]*l[0]*nu + eps[2]*l[0] - 2*l[1]*(eps[0] + eps[1]*nu))/(2*(nu**2 - 1))],
+                       [E*(2*eps[0]*l[0]*nu + 2*eps[1]*l[0] + eps[2]*l[1]*nu*np.tan(g[0]) + eps[2]*l[1]*nu - eps[2]*l[1]*np.tan(g[0]) - eps[2]*l[1])/(2*(nu**2 - 1))],
+                       [E*(2*eps[0]*l[1]*np.tan(g[0]) + 2*eps[1]*l[1]*nu*np.tan(g[0]) + eps[2]*l[0]*nu - eps[2]*l[0] - 2*l[1]*(eps[0] + eps[1]*nu))/(2*(nu**2 - 1))],
+                       [E*(-2*eps[0]*l[0]*nu - 2*eps[1]*l[0] - eps[2]*l[1]*nu*np.tan(g[0]) + eps[2]*l[1]*nu + eps[2]*l[1]*np.tan(g[0]) - eps[2]*l[1])/(2*(nu**2 - 1))],
+                       [E*(2*eps[0]*l[1]*np.tan(g[0]) + 2*eps[0]*l[1] + 2*eps[1]*l[1]*nu*np.tan(g[0]) + 2*eps[1]*l[1]*nu + eps[2]*l[0]*nu - eps[2]*l[0])/(2*(nu**2 - 1))],
+                       [E*(-2*eps[0]*l[0]*nu - 2*eps[1]*l[0] - eps[2]*l[1]*nu*np.tan(g[0]) - eps[2]*l[1]*nu + eps[2]*l[1]*np.tan(g[0]) + eps[2]*l[1])/(2*(nu**2 - 1))]])
+
+
+def lf_strain_aniso_2d(eps,c, 
+                       l=np.array([1.,1.]), g = np.array([0.]),
+                       t=1.):
+    """
+    Compute nodal forces on bilinear quadrilateral Lagrangian element 
+    (1st order) due to a uniform strain via analytical integration. 
+    Element shape is a parallelogram and we assume anisotropic elasticity.
+
+    Parameters
+    ----------
+    eps : np.ndarray shape (3)
+        uniform strain in Voigt notation.
+    c : np.ndarray, shape (3,3)
+        stiffness tensor in Voigt notation.
+    l : np.ndarray (2)
+        side length of element
+    g : np.ndarray (1)
+        angle of parallelogram.
+    t : float
+        thickness of element
+
+    Returns
+    -------
+    fe : np.ndarray, shape (8,1)
+        nodal forces.
+
+    """
+    return t*np.array([[c[0,0]*eps[0]*l[1]*np.tan(g[0]) - c[0,0]*eps[0]*l[1] + c[0,1]*eps[1]*l[1]*np.tan(g[0]) - c[0,1]*eps[1]*l[1] + c[0,2]*eps[2]*l[1]*np.tan(g[0]) - c[0,2]*eps[2]*l[1] - c[2,0]*eps[0]*l[0] - c[2,1]*eps[1]*l[0] - c[2,2]*eps[2]*l[0]],
+                       [-c[1,0]*eps[0]*l[0] - c[1,1]*eps[1]*l[0] - c[1,2]*eps[2]*l[0] + c[2,0]*eps[0]*l[1]*np.tan(g[0]) - c[2,0]*eps[0]*l[1] + c[2,1]*eps[1]*l[1]*np.tan(g[0]) - c[2,1]*eps[1]*l[1] + c[2,2]*eps[2]*l[1]*np.tan(g[0]) - c[2,2]*eps[2]*l[1]],
+                       [c[0,0]*eps[0]*l[1]*np.tan(g[0]) + c[0,0]*eps[0]*l[1] + c[0,1]*eps[1]*l[1]*np.tan(g[0]) + c[0,1]*eps[1]*l[1] + c[0,2]*eps[2]*l[1]*np.tan(g[0]) + c[0,2]*eps[2]*l[1] - c[2,0]*eps[0]*l[0] - c[2,1]*eps[1]*l[0] - c[2,2]*eps[2]*l[0]],
+                       [-c[1,0]*eps[0]*l[0] - c[1,1]*eps[1]*l[0] - c[1,2]*eps[2]*l[0] + c[2,0]*eps[0]*l[1]*np.tan(g[0]) + c[2,0]*eps[0]*l[1] + c[2,1]*eps[1]*l[1]*np.tan(g[0]) + c[2,1]*eps[1]*l[1] + c[2,2]*eps[2]*l[1]*np.tan(g[0]) + c[2,2]*eps[2]*l[1]],
+                       [-c[0,0]*eps[0]*l[1]*np.tan(g[0]) + c[0,0]*eps[0]*l[1] - c[0,1]*eps[1]*l[1]*np.tan(g[0]) + c[0,1]*eps[1]*l[1] - c[0,2]*eps[2]*l[1]*np.tan(g[0]) + c[0,2]*eps[2]*l[1] + c[2,0]*eps[0]*l[0] + c[2,1]*eps[1]*l[0] + c[2,2]*eps[2]*l[0]],
+                       [c[1,0]*eps[0]*l[0] + c[1,1]*eps[1]*l[0] + c[1,2]*eps[2]*l[0] - c[2,0]*eps[0]*l[1]*np.tan(g[0]) + c[2,0]*eps[0]*l[1] - c[2,1]*eps[1]*l[1]*np.tan(g[0]) + c[2,1]*eps[1]*l[1] - c[2,2]*eps[2]*l[1]*np.tan(g[0]) + c[2,2]*eps[2]*l[1]],
+                       [-c[0,0]*eps[0]*l[1]*np.tan(g[0]) - c[0,0]*eps[0]*l[1] - c[0,1]*eps[1]*l[1]*np.tan(g[0]) - c[0,1]*eps[1]*l[1] - c[0,2]*eps[2]*l[1]*np.tan(g[0]) - c[0,2]*eps[2]*l[1] + c[2,0]*eps[0]*l[0] + c[2,1]*eps[1]*l[0] + c[2,2]*eps[2]*l[0]],
+                       [c[1,0]*eps[0]*l[0] + c[1,1]*eps[1]*l[0] + c[1,2]*eps[2]*l[0] - c[2,0]*eps[0]*l[1]*np.tan(g[0]) - c[2,0]*eps[0]*l[1] - c[2,1]*eps[1]*l[1]*np.tan(g[0]) - c[2,1]*eps[1]*l[1] - c[2,2]*eps[2]*l[1]*np.tan(g[0]) - c[2,2]*eps[2]*l[1]]])

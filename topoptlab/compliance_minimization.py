@@ -94,7 +94,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     lk : None or callable
         element stiffness matrix
     l : float or tuple of length (ndim) or np.ndarray of shape (ndim)
-        lengths of each element
+        side lengths of each element
     obj_func : callable
         objective function. Should update the objective value, the rhs of the
         the adjoint problem (currently only for stationary lin. problems) and 

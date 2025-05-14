@@ -9,7 +9,8 @@ def _lf_bodyforce_2d(xe,
                      quadr_method="gauss-legendre",
                      nquad=2):
     """
-    Create element mass matrix in 2D with bilinear quadrilateral elements.
+    Compute nodal forces on bilinear quadrilateral elements (1st order) due to 
+    bodyforce (e. g. gravity).
 
     Parameters
     ----------
@@ -29,8 +30,8 @@ def _lf_bodyforce_2d(xe,
         number of quadrature points
     Returns
     -------
-    Ke : np.ndarray, shape (nels,8,1)
-        element stiffness matrix.
+    fe : np.ndarray, shape (nels,8,1)
+        nodal forces.
 
     """
     #
@@ -53,7 +54,6 @@ def _lf_bodyforce_2d(xe,
     N = np.zeros((xi.shape[0],2*shpfcts.shape[0],2))
     for i in np.arange(2):
         N[:,i::2,i] = shpfcts
-    
     #
     integral = N[None,:,:,:] @ b[:,None,None,:].transpose(0,1,3,2)
     #integral = b[:,None,None,:] @ N[None,:,:,:].transpose(0,1,3,2)
@@ -69,8 +69,9 @@ def lf_bodyforce_2d(b=np.array([0,-1]),
                     l=np.array([1.,1.]), 
                     t=1.):
     """
-    Create body force for 2D with bilinear quadrilateral Lagrangian
-    elements.
+    Compute nodal forces on bilinear quadrilateral Lagrangian element 
+    (1st order) due to bodyforce (e. g. gravity) via analytical integration. 
+    Element is a parallelogram.
 
     Parameters
     ----------
@@ -83,8 +84,8 @@ def lf_bodyforce_2d(b=np.array([0,-1]),
 
     Returns
     -------
-    Ke : np.ndarray, shape (8,1)
-        element stiffness matrix.
+    fe : np.ndarray, shape (8,1)
+        nodal forces.
 
     """
     A = l[0]*l[1]

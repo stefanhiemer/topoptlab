@@ -22,15 +22,15 @@ def body_force(ndim,
 
     Returns
     -------
-    nodal_forces : list
+    stiffness_matrix : list
         symbolic stiffness matrix as list of lists .
 
     """
     #
     vertices, nd_inds, ref, basis  = base_cell(ndim)
     #
-    body_force = generate_constMatrix(ncol=1,nrow=ndim,name="b")
-    N = shape_function_matrix(basis=basis,nedof=ndim,mode="col")
+    body_force = generate_constMatrix(ncol=1,nrow=1,name="b")
+    N = shape_function_matrix(basis=basis, nedof=1, mode="col")
     # get shape functions as a column vector/matrix and multiply with
     # determinant of jacobian of isoparametric mapping
     Jdet = jacobian(ndim=ndim, element_type=element_type, order=order,

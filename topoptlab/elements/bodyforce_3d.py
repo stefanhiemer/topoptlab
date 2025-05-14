@@ -8,15 +8,16 @@ def _lf_bodyforce_3d(xe,
                      quadr_method="gauss-legendre",
                      nquad=2):
     """
-    Create element mass matrix in 2D with bilinear quadrilateral elements.
+    Compute nodal forces on trilinear hexahedral Lagrangian element (1st order) 
+    due to bodyforce (e. g. gravity) via numerical integration.
 
     Parameters
     ----------
-    xe : np.ndarray, shape (nels,4,2)
+    xe : np.ndarray, shape (nels,8,3)
         coordinates of element nodes. Please look at the
         definition/function of the shape function, then the node ordering is
         clear.
-    b : np.ndarray of shape (nels,2) or (2)
+    b : np.ndarray of shape (nels,3) or (3)
         density of element
     quadr_method: str or callable
         name of quadrature method or function/callable that returns coordinates of
@@ -27,8 +28,8 @@ def _lf_bodyforce_3d(xe,
         
     Returns
     -------
-    Ke : np.ndarray, shape (nels,24,1)
-        element stiffness matrix.
+    fe : np.ndarray, shape (nels,24,1)
+        nodal forces.
 
     """
     #
@@ -63,8 +64,9 @@ def _lf_bodyforce_3d(xe,
 def lf_bodyforce_3d(b=np.array([0.,-1.,0.]), 
                     l=np.array([1.,1.,1.])):
     """
-    Create body force for 3D with trilinear hexahedral Lagrangian
-    elements.
+    Compute nodal forces on trilinear hexahedral Lagrangian element (1st order) 
+    due to bodyforce (e. g. gravity) via analytical integration. Element is a 
+    parallelepiped.
 
     Parameters
     ----------
@@ -75,8 +77,8 @@ def lf_bodyforce_3d(b=np.array([0.,-1.,0.]),
 
     Returns
     -------
-    Ke : np.ndarray, shape (24,1)
-        element stiffness matrix.
+    fe : np.ndarray, shape (24,1)
+        nodal forces.
 
     """
     v = l[0]*l[1]*l[2]

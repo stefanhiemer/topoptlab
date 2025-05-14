@@ -35,7 +35,7 @@ def _fk_heatexp_3d(xe,c,
     Returns
     -------
     fe : np.ndarray, shape (nels,24) or shape (nels,24,8)
-        force due to thermal expansion.
+        nodal forces due to thermal expansion.
 
     """
     #
@@ -104,7 +104,7 @@ def fk_heatexp_3d(E,nu,
     Returns
     -------
     fe : np.ndarray, shape (24) or (24,8)
-        forces due to thermal expansion or matrix that returns forces by
+        nodal forces due to thermal expansion or matrix that returns forces by
         fe@DeltaT.
 
     """
@@ -332,7 +332,7 @@ def fk_heatexp_aniso_3d(c,
     Returns
     -------
     fe : np.ndarray, shape (24) or (24,8)
-        forces due to thermal expansion or matrix that returns forces by
+        nodal forces due to thermal expansion or matrix that returns forces by
         fe@DeltaT.
 
     """

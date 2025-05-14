@@ -192,8 +192,10 @@ def elementMatVec(a, b, phi):
             keMu += weight * (np.dot(np.dot(B.T, CMu), B))
 
             # Element loads
-            feLambda += weight * (np.dot(np.dot(B.T, CLambda), np.diag([1, 1, 1])))
-            feMu += weight * (np.dot(np.dot(B.T, CMu), np.diag([1, 1, 1])))
+            feLambda += weight * (np.dot(np.dot(B.T, CLambda), 
+                                         np.diag([1, 1, 1])))
+            feMu += weight * (np.dot(np.dot(B.T, CMu), 
+                                     np.diag([1, 1, 1])))
 
     return keLambda, keMu, feLambda, feMu
 
