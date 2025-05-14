@@ -1,5 +1,6 @@
 #
 import numpy as np
+from scipy.linalg import solve
 # set up finite element problem
 from topoptlab.fem import create_matrixinds
 from topoptlab.elements.bilinear_quadrilateral import create_edofMat as create_edofMat2d
@@ -96,8 +97,6 @@ def fem_homogenization(nelx, nely, nelz=None,
         fe = np.column_stack(fe)
         # infer nodal degrees of freedom assuming that we have 4/8 nodes in 2/3
         nd_ndof = int(Ke.shape[0]/4)
-        # number of degrees of freedom
-        ndof = (nelx+1)*(nely+1)*nd_ndof
         # element degree of freedom matrix plus some helper indices
         edofMat, n1, n2, n3, n4 = create_edofMat2d(nelx=nelx,nely=nely,
                                                    nnode_dof=nd_ndof)
@@ -113,8 +112,6 @@ def fem_homogenization(nelx, nely, nelz=None,
         fe = np.column_stack(fe)
         # infer nodal degrees of freedom assuming that we have 4/8 nodes in 2/3
         nd_ndof = int(Ke.shape[0]/8)
-        # number of degrees of freedom
-        ndof = (nelx+1)*(nely+1)*(nelz+1)*nd_ndof
         # element degree of freedom matrix plus some helper indices
         edofMat, n1, n2, n3, n4 = create_edofMat3d(nelx=nelx,nely=nely,
                                                    nelz=nelz,
@@ -123,11 +120,21 @@ def fem_homogenization(nelx, nely, nelz=None,
         edofMat = apply_pbc3d(edofMat=edofMat, pbc=(True,True,True), 
                               nelx=nelx, nely=nely, nelz=nelz, 
                               nnode_dof=nd_ndof)
+    #
+    ndof = edofMat.max()+1
+    # find the elemental affine displacement field
+    if ndim == 2:
+        fixed = np.array([0,1,3])
+    else:
+        fixed = np.array([0,1,2,4,7])
+    free = np.setdiff1d(np.arange(Ke.shape[-1]), fixed)
+    u0 = np.zeros(fe.shape)
+    u0[free] = solve(Ke[free,:][:,free],fe[free,:],assume_a="sym")
     # Construct the index pointers for the coo format
     iK,jK = create_matrixinds(edofMat,mode=assembly_mode)
     # BC's and support
     u,f,fixed,free,_ = bc_singlenode(nelx=nelx,nely=nely,nelz=nelz,
-                                          ndof=ndof)
+                                     ndof=ndof)
     # interpolate material properties
     scale = (Emin+(xPhys)** penal*(Emax-Emin))
     Kes = Ke[None,:,:]*scale[:,None,None]
@@ -141,13 +148,26 @@ def fem_homogenization(nelx, nely, nelz=None,
                          ndof=ndof,solver=lin_solver,
                          springs=None)
     # assemble forces
-    np.add.at(f,edofMat.flatten(),fes.flatten())
+    print(fes.shape,f.shape,edofMat.shape,)
+    for i in np.arange(f.shape[1]):
+        np.add.at(f[:,i],edofMat.flatten(),fes[:,:,i].flatten())
+    fnew = np.zeros(f.shape)
+    print(fnew.shape,
+          np.column_stack((np.repeat(edofMat,fe.shape[-1],axis=1).flatten(),
+                           np.tile(np.arange(fe.shape[-1]),edofMat.shape).flatten() )).shape,
+          fes.flatten().shape)
+    np.add.at(fnew,
+              np.column_stack((np.repeat(edofMat,fe.shape[-1],axis=1).flatten(),
+                               np.tile(np.arange(fe.shape[-1]),edofMat.shape).flatten() )),
+              fes.flatten()[:,None])
+    import sys 
+    sys.exit()
     # assemble completely
     rhs = assemble_rhs(f0=f,
                        solver=lin_solver)
     # apply boundary conditions to matrix
-    KE = apply_bc(K=KE,solver=lin_solver,
-                 free=free,fixed=fixed)
+    KE = apply_bc(K=KE, solver=lin_solver,
+                  free=free, fixed=fixed)
     # solve linear system. fact is a factorization and precond a preconditioner
     u[free, :], fact, precond, = solve_lin(K=KE, rhs=rhs[free], 
                                            solver=lin_solver,
@@ -188,9 +208,9 @@ def bc_singlenode(nelx,nely,ndof,nelz=None,**kwargs):
 
     """
     if nelz is None:
-        ndim=3
-    else:
         ndim=2
+    else:
+        ndim=3
     #
     dofs = np.arange(ndof)
     # Solution and RHS vectors
@@ -205,8 +225,8 @@ def bc_singlenode(nelx,nely,ndof,nelz=None,**kwargs):
 
 if __name__ == "__main__":
     #
-    nelx = 10
-    nely = 10
+    nelx = 2
+    nely = 2
     nelz = None
     np.random.seed(0)
     if nelz is None:
