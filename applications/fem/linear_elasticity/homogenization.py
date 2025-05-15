@@ -20,10 +20,10 @@ from topoptlab.output_designs import export_vtk
 def fem_homogenization(nelx, nely, nelz=None,
                        xPhys=None, penal=3, 
                        Emax=1.0, Emin=1e-9, nu=0.3,
-                       lin_solver="cvxopt-cholmod", preconditioner=None,
+                       lin_solver="scipy-direct", preconditioner=None,
                        assembly_mode="full", l=1.,
                        file="homogenization",
-                       export=True):
+                       export=False):
     """
     Run a single finite element simulation on a regular grid performing linear 
     homogenization along the lines of 
@@ -106,7 +106,7 @@ def fem_homogenization(nelx, nely, nelz=None,
     elif ndim == 3:
         Ke = lk_linear_elast_3d(E=1.0, nu=nu,l=l)
         fe = []
-        eps = np.eye(3)
+        eps = np.eye(6)
         for i in range(int((ndim**2 + ndim) /2)):
             fe.append(lf_strain_3d(eps[i],E=1.0, nu=nu,l=l))
         fe = np.column_stack(fe)
@@ -126,10 +126,11 @@ def fem_homogenization(nelx, nely, nelz=None,
     if ndim == 2:
         fixed = np.array([0,1,3])
     else:
-        fixed = np.array([0,1,2,4,7])
+        fixed = np.array([0,1,2,4,5,7,8])
     free = np.setdiff1d(np.arange(Ke.shape[-1]), fixed)
     u0 = np.zeros(fe.shape)
     u0[free] = solve(Ke[free,:][:,free],fe[free,:],assume_a="sym")
+    eigval,eigvec = np.linalg.eigh(Ke[free,:][:,free])
     # Construct the index pointers for the coo format
     iK,jK = create_matrixinds(edofMat,mode=assembly_mode)
     # BC's and support
@@ -148,20 +149,9 @@ def fem_homogenization(nelx, nely, nelz=None,
                          ndof=ndof,solver=lin_solver,
                          springs=None)
     # assemble forces
-    print(fes.shape,f.shape,edofMat.shape,)
-    for i in np.arange(f.shape[1]):
-        np.add.at(f[:,i],edofMat.flatten(),fes[:,:,i].flatten())
-    fnew = np.zeros(f.shape)
-    print(fnew.shape,
-          np.column_stack((np.repeat(edofMat,fe.shape[-1],axis=1).flatten(),
-                           np.tile(np.arange(fe.shape[-1]),edofMat.shape).flatten() )).shape,
-          fes.flatten().shape)
-    np.add.at(fnew,
-              np.column_stack((np.repeat(edofMat,fe.shape[-1],axis=1).flatten(),
-                               np.tile(np.arange(fe.shape[-1]),edofMat.shape).flatten() )),
-              fes.flatten()[:,None])
-    import sys 
-    sys.exit()
+    np.add.at(f,
+              edofMat,
+              fes)
     # assemble completely
     rhs = assemble_rhs(f0=f,
                        solver=lin_solver)
@@ -172,7 +162,17 @@ def fem_homogenization(nelx, nely, nelz=None,
     u[free, :], fact, precond, = solve_lin(K=KE, rhs=rhs[free], 
                                            solver=lin_solver,
                                            preconditioner=preconditioner)
-    
+    # calculate effective elastic tensor
+    CH = np.zeros((fe.shape[-1], fe.shape[-1]))
+    cellVolume = np.prod(l)
+    for i in range(fe.shape[-1]):
+        for j in range(fe.shape[-1]):
+            sumLambda = (((u0[None,:, i] - u[edofMat, i]) @ Kes) * \
+                         (u0[None, :, j] - u[edofMat,j])).sum(axis=1)
+            # Homogenized elasticity tensor
+            CH[i, j] = (1 / cellVolume) * np.sum(sumLambda)
+    print('--- Homogenized elasticity tensor ---')
+    print(CH)
     #
     if export:
         export_vtk(filename=file,
@@ -193,7 +193,9 @@ def bc_singlenode(nelx,nely,ndof,nelz=None,**kwargs):
         number of elements in y direction.
     ndof : int
         number of degrees of freedom.
-
+    nelz : int or None
+        number of elements in z direction.
+        
     Returns
     -------
     u : np.ndarray
@@ -228,6 +230,7 @@ if __name__ == "__main__":
     nelx = 2
     nely = 2
     nelz = None
+    #
     np.random.seed(0)
     if nelz is None:
         xPhys = np.random.rand(nelx*nely)
