@@ -215,6 +215,8 @@ if __name__ == "__main__":
     #
     #check_elementMatVec()
     # Example usage:
+    #lambda = nu*E / ( (1+nu)*(1-nu) ) # 2D
+    #mu = E/(2*(1+nu))
     lambda_ = [0.01, 2.]
     mu = [0.02, 4.]
     lx = ly = 1.0

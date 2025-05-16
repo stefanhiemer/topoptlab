@@ -233,7 +233,8 @@ if __name__ == "__main__":
     #
     np.random.seed(0)
     if nelz is None:
-        xPhys = np.random.rand(nelx*nely)
+        #xPhys = np.random.rand(nelx*nely)
+        xPhys = np.eye(2)
     else:
         xPhys = np.random.rand(nelx*nely*nelz)
     #
