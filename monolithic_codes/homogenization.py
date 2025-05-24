@@ -31,14 +31,14 @@ def homogenization(lx, ly, lambda_, mu, phi, x,
     n2 = (nely*(elx+1)+ely).flatten()
     yperiodic = np.arange(nely-1,nely*nelx+1,nely)
     edofMat[np.setdiff1d(np.arange(nelx*nely), yperiodic)] = np.column_stack((
-                                                2*n1+2, 2*n1+3, 2*n2+2, 2*n2+3, 
+                                                2*n1+2, 2*n1+3, 2*n2+2, 2*n2+3,
                                                 2*n2, 2*n2+1, 2*n1, 2*n1+1))
     # periodicity in x direction
     edofMat[-nely:] = edofMat[-nely:]%ndof
     # periodic in y direction
     edofMat[yperiodic,:4] = ((np.arange(nelx)[:,None] + np.array([[0,0,1,1]]))\
                              * 2 * nely + np.array([[0,1,0,1]]))%ndof
-    edofMat[yperiodic,4:6] = edofMat[yperiodic-1,2:4] 
+    edofMat[yperiodic,4:6] = edofMat[yperiodic-1,2:4]
     edofMat[yperiodic,6:] = edofMat[yperiodic-1,:2]
     if debug:
         print('--- edofMat ---')
@@ -46,7 +46,7 @@ def homogenization(lx, ly, lambda_, mu, phi, x,
     # ASSEMBLE STIFFNESS MATRIX
     # Indexing vectors
     iK = np.tile(edofMat,8).flatten()
-    jK = np.repeat(edofMat,8).flatten()  
+    jK = np.repeat(edofMat,8).flatten()
     # Material properties in the different elements
     lambda_ = lambda_[0] * (x == 0) + lambda_[1] * (x == 1)
     mu = mu[0] * (x == 0) + mu[1] * (x == 1)
@@ -71,8 +71,8 @@ def homogenization(lx, ly, lambda_, mu, phi, x,
     # LOAD VECTORS AND SOLUTION
     # Assembly three load cases corresponding to the three strain cases
     iF = np.tile(edofMat.T, (3,1)).flatten('F')
-    jF = np.concatenate([np.zeros((8,nel,), dtype=int), 
-                         np.ones((8,nel,), dtype=int), 
+    jF = np.concatenate([np.zeros((8,nel,), dtype=int),
+                         np.ones((8,nel,), dtype=int),
                          np.full((8,nel,),2, dtype=int)]).flatten('F')
     sF = (feLambda.flatten('F')[:,None]*lambda_[None,:] + \
           feMu.flatten('F')[:,None]*mu[None,:]).flatten('F')
@@ -88,7 +88,7 @@ def homogenization(lx, ly, lambda_, mu, phi, x,
         print(F)
     # Solve (remember to constrain one node)
     chi = np.zeros((ndof, 3))
-    chi[2:, :] = spsolve(K[2:, 2:].toarray(), F[2:, :].toarray())
+    chi[2:, :] = spsolve(K[2:, 2:], F[2:, :].toarray())
     if debug:
         print('--- chi ---')
         print(chi)
@@ -99,8 +99,8 @@ def homogenization(lx, ly, lambda_, mu, phi, x,
     chi0_e = np.zeros((8, 3))
     ke = keMu + keLambda  # Here the exact ratio does not matter, because
     fe = feMu + feLambda  # it is reflected in the load vector
-    chi0_e[[2, 4, 5, 6, 7], :] = np.linalg.solve(ke[np.ix_([2, 4, 5, 6, 7], 
-                                                           [2, 4, 5, 6, 7])], 
+    chi0_e[[2, 4, 5, 6, 7], :] = np.linalg.solve(ke[np.ix_([2, 4, 5, 6, 7],
+                                                           [2, 4, 5, 6, 7])],
                                                  fe[[2, 4, 5, 6, 7]])
     if debug:
         print('--- ke ---')
@@ -126,8 +126,8 @@ def homogenization(lx, ly, lambda_, mu, phi, x,
             sumLambda = np.sum(sumLambda, axis=1)#.reshape((nely, nelx))
             sumMu = np.sum(sumMu, axis=1)#.reshape((nely, nelx))
             # Homogenized elasticity tensor
-            CH[i, j] = (1 / cellVolume) * np.sum(lambda_ * sumLambda + mu * sumMu)
-
+            CH[i, j] = np.sum(lambda_ * sumLambda + mu * sumMu)
+    CH = CH / cellVolume
     print('--- Homogenized elasticity tensor ---')
     print(CH)
     return CH
@@ -192,40 +192,51 @@ def elementMatVec(a, b, phi):
             keMu += weight * (np.dot(np.dot(B.T, CMu), B))
 
             # Element loads
-            feLambda += weight * (np.dot(np.dot(B.T, CLambda), 
+            feLambda += weight * (np.dot(np.dot(B.T, CLambda),
                                          np.diag([1, 1, 1])))
-            feMu += weight * (np.dot(np.dot(B.T, CMu), 
+            feMu += weight * (np.dot(np.dot(B.T, CMu),
                                      np.diag([1, 1, 1])))
 
     return keLambda, keMu, feLambda, feMu
 
 
 def check_elementMatVec():
-    
+
     keLambda, keMu, feLambda, feMu = elementMatVec(1/200, 1/200, 90)
     print(keLambda)
     print(keMu)
     print(feLambda)
     print(feMu)
     print(keLambda + keMu)
-    
+
     return
 
 if __name__ == "__main__":
     #
     #check_elementMatVec()
     # Example usage:
-    #lambda = nu*E / ( (1+nu)*(1-nu) ) # 2D
+    #lambda = nu*E / ( (1+nu)*(1-2*nu) ) # 2D
     #mu = E/(2*(1+nu))
-    lambda_ = [0.01, 2.]
-    mu = [0.02, 4.]
+    Es = [1e-3,1e0]
+    nus = [0.3,0.3]
+    lambda_ = []
+    mu = []
+    for i in range(len(Es)):
+        E,nu = Es[i],nus[i]
+        lambda_.append(nu*E / ( (1+nu)*(1-2*nu) ))
+        mu.append(E/(2*(1+nu)))
+    lambda_ = np.array(lambda_)
+    mu = np.array(mu)
+    lambda_ = 2*mu*lambda_ / (lambda_+2*mu)
+    #lambda_ = [0.01, 2.]
+    #mu = [0.02, 4.]
     lx = ly = 1.0
     phi = 90
-    x = np.eye(3,dtype=int)
-    homogenization(lx, ly, lambda_, mu, phi, x, 
+    x = np.eye(2,dtype=int)
+    homogenization(lx=lx, ly=ly, lambda_=lambda_, mu=mu, phi=phi, x=x,
                    debug = False)
-    
-    
+    import sys
+    sys.exit()
     lx = ly = 1
     phi = 90
     np.random.seed(0)

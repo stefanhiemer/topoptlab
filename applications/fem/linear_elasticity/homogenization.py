@@ -18,18 +18,18 @@ from topoptlab.output_designs import export_vtk
 
 # MAIN DRIVER
 def fem_homogenization(nelx, nely, nelz=None,
-                       xPhys=None, penal=3, 
-                       Emax=1.0, Emin=1e-9, nu=0.3,
+                       xPhys=None, penal=3,
+                       Emax=1.0, Emin=1e-3, nu=0.3,
                        lin_solver="scipy-direct", preconditioner=None,
                        assembly_mode="full", l=1.,
                        file="homogenization",
                        export=False):
     """
-    Run a single finite element simulation on a regular grid performing linear 
-    homogenization along the lines of 
-    
-    Andreassen, Erik, and Casper Schousboe Andreasen. "How to determine 
-    composite material properties using numerical homogenization." 
+    Run a single finite element simulation on a regular grid performing linear
+    homogenization along the lines of
+
+    Andreassen, Erik, and Casper Schousboe Andreasen. "How to determine
+    composite material properties using numerical homogenization."
     Computational Materials Science 83 (2014): 488-495.
 
     Parameters
@@ -45,19 +45,19 @@ def fem_homogenization(nelx, nely, nelz=None,
     penal : float
         penalty exponent for the SIMP method.
     Emax : float
-        (maximum) Young's modulus. If xPhys is None, all elements take this 
+        (maximum) Young's modulus. If xPhys is None, all elements take this
         value.
     Emin : float
         minimum Young's modulus for the modified SIMP approach.
     nu : float
         Poissson's ratio.
     solver : str
-        solver for linear systems. Check function lin solve for available 
+        solver for linear systems. Check function lin solve for available
         options.
     preconditioner : str or None
-        preconditioner for linear systems. 
+        preconditioner for linear systems.
     assembly_mode : str
-        whether full or only lower triangle of linear system / matrix is 
+        whether full or only lower triangle of linear system / matrix is
         created.
     l : float or tuple of length (ndim) or np.ndarray of shape (ndim)
         side lengths of each element
@@ -76,7 +76,7 @@ def fem_homogenization(nelx, nely, nelz=None,
         ndim = 2
     else:
         ndim = 3
-    # 
+    #
     if isinstance(l,float):
         l = np.array( [l for i in np.arange(ndim)])
     # total number of design variables/elements
@@ -101,7 +101,7 @@ def fem_homogenization(nelx, nely, nelz=None,
         edofMat, n1, n2, n3, n4 = create_edofMat2d(nelx=nelx,nely=nely,
                                                    nnode_dof=nd_ndof)
         # apply pbc
-        edofMat = apply_pbc2d(edofMat=edofMat, pbc=(True,True), nelx=nelx, nely=nely, 
+        edofMat = apply_pbc2d(edofMat=edofMat, pbc=(True,True), nelx=nelx, nely=nely,
                               nnode_dof=nd_ndof)
     elif ndim == 3:
         Ke = lk_linear_elast_3d(E=1.0, nu=nu,l=l)
@@ -117,8 +117,8 @@ def fem_homogenization(nelx, nely, nelz=None,
                                                    nelz=nelz,
                                                    nnode_dof=nd_ndof)
         # apply pbc
-        edofMat = apply_pbc3d(edofMat=edofMat, pbc=(True,True,True), 
-                              nelx=nelx, nely=nely, nelz=nelz, 
+        edofMat = apply_pbc3d(edofMat=edofMat, pbc=(True,True,True),
+                              nelx=nelx, nely=nely, nelz=nelz,
                               nnode_dof=nd_ndof)
     #
     ndof = edofMat.max()+1
@@ -159,18 +159,19 @@ def fem_homogenization(nelx, nely, nelz=None,
     KE = apply_bc(K=KE, solver=lin_solver,
                   free=free, fixed=fixed)
     # solve linear system. fact is a factorization and precond a preconditioner
-    u[free, :], fact, precond, = solve_lin(K=KE, rhs=rhs[free], 
+    u[free, :], fact, precond, = solve_lin(K=KE, rhs=rhs[free],
                                            solver=lin_solver,
                                            preconditioner=preconditioner)
     # calculate effective elastic tensor
     CH = np.zeros((fe.shape[-1], fe.shape[-1]))
-    cellVolume = np.prod(l)
+    cellVolume = np.prod(l)*n
     for i in range(fe.shape[-1]):
         for j in range(fe.shape[-1]):
             sumLambda = (((u0[None,:, i] - u[edofMat, i]) @ Kes) * \
                          (u0[None, :, j] - u[edofMat,j])).sum(axis=1)
             # Homogenized elasticity tensor
-            CH[i, j] = (1 / cellVolume) * np.sum(sumLambda)
+            CH[i, j] = np.sum(sumLambda)
+    CH = CH/cellVolume
     print('--- Homogenized elasticity tensor ---')
     print(CH)
     #
@@ -195,7 +196,7 @@ def bc_singlenode(nelx,nely,ndof,nelz=None,**kwargs):
         number of degrees of freedom.
     nelz : int or None
         number of elements in z direction.
-        
+
     Returns
     -------
     u : np.ndarray
@@ -234,16 +235,17 @@ if __name__ == "__main__":
     np.random.seed(0)
     if nelz is None:
         #xPhys = np.random.rand(nelx*nely)
-        xPhys = np.eye(2)
+        xPhys = np.eye(2).flatten()
     else:
         xPhys = np.random.rand(nelx*nely*nelz)
     #
     import sys
-    if len(sys.argv)>1: 
+    if len(sys.argv)>1:
         nelx = int(sys.argv[1])
-    if len(sys.argv)>2: 
+    if len(sys.argv)>2:
         nely = int(sys.argv[2])
-    if len(sys.argv)>3: 
+    if len(sys.argv)>3:
         nelz = int(sys.argv[3])
     #
-    fem_homogenization(nelx=nelx, nely=nely, nelz=nelz,xPhys=xPhys)
+    fem_homogenization(nelx=nelx, nely=nely, nelz=nelz,
+                       xPhys=xPhys,l=1/nelx)
