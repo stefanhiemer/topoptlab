@@ -121,6 +121,9 @@ def fem_homogenization(nelx, nely, nelz=None,
                               nelx=nelx, nely=nely, nelz=nelz,
                               nnode_dof=nd_ndof)
     #
+    print("--- fe ---")
+    print(fe)
+    #
     ndof = edofMat.max()+1
     # find the elemental affine displacement field
     if ndim == 2:
@@ -129,13 +132,17 @@ def fem_homogenization(nelx, nely, nelz=None,
         fixed = np.array([0,1,2,4,5,7,8])
     free = np.setdiff1d(np.arange(Ke.shape[-1]), fixed)
     u0 = np.zeros(fe.shape)
-    u0[free] = solve(Ke[free,:][:,free],fe[free,:],assume_a="sym")
-    eigval,eigvec = np.linalg.eigh(Ke[free,:][:,free])
+    u0[free] = solve(Ke[free,:][:,free],fe[free,:],
+                     assume_a="sym")
+    print("--- u0 ---")
+    print(u0)
     # Construct the index pointers for the coo format
     iK,jK = create_matrixinds(edofMat,mode=assembly_mode)
     # BC's and support
     u,f,fixed,free,_ = bc_singlenode(nelx=nelx,nely=nely,nelz=nelz,
                                      ndof=ndof)
+    print("--- fixed ---")
+    print(fixed)
     # interpolate material properties
     scale = (Emin+(xPhys)** penal*(Emax-Emin))
     Kes = Ke[None,:,:]*scale[:,None,None]
@@ -155,6 +162,8 @@ def fem_homogenization(nelx, nely, nelz=None,
     # assemble completely
     rhs = assemble_rhs(f0=f,
                        solver=lin_solver)
+    print("--- rhs ---")
+    print(rhs)
     # apply boundary conditions to matrix
     KE = apply_bc(K=KE, solver=lin_solver,
                   free=free, fixed=fixed)
@@ -162,13 +171,17 @@ def fem_homogenization(nelx, nely, nelz=None,
     u[free, :], fact, precond, = solve_lin(K=KE, rhs=rhs[free],
                                            solver=lin_solver,
                                            preconditioner=preconditioner)
+    print("--- u ---")
+    print(u)
+    print("--- f ---")
+    print(f)
     # calculate effective elastic tensor
     CH = np.zeros((fe.shape[-1], fe.shape[-1]))
     cellVolume = np.prod(l)*n
     for i in range(fe.shape[-1]):
         for j in range(fe.shape[-1]):
-            sumLambda = (((u0[None,:, i] - u[edofMat, i]) @ Kes) * \
-                         (u0[None, :, j] - u[edofMat,j])).sum(axis=1)
+            sumLambda = (((u0[None,:,i] - u[edofMat,i]) @ Kes) * \
+                          (u0[None,:,j] - u[edofMat,j])).sum(axis=1)
             # Homogenized elasticity tensor
             CH[i, j] = np.sum(sumLambda)
     CH = CH/cellVolume
@@ -221,21 +234,22 @@ def bc_singlenode(nelx,nely,ndof,nelz=None,**kwargs):
     u = np.zeros((ndof, int((ndim**2 + ndim) /2)))
     # fix first node
     if nelz is None:
-        fixed = dofs[:int(ndof/((nelx+1)*(nely+1)*4))]
+        fixed = dofs[:int(ndof/(nelx*nely))]
     else:
-        fixed = dofs[:int(ndof/((nelx+1)*(nely+1)*(nelz+1)*8))]
+        fixed = dofs[:int(ndof/((nelx*nely*nelz)))]
     return u,f,fixed,np.setdiff1d(dofs,fixed),None
 
 if __name__ == "__main__":
+    #
+    np.random.seed(0)
     #
     nelx = 2
     nely = 2
     nelz = None
     #
-    np.random.seed(0)
     if nelz is None:
         #xPhys = np.random.rand(nelx*nely)
-        xPhys = np.eye(2).flatten()
+        xPhys = np.random.randint(0,2,(2,2)).flatten()#np.eye(2).flatten()
     else:
         xPhys = np.random.rand(nelx*nely*nelz)
     #

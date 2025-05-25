@@ -9,7 +9,7 @@ def _lk_linear_elast_2d(xe,c,
                         nquad=2):
     """
     Create element stiffness matrix for 2D linear elasticity with
-    bilinear quadrilateral Lagrangian elements in plane stress.
+    bilinear quadrilateral Lagrangian elements.
 
     Parameters
     ----------
@@ -242,12 +242,12 @@ def lk_linear_elast_aniso_2d(c,
                           -c[1,0]*np.tan(g[0])/3 - c[1,0]/4 + c[1,2]*l[0]/(3*l[1]) + c[2,0]*l[1]*np.tan(g[0])/(2*l[0]) + c[2,0]*l[1]/(3*l[0]*np.cos(g[0])**2) - c[2,2]*np.tan(g[0])/3 - c[2,2]/4,
                           c[1,1]*l[0]/(3*l[1]) - c[1,2]*np.tan(g[0])/3 - c[1,2]/4 - c[2,1]*np.tan(g[0])/3 - c[2,1]/4 + c[2,2]*l[1]*np.tan(g[0])/(2*l[0]) + c[2,2]*l[1]/(3*l[0]*np.cos(g[0])**2)]])
 
-def lf_strain_2d(eps, E=1,nu=0.3,  
+def lf_strain_2d(eps, E=1,nu=0.3,
                  l=np.array([1.,1.]), g = np.array([0.]),
                  t=1.):
     """
-    Compute nodal forces on bilinear quadrilateral Lagrangian element 
-    (1st order) due to a uniform strain via analytical integration. 
+    Compute nodal forces on bilinear quadrilateral Lagrangian element
+    (1st order) due to a uniform strain via analytical integration.
     Element shape is a parallelogram and we assume isotropic elasticity.
 
     Parameters
@@ -281,12 +281,12 @@ def lf_strain_2d(eps, E=1,nu=0.3,
                        [E*(-2*eps[0]*l[0]*nu - 2*eps[1]*l[0] - eps[2]*l[1]*nu*np.tan(g[0]) - eps[2]*l[1]*nu + eps[2]*l[1]*np.tan(g[0]) + eps[2]*l[1])/(2*(nu**2 - 1))]])
 
 
-def lf_strain_aniso_2d(eps,c, 
+def lf_strain_aniso_2d(eps,c,
                        l=np.array([1.,1.]), g = np.array([0.]),
                        t=1.):
     """
-    Compute nodal forces on bilinear quadrilateral Lagrangian element 
-    (1st order) due to a uniform strain via analytical integration. 
+    Compute nodal forces on bilinear quadrilateral Lagrangian element
+    (1st order) due to a uniform strain via analytical integration.
     Element shape is a parallelogram and we assume anisotropic elasticity.
 
     Parameters

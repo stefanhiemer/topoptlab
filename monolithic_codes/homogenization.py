@@ -115,8 +115,14 @@ def homogenization(lx, ly, lambda_, mu, phi, x,
     chi0[:, :, 1] = np.kron(chi0_e[:, 1].T, np.ones((nel, 1)))
     # epsilon0_12 = (0, 0, 1)
     chi0[:, :, 2] = np.kron(chi0_e[:, 2].T, np.ones((nel, 1)))
+    if debug:
+        print('--- chi0 ---')
+        print(chi0)
     CH = np.zeros((3, 3))
     cellVolume = lx * ly
+    if debug:
+        print('--- cellVolume ---')
+        print(cellVolume)
     for i in range(3):
         for j in range(3):
             sumLambda = ((chi0[:, :, i] - chi[edofMat, i]) @ keLambda) * \
@@ -213,6 +219,8 @@ def check_elementMatVec():
 
 if __name__ == "__main__":
     #
+    np.random.seed(0)
+    #
     #check_elementMatVec()
     # Example usage:
     #lambda = nu*E / ( (1+nu)*(1-2*nu) ) # 2D
@@ -232,13 +240,14 @@ if __name__ == "__main__":
     #mu = [0.02, 4.]
     lx = ly = 1.0
     phi = 90
-    x = np.eye(2,dtype=int)
+    x = np.random.randint(0,2,(2,2))#np.eye(2,dtype=int)
+    print(x)
     homogenization(lx=lx, ly=ly, lambda_=lambda_, mu=mu, phi=phi, x=x,
-                   debug = False)
+                   debug = True)
     import sys
     sys.exit()
     lx = ly = 1
     phi = 90
-    np.random.seed(0)
+
     x = np.random.randint(0,2,(20,20))
     homogenization(lx, ly, lambda_, mu, phi, x)
