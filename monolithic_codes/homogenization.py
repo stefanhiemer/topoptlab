@@ -133,6 +133,10 @@ def homogenization(lx, ly, lambda_, mu, phi, x,
             sumMu = np.sum(sumMu, axis=1)#.reshape((nely, nelx))
             # Homogenized elasticity tensor
             CH[i, j] = np.sum(lambda_ * sumLambda + mu * sumMu)
+    print(keLambda.shape,(chi0 - chi[edofMat]).shape)
+    print( (((chi0[:, :, i] - chi[edofMat, i]) @ keLambda) * \
+                 (chi0[:, :, j] - chi[edofMat,j])).shape )
+    print(sumMu.shape)
     CH = CH / cellVolume
     print('--- Homogenized elasticity tensor ---')
     print(CH)

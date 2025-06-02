@@ -178,12 +178,15 @@ def fem_homogenization(nelx, nely, nelz=None,
     # calculate effective elastic tensor
     CH = np.zeros((fe.shape[-1], fe.shape[-1]))
     cellVolume = np.prod(l)*n
+    du = u0[None,:] - u[edofMat]
     for i in range(fe.shape[-1]):
         for j in range(fe.shape[-1]):
-            sumLambda = (((u0[None,:,i] - u[edofMat,i]) @ Kes) * \
-                          (u0[None,:,j] - u[edofMat,j])).sum(axis=1)
+            toteng = (du[:,:,i]@Kes * du[:,:,j]).sum(axis=1)
             # Homogenized elasticity tensor
-            CH[i, j] = np.sum(sumLambda)
+            CH[i, j] = np.sum(toteng)
+    print(Kes.shape,du.shape)
+    print((du[:,:,i]@Kes * du[:,:,j]).shape)
+    print(toteng.shape)
     CH = CH/cellVolume
     print('--- Homogenized elasticity tensor ---')
     print(CH)
