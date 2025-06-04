@@ -164,18 +164,17 @@ def strainforces(ndim,
 
 if __name__ == "__main__":
     
-    for dim in range(1,4):
+    for dim in range(1,3):
         print(str(dim)+"D")
         print(convert_to_code(strainforces_iso(ndim = dim),
-                              matrices=["c"],vectors=["l","g", "eps"]),"\n")
-        
-    for dim in range(1,4):
-        print(str(dim)+"D")
-        print(convert_to_code(strainforces(ndim = dim),
                               matrices=["c"],vectors=["l","g", "eps"]),"\n")
     
     import sys 
     sys.exit()
+    for dim in range(1,4):
+        print(str(dim)+"D")
+        print(convert_to_code(strainforces(ndim = dim),
+                              matrices=["c"],vectors=["l","g", "eps"]),"\n")
     for dim in range(1,4):
         print(str(dim)+"D")
         print(convert_to_code(linelast_iso(ndim = dim),

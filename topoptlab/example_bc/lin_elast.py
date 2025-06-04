@@ -593,3 +593,49 @@ def selffolding_3d(nelx,nely,nelz,ndof,**kwargs):
                        fixation,
                        fixation+1)) # z fixation
     return u,f,fixed,np.setdiff1d(dofs,fixed),None
+
+def singlenode(nelx,nely,ndof,nelz=None,**kwargs):
+    """
+    Fix all dofs of first node. Typically used for homogenization or similar 
+    applications where the forces arise by another source (e. g. heat or via 
+    body forces).
+
+    Parameters
+    ----------
+    nelx : int
+        number of elements in x direction.
+    nely : int
+        number of elements in y direction.
+    ndof : int
+        number of degrees of freedom.
+    nelz : int or None
+        number of elements in z direction.
+
+    Returns
+    -------
+    u : np.ndarray
+        array of zeros for state variable (displacement, temperature) to be
+        filled of shape (ndof).
+    f : np.ndarray
+        array of zeros for state flow variables (forces, flow).
+    fixed : np.ndarray
+        indices of fixed dofs (nfixed).
+    free : np.ndarray
+        indices of free dofs (ndofs - nfixed).
+
+    """
+    if nelz is None:
+        ndim=2
+    else:
+        ndim=3
+    #
+    dofs = np.arange(ndof)
+    # Solution and RHS vectors
+    f = np.zeros((ndof, int((ndim**2 + ndim) /2)))
+    u = np.zeros((ndof, int((ndim**2 + ndim) /2)))
+    # fix first node
+    if nelz is None:
+        fixed = dofs[:int(ndof/(nelx*nely))]
+    else:
+        fixed = dofs[:int(ndof/((nelx*nely*nelz)))]
+    return u,f,fixed,np.setdiff1d(dofs,fixed),None

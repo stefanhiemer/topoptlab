@@ -201,16 +201,16 @@ def get_integrpoints(ndim,nq,method):
         number of integration/quadrature points.
     method : str or callable
         name of quadrature method or function/callable that returns coordinates of
-        quadrature points and weights. Currently only 'gauss-legendre'
-        supported as str.
+        quadrature points and weights. Currently only 'gauss-legendre', 
+        'gauss-hermite', 'gauss-chebyshev' and 'gauss-laguerre' supported as 
+        str.
 
     Returns
     -------
     x : np.ndarray, shape (nq,ndim)
         coordinates of quadrature point.
     w : np.ndarray, shape (nq)
-        weights of quadrature point.
-
+        weight of quadrature points.
     """
     if method == "gauss-legendre":
         x,w = np.polynomial.legendre.leggauss(nq)

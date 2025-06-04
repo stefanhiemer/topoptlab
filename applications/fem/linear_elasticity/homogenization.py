@@ -13,6 +13,8 @@ from topoptlab.elements.linear_elasticity_3d import lk_linear_elast_3d, lf_strai
 # generic functions for solving phys. problem
 from topoptlab.fem import assemble_matrix,assemble_rhs,apply_bc
 from topoptlab.solve_linsystem import solve_lin
+# boundary condition
+from topoptlab.example_bc.lin_elast import singlenode
 # output final design to a Paraview readable format
 from topoptlab.output_designs import export_vtk
 
@@ -60,7 +62,7 @@ def fem_homogenization(nelx, nely, nelz=None,
         whether full or only lower triangle of linear system / matrix is
         created.
     l : float or tuple of length (ndim) or np.ndarray of shape (ndim)
-        side lengths of each element
+        side lengths of domain.
     file : str
         name of output files
     export : bool
@@ -79,6 +81,8 @@ def fem_homogenization(nelx, nely, nelz=None,
     #
     if isinstance(l,float):
         l = np.array( [l for i in np.arange(ndim)])
+    # calculate side lengths of elements
+    el_sidelengths = l / np.array([nelx,nely,nelz][:ndim])
     # total number of design variables/elements
     if ndim == 2:
         n = nelx * nely
@@ -89,11 +93,11 @@ def fem_homogenization(nelx, nely, nelz=None,
         xPhys = np.ones(n, dtype=float,order='F')
     # get element stiffness matrix, nodal forces and  element of freedom matrix
     if ndim == 2:
-        Ke = lk_linear_elast_2d(E=1.0, nu=nu,l=l)
+        Ke = lk_linear_elast_2d(E=1.0, nu=nu,l=el_sidelengths)
         fe = []
         eps = np.eye(3)
         for i in range(int((ndim**2 + ndim) /2)):
-            fe.append(lf_strain_2d(eps[i],E=1.0, nu=nu,l=l))
+            fe.append(lf_strain_2d(eps[i],E=1.0, nu=nu,l=el_sidelengths))
         fe = np.column_stack(fe)
         # infer nodal degrees of freedom assuming that we have 4/8 nodes in 2/3
         nd_ndof = int(Ke.shape[0]/4)
@@ -104,11 +108,11 @@ def fem_homogenization(nelx, nely, nelz=None,
         edofMat = apply_pbc2d(edofMat=edofMat, pbc=(True,True), nelx=nelx, nely=nely,
                               nnode_dof=nd_ndof)
     elif ndim == 3:
-        Ke = lk_linear_elast_3d(E=1.0, nu=nu,l=l)
+        Ke = lk_linear_elast_3d(E=1.0, nu=nu,l=el_sidelengths)
         fe = []
         eps = np.eye(6)
         for i in range(int((ndim**2 + ndim) /2)):
-            fe.append(lf_strain_3d(eps[i],E=1.0, nu=nu,l=l))
+            fe.append(lf_strain_3d(eps[i],E=1.0, nu=nu,l=el_sidelengths))
         fe = np.column_stack(fe)
         # infer nodal degrees of freedom assuming that we have 4/8 nodes in 2/3
         nd_ndof = int(Ke.shape[0]/8)
@@ -121,6 +125,8 @@ def fem_homogenization(nelx, nely, nelz=None,
                               nelx=nelx, nely=nely, nelz=nelz,
                               nnode_dof=nd_ndof)
     #
+    print("--- Ke ---")
+    print(Ke)
     print("--- fe ---")
     print(fe)
     #
@@ -139,8 +145,8 @@ def fem_homogenization(nelx, nely, nelz=None,
     # Construct the index pointers for the coo format
     iK,jK = create_matrixinds(edofMat,mode=assembly_mode)
     # BC's and support
-    u,f,fixed,free,_ = bc_singlenode(nelx=nelx,nely=nely,nelz=nelz,
-                                     ndof=ndof)
+    u,f,fixed,free,_ = singlenode(nelx=nelx,nely=nely,nelz=nelz,
+                                  ndof=ndof)
     print("--- fixed ---")
     print(fixed)
     # interpolate material properties
@@ -155,6 +161,8 @@ def fem_homogenization(nelx, nely, nelz=None,
     KE = assemble_matrix(sK=sK,iK=iK,jK=jK,
                          ndof=ndof,solver=lin_solver,
                          springs=None)
+    print("--- KE ---")
+    print(KE)
     # assemble forces
     np.add.at(f,
               edofMat,
@@ -177,17 +185,16 @@ def fem_homogenization(nelx, nely, nelz=None,
     print(f)
     # calculate effective elastic tensor
     CH = np.zeros((fe.shape[-1], fe.shape[-1]))
-    cellVolume = np.prod(l)*n
+    cellVolume = np.prod(l)
     du = u0[None,:] - u[edofMat]
     for i in range(fe.shape[-1]):
         for j in range(fe.shape[-1]):
-            toteng = (du[:,:,i]@Kes * du[:,:,j]).sum(axis=1)
             # Homogenized elasticity tensor
-            CH[i, j] = np.sum(toteng)
+            CH[i, j] = np.einsum('nj,nij,ni->n', du[:,:,i],Kes, du[:,:,j]).sum()
     print(Kes.shape,du.shape)
-    print((du[:,:,i]@Kes * du[:,:,j]).shape)
-    print(toteng.shape)
     CH = CH/cellVolume
+    print('--- cellVolume ---')
+    print(cellVolume)
     print('--- Homogenized elasticity tensor ---')
     print(CH)
     #
@@ -197,50 +204,6 @@ def fem_homogenization(nelx, nely, nelz=None,
                    xPhys=xPhys,
                    u=u,f=f)
     return
-
-def bc_singlenode(nelx,nely,ndof,nelz=None,**kwargs):
-    """
-    Fix only first node. Typically used for homogenization or similar.
-
-    Parameters
-    ----------
-    nelx : int
-        number of elements in x direction.
-    nely : int
-        number of elements in y direction.
-    ndof : int
-        number of degrees of freedom.
-    nelz : int or None
-        number of elements in z direction.
-
-    Returns
-    -------
-    u : np.ndarray
-        array of zeros for state variable (displacement, temperature) to be
-        filled of shape (ndof).
-    f : np.ndarray
-        array of zeros for state flow variables (forces, flow).
-    fixed : np.ndarray
-        indices of fixed dofs (nfixed).
-    free : np.ndarray
-        indices of free dofs (ndofs - nfixed).
-
-    """
-    if nelz is None:
-        ndim=2
-    else:
-        ndim=3
-    #
-    dofs = np.arange(ndof)
-    # Solution and RHS vectors
-    f = np.zeros((ndof, int((ndim**2 + ndim) /2)))
-    u = np.zeros((ndof, int((ndim**2 + ndim) /2)))
-    # fix first node
-    if nelz is None:
-        fixed = dofs[:int(ndof/(nelx*nely))]
-    else:
-        fixed = dofs[:int(ndof/((nelx*nely*nelz)))]
-    return u,f,fixed,np.setdiff1d(dofs,fixed),None
 
 if __name__ == "__main__":
     #
@@ -265,4 +228,4 @@ if __name__ == "__main__":
         nelz = int(sys.argv[3])
     #
     fem_homogenization(nelx=nelx, nely=nely, nelz=nelz,
-                       xPhys=xPhys,l=1/nelx)
+                       xPhys=xPhys,l=1.)

@@ -48,6 +48,40 @@ def create_edofMat(nelx,nely,nelz,nnode_dof,dtype=np.int32):
 
 def apply_pbc(edofMat,pbc,nelx,nely,nelz,nnode_dof,
               dtype=np.int32,**kwargs):
+    """
+    Convert a given element-degree-of-freedom matrix (edofMat) of a regular 
+    mesh of first order Lagrangian hexahedral elements with free 
+    boundary conditions to the corresponding edofMat with periodic boundary 
+    conditions by re-labelling the nodal degrees of freedom
+    
+    Parameters
+    ----------
+    edofMat : np.ndarray of shape (nel,8*nnode_dof)
+        element-degree-of-freedom matrix (edofMat) of a regular 
+        mesh of first order Lagrangian quadrilateral elements with free 
+        boundary conditions.
+    pbc : list or np.ndarray of shape/len 2 with elements of datatype bool
+        periodic boundary condition flags.
+    nelx : int
+        number of elements in x-direction.
+    nely : int
+        number of elements in y-direction.
+    nelz : int
+        number of elements in z-direction.
+    nnode_dof : int
+        number of degrees of freedom per node.
+    dtype : type
+        datatype of element degrees of freedom. Should be just large enough to 
+        store the highest number of the degrees of freedom to save memory. For
+        practical purposes np.int32 should do the job.
+        
+    Returns
+    -------
+    edofMat_new : np.ndarray of shape (nel,8*nnode_dof)
+        element-degree-of-freedom matrix (edofMat) of a regular 
+        mesh of first order Lagrangian hexahedral elements with periodic 
+        boundary conditions with re-labelled nodal degrees of freedom.
+    """
     # update indices
     # x
     if pbc[0] and not pbc[1]:
@@ -102,7 +136,7 @@ def apply_pbc(edofMat,pbc,nelx,nely,nelz,nnode_dof,
         edofMat[pbc_z,4*nnode_dof:] = edofMat[org,:4*nnode_dof]
     return edofMat
 
-def check_inputs(xi,eta,zeta,xe=None,all_elems=False):
+def check_inputs(xi,eta,zeta,xe=None,all_elems=False,**kwargs):
     """
     Check coordinates and provided element node information to be consistent. 
     If necessary transform inputs to make them consistent.
@@ -132,14 +166,14 @@ def check_inputs(xi,eta,zeta,xe=None,all_elems=False):
     ncoords : int
         number of coordinates
     if xe is not None
+    xe : np.ndarray
+        coordinates of element nodes shape (n,8,2).
     xi : float or np.ndarray
         x coordinate in the reference domain of shape (n).
     eta : float or np.ndarray
         y coordinate in the reference domain of shape (n). 
     zeta : np.ndarray
         z coordinate in the reference domain of shape (n).
-    xe : np.ndarray
-        coordinates of element nodes shape (n,8,2).
     """
     #
     if isinstance(xi,np.ndarray) and isinstance(eta,np.ndarray):
@@ -177,11 +211,11 @@ def check_inputs(xi,eta,zeta,xe=None,all_elems=False):
             xe = np.repeat(xe,repeats=ncoords,axis=0)
         elif 8*nels == ncoords:
             xe = np.repeat(xe,repeats=8,axis=0)
-        return xi,eta,zeta,xe
+        return xe,xi,eta,zeta
     else:
         return ncoords
 
-def shape_functions(xi,eta,zeta):
+def shape_functions(xi,eta,zeta,**kwargs):
     """
     Shape functions for trilinear hexahedron Lagrangian element in reference 
     domain. Coordinates bounded in [-1,1].
@@ -212,7 +246,7 @@ def shape_functions(xi,eta,zeta):
                                   (1+xi)*(1+eta)*(1+zeta),
                                   (1-xi)*(1+eta)*(1+zeta)))
 
-def shape_functions_dxi(xi,eta,zeta):
+def shape_functions_dxi(xi,eta,zeta,**kwargs):
     """
     Gradient of shape functions for trilinear hexahedron Lagrangian element. 
     The derivative is taken with regards to the reference coordinates, not the 
@@ -261,7 +295,7 @@ def shape_functions_dxi(xi,eta,zeta):
                                 (1-xi)*(1+eta)))
     return dx.reshape(int(np.prod(dx.shape)/24),8,3)
 
-def jacobian(xi,eta,zeta,xe,all_elems=False):
+def jacobian(xi,eta,zeta,xe,all_elems=False,**kwargs):
     """
     Jacobian for quadratic bilinear Lagrangian element. 
     
@@ -292,8 +326,9 @@ def jacobian(xi,eta,zeta,xe,all_elems=False):
         
     """
     # check coordinates and node data for consistency
-    xi,eta,zeta,xe = check_inputs(xi,eta,zeta,xe,all_elems)
-    return shape_functions_dxi(xi,eta,zeta).transpose([0,2,1]) @ xe
+    xe,xi,eta,zeta = check_inputs(xi=xi,eta=eta,zeta=zeta,xe=xe,
+                                  all_elems=all_elems)
+    return shape_functions_dxi(xi=xi,eta=eta,zeta=zeta).transpose([0,2,1]) @ xe
 
 def invjacobian(xi,eta,zeta,xe,
                 all_elems=False,return_det=False):
@@ -329,7 +364,7 @@ def invjacobian(xi,eta,zeta,xe,
         
     """
     # jacobian
-    J = jacobian(xi,eta,zeta,xe,all_elems=all_elems)
+    J = jacobian(xi=xi,eta=eta,zeta=zeta,xe=xe,all_elems=all_elems)
     # determinant
     det = (J[:,0,0]*(J[:,1,1]*J[:,2,2] - J[:,1,2]*J[:,2,1])-
            J[:,0,1]*(J[:,1,0]*J[:,2,2] - J[:,1,2]*J[:,2,0])+
@@ -435,7 +470,8 @@ def bmatrix(xi,eta,zeta,xe,
         
     """
     # check coordinates and node data for consistency
-    xi,eta,zeta,xe = check_inputs(xi,eta,zeta,xe,all_elems) 
+    xe,xi,eta,zeta = check_inputs(xi=xi,eta=eta,zeta=zeta,xe=xe,
+                                  all_elems=all_elems)
     # collect inverse jacobians
     invJ = invjacobian(xi,eta,zeta,xe)
     if not return_detJ:

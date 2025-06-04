@@ -6,11 +6,15 @@ def homogenization(lx, ly, lambda_, mu, phi, x,
                    debug=False):
     # Deduce discretization
     nely, nelx = x.shape
+    print(f'{nelx}x{nely} elements')
     x = x.flatten()
     # Stiffness matrix consists of two parts, one belonging to lambda and one belonging to mu. Same goes for load vector
     dx = lx / nelx
     dy = ly / nely
     nel = nelx * nely
+    if debug:
+        print('--- element measures ---')
+        print(f"dx: {dx}, dy: {dy}")
     keLambda, keMu, feLambda, feMu = elementMatVec(dx / 2, dy / 2, phi)
     if debug:
         print('--- keLambda ---')
@@ -21,6 +25,13 @@ def homogenization(lx, ly, lambda_, mu, phi, x,
         print(feLambda)
         print('--- feMu ---')
         print(feMu)
+        i = 0
+        for mu_,lam_ in zip(mu,lambda_):
+            i += 1 
+            print(f'--- ke material {i} ---')
+            print(keLambda*lam_ + keMu*mu_)
+            print(f'--- fe material {i} ---')
+            print(feLambda*lam_ + feMu*mu_)
     # Node numbers and element degrees of freedom for full (not periodic) mesh
     # unique dofs:
     ndof = 2*nelx*nely
@@ -245,7 +256,11 @@ if __name__ == "__main__":
     lx = ly = 1.0
     phi = 90
     x = np.random.randint(0,2,(2,2))#np.eye(2,dtype=int)
-    print(x)
+    #print(lambda_,mu)
+    #x = np.array([[1,1,0,0],
+    #              [1,1,0,0],
+    #              [0,0,1,1],
+    #              [0,0,1,1]])
     homogenization(lx=lx, ly=ly, lambda_=lambda_, mu=mu, phi=phi, x=x,
                    debug = True)
     import sys

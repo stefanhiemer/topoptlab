@@ -19,7 +19,7 @@ def _lf_bodyforce_2d(xe,
         definition/function of the shape function, then the node ordering is
         clear.
     b : np.ndarray of shape (nels,2) or (2)
-        density of element
+        body force (e. g. density*gravity_acceleration)
     t : np.ndarray of shape (nels) or (1)
         thickness of element
     quadr_method: str or callable
@@ -76,7 +76,7 @@ def lf_bodyforce_2d(b=np.array([0,-1]),
     Parameters
     ----------
     b : np.ndarray shape (2)
-        body force
+        body force (e. g. density*gravity_acceleration)
     l : np.ndarray (2)
         side length of element
     t : float

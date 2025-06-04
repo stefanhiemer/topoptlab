@@ -42,6 +42,38 @@ def create_edofMat(nelx,nely,nnode_dof,dtype=np.int32,**kwargs):
 
 def apply_pbc(edofMat,pbc,nelx,nely,nnode_dof,
               dtype=np.int32,**kwargs):
+    """
+    Convert a given element-degree-of-freedom matrix (edofMat) of a regular 
+    mesh of first order Lagrangian quadrilateral elements with free 
+    boundary conditions to the corresponding edofMat with periodic boundary 
+    conditions by re-labelling the nodal degrees of freedom
+    
+    Parameters
+    ----------
+    edofMat : np.ndarray of shape (nel,4*nnode_dof)
+        element-degree-of-freedom matrix (edofMat) of a regular 
+        mesh of first order Lagrangian quadrilateral elements with free 
+        boundary conditions.
+    pbc : list or np.ndarray of shape/len 2 with elements of datatype bool
+        periodic boundary condition flags.
+    nelx : int
+        number of elements in x-direction.
+    nely : int
+        number of elements in y-direction.
+    nnode_dof : int
+        number of degrees of freedom per node.
+    dtype : type
+        datatype of element degrees of freedom. Should be just large enough to 
+        store the highest number of the degrees of freedom to save memory. For
+        practical purposes np.int32 should do the job.
+        
+    Returns
+    -------
+    edofMat_new : np.ndarray of shape (nel,4*nnode_dof)
+        element-degree-of-freedom matrix (edofMat) of a regular 
+        mesh of first order Lagrangian quadrilateral elements with periodic 
+        boundary conditions with re-labelled nodal degrees of freedom.
+    """
     # update indices
     if pbc[1]:
         edofMat -= np.floor(edofMat / (nnode_dof*(nely+1)) \
@@ -64,7 +96,7 @@ def apply_pbc(edofMat,pbc,nelx,nely,nnode_dof,
         edofMat[pbc_y,nnode_dof:2*nnode_dof] = edofMat[org,2*nnode_dof:3*nnode_dof]
     return edofMat
 
-def check_inputs(xi,eta,xe=None,all_elems=False):
+def check_inputs(xi,eta,xe=None,all_elems=False,**kwargs):
     """
     Check coordinates and provided element node information to be consistent. 
     If necessary transform inputs to make them consistent.
@@ -97,6 +129,8 @@ def check_inputs(xi,eta,xe=None,all_elems=False):
         y coordinate in the reference domain of shape (n). 
     xe : np.ndarray
         coordinates of element nodes shape (n,4,2).
+    None : 
+        for compatibility with 3D.
     """
     #
     if isinstance(xi,np.ndarray) and isinstance(eta,np.ndarray):
@@ -130,11 +164,11 @@ def check_inputs(xi,eta,xe=None,all_elems=False):
             xe = np.repeat(xe,repeats=ncoords,axis=0)
         elif 4*nels == ncoords:
             xe = np.repeat(xe,repeats=4,axis=0)
-        return xi,eta,xe
+        return xe,xi,eta,None
     else:
         return ncoords
 
-def shape_functions(xi,eta):
+def shape_functions(xi,eta,**kwargs):
     """
     Shape functions for bilinear quadrilateral Lagrangian element in reference 
     domain. Coordinates bounded in [-1,1].
@@ -158,7 +192,7 @@ def shape_functions(xi,eta):
                                   (1+xi)*(1+eta),
                                   (1-xi)*(1+eta)))
 
-def shape_functions_dxi(xi,eta):
+def shape_functions_dxi(xi,eta,**kwargs):
     """
     Gradient of shape functions for bilinear quadrilateral Lagrangian element. 
     The derivative is taken with regards to the reference coordinates, not the 
@@ -169,8 +203,8 @@ def shape_functions_dxi(xi,eta):
     xi : float or np.ndarray
         x coordinate in the reference domain of shape (ncoords).
     eta : float or np.ndarray
-        y coordinate in the reference domain of shape (ncoords). Coordinates are assumed to be
-        in the reference domain.
+        y coordinate in the reference domain of shape (ncoords). Coordinates 
+        are assumed to be in the reference domain.
         
     Returns
     -------
@@ -178,10 +212,10 @@ def shape_functions_dxi(xi,eta):
         gradient of shape functions at specified coordinate(s).
         
     """
-    dx = 1/4 * np.column_stack(((-1)*(1-eta),(-1)*(1-xi),
-                                 (1-eta),(-1)*(1+xi),
-                                 1+eta,1+xi,
-                                 (-1)*(1+eta),1-xi))
+    dx = 1/4 * np.column_stack((eta-1, (xi-1),
+                                1-eta, -1-xi,
+                                1+eta, 1+xi,
+                                -1-eta, 1-xi))
     return dx.reshape(int(np.prod(dx.shape)/8),4,2)
 
 def jacobian(xi,eta,xe,all_elems=False):
@@ -193,8 +227,8 @@ def jacobian(xi,eta,xe,all_elems=False):
     xi : float or np.ndarray
         x coordinate in the reference domain of shape (ncoords).
     eta : float or np.ndarray
-        y coordinate in the reference domain of shape (ncoords). Coordinates are assumed to be
-        in the reference domain.
+        y coordinate in the reference domain of shape (ncoords). Coordinates 
+        are assumed to be in the reference domain.
     xe : np.ndarray
         coordinates of element nodes shape (nels,4,2). nels must be either 1, 
         ncoords/4 or the same as ncoords. The two exceptions are if 
@@ -212,8 +246,8 @@ def jacobian(xi,eta,xe,all_elems=False):
         
     """
     # check coordinates and node data for consistency
-    xi,eta,xe = check_inputs(xi,eta,xe,all_elems)
-    return shape_functions_dxi(xi,eta).transpose([0,2,1]) @ xe 
+    xe,xi,eta,_ = check_inputs(xi=xi,eta=eta,xe=xe,all_elems=all_elems) 
+    return shape_functions_dxi(xi=xi,eta=eta).transpose([0,2,1]) @ xe 
 
 def invjacobian(xi,eta,xe,
                 all_elems=False,return_det=False):
@@ -225,8 +259,8 @@ def invjacobian(xi,eta,xe,
     xi : np.ndarray
         x coordinate in the reference domain of shape (ncoords).
     eta : np.ndarray
-        y coordinate in the reference domain of shape (ncoords). Coordinates are assumed to be
-        in the reference domain.
+        y coordinate in the reference domain of shape (ncoords). Coordinates 
+        are assumed to be in the reference domain.
     xe : np.ndarray
         coordinates of element nodes shape (nels,4,2). nels must be either 1, 
         ncoords/4 or the same as ncoords. The two exceptions are if 
@@ -248,13 +282,13 @@ def invjacobian(xi,eta,xe,
         
     """
     # jacobian
-    J = jacobian(xi,eta,xe,all_elems=all_elems)
+    J = jacobian(xi=xi,eta=eta,xe=xe,all_elems=all_elems)
     # determinant
-    det = (J[:,0,0]*J[:,1,1]) - (J[:,1,0]*J[:,0,1])
+    detJ = (J[:,0,0]*J[:,1,1]) - (J[:,1,0]*J[:,0,1])
     # raise warning if determinant close to zero
-    if np.any(np.isclose(det, 0)):
+    if np.any(np.isclose(detJ, 0)):
         warn("Determinant of element numerically close to zero.")
-    elif np.any(det<0):
+    elif np.any(detJ<0):
         raise ValueError("Determinant of Jacobian negative.")
     # adjungate matrix
     adj = np.zeros(J.shape)
@@ -262,9 +296,9 @@ def invjacobian(xi,eta,xe,
     adj[:, 0, 1], adj[:, 1, 0] = -J[:, 0, 1], -J[:, 1, 0]
     # return inverse
     if not return_det:
-        return adj/det[:,None,None]
+        return adj/detJ[:,None,None]
     else:
-        return adj/det[:,None,None], det
+        return adj/detJ[:,None,None], detJ
 
 def jacobian_rectangle(a,b):
     """
@@ -338,7 +372,7 @@ def bmatrix(xi,eta,xe,
         
     """
     # check coordinates and node data for consistency
-    xi,eta,xe = check_inputs(xi,eta,xe,all_elems) 
+    xe,xi,eta,_ = check_inputs(xi=xi,eta=eta,xe=xe,all_elems=all_elems) 
     # collect inverse jacobians
     if not return_detJ:
         invJ = invjacobian(xi=xi,eta=eta,xe=xe,
@@ -348,7 +382,7 @@ def bmatrix(xi,eta,xe,
                                 return_det=return_detJ)
     # helper array to collect shape function derivatives
     helper = np.zeros((invJ.shape[0],4,8))
-    shp = shape_functions_dxi(xi,eta).transpose([0,2,1])
+    shp = shape_functions_dxi(xi=xi,eta=eta).transpose([0,2,1])
     helper[:,:2,::2] = shp
     helper[:,2:,1::2] = shp.copy() # copy to avoid np.views
     #
@@ -384,12 +418,12 @@ def bmatrix_rectangle(xi,eta,a,b):
         
     """
     # check coordinates for consistency
-    ncoords = check_inputs(xi, eta)
+    ncoords = check_inputs(xi=xi,eta=eta) 
     # collect inverse jacobians
-    invJ = invjacobian_rectangle(a,b)
+    invJ = invjacobian_rectangle(a=a,b=b)
     # helper array to collect shape function derivatives
     helper = np.zeros((ncoords,4,8))
-    shp = shape_functions_dxi(xi,eta).transpose([0,2,1])
+    shp = shape_functions_dxi(xi=xi,eta=eta).transpose([0,2,1])
     helper[:,:2,::2] = shp
     helper[:,2:,1::2] = shp.copy() # copy to avoid np.views
     #

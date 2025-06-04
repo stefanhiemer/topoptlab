@@ -31,7 +31,7 @@ def demonstrate_mma(nvars=3,
     # lower and upper bound for densities
     optimizer_kw["xmin"] = np.ones((nvars,1))*(-1.5)
     optimizer_kw["xmax"] = np.ones((nvars,1))*1.5
-    #optimizer_kw["move"] = 0.05
+    optimizer_kw["move"] = 1e-1
     # 
     dobj = np.zeros(x.shape)
     #
@@ -57,8 +57,8 @@ def demonstrate_mma(nvars=3,
                                                             **optimizer_kw)
         x = xmma.copy().flatten()
         # update asymptotes 
-        #optimizer_kw["low"] = np.maximum(x[:,None]-0.1,optimizer_kw["xmin"])
-        #optimizer_kw["upp"] = np.minimum(x[:,None]+0.1,optimizer_kw["xmax"])
+        optimizer_kw["low"] = np.maximum(x[:,None]-optimizer_kw["move"],optimizer_kw["xmin"])
+        optimizer_kw["upp"] = np.minimum(x[:,None]+optimizer_kw["move"],optimizer_kw["xmax"])
         # delete oldest element of iteration history
         xhist.pop(0)
         xhist.append(xval)

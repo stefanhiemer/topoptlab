@@ -27,6 +27,7 @@ def _lk_linear_elast_2d(xe,c,
         thickness of element
     nquad : int
         number of quadrature points
+        
     Returns
     -------
     Ke : np.ndarray, shape (nels,8,8)
@@ -241,6 +242,71 @@ def lk_linear_elast_aniso_2d(c,
                           c[1,1]*l[0]/(6*l[1]) - c[1,2]*np.tan(g[0])/6 + c[1,2]/4 - c[2,1]*np.tan(g[0])/6 - c[2,1]/4 + c[2,2]*l[1]*np.tan(g[0])**2/(6*l[0]) - c[2,2]*l[1]/(3*l[0]),
                           -c[1,0]*np.tan(g[0])/3 - c[1,0]/4 + c[1,2]*l[0]/(3*l[1]) + c[2,0]*l[1]*np.tan(g[0])/(2*l[0]) + c[2,0]*l[1]/(3*l[0]*np.cos(g[0])**2) - c[2,2]*np.tan(g[0])/3 - c[2,2]/4,
                           c[1,1]*l[0]/(3*l[1]) - c[1,2]*np.tan(g[0])/3 - c[1,2]/4 - c[2,1]*np.tan(g[0])/3 - c[2,1]/4 + c[2,2]*l[1]*np.tan(g[0])/(2*l[0]) + c[2,2]*l[1]/(3*l[0]*np.cos(g[0])**2)]])
+
+def _lf_strain_2d(xe,eps,c,
+                  quadr_method="gauss-legendre",
+                  t=np.array([1.]),
+                  nquad=2):
+    """
+    Compute nodal forces on bilinear quadrilateral Lagrangian element
+    (1st order) due to a uniform strain via numerical integration.
+    We assume anisotropic elasticity.
+
+    Parameters
+    ----------
+    xe : np.ndarray, shape (nels,4,2)
+        coordinates of element nodes. Please look at the
+        definition/function of the shape function, then the node ordering is
+        clear.
+    eps : np.ndarray shape (nels,3) or (3)
+        uniform strain in Voigt notation.
+    c : np.ndarray, shape (3,3)
+        stiffness tensor in Voigt notation.
+    quadr_method: str or callable
+        name of quadrature method or function/callable that returns coordinates of
+        quadrature points and weights. Check function get_integrpoints for
+        available options.
+    t : np.ndarray of shape (nels) or (1)
+        thickness of element
+    nquad : int
+        number of quadrature points
+        
+    Returns
+    -------
+    fe : np.ndarray, shape (nels,8,1)
+        nodal forces.
+
+    """
+    #
+    if len(xe.shape) == 2:
+        xe = xe[None,:,:]
+    nel = xe.shape[0]
+    #
+    if (len(eps.shape) == 1) or (eps.shape[0] == 1):
+        eps = np.full((xe.shape[0],3), eps)
+    #
+    if len(c.shape) == 2:
+        c = c[None,:,:]
+    #
+    if isinstance(t,float):
+        t = np.array([t])
+    #
+    x,w=get_integrpoints(ndim=2,nq=nquad,method=quadr_method)
+    nq =w.shape[0]
+    #
+    xi,eta = [_x[:,0] for _x in np.split(x, 2,axis=1)]
+    #
+    B,detJ = bmatrix(xi=xi, eta=eta, xe=xe,
+                     all_elems=True,
+                     return_detJ=True)
+    detJ = detJ.reshape(nel,nq)
+    B = B.reshape(nel, nq,  B.shape[-2], B.shape[-1])
+    #
+    integral = B.transpose([0,1,3,2])@c[:,None,:,:]@eps[:,None,None,:].transpose(0,1,3,2)
+    # multiply by determinant and quadrature
+    fe = (w[None,:,None,None]*integral*detJ[:,:,None,None]).sum(axis=1)
+    # multiply thickness
+    return t[:,None,None] * fe
 
 def lf_strain_2d(eps, E=1,nu=0.3,
                  l=np.array([1.,1.]), g = np.array([0.]),
