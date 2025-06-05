@@ -179,7 +179,7 @@ def elementMatVec(a, b, phi):
             # Integration point
             x = xx[ii]
             y = yy[jj]
-
+            print("x",x,y)
             # Differentiated shape functions
             dNx = 1 / 4 * np.array([-(1 - y), (1 - y), (1 + y), -(1 + y)])
             dNy = 1 / 4 * np.array([-(1 - x), -(1 + x), (1 + x), (1 - x)])
@@ -192,10 +192,10 @@ def elementMatVec(a, b, phi):
                     [-b, -b, b, b]
                 ]).T
             )
-
+            print("J",J)
             detJ = J[0, 0] * J[1, 1] - J[0, 1] * J[1, 0]
             invJ = 1 / detJ * np.array([[J[1, 1], -J[0, 1]], [-J[1, 0], J[0, 0]]])
-
+            print("detJ",detJ)
             # Weight factor at this point
             weight = ww[ii] * ww[jj] * detJ
 
@@ -207,7 +207,7 @@ def elementMatVec(a, b, phi):
             dN[2, 1:8:2] = dNx
             dN[3, 1:8:2] = dNy
             B = np.dot(np.dot(L, G), dN)
-
+            print("B",B)
             # Element matrices
             keLambda += weight * (np.dot(np.dot(B.T, CLambda), B))
             keMu += weight * (np.dot(np.dot(B.T, CMu), B))
@@ -223,7 +223,12 @@ def elementMatVec(a, b, phi):
 
 def check_elementMatVec():
 
-    keLambda, keMu, feLambda, feMu = elementMatVec(1/200, 1/200, 90)
+    keLambda, keMu, feLambda, feMu = elementMatVec(1/2, 1/2, 45)
+    # case E = 1. and nu = 1/3 plain stress
+    print("ke",(keLambda + keMu) * 3/8)
+    print("fe",(feLambda + feMu) * 3/8)
+    import sys 
+    sys.exit()
     print(keLambda)
     print(keMu)
     print(feLambda)
@@ -236,12 +241,12 @@ if __name__ == "__main__":
     #
     np.random.seed(0)
     #
-    #check_elementMatVec()
+    check_elementMatVec()
     # Example usage:
     #lambda = nu*E / ( (1+nu)*(1-2*nu) ) # 2D
     #mu = E/(2*(1+nu))
     Es = [1e-3,1e0]
-    nus = [0.3,0.3]
+    nus = [1/3,1/3]
     lambda_ = []
     mu = []
     for i in range(len(Es)):

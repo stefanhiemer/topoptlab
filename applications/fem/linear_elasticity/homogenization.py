@@ -21,7 +21,7 @@ from topoptlab.output_designs import export_vtk
 # MAIN DRIVER
 def fem_homogenization(nelx, nely, nelz=None,
                        xPhys=None, penal=3,
-                       Emax=1.0, Emin=1e-3, nu=0.3,
+                       Emax=1.0, Emin=1e-3, nu=1/3,
                        lin_solver="scipy-direct", preconditioner=None,
                        assembly_mode="full", l=1.,
                        file="homogenization",
@@ -93,11 +93,12 @@ def fem_homogenization(nelx, nely, nelz=None,
         xPhys = np.ones(n, dtype=float,order='F')
     # get element stiffness matrix, nodal forces and  element of freedom matrix
     if ndim == 2:
-        Ke = lk_linear_elast_2d(E=1.0, nu=nu,l=el_sidelengths)
+        Ke = lk_linear_elast_2d(E=1.0, nu=nu,
+                                l=el_sidelengths)
         fe = []
         eps = np.eye(3)
         for i in range(int((ndim**2 + ndim) /2)):
-            fe.append(lf_strain_2d(eps[i],E=1.0, nu=nu,l=el_sidelengths))
+            fe.append(lf_strain_2d(eps[i],E=1.0, nu=nu,l=el_sidelengths/2))
         fe = np.column_stack(fe)
         # infer nodal degrees of freedom assuming that we have 4/8 nodes in 2/3
         nd_ndof = int(Ke.shape[0]/4)
@@ -131,11 +132,13 @@ def fem_homogenization(nelx, nely, nelz=None,
     print(fe)
     #
     ndof = edofMat.max()+1
-    # find the elemental affine displacement field
-    if ndim == 2:
+    # find the imposed elemental field
+    if ndim == 2 and nd_ndof != 1:
         fixed = np.array([0,1,3])
-    else:
+    elif ndim == 3 and nd_ndof != 1:
         fixed = np.array([0,1,2,4,5,7,8])
+    elif nd_ndof == 1:
+        fixed = np.array([0])
     free = np.setdiff1d(np.arange(Ke.shape[-1]), fixed)
     u0 = np.zeros(fe.shape)
     u0[free] = solve(Ke[free,:][:,free],fe[free,:],

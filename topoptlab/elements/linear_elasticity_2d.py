@@ -292,6 +292,7 @@ def _lf_strain_2d(xe,eps,c,
         t = np.array([t])
     #
     x,w=get_integrpoints(ndim=2,nq=nquad,method=quadr_method)
+    print("x",x)
     nq =w.shape[0]
     #
     xi,eta = [_x[:,0] for _x in np.split(x, 2,axis=1)]
@@ -300,7 +301,9 @@ def _lf_strain_2d(xe,eps,c,
                      all_elems=True,
                      return_detJ=True)
     detJ = detJ.reshape(nel,nq)
+    print("detJ",detJ)
     B = B.reshape(nel, nq,  B.shape[-2], B.shape[-1])
+    print("B",B)
     #
     integral = B.transpose([0,1,3,2])@c[:,None,:,:]@eps[:,None,None,:].transpose(0,1,3,2)
     # multiply by determinant and quadrature

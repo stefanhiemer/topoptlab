@@ -18,7 +18,7 @@ def compare_heatexp_iso_2d(xe = np.array([[[-1.,-1.],
                                            [1.,1.],
                                            [-1.,1.]]]),
                            DeltaT=np.ones(4)):
-    l = (xe.max(axis=1)-xe.min(axis=1))[0]/2
+    l = (xe.max(axis=1)-xe.min(axis=1))[0]
     #
     c = isotropic_2d()
     #
@@ -42,7 +42,7 @@ def compare_heatexp_aniso_2d(xe = np.array([[[-1.,-1.],
                                              [1.,1.],
                                              [-1.,1.]]]),
                              DeltaT=np.ones(4)):
-    l = (xe.max(axis=1)-xe.min(axis=1))[0]/2
+    l = (xe.max(axis=1)-xe.min(axis=1))[0]
     #
     c = np.random.rand(3,3)
     c = c + c.T
@@ -66,7 +66,7 @@ def compare_heatexp_aniso_2d(xe = np.array([[[-1.,-1.],
 def compare_heatexp_iso_3d(xe = np.array([[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
                                            [-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]]]),
                            DeltaT=np.ones(8)):
-    l = (xe.max(axis=1)-xe.min(axis=1))[0]/2
+    l = (xe.max(axis=1)-xe.min(axis=1))[0]
     #
     c = isotropic_3d(E=1.,nu=0.3)
     #
@@ -88,7 +88,7 @@ def compare_heatexp_iso_3d(xe = np.array([[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-
 def compare_heatexp_aniso_3d(xe = np.array([[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
                                              [-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]]]),
                              DeltaT=np.ones(8)):
-    l = (xe.max(axis=1)-xe.min(axis=1))[0]/2
+    l = (xe.max(axis=1)-xe.min(axis=1))[0]
     #
     c = np.random.rand(6,6)
     c = c + c.T
@@ -113,7 +113,7 @@ def compare_bodyforce_2d(xe = np.array([[[-1.,-1.],
                                          [1.,-1.],
                                          [1.,1.],
                                          [-1.,1.]]])):
-    l = (xe.max(axis=1)-xe.min(axis=1))[0]/2
+    l = (xe.max(axis=1)-xe.min(axis=1))[0]
     #
     Ke_quad = _lf_bodyforce_2d(xe=xe)
     #
@@ -125,7 +125,7 @@ def compare_bodyforce_2d(xe = np.array([[[-1.,-1.],
 
 def compare_bodyforce_3d(xe = np.array([[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
                                          [-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]]])):
-    l = (xe.max(axis=1)-xe.min(axis=1))[0]/2
+    l = (xe.max(axis=1)-xe.min(axis=1))[0]
     #
     Ke_quad = _lf_bodyforce_3d(xe=xe)
     #
@@ -139,7 +139,7 @@ def compare_mass_2d(xe = np.array([[[-1.,-1.],
                                     [1.,-1.],
                                     [1.,1.],
                                     [-1.,1.]]])):
-    l = (xe.max(axis=1)-xe.min(axis=1))[0]/2
+    l = (xe.max(axis=1)-xe.min(axis=1))[0]
     #
     Ke_quad = _lm_mass_2d(xe=xe)
     #
@@ -151,7 +151,7 @@ def compare_mass_2d(xe = np.array([[[-1.,-1.],
 
 def compare_mass_3d(xe = np.array([[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
                                     [-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]]])):
-    l = (xe.max(axis=1)-xe.min(axis=1))[0]/2
+    l = (xe.max(axis=1)-xe.min(axis=1))[0]
     #
     Ke_quad = _lm_mass_3d(xe=xe)
     #
@@ -166,7 +166,7 @@ def compare_laplacian_2d(xe = np.array([[[-1.,-1.],
                                          [1.,1.],
                                          [-1.,1.]]]),
                          k = np.eye(2)):
-    l = (xe.max(axis=1)-xe.min(axis=1))[0]/2
+    l = (xe.max(axis=1)-xe.min(axis=1))[0]
     #
     Ke_quad = _lk_poisson_2d(xe=xe,k=k)
     #
@@ -181,7 +181,7 @@ def compare_laplacian_aniso_2d(xe = np.array([[[-1.,-1.],
                                                [1.,1.],
                                                [-1.,1.]]]),
                                k = np.eye(2)):
-    l = (xe.max(axis=1)-xe.min(axis=1))[0]/2
+    l = (xe.max(axis=1)-xe.min(axis=1))[0]
     #
     Ke_quad = _lk_poisson_2d(xe=xe,k=k)
     #
@@ -194,7 +194,7 @@ def compare_laplacian_aniso_2d(xe = np.array([[[-1.,-1.],
 def compare_laplacian_3d(xe = np.array([[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
                                          [-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]]]),
                          k = np.eye(3)):
-    l = (xe.max(axis=1)-xe.min(axis=1))[0]/2
+    l = (xe.max(axis=1)-xe.min(axis=1))[0]
     #
     Ke_quad = _lk_poisson_3d(xe=xe,k=k)
     #
@@ -211,7 +211,7 @@ def compare_laplacian_iso_3d(xe = np.array([[[-1,-1,-1],[1,-1,-1],
                                              [-1,-1,1],[1,-1,1],
                                              [1,1,1],[-1,1,1]]]),
                              k = np.eye(3)):
-    l = (xe.max(axis=1)-xe.min(axis=1))[0]/2
+    l = (xe.max(axis=1)-xe.min(axis=1))[0]
     #
     Ke_quad = _lk_poisson_3d(xe=xe,k=k)
     #
@@ -228,7 +228,7 @@ def compare_laplacian_aniso_3d(xe = np.array([[[-1,-1,-1],[1,-1,-1],
                                                [-1,-1,1],[1,-1,1],
                                                [1,1,1],[-1,1,1]]]),
                          k = np.eye(3)):
-    l = (xe.max(axis=1)-xe.min(axis=1))[0]/2
+    l = (xe.max(axis=1)-xe.min(axis=1))[0]
     #
     Ke_quad = _lk_poisson_3d(xe=xe,k=k)
     #
@@ -245,7 +245,7 @@ def compare_elast_2d(xe = np.array([[[-1.,-1.],
                                      [1.,1.],
                                      [-1.,1.]]]),
                      c = isotropic_2d()):
-    l = (xe.max(axis=1)-xe.min(axis=1))[0]/2
+    l = (xe.max(axis=1)-xe.min(axis=1))[0]
     #
     Ke_quad = _lk_linear_elast_2d(xe=xe,c=c)
     #
@@ -258,7 +258,7 @@ def compare_elast_2d(xe = np.array([[[-1.,-1.],
 def compare_elast_3d(xe = np.array([[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
                                      [-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]]]),
                      c = isotropic_3d()):
-    l = (xe.max(axis=1)-xe.min(axis=1))[0]/2
+    l = (xe.max(axis=1)-xe.min(axis=1))[0]
     #
     Ke_quad = _lk_linear_elast_3d(xe=xe,c=c)
     #
@@ -273,7 +273,7 @@ def compare_elast_iso_2d(xe = np.array([[[-1.,-1.],
                                      [1.,1.],
                                      [-1.,1.]]]),
                      c = isotropic_2d()):
-    l = (xe.max(axis=1)-xe.min(axis=1))[0]/2
+    l = (xe.max(axis=1)-xe.min(axis=1))[0]
     #
     Ke_quad = _lk_linear_elast_2d(xe=xe,c=c)
     #
@@ -286,7 +286,7 @@ def compare_elast_iso_2d(xe = np.array([[[-1.,-1.],
 def compare_elast_iso_3d(xe = np.array([[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
                                      [-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]]]),
                      c = isotropic_3d()):
-    l = (xe.max(axis=1)-xe.min(axis=1))[0]/2
+    l = (xe.max(axis=1)-xe.min(axis=1))[0]
     #
     Ke_quad = _lk_linear_elast_3d(xe=xe,c=c)
     #

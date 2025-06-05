@@ -388,7 +388,7 @@ def scale_cell(vertices):
     S = [ [0 for j in range(ndim)] for i in range(ndim)]
     for i in range(ndim):
         S[i][i] = l[i][0]
-    S = MatrixFunction(S)
+    S = MatrixFunction(S)/2
     # affine transformation matrix
     return vertices@(R@S).transpose()
 
@@ -427,9 +427,10 @@ def jacobian(ndim,
              order=1,
              return_J=True,
              return_inv=True,
-             return_det=True):
+             return_det=True,
+             debug=False):
     """
-    Symbolically compute the jacobian of the isoparametric mapping.
+    Symbolically compute the Jacobian of the isoparametric mapping.
 
     Parameters
     ----------
@@ -439,6 +440,14 @@ def jacobian(ndim,
         type of element.
     order : int
         order of element.
+    return_J : bool
+        if True, return Jacobian matrix.
+    return_inv : bool
+        if True, return inverse of Jacobian matrix.
+    return_det : bool
+        if True, return determinant of Jacobian matrix.
+    debug : bool
+        if True, print additional information.
 
     Returns
     -------
@@ -458,6 +467,10 @@ def jacobian(ndim,
     gradN = VectorFunction(basis).grad(ndim)
     #
     scaled = scale_cell(vertices)
+    if debug:
+        print("cell in physical space:\n",scaled)
+        print("basis functions in reference space:\n",basis)
+        print("gradient of basis functions in reference space:\n",gradN)
     #
     J = simplify_matrix( gradN.transpose()@scaled )
     if return_det or return_inv:

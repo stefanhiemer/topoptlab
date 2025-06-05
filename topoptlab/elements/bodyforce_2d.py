@@ -88,7 +88,7 @@ def lf_bodyforce_2d(b=np.array([0,-1]),
         nodal forces.
 
     """
-    A = l[0]*l[1]
+    A = l[0]*l[1] / 4
     return t*A*np.array([[b[0]],
                          [b[1]],
                          [b[0]],

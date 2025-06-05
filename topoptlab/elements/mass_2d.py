@@ -82,24 +82,8 @@ def lm_mass_2d(p=1.,
         element stiffness matrix.
 
     """
-    a = l[0]*l[1]
-    return p*t*np.array([[4*a/9, 2*a/9, a/9, 2*a/9],
-                         [2*a/9, 4*a/9, 2*a/9, a/9],
-                         [a/9, 2*a/9, 4*a/9, 2*a/9],
-                         [2*a/9, a/9, 2*a/9, 4*a/9]])
-
-def lm_mass_2d_legacy():
-    """
-    Create mass matrix for 2D with bilinear quadrilateral Lagrangian
-    elements. Taken from the 88 lines code and slightly modified.
-
-    Returns
-    -------
-    Ke : np.ndarray, shape (4,4)
-        element stiffness matrix.
-
-    """
-    return np.array([[1/9, 1/18, 1/36, 1/18],
-                     [1/18, 1/9, 1/18, 1/36],
-                     [1/36, 1/18, 1/9, 1/18],
-                     [1/18, 1/36, 1/18, 1/9]])
+    v = l[0]*l[1]*t
+    return p*v*np.array([[1/9, 1/18, 1/36, 1/18],
+                         [1/18, 1/9, 1/18, 1/36],
+                         [1/36, 1/18, 1/9, 1/18],
+                         [1/18, 1/36, 1/18, 1/9]])
