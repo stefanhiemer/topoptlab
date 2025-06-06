@@ -223,7 +223,7 @@ def elementMatVec(a, b, phi):
 
 def check_elementMatVec():
 
-    keLambda, keMu, feLambda, feMu = elementMatVec(1/2, 1/2, 45)
+    keLambda, keMu, feLambda, feMu = elementMatVec(1/2, 1/2, 90)
     # case E = 1. and nu = 1/3 plain stress
     print("ke",(keLambda + keMu) * 3/8)
     print("fe",(feLambda + feMu) * 3/8)
@@ -241,7 +241,7 @@ if __name__ == "__main__":
     #
     np.random.seed(0)
     #
-    check_elementMatVec()
+    #check_elementMatVec()
     # Example usage:
     #lambda = nu*E / ( (1+nu)*(1-2*nu) ) # 2D
     #mu = E/(2*(1+nu))

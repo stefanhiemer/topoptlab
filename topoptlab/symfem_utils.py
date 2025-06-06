@@ -8,6 +8,7 @@ from symfem import create_element, create_reference
 from symfem.functions import VectorFunction, MatrixFunction
 
 def convert_to_code(matrix,matrices=[],vectors=[],
+                    np_functions=["cos","sin","tan"],
                     npndarray=True,
                     max_line_length=200):
     """
@@ -60,14 +61,7 @@ def convert_to_code(matrix,matrices=[],vectors=[],
     #
     first_line = lines.split("],",1)[0]
     #
-    if not npndarray:
-        # add line break after every comma
-        if len(first_line) > max_line_length:
-            lines = lines.replace(",",",\n")
-        # add line break after every "],"
-        else:
-            lines = lines.replace("],","],\n")
-    else:
+    if npndarray:
         #
         delta = len("np.array("+first_line) - len(first_line)
         # add np.array
@@ -81,7 +75,16 @@ def convert_to_code(matrix,matrices=[],vectors=[],
         # add line break after every "],"
         else:
             lines = lines.replace("],","],\n"+"".join([" "]*delta))
-
+    else:
+        # add line break after every comma
+        if len(first_line) > max_line_length:
+            lines = lines.replace(",",",\n")
+        # add line break after every "],"
+        else:
+            lines = lines.replace("],","],\n")
+    # add numpy prefix to functions
+    for npfunc in np_functions:
+        lines = lines.replace(npfunc,"np."+npfunc)
     # replace entries ala "c11" with corresponding array entries c[0,0]
     for matrix in matrices:
         lines = sub(matrix + r'(\d)(\d)',
@@ -139,7 +142,6 @@ def generate_constMatrix(ncol,nrow,name,symmetric=False):
         for i in range(nrow):
             for j in range(i+1,nrow):
                 M[j][i] = M[i][j]
-
     return MatrixFunction(M)
 
 def stifftens_isotropic(ndim,plane_stress=True):
@@ -337,7 +339,7 @@ def small_strain_matrix(ndim,nd_inds,basis,isoparam_kws):
     Jinv = jacobian(ndim=ndim, 
                     return_J=False, return_inv=True, return_det=False, 
                     **isoparam_kws)
-    gradN_T = (VectorFunction(basis).grad(ndim)@Jinv).transpose()
+    gradN_T = (VectorFunction(basis).grad(ndim)@Jinv.transpose()).transpose()
     #
     bmatrix = [[0 for j in range(ncols)] for i in range(nrows)]
     # tension

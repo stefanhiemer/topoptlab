@@ -1,5 +1,6 @@
-from symfem.functions import VectorFunction
+from symfem.functions import ScalarFunction,VectorFunction
 from symfem.symbols import x
+from sympy import symbols
 
 from topoptlab.symfem_utils import base_cell ,generate_constMatrix
 from topoptlab.symfem_utils import convert_to_code, jacobian, simplify_matrix
@@ -77,10 +78,10 @@ def aniso_laplacian(ndim,
 if __name__ == "__main__":
 
     #
-    for dim in range(1,4):
-        print(str(dim)+"D")
-        print(convert_to_code(iso_laplacian(ndim = dim),
-                              matrices=["k"],vectors=["l","g"]),"\n")
+    #for dim in range(1,4):
+    #    print(str(dim)+"D")
+    #    print(convert_to_code(iso_laplacian(ndim = dim),
+    #                          matrices=["k"],vectors=["l","g"]),"\n")
     #
     for dim in range(1,4):
         print(str(dim)+"D")

@@ -98,7 +98,7 @@ def fem_homogenization(nelx, nely, nelz=None,
         fe = []
         eps = np.eye(3)
         for i in range(int((ndim**2 + ndim) /2)):
-            fe.append(lf_strain_2d(eps[i],E=1.0, nu=nu,l=el_sidelengths/2))
+            fe.append(lf_strain_2d(eps[i],E=1.0, nu=nu,l=el_sidelengths))
         fe = np.column_stack(fe)
         # infer nodal degrees of freedom assuming that we have 4/8 nodes in 2/3
         nd_ndof = int(Ke.shape[0]/4)
