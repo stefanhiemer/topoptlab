@@ -21,7 +21,7 @@ def test_isotrop_poisson_2d(ks,xe,l,g):
     # affine deform box
     R = eye(2)
     R[0,1] = tan(g)
-    S = eye(2)*l
+    S = eye(2)*l/2
     xe = xe@(R@S).T
     #
     Kes = stack([lk_poisson_2d(k=k,l=array([l,l]),g=array([g])) for k in zip(ks)])
@@ -54,7 +54,7 @@ def test_anisotrop_poisson_2d(ks,xe,l,g):
     # affine deform box
     R = eye(2)
     R[0,1] = tan(g)
-    S = eye(2)*l
+    S = eye(2)*l/2
     xe = xe@(R@S).T
     #
     if len(ks.shape) == 2:
@@ -90,7 +90,7 @@ def test_isotrop_poisson_3d(ks,xe,l,g):
     R = eye(3)
     R[0,1] = tan(g)
     R[0,2] = tan(g)
-    S = eye(3)*l
+    S = eye(3)*l/2
     xe = xe@(R@S).T
     #
     Kes = stack([lk_poisson_3d(k=k,l=array([l,l,l]),g=array([g,g])) for k in zip(ks)])
@@ -126,7 +126,7 @@ def test_anisotrop_poisson_3d(ks,xe,l,g):
     R = eye(3)
     R[0,1] = tan(g)
     R[0,2] = tan(g)
-    S = eye(3)*l
+    S = eye(3)*l/2
     xe = xe@(R@S).T
     #
     if len(ks.shape) == 2:

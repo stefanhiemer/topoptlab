@@ -19,7 +19,7 @@ from topoptlab.elements.bodyforce_3d import _lf_bodyforce_3d, lf_bodyforce_3d
 
 def test_compareanalyt(xe):
     
-    l = (xe.max(axis=1)-xe.min(axis=1))[0]/2
+    l = (xe.max(axis=1)-xe.min(axis=1))[0]
     if xe.shape[-1] == 2:
         #
         fes = stack([lf_bodyforce_2d(l=l) for i in range(xe.shape[0])])

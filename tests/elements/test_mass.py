@@ -19,7 +19,7 @@ from topoptlab.elements.mass_3d import _lm_mass_3d, lm_mass_3d
 
 def test_compareanalyt(xe):
     
-    l = (xe.max(axis=1)-xe.min(axis=1))[0]/2
+    l = (xe.max(axis=1)-xe.min(axis=1))[0]
     if xe.shape[-1] == 2:
         #
         Kes = stack([lm_mass_2d(l=l) for i in range(xe.shape[0])])

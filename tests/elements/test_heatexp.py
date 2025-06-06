@@ -22,7 +22,7 @@ def test_isotrop_heatexp_2d(Es,nus,_as,xe, l, g):
     # affine deform box
     R = eye(2)
     R[0,1] = tan(g)
-    S = eye(2)*l
+    S = eye(2)*l/2
     xe = xe@(R@S).T
     #
     Kes = stack([fk_heatexp_2d(E=E,nu=nu,a=a,l=array([l,l]),g=array([g])) \
@@ -64,7 +64,7 @@ def test_anisotrop_heatexp_2d(cs,_as, xe, l, g):
     # affine deform box
     R = eye(2)
     R[0,1] = tan(g)
-    S = eye(2)*l
+    S = eye(2)*l/2
     xe = xe@(R@S).T
     #
     if len(cs.shape) == 2:
@@ -100,7 +100,7 @@ def test_isotrop_heatexp_3d(Es,nus,_as,xe, l, g):
     R = eye(3)
     R[0,1] = tan(g)
     R[0,2] = tan(g)
-    S = eye(3)*l
+    S = eye(3)*l/2
     xe = xe@(R@S).T
     #
     Kes = stack([fk_heatexp_3d(E=E,nu=nu,a=a,l=array([l,l,l]),g=array([g,g])) for E,nu,a in zip(Es,nus,_as)])
@@ -171,7 +171,7 @@ def test_anisotrop_heatexp_3d(cs,_as, xe, l, g):
     R = eye(3)
     R[0,1] = tan(g)
     R[0,2] = tan(g)
-    S = eye(3)*l
+    S = eye(3)*l/2
     xe = xe@(R@S).T
     #
     if len(cs.shape) == 2 and xe.shape[0]==1:

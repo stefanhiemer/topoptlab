@@ -28,7 +28,7 @@ def test_isotrop_linelast_2d(Es,nus,c,xe,l,g):
     # affine deform box
     R = eye(2)
     R[0,1] = tan(g)
-    S = eye(2)*l
+    S = eye(2)*l/2
     xe = xe@(R@S).T
     #
     Kes = stack([lk_linear_elast_2d(E=E,nu=nu,l=array([l,l]),g=array([g]))\
@@ -62,7 +62,7 @@ def test_anisotrop_linelast_2d(c,xe,l,g):
     # affine deform box
     R = eye(2)
     R[0,1] = tan(g)
-    S = eye(2)*l
+    S = eye(2)*l/2
     xe = xe@(R@S).T
     #
     if len(c.shape) == 2:
@@ -101,7 +101,7 @@ def isotrop_linelast_3d(E,nu,cs,xe,l,g):
     R = eye(3)
     R[0,1] = tan(g)
     R[0,2] = tan(g)
-    S = eye(3)*l
+    S = eye(3)*l/2
     xe = xe@(R@S).T
     #
     if len(cs.shape) == 2:
@@ -140,7 +140,7 @@ def anisotrop_linelast_3d(cs,xe,l,g):
     R = eye(3)
     R[0,1] = tan(g)
     R[0,2] = tan(g)
-    S = eye(3)*l
+    S = eye(3)*l/2
     xe = xe@(R@S).T
     #
     if len(cs.shape) == 2:
