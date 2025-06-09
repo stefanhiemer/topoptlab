@@ -36,32 +36,6 @@ Run slow tests (take a few minutes)
 pytest -m slow
 ```
 
-# Things left to do:
+# Roadmap
 
-features in topopt.py 
-- [x] vectorize the simulation set up
-- [x] fix live animation
-- [x] check whether iK,jK,sK can be filtered by masking before setting up the
-      stiffness matrix.
-- [x] Helmholtz filter (with dense cholesky as scipy has no sparse cholesky)
-- [x] Helmholtz filter with LU decomposition (tested it, but gives different
-      results. I guess that Super-LU uses a different precision.)
-- [x] different examples than just MBB beam
-- [x] multiload cases
-- [x] active/passive elements
-- [x] compliant mechanism
-- [x] heat conduction
-- [x] Haevisde filter
-- [x] volume conserving eta projection
-- [x] include Method of Moving symptotes (MMA)
-- [x] additive manufacturing filter by Langelaar
-- [ ] clean up filter by Langelaar (vectorization etc. pp.)
-- [ ] include Globally Convergent Method of Moving symptotes (GCMMA)
-- [ ] FEM with PETSC
-- [ ] algebraic multigrid (AMG)
-- [ ] stress constraints
-- [ ] get rid of strange indexing for density/sensitivity filter
-- [ ] kick out from __future__ import division
-- [ ] np.union1d for setting up K is expensive. check if necessary.
-- [ ] accelerated optimality criteria (aOC)
-- [ ] 3D
+See [ROADMAP.md](./ROADMAP.md) for a list of upcoming features.

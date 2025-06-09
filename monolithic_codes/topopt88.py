@@ -101,7 +101,8 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
         u[free,0]=spsolve(K,f[free,0])
         # Objective and sensitivity
         ce[:] = (np.dot(u[edofMat,0],KE) * u[edofMat,0]).sum(1)
-        ce[:] = np.einsum('nj,ij,ni->n', u[edofMat,0],KE, u[edofMat,0])
+        # another pythonic alternative
+        #ce[:] = np.einsum('nj,ij,ni->n', u[edofMat,0],KE, u[edofMat,0])
         #
         obj=( (Emin+xPhys**penal*(Emax-Emin))*ce ).sum()
         dc[:]=(-penal*xPhys**(penal-1)*(Emax-Emin))*ce
