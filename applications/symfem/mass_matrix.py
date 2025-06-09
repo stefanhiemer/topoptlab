@@ -4,7 +4,7 @@ from symfem.symbols import x
 from topoptlab.symfem_utils import base_cell, shape_function_matrix
 from topoptlab.symfem_utils import convert_to_code, jacobian
 
-def mass(scalarfield, 
+def mass(scalarfield,
          ndim,
          element_type="Lagrange",
          order=1):
@@ -45,7 +45,7 @@ if __name__ == "__main__":
 
 
     #
-    for dim in range(1,4):
+    for dim in range(2,3):
         print(str(dim)+"D")
-        print(convert_to_code(mass(scalarfield=False, 
+        print(convert_to_code(mass(scalarfield=True,
                                    ndim = dim),vectors=["l"]),"\n")

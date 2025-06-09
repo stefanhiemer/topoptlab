@@ -61,7 +61,7 @@ def _lm_mass_2d(xe,
     return t[:,None,None] * p[:,None,None] * Ke
 
 def lm_mass_2d(p=1.,
-               l=np.array([1.,1.]), 
+               l=np.array([1.,1.]),
                t=1.):
     """
     Create mass matrix for 2D with bilinear quadrilateral Lagrangian

@@ -9,20 +9,20 @@ def _lk_poisson_2d(xe,k,
                    nquad=2):
     """
     Create element stiffness matrix for 2D Laplacian operator with bilinear
-    quadrilateral elements. 
-    
+    quadrilateral elements.
+
     Parameters
     ----------
     xe : np.ndarray, shape (nels,4,2)
-        coordinates of element nodes. Please look at the 
-        definition/function of the shape function, then the node ordering is 
+        coordinates of element nodes. Please look at the
+        definition/function of the shape function, then the node ordering is
         clear.
-    k : np.ndarray, shape (nels,3,3) or 
+    k : np.ndarray, shape (nels,3,3) or
         conductivity tensor or something equivalent.
     quadr_method: str or callable
-        name of quadrature method or function/callable that returns coordinates of 
-        quadrature points and weights. Check function get_integrpoints for 
-        available options. 
+        name of quadrature method or function/callable that returns coordinates of
+        quadrature points and weights. Check function get_integrpoints for
+        available options.
     t : np.ndarray of shape (nels) or (1)
         thickness of element
     nquad : int
@@ -31,7 +31,7 @@ def _lk_poisson_2d(xe,k,
     -------
     Ke : np.ndarray, shape (nels,4,4)
         element stiffness matrix.
-        
+
     """
     #
     if len(xe.shape) == 2:
@@ -59,7 +59,7 @@ def _lk_poisson_2d(xe,k,
     # multiply by determinant and quadrature
     Ke = (w[None,:,None,None]*integral*detJ[:,:,None,None]).sum(axis=1)
     #
-    return t[:,None,None] * Ke  
+    return t[:,None,None] * Ke
 
 def lk_poisson_2d(k=1.,
                   l=np.array([1.,1.]), g = [0.],
@@ -67,7 +67,7 @@ def lk_poisson_2d(k=1.,
     """
     Create element stiffness matrix for 2D Poisson with bilinear
     quadrilateral elements.
-    
+
     Parameters
     ----------
     k : float
@@ -78,26 +78,26 @@ def lk_poisson_2d(k=1.,
         angle of parallelogram.
     t : float
         thickness of element.
-    
+
     Returns
     -------
     Ke : np.ndarray, shape (4,4)
         element stiffness matrix.
-        
+
     """
-    
+    print(t,k,l,g)
     return t*k*np.array([[l[0]/(3*l[1]) - np.tan(g[0])/2 + l[1]/(3*l[0]*np.cos(g[0])**2), l[0]/(6*l[1]) - l[1]/(3*l[0]*np.cos(g[0])**2), -l[0]/(6*l[1]) + np.tan(g[0])/2 - l[1]/(6*l[0]*np.cos(g[0])**2), -l[0]/(3*l[1]) + l[1]/(6*l[0]*np.cos(g[0])**2)],
-          [l[0]/(6*l[1]) - l[1]/(3*l[0]*np.cos(g[0])**2), l[0]/(3*l[1]) + np.tan(g[0])/2 + l[1]/(3*l[0]*np.cos(g[0])**2), -l[0]/(3*l[1]) + l[1]/(6*l[0]*np.cos(g[0])**2), -l[0]/(6*l[1]) - np.tan(g[0])/2 - l[1]/(6*l[0]*np.cos(g[0])**2)],
-          [-l[0]/(6*l[1]) + np.tan(g[0])/2 - l[1]/(6*l[0]*np.cos(g[0])**2), -l[0]/(3*l[1]) + l[1]/(6*l[0]*np.cos(g[0])**2), l[0]/(3*l[1]) - np.tan(g[0])/2 + l[1]/(3*l[0]*np.cos(g[0])**2), l[0]/(6*l[1]) - l[1]/(3*l[0]*np.cos(g[0])**2)],
-          [-l[0]/(3*l[1]) + l[1]/(6*l[0]*np.cos(g[0])**2), -l[0]/(6*l[1]) - np.tan(g[0])/2 - l[1]/(6*l[0]*np.cos(g[0])**2), l[0]/(6*l[1]) - l[1]/(3*l[0]*np.cos(g[0])**2), l[0]/(3*l[1]) + np.tan(g[0])/2 + l[1]/(3*l[0]*np.cos(g[0])**2)]])
+                         [l[0]/(6*l[1]) - l[1]/(3*l[0]*np.cos(g[0])**2), l[0]/(3*l[1]) + np.tan(g[0])/2 + l[1]/(3*l[0]*np.cos(g[0])**2), -l[0]/(3*l[1]) + l[1]/(6*l[0]*np.cos(g[0])**2), -l[0]/(6*l[1]) - np.tan(g[0])/2 - l[1]/(6*l[0]*np.cos(g[0])**2)],
+                         [-l[0]/(6*l[1]) + np.tan(g[0])/2 - l[1]/(6*l[0]*np.cos(g[0])**2), -l[0]/(3*l[1]) + l[1]/(6*l[0]*np.cos(g[0])**2), l[0]/(3*l[1]) - np.tan(g[0])/2 + l[1]/(3*l[0]*np.cos(g[0])**2), l[0]/(6*l[1]) - l[1]/(3*l[0]*np.cos(g[0])**2)],
+                         [-l[0]/(3*l[1]) + l[1]/(6*l[0]*np.cos(g[0])**2), -l[0]/(6*l[1]) - np.tan(g[0])/2 - l[1]/(6*l[0]*np.cos(g[0])**2), l[0]/(6*l[1]) - l[1]/(3*l[0]*np.cos(g[0])**2), l[0]/(3*l[1]) + np.tan(g[0])/2 + l[1]/(3*l[0]*np.cos(g[0])**2)]])
 
 def lk_poisson_aniso_2d(k,
                         l=np.array([1.,1.]), g = [0.],
                         t=1.):
     """
     Create element stiffness matrix for anisotropic 2D Poisson with bilinear
-    quadrilateral elements. 
-    
+    quadrilateral elements.
+
     Parameters
     ----------
     k : np.ndarray, shape (2,2)
@@ -106,12 +106,12 @@ def lk_poisson_aniso_2d(k,
         side length of element
     t : float
         thickness of element
-        
+
     Returns
     -------
     Ke : np.ndarray, shape (4,4)
         element stiffness matrix.
-        
+
     """
     return t*np.array([[k[0,0]*l[1]/(3*l[0]) + k[0,1]/4 - k[0,1]*l[1]*np.tan(g[0])/(3*l[0]) + k[1,0]/4 - k[1,0]*l[1]*np.tan(g[0])/(3*l[0]) + k[1,1]*l[0]/(3*l[1]) - k[1,1]*np.tan(g[0])/2 + k[1,1]*l[1]*np.tan(g[0])**2/(3*l[0]),
            -k[0,0]*l[1]/(3*l[0]) + k[0,1]/4 + k[0,1]*l[1]*np.tan(g[0])/(3*l[0]) - k[1,0]/4 + k[1,0]*l[1]*np.tan(g[0])/(3*l[0]) + k[1,1]*l[0]/(6*l[1]) - k[1,1]*l[1]*np.tan(g[0])**2/(3*l[0]),
@@ -128,5 +128,4 @@ def lk_poisson_aniso_2d(k,
           [k[0,0]*l[1]/(6*l[0]) + k[0,1]/4 - k[0,1]*l[1]*np.tan(g[0])/(6*l[0]) - k[1,0]/4 - k[1,0]*l[1]*np.tan(g[0])/(6*l[0]) - k[1,1]*l[0]/(3*l[1]) + k[1,1]*l[1]*np.tan(g[0])**2/(6*l[0]),
            -k[0,0]*l[1]/(6*l[0]) + k[0,1]/4 + k[0,1]*l[1]*np.tan(g[0])/(6*l[0]) + k[1,0]/4 + k[1,0]*l[1]*np.tan(g[0])/(6*l[0]) - k[1,1]*l[0]/(6*l[1]) - k[1,1]*np.tan(g[0])/2 - k[1,1]*l[1]*np.tan(g[0])**2/(6*l[0]),
            -k[0,0]*l[1]/(3*l[0]) - k[0,1]/4 + k[0,1]*l[1]*np.tan(g[0])/(3*l[0]) + k[1,0]/4 + k[1,0]*l[1]*np.tan(g[0])/(3*l[0]) + k[1,1]*l[0]/(6*l[1]) - k[1,1]*l[1]*np.tan(g[0])**2/(3*l[0]),
-           k[0,0]*l[1]/(3*l[0]) - k[0,1]/4 - k[0,1]*l[1]*np.tan(g[0])/(3*l[0]) - k[1,0]/4 - k[1,0]*l[1]*np.tan(g[0])/(3*l[0]) + k[1,1]*l[0]/(3*l[1]) + k[1,1]*np.tan(g[0])/2 + k[1,1]*l[1]*np.tan(g[0])**2/(3*l[0])]]) 
-
+           k[0,0]*l[1]/(3*l[0]) - k[0,1]/4 - k[0,1]*l[1]*np.tan(g[0])/(3*l[0]) - k[1,0]/4 - k[1,0]*l[1]*np.tan(g[0])/(3*l[0]) + k[1,1]*l[0]/(3*l[1]) + k[1,1]*np.tan(g[0])/2 + k[1,1]*l[1]*np.tan(g[0])**2/(3*l[0])]])

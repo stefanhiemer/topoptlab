@@ -657,7 +657,7 @@ def lk_linear_elast_3d(E=1,nu=0.3,
            E*(2*l[0]**2*l[1]**2*nu - 2*l[0]**2*l[1]**2 + l[0]**2*l[2]**2*nu - l[0]**2*l[2]**2 - 2*l[1]**2*l[2]**2*nu*np.tan(g[0])**2 - 4*l[1]**2*l[2]**2*nu*np.tan(g[1])**2 - 2*l[1]**2*l[2]**2*nu + 2*l[1]**2*l[2]**2*np.tan(g[0])**2 + 4*l[1]**2*l[2]**2*np.tan(g[1])**2 + 2*l[1]**2*l[2]**2)/(36*l[0]*l[1]*l[2]*(2*nu**2 + nu - 1)),
            E*l[1]*(3*l[0] + 4*l[2]*np.tan(g[1]))/(72*l[0]*(2*nu - 1)),
            -E*(3*l[0]**2 + 3*l[0]*l[1]*np.tan(g[0]) + 3*l[0]*l[2]*np.tan(g[1]) + 4*l[1]*l[2]*np.tan(g[0])*np.tan(g[1]))/(72*l[0]*(2*nu - 1)),
-           E*(4*l[0]**2*l[1]**2*nu - 4*l[0]**2*l[1]**2 + 2*l[0]**2*l[2]**2*nu - 2*l[0]**2*l[2]**2 + 6*l[0]*l[1]**2*l[2]*nu*np.tan(g[1]) - 6*l[0]*l[1]**2*l[2]*np.tan(g[1]) + 3*l[0]*l[1]*l[2]**2*nu*np.tan(g[0]) - 3*l[0]*l[1]*l[2]**2*np.tan(g[0]) + 2*l[1]**2*l[2]**2*nu*np.tan(g[0])**2 + 4*l[1]**2*l[2]**2*nu*np.tan(g[1])**2 + 2*l[1]**2*l[2]**2*nu - 2*l[1]**2*l[2]**2*np.tan(g[0])**2 - 4*l[1]**2*l[2]**2*np.tan(g[1])**2 - 2*l[1]**2*l[2]**2)/(36*l[0]*l[1]*l[2]*(2*nu**2 + nu - 1))]]) 
+           E*(4*l[0]**2*l[1]**2*nu - 4*l[0]**2*l[1]**2 + 2*l[0]**2*l[2]**2*nu - 2*l[0]**2*l[2]**2 + 6*l[0]*l[1]**2*l[2]*nu*np.tan(g[1]) - 6*l[0]*l[1]**2*l[2]*np.tan(g[1]) + 3*l[0]*l[1]*l[2]**2*nu*np.tan(g[0]) - 3*l[0]*l[1]*l[2]**2*np.tan(g[0]) + 2*l[1]**2*l[2]**2*nu*np.tan(g[0])**2 + 4*l[1]**2*l[2]**2*nu*np.tan(g[1])**2 + 2*l[1]**2*l[2]**2*nu - 2*l[1]**2*l[2]**2*np.tan(g[0])**2 - 4*l[1]**2*l[2]**2*np.tan(g[1])**2 - 2*l[1]**2*l[2]**2)/(36*l[0]*l[1]*l[2]*(2*nu**2 + nu - 1))]])
 
 def lk_linear_elast_aniso_3d(c,
                              l=np.array([1.,1.,1.]), g = [0.,0.]):
@@ -1256,11 +1256,73 @@ def lk_linear_elast_aniso_3d(c,
            c[2,1]*l[0]/12 + c[2,1]*l[1]*np.tan(g[0])/12 + c[2,1]*l[2]*np.tan(g[1])/12 + c[2,1]*l[1]*l[2]*np.tan(g[0])*np.tan(g[1])/(9*l[0]) + c[2,3]*l[0]*l[1]/(9*l[2]) + c[2,3]*l[1]*np.tan(g[1])/6 + c[2,3]*l[1]*l[2]*np.tan(g[1])**2/(9*l[0]) - c[2,5]*l[1]/12 - c[2,5]*l[1]*l[2]*np.tan(g[1])/(9*l[0]) + c[3,1]*l[0]*l[2]/(9*l[1]) + c[3,1]*l[2]*np.tan(g[0])/6 + c[3,1]*l[1]*l[2]*np.tan(g[0])**2/(9*l[0]) + c[3,3]*l[0]/12 + c[3,3]*l[1]*np.tan(g[0])/12 + c[3,3]*l[2]*np.tan(g[1])/12 + c[3,3]*l[1]*l[2]*np.tan(g[0])*np.tan(g[1])/(9*l[0]) - c[3,5]*l[2]/12 - c[3,5]*l[1]*l[2]*np.tan(g[0])/(9*l[0]) - c[4,1]*l[2]/12 - c[4,1]*l[1]*l[2]*np.tan(g[0])/(9*l[0]) - c[4,3]*l[1]/12 - c[4,3]*l[1]*l[2]*np.tan(g[1])/(9*l[0]) + c[4,5]*l[1]*l[2]/(9*l[0]),
            c[2,2]*l[0]*l[1]/(9*l[2]) + c[2,2]*l[1]*np.tan(g[1])/6 + c[2,2]*l[1]*l[2]*np.tan(g[1])**2/(9*l[0]) + c[2,3]*l[0]/12 + c[2,3]*l[1]*np.tan(g[0])/12 + c[2,3]*l[2]*np.tan(g[1])/12 + c[2,3]*l[1]*l[2]*np.tan(g[0])*np.tan(g[1])/(9*l[0]) - c[2,4]*l[1]/12 - c[2,4]*l[1]*l[2]*np.tan(g[1])/(9*l[0]) + c[3,2]*l[0]/12 + c[3,2]*l[1]*np.tan(g[0])/12 + c[3,2]*l[2]*np.tan(g[1])/12 + c[3,2]*l[1]*l[2]*np.tan(g[0])*np.tan(g[1])/(9*l[0]) + c[3,3]*l[0]*l[2]/(9*l[1]) + c[3,3]*l[2]*np.tan(g[0])/6 + c[3,3]*l[1]*l[2]*np.tan(g[0])**2/(9*l[0]) - c[3,4]*l[2]/12 - c[3,4]*l[1]*l[2]*np.tan(g[0])/(9*l[0]) - c[4,2]*l[1]/12 - c[4,2]*l[1]*l[2]*np.tan(g[1])/(9*l[0]) - c[4,3]*l[2]/12 - c[4,3]*l[1]*l[2]*np.tan(g[0])/(9*l[0]) + c[4,4]*l[1]*l[2]/(9*l[0])]])
 
-def lf_strain_3d(eps, E=1,nu=0.3, 
+def _lf_strain_3d(xe,eps,c,
+                  quadr_method="gauss-legendre",
+                  nquad=2):
+    """
+    Compute nodal forces on trilinear hexahedral Lagrangian element
+    (1st order) due to a uniform strain via numerical integration.
+    We assume anisotropic elasticity.
+
+    Parameters
+    ----------
+    xe : np.ndarray, shape (nels,8,3)
+        coordinates of element nodes. Please look at the
+        definition/function of the shape function, then the node ordering is
+        clear.
+    eps : np.ndarray shape (nels,6) or (6)
+        uniform strain in Voigt notation.
+    c : np.ndarray, shape (6,6)
+        stiffness tensor in Voigt notation.
+    quadr_method: str or callable
+        name of quadrature method or function/callable that returns coordinates of
+        quadrature points and weights. Check function get_integrpoints for
+        available options.
+    nquad : int
+        number of quadrature points
+
+    Returns
+    -------
+    fe : np.ndarray, shape (nels,24,1)
+        nodal forces.
+
+    """
+    #
+    if len(xe.shape) == 3:
+        xe = xe[None,:,:]
+    nel = xe.shape[0]
+    #
+    if (len(eps.shape) == 1) or (eps.shape[0] == 1):
+        eps = np.full((xe.shape[0],6), eps)
+    #
+    if len(c.shape) == 2:
+        c = c[None,:,:]
+    #
+    x,w=get_integrpoints(ndim=3,nq=nquad,method=quadr_method)
+    print("x",x)
+    nq =w.shape[0]
+    #
+    xi,eta = [_x[:,0] for _x in np.split(x, 3,axis=1)]
+    #
+    B,detJ = bmatrix(xi=xi, eta=eta, xe=xe,
+                     all_elems=True,
+                     return_detJ=True)
+    detJ = detJ.reshape(nel,nq)
+    print("detJ",detJ)
+    B = B.reshape(nel, nq,  B.shape[-2], B.shape[-1])
+    print("B",B)
+    #
+    integral = B.transpose([0,1,3,2])@c[:,None,:,:]@eps[:,None,None,:].transpose(0,1,3,2)
+    # multiply by determinant and quadrature
+    fe = (w[None,:,None,None]*integral*detJ[:,:,None,None]).sum(axis=1)
+    # multiply thickness
+    return t[:,None,None] * fe
+
+def lf_strain_3d(eps, E=1,nu=0.3,
                  l=np.array([1.,1.,1.]), g = np.array([0.,0.])):
     """
-    Compute nodal forces on trilinear hexahedral Lagrangian element 
-    (1st order) due to a uniform strain via analytical integration. 
+    Compute nodal forces on trilinear hexahedral Lagrangian element
+    (1st order) due to a uniform strain via analytical integration.
     Element shape is a parallelepiped and we assume isotropic elasticity.
 
     Parameters
@@ -1310,8 +1372,8 @@ def lf_strain_3d(eps, E=1,nu=0.3,
 def lf_strain_aniso_3d(eps, c,
                        l=np.array([1.,1.,1.]), g = np.array([0.,0.])):
     """
-    Compute nodal forces on trilinear hexahedral Lagrangian element 
-    (1st order) due to a uniform strain via analytical integration. 
+    Compute nodal forces on trilinear hexahedral Lagrangian element
+    (1st order) due to a uniform strain via analytical integration.
     Element shape is a parallelepiped and we assume anisotropic elasticity.
 
     Parameters

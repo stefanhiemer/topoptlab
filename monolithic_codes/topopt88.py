@@ -8,9 +8,9 @@ import matplotlib.pyplot as plt
 # MAIN DRIVER
 def main(nelx,nely,volfrac,penal,rmin,ft):
     """
-    Topology optimization for maximum stiffness with the SIMP method based on 
+    Topology optimization for maximum stiffness with the SIMP method based on
     the default direct solver of scipy sparse.
-    
+
     Parameters
     ----------
     nelx : int
@@ -22,10 +22,10 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
     penal : float
         penalty exponent for the SIMP method.
     rmin : float
-        cutoff radius for the filter. Only elements within the element-center 
+        cutoff radius for the filter. Only elements within the element-center
         to element center distance are used for filtering.
     ft : int
-        integer flag for the filter. 0 sensitivity filtering, 
+        integer flag for the filter. 0 sensitivity filtering,
         1 density filtering, -1 no filter.
 
     Returns
@@ -55,16 +55,16 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
     el = np.arange(nelx*nely)
     n1 = ((nely+1)*elx+ely).flatten()
     n2 = ((nely+1)*(elx+1)+ely).flatten()
-    edofMat = np.column_stack((2*n1+2, 2*n1+3, 2*n2+2, 2*n2+3, 
+    edofMat = np.column_stack((2*n1+2, 2*n1+3, 2*n2+2, 2*n2+3,
                                2*n2, 2*n2+1, 2*n1, 2*n1+1))
     # Construct the index pointers for the coo format
     iK = np.tile(edofMat,KE.shape[-1]).flatten()
-    jK = np.repeat(edofMat,KE.shape[-1]).flatten()   
+    jK = np.repeat(edofMat,KE.shape[-1]).flatten()
     # assemble filter
     H,Hs = assemble_filter(rmin=rmin,el=el,nelx=nelx,nely=nely)
     # BC's and support
     dofs=np.arange(2*(nelx+1)*(nely+1))
-    fixed = np.hstack((np.arange(0,2*(nely+1),2), # symmetry 
+    fixed = np.hstack((np.arange(0,2*(nely+1),2), # symmetry
                        np.array([2*(nelx+1)*(nely+1)-1]))) # fixation bottom right
     free=np.setdiff1d(dofs,fixed)
     # Solution and RHS vectors
@@ -84,7 +84,7 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
                    labelbottom=False,
                    labelleft=False)
     fig.show()
-    # Set loop counter and gradient vectors 
+    # Set loop counter and gradient vectors
     loop=0
     change=1
     dv = np.ones(nely*nelx)
@@ -97,10 +97,12 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
         K = coo_matrix((sK,(iK,jK)),shape=(ndof,ndof)).tocsc()
         # Remove constrained dofs from matrix
         K = K[free,:][:,free]
-        # Solve system 
-        u[free,0]=spsolve(K,f[free,0])    
+        # Solve system
+        u[free,0]=spsolve(K,f[free,0])
         # Objective and sensitivity
-        ce[:] = (np.dot(u[edofMat].reshape(nelx*nely,8),KE) * u[edofMat].reshape(nelx*nely,8) ).sum(1)
+        ce[:] = (np.dot(u[edofMat,0],KE) * u[edofMat,0]).sum(1)
+        ce[:] = np.einsum('nj,ij,ni->n', u[edofMat,0],KE, u[edofMat,0])
+        #
         obj=( (Emin+xPhys**penal*(Emax-Emin))*ce ).sum()
         dc[:]=(-penal*xPhys**(penal-1)*(Emax-Emin))*ce
         dv[:] = np.ones(nely*nelx)
@@ -114,9 +116,9 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
         xold[:]=x
         x[:],g=oc(x,volfrac,dc,dv,g)
         # Filter design variables
-        if ft==0:   
+        if ft==0:
             xPhys[:]=x
-        elif ft==1:    
+        elif ft==1:
             xPhys[:]=np.asarray(H*x[np.newaxis].T/Hs)[:,0]
         # Compute the change by the inf. norm
         change=np.abs(x-xold).max()
@@ -127,15 +129,15 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
         # Write iteration history to screen (req. Python 2.6 or newer)
         print("it.: {0} , obj.: {1:.10f} Vol.: {2:.10f}, ch.: {3:.10f}".format(\
                     loop,obj,(g+volfrac*nelx*nely)/(nelx*nely),change))
-    # Make sure the plot stays and that the shell remains    
+    # Make sure the plot stays and that the shell remains
     plt.show()
     input("Press any key...")
-    return 
+    return
 # matrix filter
 def assemble_filter(rmin,el,nelx,nely):
     """
     Assemble matrix filter.
-    
+
     Parameters
     ----------
     rmin : float
@@ -146,7 +148,7 @@ def assemble_filter(rmin,el,nelx,nely):
         number of elements in x direction.
     nely : int
         number of elements in y direction.
-        
+
     Returns
     -------
     xnew : np.array, shape (nel)
@@ -183,14 +185,14 @@ def assemble_filter(rmin,el,nelx,nely):
 #element stiffness matrix
 def lk():
     """
-    Create element stiffness matrix for 2D linear elasticity equation with 
+    Create element stiffness matrix for 2D linear elasticity equation with
     bilinear quadrilateral elements in plane stress. Taken from the 88 line code.
-    
+
     Returns
     -------
     Ke : np.ndarray, shape (8,8)
         element stiffness matrix.
-        
+
     """
     E=1
     nu=0.3
@@ -208,12 +210,12 @@ def lk():
 # Optimality criterion
 def oc(x,volfrac,dc,dv,g):
     """
-    Optimality criteria method (section 2.2 in top88 paper) for maximum/minimum 
-    stiffness/compliance. Heuristic updating scheme for the element densities 
-    to find the Lagrangian multiplier. Overtaken and adapted from the 
-    
+    Optimality criteria method (section 2.2 in top88 paper) for maximum/minimum
+    stiffness/compliance. Heuristic updating scheme for the element densities
+    to find the Lagrangian multiplier. Overtaken and adapted from the
+
     165 LINE TOPOLOGY OPTIMIZATION CODE BY NIELS AAGE AND VILLADS EGEDE JOHANSEN
-    
+
     Parameters
     ----------
     x : np.array, shape (nel)
@@ -221,13 +223,13 @@ def oc(x,volfrac,dc,dv,g):
     volfrac : float
         volume fraction.
     dc : np.array, shape (nel)
-        gradient of objective function/complicance with respect to element 
+        gradient of objective function/complicance with respect to element
         densities.
     dv : np.array, shape (nel)
         gradient of volume constraint with respect to element densities..
     g : float
         parameter for the heuristic updating scheme.
-        
+
     Returns
     -------
     xnew : np.array, shape (nel)
@@ -254,7 +256,7 @@ def oc(x,volfrac,dc,dv,g):
         else:
             l2=lmid
     return xnew,gt
-# The real main driver    
+# The real main driver
 if __name__ == "__main__":
     # Default input parameters
     nelx=60

@@ -3,14 +3,14 @@ import numpy as np
 from topoptlab.elements.bilinear_quadrilateral import shape_functions,jacobian
 from topoptlab.fem import get_integrpoints
 
-def _lf_bodyforce_2d(xe,
-                     b=np.array([0,-1.]),
+def _lq_source_2d(xe,
+                     q=np.array([1.]),
                      t=np.array([1.]),
                      quadr_method="gauss-legendre",
-                     nquad=1):
+                     nquad=2):
     """
-    Compute nodal forces on bilinear quadrilateral elements (1st order) due to
-    bodyforce (e. g. gravity).
+    Compute nodal sources on bilinear quadrilateral elements (1st order) due
+    to a volumetric source (e. g. a reaction).
 
     Parameters
     ----------
@@ -18,8 +18,8 @@ def _lf_bodyforce_2d(xe,
         coordinates of element nodes. Please look at the
         definition/function of the shape function, then the node ordering is
         clear.
-    b : np.ndarray of shape (nels,2) or (2)
-        body force (e. g. density*gravity_acceleration)
+    q : np.ndarray of shape (nels,1) or (1)
+        source strength
     t : np.ndarray of shape (nels) or (1)
         thickness of element
     quadr_method: str or callable
@@ -30,8 +30,8 @@ def _lf_bodyforce_2d(xe,
         number of quadrature points
     Returns
     -------
-    fe : np.ndarray, shape (nels,8,1)
-        nodal forces.
+    qe : np.ndarray, shape (nels,4,1)
+        nodal sources.
 
     """
     #
@@ -39,8 +39,8 @@ def _lf_bodyforce_2d(xe,
         xe = xe[None,:,:]
     nel = xe.shape[0]
     #
-    if (len(b.shape) == 1) or (b.shape[0] == 1):
-        b = np.full((xe.shape[0],2), b)
+    if (len(q.shape) == 1) or (q.shape[0] == 1):
+        q = np.full((xe.shape[0],2), q)
     #
     if isinstance(t,float):
         t = np.array([t])

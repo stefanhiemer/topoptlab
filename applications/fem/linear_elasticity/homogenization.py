@@ -25,7 +25,7 @@ def fem_homogenization(nelx, nely, nelz=None,
                        lin_solver="scipy-direct", preconditioner=None,
                        assembly_mode="full", l=1.,
                        file="homogenization",
-                       export=False):
+                       export=False, debug=False):
     """
     Run a single finite element simulation on a regular grid performing linear
     homogenization along the lines of
@@ -126,13 +126,9 @@ def fem_homogenization(nelx, nely, nelz=None,
                               nelx=nelx, nely=nely, nelz=nelz,
                               nnode_dof=nd_ndof)
     #
-    print("--- Ke ---")
-    print(Ke)
-    print("--- fe ---")
-    print(fe)
-    #
     ndof = edofMat.max()+1
-    # find the imposed elemental field
+    # find the imposed elemental field. Material properties are unimportant here
+    # as it just depends on the geometry of the element, not its properties.
     if ndim == 2 and nd_ndof != 1:
         fixed = np.array([0,1,3])
     elif ndim == 3 and nd_ndof != 1:
@@ -143,15 +139,18 @@ def fem_homogenization(nelx, nely, nelz=None,
     u0 = np.zeros(fe.shape)
     u0[free] = solve(Ke[free,:][:,free],fe[free,:],
                      assume_a="sym")
-    print("--- u0 ---")
-    print(u0)
+    if debug:
+        print("--- u0 ---")
+        print(u0)
+        print("--- Ke ---")
+        print(Ke)
+        print("--- fe ---")
+        print(fe)
     # Construct the index pointers for the coo format
     iK,jK = create_matrixinds(edofMat,mode=assembly_mode)
     # BC's and support
     u,f,fixed,free,_ = singlenode(nelx=nelx,nely=nely,nelz=nelz,
                                   ndof=ndof)
-    print("--- fixed ---")
-    print(fixed)
     # interpolate material properties
     scale = (Emin+(xPhys)** penal*(Emax-Emin))
     Kes = Ke[None,:,:]*scale[:,None,None]
@@ -164,8 +163,6 @@ def fem_homogenization(nelx, nely, nelz=None,
     KE = assemble_matrix(sK=sK,iK=iK,jK=jK,
                          ndof=ndof,solver=lin_solver,
                          springs=None)
-    print("--- KE ---")
-    print(KE)
     # assemble forces
     np.add.at(f,
               edofMat,
@@ -173,8 +170,13 @@ def fem_homogenization(nelx, nely, nelz=None,
     # assemble completely
     rhs = assemble_rhs(f0=f,
                        solver=lin_solver)
-    print("--- rhs ---")
-    print(rhs)
+    if debug:
+        print("--- fixed ---")
+        print(fixed)
+        print("--- KE ---")
+        print(KE)
+        print("--- rhs ---")
+        print(rhs)
     # apply boundary conditions to matrix
     KE = apply_bc(K=KE, solver=lin_solver,
                   free=free, fixed=fixed)
@@ -182,10 +184,11 @@ def fem_homogenization(nelx, nely, nelz=None,
     u[free, :], fact, precond, = solve_lin(K=KE, rhs=rhs[free],
                                            solver=lin_solver,
                                            preconditioner=preconditioner)
-    print("--- u ---")
-    print(u)
-    print("--- f ---")
-    print(f)
+    if debug:
+        print("--- u ---")
+        print(u)
+        print("--- f ---")
+        print(f)
     # calculate effective elastic tensor
     CH = np.zeros((fe.shape[-1], fe.shape[-1]))
     cellVolume = np.prod(l)
@@ -194,10 +197,10 @@ def fem_homogenization(nelx, nely, nelz=None,
         for j in range(fe.shape[-1]):
             # Homogenized elasticity tensor
             CH[i, j] = np.einsum('nj,nij,ni->n', du[:,:,i],Kes, du[:,:,j]).sum()
-    print(Kes.shape,du.shape)
     CH = CH/cellVolume
-    print('--- cellVolume ---')
-    print(cellVolume)
+    if debug:
+        print('--- cellVolume ---')
+        print(cellVolume)
     print('--- Homogenized elasticity tensor ---')
     print(CH)
     #
@@ -216,12 +219,6 @@ if __name__ == "__main__":
     nely = 2
     nelz = None
     #
-    if nelz is None:
-        #xPhys = np.random.rand(nelx*nely)
-        xPhys = np.random.randint(0,2,(2,2)).flatten()#np.eye(2).flatten()
-    else:
-        xPhys = np.random.rand(nelx*nely*nelz)
-    #
     import sys
     if len(sys.argv)>1:
         nelx = int(sys.argv[1])
@@ -229,6 +226,11 @@ if __name__ == "__main__":
         nely = int(sys.argv[2])
     if len(sys.argv)>3:
         nelz = int(sys.argv[3])
+    if nelz is None:
+        #xPhys = np.random.rand(nelx*nely)
+        xPhys = np.random.randint(0,2,(2,2)).flatten()#np.eye(2).flatten()
+    else:
+        xPhys = np.random.rand(nelx*nely*nelz)
     #
     fem_homogenization(nelx=nelx, nely=nely, nelz=nelz,
                        xPhys=xPhys,l=1.)

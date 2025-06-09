@@ -5,9 +5,9 @@ from sympy import symbols
 from topoptlab.symfem_utils import base_cell,shape_function_matrix,generate_constMatrix
 from topoptlab.symfem_utils import convert_to_code, jacobian
 
-def body_force(ndim,
-               element_type="Lagrange",
-               order=1):
+def source(ndim,
+           element_type="Lagrange",
+           order=1):
     """
     Symbolically compute the mass matrix.
 

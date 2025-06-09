@@ -8,14 +8,14 @@ from topoptlab.elements.poisson_2d import _lk_poisson_2d, lk_poisson_2d
 @pytest.mark.parametrize('ks, xe, l, g',
                          [([1.],
                            array([[[-1,-1],[1,-1],[1,1],[-1,1]]]),
-                           2,0.),
-                          ([1.,2.],
+                           2., 0.5),
+                          ([1., 2.],
                            array([[[-1,-1],[1,-1],[1,1],[-1,1]]]),
-                           1.2,0.),
-                          ([1.,2.],
+                           1.2, 0.9),
+                          ([1., 2.],
                            array([[[-1,-1],[1,-1],[1,1],[-1,1]],
                                   [[-1,-1],[1,-1],[1,1],[-1,1]]]),
-                           1.3,0.),])
+                           1.3, 0.),])
 
 def test_isotrop_poisson_2d(ks,xe,l,g):
     # affine deform box
@@ -24,7 +24,7 @@ def test_isotrop_poisson_2d(ks,xe,l,g):
     S = eye(2)*l/2
     xe = xe@(R@S).T
     #
-    Kes = stack([lk_poisson_2d(k=k,l=array([l,l]),g=array([g])) for k in zip(ks)])
+    Kes = stack([lk_poisson_2d(k=k,l=array([l,l]),g=array([g])) for k in ks])
     #
     ks = array(ks)[:,None,None]*eye(2)[None,:,:]
     assert_almost_equal(_lk_poisson_2d(xe=xe,k=ks),
@@ -41,14 +41,14 @@ from topoptlab.elements.poisson_2d import lk_poisson_aniso_2d
                           (stack([array([[1,2],[2,1]]),array([[2,3],[3,2]])]),
                            array([[[-1,-1],[1,-1],[1,1],[-1,1]],
                                   [[-1,-1],[1,-1],[1,1],[-1,1]]]),
-                           1.2,0.),
+                           1.2,0.2),
                           (stack([array([[1,2],[2,1]]),array([[2,3],[3,2]])]),
                            array([[[-1,-1],[1,-1],[1,1],[-1,1]]]),
-                           2.4,0.),
+                           2.4,0.5),
                           (stack([array([[1,2],[2,1]]),array([[2,3],[3,2]])]),
                            array([[[-1,-1],[1,-1],[1,1],[-1,1]],
                                   [[-1,-1],[1,-1],[1,1],[-1,1]]]),
-                           3.2,0.),])
+                           3.2,0.1),])
 
 def test_anisotrop_poisson_2d(ks,xe,l,g):
     # affine deform box
@@ -77,13 +77,13 @@ from topoptlab.elements.poisson_3d import _lk_poisson_3d,lk_poisson_3d
                           ([1.5,2],
                            array([[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
                                    [-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]]]),
-                            1.2,0.),
+                            1.2,0.1),
                           ([1.3,2],
                            array([[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
                                    [-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]],
                                   [[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
                                    [-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]]]),
-                            2,0.)])
+                            2,-0.2)])
 
 def test_isotrop_poisson_3d(ks,xe,l,g):
     # affine deform box
