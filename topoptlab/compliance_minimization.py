@@ -44,8 +44,8 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
          obj_func=compliance, obj_kw={},
          el_flags=None,
          optimizer="oc", optimizer_kw = None,
-         mix=None, 
-         accelerator_kw={"accel_freq": 4, 
+         mix=None,
+         accelerator_kw={"accel_freq": 4,
                          "accel_start": 20,
                          "max_history": 0,
                          "accelerator": None},
@@ -55,7 +55,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
          debug=0):
     """
     Topology optimization workflow with the SIMP method based on
-    the default direct solver of scipy sparse. Can treat single physics 
+    the default direct solver of scipy sparse. Can treat single physics
     problems.
 
     Parameters
@@ -82,12 +82,12 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         implemented via a sparse matrix and applied by multiplying
         said matrix with the densities/sensitivities.
     solver : str
-        solver for linear systems. Check function lin solve for available 
+        solver for linear systems. Check function lin solve for available
         options.
     preconditioner : str or None
-        preconditioner for linear systems. 
+        preconditioner for linear systems.
     assembly_mode : str
-        whether full or only lower triangle of linear system / matrix is 
+        whether full or only lower triangle of linear system / matrix is
         created.
     bcs : str or callable
         returns the boundary conditions
@@ -97,11 +97,11 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         side lengths of each element
     obj_func : callable
         objective function. Should update the objective value, the rhs of the
-        the adjoint problem (currently only for stationary lin. problems) and 
+        the adjoint problem (currently only for stationary lin. problems) and
         a flag indicating whether the objective is self adjoint.
     obj_kw : dict
-        keywords needed for the objective function. E. g. for a compliant 
-        mechanism and maximization of the displacement it would be the 
+        keywords needed for the objective function. E. g. for a compliant
+        mechanism and maximization of the displacement it would be the
         indicator array for output nodes. Check the objective for the necessary
         entries.
     el_flags : np.ndarray or None
@@ -169,7 +169,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         n = nelx * nely
     elif ndim == 3:
         n = nelx * nely * nelz
-    # 
+    #
     if isinstance(l,float):
         l = np.array( [l for i in np.arange(ndim)])
     # get function of element stiffness matrix
@@ -185,7 +185,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     dobj = np.zeros(x.shape[0],order="F")
     dv = np.ones(x.shape[0],order="F")
     # initialize solver
-    if optimizer_kw is None:        
+    if optimizer_kw is None:
         if optimizer in ["oc","ocm","ocg"]:
             # must be initialized to use the NGuyen/Paulino OC approach
             g = 0
@@ -273,7 +273,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         elif ndim == 3:
             raise NotImplementedError("Plotting in 3D not yet implemented.")
             # marching cubes to find contour line
-            verts, faces, normals, values = marching_cubes(mapping(-xPhys), 
+            verts, faces, normals, values = marching_cubes(mapping(-xPhys),
                                                           level=volfrac)
             fig, ax = plt.subplots(1,1,subplot_kw={"projection": "3d"})
             #
@@ -307,11 +307,14 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         if optimizer in ["oc","mma", "ocm","ocg"] or\
            (optimizer in ["gcmma"] and ninneriter==0) or\
            loop==0:
-            # update physical properties of the elements and thus the entries 
+            # update physical properties of the elements and thus the entries
             # of the elements
+            scale = (Emin+(xPhys)**penal * (Emax-Emin))
+            Kes = KE[None,:,:]*scale[:,None,None]
             if assembly_mode == "full":
-                sK = (KE.flatten()[:,None]*(Emin+(xPhys)
-                       ** penal*(Emax-Emin))).flatten(order='F')
+                #sK = (KE.flatten()[:,None]*(Emin+(xPhys)\
+                #       ** penal*(Emax-Emin))).flatten(order='F')
+                sK = Kes.flatten()
             # Setup and solve FE problem
             # To Do: loop over boundary conditions if incompatible
             # assemble system matrix
@@ -324,7 +327,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             K = apply_bc(K=K,solver=lin_solver,
                          free=free,fixed=fixed)
             # solve linear system. fact is a factorization and precond a preconditioner
-            u[free, :], fact, precond = solve_lin(K=K, rhs=rhs[free], 
+            u[free, :], fact, precond = solve_lin(K=K, rhs=rhs[free],
                                                   solver=lin_solver,
                                                   preconditioner=preconditioner)
             # Objective and objective gradient
@@ -332,9 +335,9 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             dobj[:] = np.zeros(x.shape[0])
             for i in np.arange(f.shape[1]):
                 # obj. value, selfadjoint variables, self adjoint flag
-                obj,rhs_adj,self_adj = obj_func(obj=obj, 
-                                                xPhys=xPhys,u=u[:,i],
-                                                KE=KE,edofMat=edofMat,
+                obj,rhs_adj,self_adj = obj_func(obj=obj, i=i,
+                                                xPhys=xPhys,u=u,
+                                                KE=KE, edofMat=edofMat,
                                                 Amax=Emax,Amin=Emin,
                                                 penal=penal,
                                                 **obj_kw)
@@ -349,7 +352,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                                             preconditioner = preconditioner)
                     if f0 is None:
                         dobj += penal*xPhys**(penal-1)*(Emax-Emin)*\
-                              (np.dot(h[edofMat,i], KE)*u[edofMat,i]).sum(1) 
+                              (np.dot(h[edofMat,i], KE)*u[edofMat,i]).sum(1)
                     else:
                         dobj += penal*xPhys**(penal-1)*(Emax-Emin)*\
                               (np.dot(h[edofMat,i], KE)*\
@@ -408,16 +411,16 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         # density update by optimizer
         # optimality criteria
         if optimizer=="oc":
-            (x[:], g) = oc_top88(x=x, volfrac=volfrac, 
-                                 dc=dobj, dv=dv, g=g, 
+            (x[:], g) = oc_top88(x=x, volfrac=volfrac,
+                                 dc=dobj, dv=dv, g=g,
                                  el_flags=el_flags)
         elif optimizer=="ocm":
-            (x[:], g) = oc_mechanism(x=x, volfrac=volfrac, 
-                                     dc=dobj, dv=dv, g=g, 
+            (x[:], g) = oc_mechanism(x=x, volfrac=volfrac,
+                                     dc=dobj, dv=dv, g=g,
                                      el_flags=el_flags)
         elif optimizer=="ocg":
-            (x[:], g) = oc_generalized(x=x, volfrac=volfrac, 
-                                       dc=dobj, dv=dv, g=g, 
+            (x[:], g) = oc_generalized(x=x, volfrac=volfrac,
+                                       dc=dobj, dv=dv, g=g,
                                        el_flags=el_flags)
         # method of moving asymptotes
         elif optimizer=="mma":
@@ -431,7 +434,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                                                                 dconstr=dv,
                                                                 iteration=loop,
                                                                 **optimizer_kw)
-            # update asymptotes 
+            # update asymptotes
             optimizer_kw["low"] = low
             optimizer_kw["upp"] = upp
             x = xmma.copy().flatten()

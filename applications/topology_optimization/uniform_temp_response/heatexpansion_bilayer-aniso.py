@@ -175,7 +175,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         n = nelx * nely
     elif ndim == 3:
         n = nelx * nely * nelz
-    # 
+    #
     if isinstance(l,float):
         l = np.array( [l for i in np.arange(ndim)])
     # Allocate design variables (as array), initialize and allocate sens.
@@ -185,14 +185,14 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     xPhys = x.copy()
     #
     if ndim == 2:
-        xe = np.array([[[-1.,-1.],
-                        [1.,-1.],
-                        [1.,1.],
-                        [-1.,1.]]]) * np.ones(xPhys.shape)[:,None,None]*l
+        xe = l*np.array([[[-1.,-1.],
+                          [1.,-1.],
+                          [1.,1.],
+                          [-1.,1.]]])/2 * np.ones(xPhys.shape)[:,None,None]
     elif ndim == 3:
-        xe = np.array([[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
-                        [-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]]]) \
-            * np.ones(xPhys.shape)[:,None,None]*l
+        xe = l*np.array([[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
+                          [-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]]])/2 \
+            * np.ones(xPhys.shape)[:,None,None]
     # anisotropic bilayer
     Emax = 1.
     if ndim ==2:
@@ -390,7 +390,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             dobj[:] = np.zeros(x.shape[0])
             for i in np.arange(f.shape[1]):
                 # obj. value, selfadjoint variables, self adjoint flag
-                obj,rhs_adj,self_adj = obj_func(obj=obj,
+                obj,rhs_adj,self_adj = obj_func(obj=obj,i=i,
                                                 xPhys=xPhys,u=u[:,i],
                                                 KE=KE,edofMat=edofMat,
                                                 Amax=1.,Amin=eps,
@@ -583,7 +583,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                                           solver=lin_solver,
                                           preconditioner=preconditioner)
     #
-    obj,rhs_adj,self_adj = obj_func(obj=obj,
+    obj,rhs_adj,self_adj = obj_func(obj=obj,i=0,
                                     xPhys=xThresh,u=u_bw[:,0],
                                     KE=KE,edofMat=edofMat,
                                     Amax=1.,Amin=eps,

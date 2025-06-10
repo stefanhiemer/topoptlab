@@ -5,7 +5,7 @@ from topoptlab.example_bc.lin_elast import forceinverter_2d
 from topoptlab.objectives import var_squarederror
 
 if __name__ == "__main__":
-    
+
     # Default input parameters
     nelx = 40
     nely = 20
@@ -17,17 +17,17 @@ if __name__ == "__main__":
     export = False
     #
     import sys
-    if len(sys.argv)>1: 
+    if len(sys.argv)>1:
         nelx = int(sys.argv[1])
-    if len(sys.argv)>2: 
+    if len(sys.argv)>2:
         nely = int(sys.argv[2])
-    if len(sys.argv)>3: 
+    if len(sys.argv)>3:
         volfrac = float(sys.argv[3])
-    if len(sys.argv)>4: 
+    if len(sys.argv)>4:
         rmin = float(sys.argv[4])
-    if len(sys.argv)>5: 
+    if len(sys.argv)>5:
         penal = float(sys.argv[5])
-    if len(sys.argv)>6: 
+    if len(sys.argv)>6:
         ft = int(sys.argv[6])
     if len(sys.argv)>7:
         display = bool(int(sys.argv[7]))
@@ -36,12 +36,11 @@ if __name__ == "__main__":
     #
     l = zeros((2*(nelx+1)*(nely+1),1))
     l[2*nelx*(nely+1),0] = 1
-    # 
+    #
     u0 = -0.3
     #
-    main(nelx=nelx, nely=nely, volfrac=volfrac, penal=penal, rmin=rmin, 
-         bcs=forceinverter_2d , obj_func=var_squarederror ,
+    main(nelx=nelx, nely=nely, volfrac=volfrac, penal=penal, rmin=rmin,
+         bcs=forceinverter_2d, obj_func=var_squarederror,
          obj_kw={"l": l,"u0": u0},
          ft=ft, filter_mode="matrix",optimizer="ocm",
          display=display,export=export)
-    

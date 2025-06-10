@@ -1,6 +1,6 @@
 from topoptlab.compliance_minimization import main
 from topoptlab.example_bc.lin_elast import cantilever_2d_twoloads_wrong,cantilever_2d_twoloads
-from topoptlab.objectives import compliance,compliance_squarederror
+from topoptlab.objectives import compliance_control
 
 # The real main driver
 if __name__ == "__main__":
@@ -32,9 +32,9 @@ if __name__ == "__main__":
         export = bool(int(sys.argv[8]))
     #
     main(nelx=nelx, nely=nely, volfrac=volfrac, penal=penal,
-         rmin=rmin, ft=ft, filter_mode = "matrix",
-         obj_func=compliance,
-         #obj_func=compliance_squarederror, obj_kw={"c0": [75, 80]},
-         optimizer="oc",lin_solver="cvxopt-cholmod",
+         rmin=rmin,
+         obj_func=compliance_control, obj_kw={"c0": 70},
+         ft=ft, filter_mode = "matrix",
+         optimizer="mma",lin_solver="cvxopt-cholmod",
          bcs=cantilever_2d_twoloads_wrong,
          debug=False,display=display,export=export)
