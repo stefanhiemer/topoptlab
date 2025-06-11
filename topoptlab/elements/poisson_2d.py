@@ -6,7 +6,8 @@ from topoptlab.elements.bilinear_quadrilateral import invjacobian,shape_function
 def _lk_poisson_2d(xe,k,
                    quadr_method="gauss-legendre",
                    t=np.array([1.]),
-                   nquad=2):
+                   nquad=2,
+                   **kwargs):
     """
     Create element stiffness matrix for 2D Laplacian operator with bilinear
     quadrilateral elements.
@@ -85,7 +86,6 @@ def lk_poisson_2d(k=1.,
         element stiffness matrix.
 
     """
-    print(t,k,l,g)
     return t*k*np.array([[l[0]/(3*l[1]) - np.tan(g[0])/2 + l[1]/(3*l[0]*np.cos(g[0])**2), l[0]/(6*l[1]) - l[1]/(3*l[0]*np.cos(g[0])**2), -l[0]/(6*l[1]) + np.tan(g[0])/2 - l[1]/(6*l[0]*np.cos(g[0])**2), -l[0]/(3*l[1]) + l[1]/(6*l[0]*np.cos(g[0])**2)],
                          [l[0]/(6*l[1]) - l[1]/(3*l[0]*np.cos(g[0])**2), l[0]/(3*l[1]) + np.tan(g[0])/2 + l[1]/(3*l[0]*np.cos(g[0])**2), -l[0]/(3*l[1]) + l[1]/(6*l[0]*np.cos(g[0])**2), -l[0]/(6*l[1]) - np.tan(g[0])/2 - l[1]/(6*l[0]*np.cos(g[0])**2)],
                          [-l[0]/(6*l[1]) + np.tan(g[0])/2 - l[1]/(6*l[0]*np.cos(g[0])**2), -l[0]/(3*l[1]) + l[1]/(6*l[0]*np.cos(g[0])**2), l[0]/(3*l[1]) - np.tan(g[0])/2 + l[1]/(3*l[0]*np.cos(g[0])**2), l[0]/(6*l[1]) - l[1]/(3*l[0]*np.cos(g[0])**2)],

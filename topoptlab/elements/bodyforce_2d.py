@@ -7,7 +7,8 @@ def _lf_bodyforce_2d(xe,
                      b=np.array([0,-1.]),
                      t=np.array([1.]),
                      quadr_method="gauss-legendre",
-                     nquad=1):
+                     nquad=1,
+                     **kwargs):
     """
     Compute nodal forces on bilinear quadrilateral elements (1st order) due to
     bodyforce (e. g. gravity).
@@ -70,7 +71,8 @@ def _lf_bodyforce_2d(xe,
 
 def lf_bodyforce_2d(b=np.array([0,-1]),
                     l=np.array([1.,1.]),
-                    t=1.):
+                    t=1.,
+                    **kwargs):
     """
     Compute nodal forces on bilinear quadrilateral Lagrangian element
     (1st order) due to bodyforce (e. g. gravity) via analytical integration.

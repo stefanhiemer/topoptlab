@@ -5,7 +5,8 @@ from topoptlab.elements.trilinear_hexahedron import invjacobian,shape_functions_
 
 def _lk_poisson_3d(xe,k,
                    quadr_method="gauss-legendre",
-                   nquad=2):
+                   nquad=2,
+                   **kwargs):
     """
     Create element stiffness matrix for 3D Laplacian operator with bilinear
     quadrilateral elements. 

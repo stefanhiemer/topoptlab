@@ -6,7 +6,8 @@ from topoptlab.fem import get_integrpoints
 def _lk_linear_elast_2d(xe,c,
                         quadr_method="gauss-legendre",
                         t=np.array([1.]),
-                        nquad=2):
+                        nquad=2,
+                        **kwargs):
     """
     Create element stiffness matrix for 2D linear elasticity with
     bilinear quadrilateral Lagrangian elements.
@@ -65,7 +66,8 @@ def _lk_linear_elast_2d(xe,c,
 def lk_linear_elast_2d(E=1,nu=0.3,
                        plane_stress=True,
                        l=np.array([1.,1.]), g = np.array([0.]),
-                       t=1.):
+                       t=1.,
+                       **kwargs):
     """
     Create element stiffness matrix for 2D isotropic linear elasticity with
     bilinear quadrilateral Lagrangian elements in plane stress.
@@ -224,7 +226,8 @@ def lk_linear_elast_2d(E=1,nu=0.3,
 
 def lk_linear_elast_aniso_2d(c,
                              l=np.array([1.,1.]), g = np.array([0.]),
-                             t=1.):
+                             t=1.,
+                             **kwargs):
     """
     Create element stiffness matrix for 2D anisotropic linear elasticity with
     bilinear quadrilateral elements.
@@ -314,7 +317,8 @@ def lk_linear_elast_aniso_2d(c,
 def _lf_strain_2d(xe,eps,c,
                   quadr_method="gauss-legendre",
                   t=np.array([1.]),
-                  nquad=2):
+                  nquad=2,
+                  **kwargs):
     """
     Compute nodal forces on bilinear quadrilateral Lagrangian element
     (1st order) due to a uniform strain via numerical integration.
@@ -379,7 +383,8 @@ def _lf_strain_2d(xe,eps,c,
 def lf_strain_2d(eps, E=1,nu=0.3,
                  plane_stress=True,
                  l=np.array([1.,1.]), g = np.array([0.]),
-                 t=1.):
+                 t=1.,
+                 **kwargs):
     """
     Compute nodal forces on bilinear quadrilateral Lagrangian element
     (1st order) due to a uniform strain via analytical integration.
@@ -430,7 +435,8 @@ def lf_strain_2d(eps, E=1,nu=0.3,
 
 def lf_strain_aniso_2d(eps, c,
                        l=np.array([1.,1.]), g = np.array([0.]),
-                       t=1.):
+                       t=1.,
+                       **kwargs):
     """
     Compute nodal forces on bilinear quadrilateral Lagrangian element
     (1st order) due to a uniform strain via analytical integration.

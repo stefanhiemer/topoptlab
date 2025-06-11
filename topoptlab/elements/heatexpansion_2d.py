@@ -7,7 +7,8 @@ def _fk_heatexp_2d(xe,c,
                    a,DeltaT=None,
                    t = np.array([1.]),
                    quadr_method="gauss-legendre",
-                   nquad = 2):
+                   nquad = 2,
+                   **kwargs):
     """
     Create force vector for 2D heat expansion with
     bilinear quadrilateral Lagrangian elements. This amounts to
@@ -86,7 +87,8 @@ def _fk_heatexp_2d(xe,c,
 def fk_heatexp_2d(E,nu,
                   a,DeltaT=None,
                   l=np.array([1.,1.]), g = [0.],
-                  t = np.array([1.])):
+                  t = np.array([1.]),
+                  **kwargs):
     """
     Create force vector for 2D heat expansion with
     bilinear quadrilateral Lagrangian elements with plane stress. This amounts to
@@ -133,7 +135,8 @@ def fk_heatexp_2d(E,nu,
 def fk_heatexp_aniso_2d(c,
                         a, DeltaT=None,
                         l=np.array([1.,1.]), g = [0.],
-                        t = np.array([1.])):
+                        t = np.array([1.]),
+                        **kwargs):
     """
     Create force vector for 2D heat expansion with
     bilinear quadrilateral Lagrangian elements. This amounts to

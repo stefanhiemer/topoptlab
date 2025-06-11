@@ -18,8 +18,8 @@ from topoptlab.fem import create_matrixinds
 from topoptlab.elements.bilinear_quadrilateral import create_edofMat as create_edofMat2d
 from topoptlab.elements.trilinear_hexahedron import create_edofMat as create_edofMat3d
 # different elements/physics
-from topoptlab.elements.linear_elasticity_2d import lk_linear_elast_2d
-from topoptlab.elements.linear_elasticity_3d import lk_linear_elast_3d
+from topoptlab.elements.linear_elasticity_2d import lk_linear_elast_2d, lf_strain_2d
+from topoptlab.elements.linear_elasticity_3d import lk_linear_elast_3d, lf_strain_3d
 # generic functions for solving phys. problem
 from topoptlab.fem import assemble_matrix,assemble_rhs,apply_bc
 from topoptlab.solve_linsystem import solve_lin
@@ -39,7 +39,8 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
          nelz=None,
          filter_mode="matrix",
          lin_solver="scipy-direct", preconditioner=None,
-         assembly_mode="full",
+         assembly_mode="full", 
+         materials_kw={"E": 1.},body_forces_kw={},
          bcs=mbb_2d, lk=None, l=1.,
          obj_func=compliance, obj_kw={},
          el_flags=None,
@@ -164,14 +165,13 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                              "Volume Preserving eta projection",
                              "No filter"][ft])
         to_log(f"filter mode: {filter_mode}")
-    # total number of design variables/elements
-    if ndim == 2:
-        n = nelx * nely
-    elif ndim == 3:
-        n = nelx * nely * nelz
+    # total number of design elements
+    n = np.prod([nelx,nely,nelz][:ndim])
     #
     if isinstance(l,float):
         l = np.array( [l for i in np.arange(ndim)])
+    # only needed for homogenization so far
+    cellVolume = np.prod(l)*n
     # get function of element stiffness matrix
     if lk is None and ndim == 2:
         lk = lk_linear_elast_2d
@@ -179,6 +179,8 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         lk = lk_linear_elast_3d
     # Allocate design variables (as array), initialize and allocate sens.
     x = volfrac * np.ones(n, dtype=float,order='F')
+    #x = np.random.rand(n)
+    #x = x/x.mean() * volfrac
     xTilde = x.copy()
     xPhys = x.copy()
     # initialize arrays for gradients
@@ -207,7 +209,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             raise ValueError("Unknown optimizer: ", optimizer)
     # Max and min Young's modulus
     Emin = 1e-9
-    Emax = 1.0
+    E = 1.0
     # get element stiffness matrix
     KE = lk(l=l)
     if ndim == 2:
@@ -226,6 +228,44 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         # element degree of freedom matrix plus some helper indices
         edofMat, n1, n2, n3, n4 = create_edofMat3d(nelx=nelx,nely=nely,nelz=nelz,
                                                    nnode_dof=n_ndof)
+    if len(body_forces_kw.keys())==0:
+        pass
+    else:
+        for bodyforce in body_forces_kw.keys():
+            # assume each strain is a column vector in Voigt notation
+            if "strain_uniform" in body_forces_kw.keys():
+                # fetch functions to create body force
+                if ndim == 2:
+                    lf = lf_strain_2d
+                elif ndim == 3:
+                    lf = lf_strain_3d
+                # calculate forces for each strain
+                fe_strain = []
+                if len(body_forces_kw["strain_uniform"].shape) == 1:
+                    body_forces_kw["strain_uniform"] = body_forces_kw["strain_uniform"][:,None]
+                # 
+                for i in range(body_forces_kw["strain_uniform"].shape[-1]):
+                    fe_strain.append(lf(body_forces_kw["strain_uniform"][:,i],E=1.0, l=l))
+                fe_strain = np.column_stack(fe_strain)
+                # find the imposed elemental field. Material properties are 
+                # unimportant here as it just depends on the geometry of the 
+                # element, not its properties. This part is needed for 
+                # homogenization related objective functions and may later 
+                # become optional via some flags. 
+                if ndim == 2 and n_ndof != 1:
+                    fixed = np.array([0,1,3])
+                elif ndim == 3 and n_ndof != 1:
+                    fixed = np.array([0,1,2,4,5,7,8])
+                elif n_ndof == 1:
+                    fixed = np.array([0])
+                free = np.setdiff1d(np.arange(KE.shape[-1]), fixed)
+                u0 = np.zeros(fe_strain.shape)
+                u0[free] = np.linalg.solve(KE[free,:][:,free],
+                                           fe_strain[free,:])
+                if "u0" not in obj_kw.keys():
+                    obj_kw["u0"] = u0
+            else:
+                raise NotImplementedError("This type of bodyforce/source has not yet been implemented.")
     # Construct the index pointers for the coo format
     iK,jK = create_matrixinds(edofMat,mode=assembly_mode)
     # function to convert densities, etc. to images/voxels for plotting or the
@@ -254,7 +294,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                                            invmapping=invmapping)
     elif filter_mode == "helmholtz" and ft in [0,1]:
         KF,TF = assemble_helmholtz_filter(nelx=nelx,nely=nely,nelz=nelz,
-                                          rmin=rmin,
+                                          rmin=rmin, l=l,
                                           n1=n1,n2=n2,n3=n3,n4=n4)
         # LU decomposition. returns a function for solving, not the matrices
         lu_solve = factorized(KF)
@@ -309,20 +349,32 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
            loop==0:
             # update physical properties of the elements and thus the entries
             # of the elements
-            scale = (Emin+(xPhys)**penal * (Emax-Emin))
+            scale = (Emin+(xPhys)**penal * (E-Emin))
             Kes = KE[None,:,:]*scale[:,None,None]
             if assembly_mode == "full":
-                #sK = (KE.flatten()[:,None]*(Emin+(xPhys)\
-                #       ** penal*(Emax-Emin))).flatten(order='F')
-                sK = Kes.flatten()
+                # this here is more memory efficient than Kes.flatten() as it
+                # provides a view onto the original Kes array instead of a copy
+                sK = Kes.reshape(np.prod(Kes.shape))
             # Setup and solve FE problem
             # To Do: loop over boundary conditions if incompatible
             # assemble system matrix
             K = assemble_matrix(sK=sK,iK=iK,jK=jK,
                                 ndof=ndof,solver=lin_solver,
                                 springs=springs)
+            # assemble forces due to body forces
+            f_body = np.zeros(f.shape)
+            u0 = None
+            for bodyforce in body_forces_kw.keys():
+                # assume each strain is a column vector in Voigt notation
+                if "strain_uniform" in body_forces_kw.keys():
+                    fes = fe_strain[None,:,:]*scale[:,None,None]
+                    np.add.at(f_body,
+                              edofMat,
+                              fes)
+                
             # assemble right hand side
-            rhs = assemble_rhs(f0=f,solver=lin_solver)
+            rhs = assemble_rhs(f0=f+f_body,
+                               solver=lin_solver)
             # apply boundary conditions to matrix
             K = apply_bc(K=K,solver=lin_solver,
                          free=free,fixed=fixed)
@@ -336,30 +388,44 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             for i in np.arange(f.shape[1]):
                 # obj. value, selfadjoint variables, self adjoint flag
                 obj,rhs_adj,self_adj = obj_func(obj=obj, i=i,
-                                                xPhys=xPhys,u=u,
+                                                xPhys=xPhys,u=u, 
                                                 KE=KE, edofMat=edofMat,
-                                                Amax=Emax,Amin=Emin,
+                                                Kes=Kes,
+                                                Amax=E,Amin=Emin,
+                                                cellVolume=cellVolume,
                                                 penal=penal,
                                                 **obj_kw)
                 # if problem not self adjoint, solve for adjoint variables and
                 # calculate derivatives, else use analytical solution
                 if self_adj:
-                    dobj[:] += rhs_adj
+                    #dobj[:] += rhs_adj
+                    h = np.zeros(f.shape)
+                    h[free] = rhs_adj[free]
                 else:
                     h = np.zeros(f.shape)
                     h[free],_,_ = solve_lin(K, rhs=rhs_adj[free],
                                             solver=lin_solver, P=precond,
                                             preconditioner = preconditioner)
-                    if f0 is None:
-                        dobj += penal*xPhys**(penal-1)*(Emax-Emin)*\
-                              (np.dot(h[edofMat,i], KE)*u[edofMat,i]).sum(1)
-                    else:
-                        dobj += penal*xPhys**(penal-1)*(Emax-Emin)*\
-                              (np.dot(h[edofMat,i], KE)*\
-                               (u[edofMat,i]-f0[:])).sum(1)
+                if f0 is None and len(body_forces_kw.keys())==0:
+                    dobj += penal*xPhys**(penal-1)*(E-Emin)*\
+                          (np.dot(h[edofMat,i], KE)*u[edofMat,i]).sum(1)
+                elif f0 is None and "strain_uniform" in body_forces_kw.keys():
+                    print(fe_strain.shape)
+                    import sys 
+                    sys.exit()
+                    dobj += penal*xPhys**(penal-1)*(E-Emin)*\
+                          (np.dot(h[edofMat,i], KE)*\
+                           (u[edofMat,i] - fe_strain[None,:,i] )).sum(1)
+                else:
+                    dobj += penal*xPhys**(penal-1)*(E-Emin)*\
+                          (np.dot(h[edofMat,i], KE)*\
+                           (u[edofMat,i] - f0[:] - fe_strain[None,:,i] )).sum(1)
                 if debug:
                     print("FEM: it.: {0}, problem: {1}, min. u: {2:.10f}, med. u: {3:.10f}, max. u: {4:.10f}".format(
                            loop,i,np.min(u[:,i]),np.median(u[:,i]),np.max(u[:,i])))
+        # optimizer is unknown.
+        else:
+            raise NotImplementedError("Unknown optimizer.")
         # Constraints and constraint gradients
         if volfrac is not None:
             volconstr = np.array([xPhys.mean() - volfrac])

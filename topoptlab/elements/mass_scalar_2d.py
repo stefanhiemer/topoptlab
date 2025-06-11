@@ -7,7 +7,8 @@ def _lm_mass_2d(xe,
                 p=np.array([1.]),
                 t=np.array([1.]),
                 quadr_method="gauss-legendre",
-                nquad=2):
+                nquad=2,
+                **kwargs):
     """
     Create element mass matrix in 2D with bilinear quadrilateral elements.
 
@@ -62,7 +63,8 @@ def _lm_mass_2d(xe,
 
 def lm_mass_2d(p=1.,
                l=np.array([1.,1.]),
-               t=1.):
+               t=1.,
+               **kwargs):
     """
     Create mass matrix for 2D with bilinear quadrilateral Lagrangian
     elements.

@@ -11,7 +11,8 @@ from topoptlab.elements.trilinear_hexahedron import create_edofMat as create_edo
 
 
 def assemble_matrix_filter(nelx,nely,rmin,nelz=None,
-                           ndim=2):
+                           ndim=2,
+                           **kwargs):
     """
     Assemble distance based filters as sparse matrix that is applied on to
     densities/sensitivities by standard multiplication.
@@ -103,7 +104,8 @@ def assemble_matrix_filter(nelx,nely,rmin,nelz=None,
 
 def assemble_convolution_filter(nelx,nely,rmin,
                                 mapping,invmapping,
-                                nelz=None):
+                                nelz=None,
+                                **kwargs):
     """
     Assemble distance based filter as image/voxel convolution filter. Returns
     the kernel and the normalization constants
@@ -160,8 +162,9 @@ def assemble_convolution_filter(nelx,nely,rmin,
                     cval=0))
     return kernel,hs
 
-def assemble_helmholtz_filter(nelx,nely,rmin,nelz=None,
-                              n1=None,n2=None,n3=None,n4=None):
+def assemble_helmholtz_filter(nelx,nely,rmin,nelz=None,l=np.array([1.,1.]),
+                              n1=None,n2=None,n3=None,n4=None,
+                              **kwargs):
     """
     Assemble Helmholtz PDE based filter from "Efficient topology optimization 
     in MATLAB using 88 lines of code".
@@ -180,8 +183,7 @@ def assemble_helmholtz_filter(nelx,nely,rmin,nelz=None,
     volfrac : float
         volume fraction. 
     rmin : float
-        cutoff radius for the filter. Only elements within the element-center 
-        to element center distance are used for filtering. 
+        cutoff radius for the filter.
     nelz : int or None
         number of elements in z direction.
     n1 : np.ndarray or None
@@ -203,34 +205,33 @@ def assemble_helmholtz_filter(nelx,nely,rmin,nelz=None,
         elements.
 
     """
-    if nelz is not None:
+    if nelz is None:
+        ndim = 2
+        element = lk_screened_poisson_2d
+        create_edofMat = create_edofMat2d
+    else:
+        ndim = 3
         raise NotImplementedError("3D not yet completely implemented.")
+        element = lk_screened_poisson_3d
+        create_edofMat = create_edofMat3d
     # element indices
-    el = np.arange(nelx*nely)
+    nel = np.prod([nelx,nely,nelz][:ndim])
+    el = np.arange(nel)
     # 
     if n1 is None:
         elx,ely = np.arange(nelx)[:,None], np.arange(nely)[None,:]
         n1 = ((nely+1)*elx+ely).flatten()
         n2 = ((nely+1)*(elx+1)+ely).flatten()
-    # conversion of filter radius via 1D Green's function
+    # conversion of filter radius via Green's function
     Rmin = rmin/(2*np.sqrt(3))
     #
-    if nelz is None:
-        # collect element stiffness matrix
-        KE = lk_screened_poisson_2d(k=Rmin**2)
-        # total number of degrees of freedom
-        ndof = (nelx+1)*(nely+1) 
-        # element degree of freedom matrix
-        edofMat, n1, n2, n3, n4 = create_edofMat2d(nelx=nelx,nely=nely,nelz=nelz,
-                                                   nnode_dof=1)
-    else:
-        # collect element stiffness matrix
-        KE = lk_screened_poisson_3d(k=Rmin**2)
-        # total number of degrees of freedom
-        ndof = (nelx+1)*(nely+1)*(nelz+1) 
-        # element degree of freedom matrix
-        edofMat, n1, n2, n3, n4 = create_edofMat3d(nelx=nelx,nely=nely,nelz=nelz,
-                                                   nnode_dof=1)
+    # collect element stiffness matrix
+    KE = element(k=Rmin**2, l=l)
+    # total number of degrees of freedom
+    ndof = np.prod(np.array([nelx,nely,nelz])[:ndim]+1)
+    # element degree of freedom matrix
+    edofMat, n1, n2, n3, n4 = create_edofMat(nelx=nelx,nely=nely,nelz=nelz,
+                                               nnode_dof=1)
     #iKF = np.kron(edofMatF, np.ones((4, 1))).flatten()
     #jKF = np.kron(edofMatF, np.ones((1, 4))).flatten()
     iM,jM = create_matrixinds(edofMat,mode="full")

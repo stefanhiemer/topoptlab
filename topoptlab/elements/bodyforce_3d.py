@@ -6,7 +6,8 @@ from topoptlab.fem import get_integrpoints
 def _lf_bodyforce_3d(xe,
                      b=np.array([0,-1.,0.]),
                      quadr_method="gauss-legendre",
-                     nquad=1):
+                     nquad=1,
+                     **kwargs):
     """
     Compute nodal forces on trilinear hexahedral Lagrangian element (1st order)
     due to bodyforce (e. g. gravity) via numerical integration.
@@ -62,7 +63,8 @@ def _lf_bodyforce_3d(xe,
     return fe
 
 def lf_bodyforce_3d(b=np.array([0.,-1.,0.]),
-                    l=np.array([1.,1.,1.])):
+                    l=np.array([1.,1.,1.]),
+                    **kwargs):
     """
     Compute nodal forces on trilinear hexahedral Lagrangian element (1st order)
     due to bodyforce (e. g. gravity) via analytical integration. Element is a

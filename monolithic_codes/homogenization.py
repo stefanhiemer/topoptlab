@@ -144,10 +144,6 @@ def homogenization(lx, ly, lambda_, mu, phi, x,
             sumMu = np.sum(sumMu, axis=1)#.reshape((nely, nelx))
             # Homogenized elasticity tensor
             CH[i, j] = np.sum(lambda_ * sumLambda + mu * sumMu)
-    print(keLambda.shape,(chi0 - chi[edofMat]).shape)
-    print( (((chi0[:, :, i] - chi[edofMat, i]) @ keLambda) * \
-                 (chi0[:, :, j] - chi[edofMat,j])).shape )
-    print(sumMu.shape)
     CH = CH / cellVolume
     print('--- Homogenized elasticity tensor ---')
     print(CH)
@@ -220,28 +216,10 @@ def elementMatVec(a, b, phi):
 
     return keLambda, keMu, feLambda, feMu
 
-
-def check_elementMatVec():
-
-    keLambda, keMu, feLambda, feMu = elementMatVec(1/2, 1/2, 90)
-    # case E = 1. and nu = 1/3 plain stress
-    print("ke",(keLambda + keMu) * 3/8)
-    print("fe",(feLambda + feMu) * 3/8)
-    import sys 
-    sys.exit()
-    print(keLambda)
-    print(keMu)
-    print(feLambda)
-    print(feMu)
-    print(keLambda + keMu)
-
-    return
-
 if __name__ == "__main__":
     #
     np.random.seed(0)
     #
-    #check_elementMatVec()
     # Example usage:
     #lambda = nu*E / ( (1+nu)*(1-2*nu) ) # 2D
     #mu = E/(2*(1+nu))

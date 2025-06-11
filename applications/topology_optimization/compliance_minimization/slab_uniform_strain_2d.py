@@ -1,7 +1,8 @@
-from topoptlab.compliance_minimization import main
-from topoptlab.example_bc.lin_elast import mbb_2d
-from topoptlab.accelerators import anderson
 import numpy as np
+
+from topoptlab.compliance_minimization import main
+from topoptlab.example_bc.lin_elast import singlenode
+from topoptlab.accelerators import anderson
 
 # The real main driver
 if __name__ == "__main__":
@@ -41,7 +42,7 @@ if __name__ == "__main__":
     #
     x,obj = main(nelx=nelx, nely=nely, volfrac=volfrac, penal=penal,
                  rmin=rmin, ft=ft, filter_mode="matrix",
-                 optimizer="oc", lin_solver="scipy-direct",
-                 nouteriter=1000,file="mbb_2d",
-                 bcs=mbb_2d,
+                 optimizer="mma", lin_solver="scipy-direct",
+                 nouteriter=1000,file="uniformstrain_2d",
+                 bcs=singlenode, body_forces_kw={"strain_uniform": np.array([1,0,0])},
                  debug=False,display=display,export=export)

@@ -6,7 +6,8 @@ from topoptlab.elements.trilinear_hexahedron import bmatrix
 
 def _lk_linear_elast_3d(xe,c,
                         quadr_method="gauss-legendre",
-                        nquad=2):
+                        nquad=2,
+                        **kwargs):
     """
     Create element stiffness matrix for 2D isotropic linear elasticity with
     bilinear quadrilateral Lagrangian elements in plane stress.
@@ -59,7 +60,8 @@ def _lk_linear_elast_3d(xe,c,
     return (w[None,:,None,None]*integral*detJ[:,:,None,None]).sum(axis=1)
 
 def lk_linear_elast_3d(E=1,nu=0.3,
-                       l=np.array([1.,1.,1.]), g = [0.,0.]):
+                       l=np.array([1.,1.,1.]), g = [0.,0.],
+                       **kwargs):
     """
     Create element stiffness matrix for 3D isotropic linear elasticity with
     hexahedron elements. Taken and adjusted from the new generation 99 line
@@ -660,7 +662,8 @@ def lk_linear_elast_3d(E=1,nu=0.3,
            E*(4*l[0]**2*l[1]**2*nu - 4*l[0]**2*l[1]**2 + 2*l[0]**2*l[2]**2*nu - 2*l[0]**2*l[2]**2 + 6*l[0]*l[1]**2*l[2]*nu*np.tan(g[1]) - 6*l[0]*l[1]**2*l[2]*np.tan(g[1]) + 3*l[0]*l[1]*l[2]**2*nu*np.tan(g[0]) - 3*l[0]*l[1]*l[2]**2*np.tan(g[0]) + 2*l[1]**2*l[2]**2*nu*np.tan(g[0])**2 + 4*l[1]**2*l[2]**2*nu*np.tan(g[1])**2 + 2*l[1]**2*l[2]**2*nu - 2*l[1]**2*l[2]**2*np.tan(g[0])**2 - 4*l[1]**2*l[2]**2*np.tan(g[1])**2 - 2*l[1]**2*l[2]**2)/(36*l[0]*l[1]*l[2]*(2*nu**2 + nu - 1))]])
 
 def lk_linear_elast_aniso_3d(c,
-                             l=np.array([1.,1.,1.]), g = [0.,0.]):
+                             l=np.array([1.,1.,1.]), g = [0.,0.],
+                             **kwargs):
     """
     Create element stiffness matrix for 3D anisotropic linear elasticity with
     hexahedron elements.
@@ -1258,7 +1261,8 @@ def lk_linear_elast_aniso_3d(c,
 
 def _lf_strain_3d(xe,eps,c,
                   quadr_method="gauss-legendre",
-                  nquad=2):
+                  nquad=2,
+                  **kwargs):
     """
     Compute nodal forces on trilinear hexahedral Lagrangian element
     (1st order) due to a uniform strain via numerical integration.
@@ -1314,12 +1318,11 @@ def _lf_strain_3d(xe,eps,c,
     #
     integral = B.transpose([0,1,3,2])@c[:,None,:,:]@eps[:,None,None,:].transpose(0,1,3,2)
     # multiply by determinant and quadrature
-    fe = (w[None,:,None,None]*integral*detJ[:,:,None,None]).sum(axis=1)
-    # multiply thickness
-    return t[:,None,None] * fe
+    return (w[None,:,None,None]*integral*detJ[:,:,None,None]).sum(axis=1)
 
 def lf_strain_3d(eps, E=1,nu=0.3,
-                 l=np.array([1.,1.,1.]), g = np.array([0.,0.])):
+                 l=np.array([1.,1.,1.]), g = np.array([0.,0.]),
+                 **kwargs):
     """
     Compute nodal forces on trilinear hexahedral Lagrangian element
     (1st order) due to a uniform strain via analytical integration.
@@ -1370,7 +1373,8 @@ def lf_strain_3d(eps, E=1,nu=0.3,
           [E*(-2*eps[0]*l[0]*l[1]*nu - 2*eps[0]*l[1]*l[2]*nu*np.tan(g[1]) - 2*eps[1]*l[0]*l[1]*nu - 2*eps[1]*l[1]*l[2]*nu*np.tan(g[1]) + 2*eps[2]*l[0]*l[1]*nu - 2*eps[2]*l[0]*l[1] + 2*eps[2]*l[1]*l[2]*nu*np.tan(g[1]) - 2*eps[2]*l[1]*l[2]*np.tan(g[1]) + eps[3]*l[0]*l[2]*nu - eps[3]*l[0]*l[2] + eps[3]*l[1]*l[2]*nu*np.tan(g[0]) - eps[3]*l[1]*l[2]*np.tan(g[0]) - eps[4]*l[1]*l[2]*nu + eps[4]*l[1]*l[2])/(8*(2*nu**2 + nu - 1))]])
 
 def lf_strain_aniso_3d(eps, c,
-                       l=np.array([1.,1.,1.]), g = np.array([0.,0.])):
+                       l=np.array([1.,1.,1.]), g = np.array([0.,0.]),
+                       **kwargs):
     """
     Compute nodal forces on trilinear hexahedral Lagrangian element
     (1st order) due to a uniform strain via analytical integration.

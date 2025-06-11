@@ -3,8 +3,8 @@ from numpy.testing import assert_allclose
 
 import pytest
 
-from topoptlab.elements.mass_2d import _lm_mass_2d,lm_mass_2d
-from topoptlab.elements.mass_3d import _lm_mass_3d, lm_mass_3d
+from topoptlab.elements.mass_scalar_2d import _lm_mass_2d,lm_mass_2d
+from topoptlab.elements.mass_scalar_3d import _lm_mass_3d, lm_mass_3d
 
 @pytest.mark.parametrize('xe',
                          [(array([[[-1,-1],[1,-1],[1,1],[-1,1]]])),

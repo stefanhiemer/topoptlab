@@ -1,43 +1,59 @@
-from topoptlab.elements.poisson_2d import lk_poisson_2d ,lk_poisson_aniso_2d
-from topoptlab.elements.mass_2d import lm_mass_2d
+import numpy as np
 
-def lk_screened_poisson_2d(k):
+from topoptlab.elements.poisson_2d import lk_poisson_2d ,lk_poisson_aniso_2d
+from topoptlab.elements.mass_scalar_2d import lm_mass_2d
+
+def lk_screened_poisson_2d(k=1.,
+                           l=np.array([1.,1.]), g = [0.],
+                           t=1.,
+                           **kwargs):
     """
-    Create matrix for 2D screened Poisson equation with bilinear quadrilateral 
-    elements. Taken from the 88 lines code and slightly modified.
-    
+    Create element stiffness matrix for screened 2D Poisson with bilinear
+    quadrilateral elements.
+
     Parameters
     ----------
     k : float
-        analogous to heat conductivity. k is the squared filter radius if used for the 
-        'Helmholtz' filter.
-        
+        analogous to heat conductivity. k is the squared filter radius if used 
+        for the 'Helmholtz' filter.
+    l : np.ndarray (2)
+        side length of element.
+    g : np.ndarray (1)
+        angle of parallelogram.
+    t : float
+        thickness of element.
+
     Returns
     -------
     Ke : np.ndarray, shape (4,4)
         element stiffness matrix.
-        
-    """
-    Ke = lk_poisson_2d(k) + lm_mass_2d()
-    return Ke
 
-def lk_screened_poisson_aniso_2d(k):
     """
-    Create matrix for 2D screened Poisson equation with bilinear quadrilateral 
-    elements. Taken from the 88 lines code and slightly modified.
-    
+    return lk_poisson_2d(k=k, l=l, g=g, t=t) + lm_mass_2d(p=1., l=l, t=t)
+
+def lk_screened_poisson_aniso_2d(k,
+                                 l=np.array([1.,1.]), g = [0.],
+                                 t=1.,
+                                 **kwargs):
+    """
+    Create element stiffness matrix for anisotropic 2D screened Poisson with 
+    bilinear quadrilateral elements.
+
     Parameters
     ----------
     k : np.ndarray, shape (2,2)
         analogous to anisotropic heat conductivity. If isotropic k would be 
         [[k,0],[0,k]] and k is the squared filter radius if used for the 
         'Helmholtz' filter.
-        
+    l : np.ndarray (2)
+        side length of element
+    t : float
+        thickness of element
+
     Returns
     -------
     Ke : np.ndarray, shape (4,4)
         element stiffness matrix.
-        
+
     """
-    Ke = lk_poisson_aniso_2d(k) + lm_mass_2d()
-    return Ke
+    return lk_poisson_aniso_2d(k=k, l=l, g=g, t=t) + lm_mass_2d(p=1., l=l, t=t)

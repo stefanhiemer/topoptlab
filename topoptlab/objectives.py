@@ -16,8 +16,8 @@ def compliance(xPhys, u, KE, edofMat, i,
         state variable (displacement, temperature) of shape (ndof).
     KE : np.ndarray
         element stiffness matrix of shape (nedof).
-    edofMat : np.ndarray
-        element degree of freedom matrix of shape (nel,nedof)
+    edofMat : np.ndarray shape (nel,nedof)
+        element degree of freedom matrix
     i : int
         index of the problem. i-th problem is used to compute the objective
         function.
@@ -42,11 +42,11 @@ def compliance(xPhys, u, KE, edofMat, i,
         obj. is selfadjoint, so no adjoint problem has to be solved
 
     """
-    ce = (np.dot(u[edofMat,i], KE)
-             * u[edofMat,i]).sum(1)
+    ce = (np.dot(u[edofMat,i], KE) * u[edofMat,i]).sum(1)
     obj += ((Amin+xPhys**penal*(Amax-Amin))*ce).sum()
     dc = (-1) * penal*xPhys**(penal-1)*(Amax-Amin)*ce
-    return obj, dc, True
+    #return obj, dc, True #
+    return obj,-u, True
 
 def compliance_squarederror(xPhys, u, c0, KE, edofMat, i,
                             Amax, Amin, penal,
@@ -176,3 +176,55 @@ def var_squarederror(u, u0, l, i,
     #mask = l != 0
     rhs_adj[mask,0] = (-2)*(u[mask,i]-u0) / u0.shape[0]
     return obj, rhs_adj , False
+
+def inverse_homogenization_maximization(u, u0, edofMat, i, KE,
+                                        cellVolume, xPhys,
+                                        Amax, Amin, penal,
+                                        results, obj,
+                                        **kwargs):
+    #
+    if "CH" not in results.keys():
+        results["CH"] = np.zeros((u.shape[-1],u.shape[-1]))
+    # calculate effective elastic tensor
+    du = u0[None,:] - u[edofMat]
+    # # Homogenized elasticity tensor
+    dobj = np.zeros(xPhys.shape[0])
+    for j in range(i,u.shape[-1]):
+        # calculate elemental compliance deviation 
+        delta_ce = (np.dot(du[edofMat,i], KE) * du[edofMat,i]).sum(1)
+        deltac = ((Amin+xPhys**penal*(Amax-Amin))*delta_ce).sum()
+        results["CH"][i,j] = deltac / cellVolume
+        #results["CH"][i,j] = np.einsum('nj,nij,ni->n', du[:,:,i], Kes, du[:,:,j]).sum()
+        dobj += (-1) * penal*xPhys**(penal-1)*(Amax-Amin)*delta_ce
+    # fill off-diagonal
+    results["CH"][i:,i] = results["CH"][i,i:]
+    #
+    obj = results["CH"][i,:].sum()
+    return obj, dobj, True
+
+def inverse_homogenization_control(u, u0, edofMat, i, KE,
+                                   cellVolume, CH0, xPhys,
+                                   Amax, Amin, penal,
+                                   results, obj,
+                                   **kwargs):
+    #
+    if "CH" not in results.keys():
+        results["CH"] = np.zeros(CH0)
+    # calculate effective elastic tensor
+    du = u0[None,:] - u[edofMat]
+    # # Homogenized elasticity tensor
+    dobj = np.zeros(xPhys.shape[0])
+    for j in range(i,CH0.shape[-1]):
+        # calculate elemental compliance deviation 
+        delta_ce = (np.dot(du[edofMat,i], KE) * du[edofMat,i]).sum(1)
+        deltac = ((Amin+xPhys**penal*(Amax-Amin))*delta_ce).sum()
+        results["CH"][i,j] = deltac / cellVolume
+        #results["CH"][i,j] = np.einsum('nj,nij,ni->n', du[:,:,i], Kes, du[:,:,j]).sum()
+        dc = (-1) * penal*xPhys**(penal-1)*(Amax-Amin)*delta_ce
+        dobj += 2*(deltac/cellVolume -CH0[i,j]) * dc
+    # fill off-diagonal
+    results["CH"][i:,i] = results["CH"][i,i:]
+    #
+    obj = (results["CH"][i,:] - CH0[i,:]).sum()**2 + \
+          (results["CH"][i:,:] - CH0[i,:]).sum()**2
+    return obj, dobj, True

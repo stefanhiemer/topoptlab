@@ -355,6 +355,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     for loop in np.arange(nouteriter):
         # calculate / interpolate material properties
         scale = (eps+xPhys**penal*(1-eps))
+        Kes = KE[None,:,:]*scale[:,None,None]
         # solve FEM, calculate obj. func. and gradients.
         # for
         if optimizer in ["oc","mma", "ocm","ocg"] or\
@@ -363,7 +364,9 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             # update physical properties of the elements and thus the entries
             # of the elements
             if assembly_mode == "full":
-                sK = (scale[:,None,None] * KE).flatten()
+                # this here is more memory efficient than Kes.flatten() as it
+                # provides a view onto the original Kes array instead of a copy
+                sK = Kes.reshape(np.prod(Kes.shape))
             # Setup and solve FE problem
             # To Do: loop over boundary conditions if incompatible
             # assemble system matrix
