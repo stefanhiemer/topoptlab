@@ -80,7 +80,7 @@ def fem_homogenization(nelx, nely, nelz=None, n_steps=10000,
     """
     #
     dt=3.e-3
-    epsilon=1.0
+    gamma=1.0
     mobility=1.0
     #
     if nelz is None:
@@ -169,7 +169,7 @@ def fem_homogenization(nelx, nely, nelz=None, n_steps=10000,
                              ndof=ndof,solver=lin_solver,
                              springs=None)
         # chemical potential
-        mu[:] = lu_solve(AE@c + epsilon**2 * KE@c - ME@c)
+        mu[:] = lu_solve(AE@c + gamma * KE@c - ME@c)
         # concentration
         c[:] = lu_solve(ME@c - mobility * dt * KE@mu)
         #
@@ -215,4 +215,4 @@ if __name__ == "__main__":
     if len(sys.argv)>3:
         nelz = int(sys.argv[3])
     #
-    fem_homogenization(nelx=nelx, nely=nely, nelz=nelz, l=128.)
+    fem_homogenization(nelx=nelx, nely=nely, nelz=nelz, l=64.)

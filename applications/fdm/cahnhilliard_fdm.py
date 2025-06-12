@@ -3,8 +3,8 @@ import matplotlib.pyplot as plt
 
 def cahn_hilliard_fd(dim=2, grid_size=128,
                      dx=1.0, dt=0.01,
-                     epsilon=1.0, M=1.0,
-                     n_steps=500,
+                     gamma=1.0, M=1.0,
+                     n_steps=1000,
                      display=True):
     """
     Solves the Cahn-Hilliard equation using finite differences.
@@ -45,7 +45,7 @@ def cahn_hilliard_fd(dim=2, grid_size=128,
     mu = np.zeros(c.shape)
     for step in np.arange(n_steps):
         # compute chemical potential
-        mu[:] =  c**3 - c - epsilon**2 * laplacian(c)
+        mu[:] =  c**3 - c - gamma * laplacian(c)
         # update concentration
         c[:] += dt * M * laplacian(mu)
         #
@@ -85,7 +85,7 @@ if __name__ == "__main__":
         display = bool(int(sys.argv[3]))
     # Run the simulation
     cahn_hilliard_fd(dim=ndim, grid_size=n,
-                     dx=1.0, dt=0.01,
-                     epsilon=1.0, M=1.0,
+                     dx=1.0, dt=0.02,
+                     gamma=1.0, M=1.0,
                      n_steps=int(1e5),
                      display=display)
