@@ -8,28 +8,29 @@ def _lm_mass_3d(xe,p=np.array([1.]),
                 nquad=2,
                 **kwargs):
     """
-    Create element mass matrix in 3D with trilinear hexahedral elements. 
-    
+    Create element mass matrix for scalar field in 3D with trilinear hexahedral
+    elements.
+
     Parameters
     ----------
     xe : np.ndarray, shape (nels,4,2)
-        coordinates of element nodes. Please look at the 
-        definition/function of the shape function, then the node ordering is 
+        coordinates of element nodes. Please look at the
+        definition/function of the shape function, then the node ordering is
         clear.
     p : np.ndarray of shape (nels) or (1)
         density of element
     quadr_method: str or callable
-        name of quadrature method or function/callable that returns coordinates of 
-        quadrature points and weights. Check function get_integrpoints for 
+        name of quadrature method or function/callable that returns coordinates of
+        quadrature points and weights. Check function get_integrpoints for
         available options.
     nquad : int
         number of quadrature points
-        
+
     Returns
     -------
     Ke : np.ndarray, shape (nels,8,8)
-        element stiffness matrix.
-        
+        element mass matrix.
+
     """
     #
     if len(xe.shape) == 2:
@@ -54,26 +55,27 @@ def _lm_mass_3d(xe,p=np.array([1.]),
             J[:,0,2]*(J[:,1,0]*J[:,2,1] - J[:,1,1]*J[:,2,0])).reshape(nel,nq)
     # multiply by determinant and quadrature
     Ke = (w[None,:,None,None]*integral*detJ[:,:,None,None]).sum(axis=1)
-    # 
+    #
     return p[:,None,None] * Ke
 
 def lm_mass_3d(p=1.0,
                l=np.array([1.,1.,1.])):
     """
-    Create element mass matrix in 3D with trilinear hexahedral elements. 
-    
+    Create element mass matrix for scalar field in 3D with trilinear hexahedral
+    elements.
+
     Parameters
     ----------
     p : float
         density of element
     l : np.ndarray (3)
         side length of element
-    
+
     Returns
     -------
     Ke : np.ndarray, shape (8,8)
         element stiffness matrix.
-        
+
     """
     v = l[0]*l[1]*l[2]
     return p*v*np.array([[1/27, 1/54, 1/108, 1/54, 1/54, 1/108, 1/216, 1/108],

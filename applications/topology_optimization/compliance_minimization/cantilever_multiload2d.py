@@ -35,6 +35,6 @@ if __name__ == "__main__":
          rmin=rmin, ft=ft, filter_mode = "matrix",
          obj_func=compliance,
          #obj_func=compliance_squarederror, obj_kw={"c0": [75, 80]},
-         optimizer="oc",lin_solver="cvxopt-cholmod",
+         optimizer="mma",lin_solver="cvxopt-cholmod",
          bcs=cantilever_2d_twoloads_wrong,
          debug=False,display=display,export=export)

@@ -10,7 +10,7 @@ def _lm_mass_2d(xe,
                 nquad=2,
                 **kwargs):
     """
-    Create element mass matrix for scalar field in 2D with bilinear
+    Create element mass matrix for vector field in 2D with bilinear
     quadrilateral elements.
 
     Parameters
@@ -31,7 +31,7 @@ def _lm_mass_2d(xe,
         number of quadrature points
     Returns
     -------
-    Ke : np.ndarray, shape (nels,4,4)
+    Ke : np.ndarray, shape (nels,8,8)
         element mass matrix.
 
     """
@@ -51,9 +51,9 @@ def _lm_mass_2d(xe,
     #
     xi,eta = [_x[:,0] for _x in np.split(x, 2,axis=1)]
     #
-    N = shape_functions(xi=xi,eta=eta)
+    N = np.kron(shape_functions(xi=xi, eta=eta)[:,:,None], np.eye(2))
     #
-    integral = N[None,:,:,None]@N[None,:,:,None].transpose([0,1,3,2])
+    integral = N[None,:,:,:]@N[None,:,:,:].transpose([0,1,3,2])
     # calculate determinant of jacobian
     J = jacobian(xi=xi,eta=eta,xe=xe,all_elems=True)
     detJ = ((J[:,0,0]*J[:,1,1]) - (J[:,1,0]*J[:,0,1])).reshape(nel,nq)
@@ -67,7 +67,7 @@ def lm_mass_2d(p=1.,
                t=1.,
                **kwargs):
     """
-    Create mass matrix for scalar field in 2D with bilinear quadrilateral
+    Create mass matrix for vector field in 2D with bilinear quadrilateral
     Lagrangian elements.
 
     Parameters
@@ -81,12 +81,16 @@ def lm_mass_2d(p=1.,
 
     Returns
     -------
-    Ke : np.ndarray, shape (4,4)
+    Ke : np.ndarray, shape (8,8)
         element stiffness matrix.
 
     """
     v = l[0]*l[1]*t
-    return p*v*np.array([[1/9, 1/18, 1/36, 1/18],
-                         [1/18, 1/9, 1/18, 1/36],
-                         [1/36, 1/18, 1/9, 1/18],
-                         [1/18, 1/36, 1/18, 1/9]])
+    return p*v*np.array([[1/9, 0, 1/18, 0, 1/36, 0, 1/18, 0],
+                         [0, 1/9, 0, 1/18, 0, 1/36, 0, 1/18],
+                         [1/18, 0, 1/9, 0, 1/18, 0, 1/36, 0],
+                         [0, 1/18, 0, 1/9, 0, 1/18, 0, 1/36],
+                         [1/36, 0, 1/18, 0, 1/9, 0, 1/18, 0],
+                         [0, 1/36, 0, 1/18, 0, 1/9, 0, 1/18],
+                         [1/18, 0, 1/36, 0, 1/18, 0, 1/9, 0],
+                         [0, 1/18, 0, 1/36, 0, 1/18, 0, 1/9]])

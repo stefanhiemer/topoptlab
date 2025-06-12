@@ -45,7 +45,7 @@ if __name__ == "__main__":
 
 
     #
-    for dim in range(2,3):
+    for dim in range(1,4):
         print(str(dim)+"D")
         print(convert_to_code(mass(scalarfield=False,
                                    ndim = dim),vectors=["l"]),"\n")

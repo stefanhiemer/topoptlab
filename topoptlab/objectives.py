@@ -101,7 +101,7 @@ def compliance_squarederror(xPhys, u, c0, KE, edofMat, i,
         delta = c - c0[i]
     obj += delta**2
     dc = 2*delta * (-1) * penal*xPhys**(penal-1)*(Amax-Amin)*ce
-    return obj, dc, True
+    return obj, -u * (c-c0), True
 
 def var_maximization(u, l, i,
                      obj, **kwargs):
@@ -190,7 +190,7 @@ def inverse_homogenization_maximization(u, u0, edofMat, i, KE,
     # # Homogenized elasticity tensor
     dobj = np.zeros(xPhys.shape[0])
     for j in range(i,u.shape[-1]):
-        # calculate elemental compliance deviation 
+        # calculate elemental compliance deviation
         delta_ce = (np.dot(du[edofMat,i], KE) * du[edofMat,i]).sum(1)
         deltac = ((Amin+xPhys**penal*(Amax-Amin))*delta_ce).sum()
         results["CH"][i,j] = deltac / cellVolume
@@ -215,7 +215,7 @@ def inverse_homogenization_control(u, u0, edofMat, i, KE,
     # # Homogenized elasticity tensor
     dobj = np.zeros(xPhys.shape[0])
     for j in range(i,CH0.shape[-1]):
-        # calculate elemental compliance deviation 
+        # calculate elemental compliance deviation
         delta_ce = (np.dot(du[edofMat,i], KE) * du[edofMat,i]).sum(1)
         deltac = ((Amin+xPhys**penal*(Amax-Amin))*delta_ce).sum()
         results["CH"][i,j] = deltac / cellVolume

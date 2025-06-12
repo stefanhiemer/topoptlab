@@ -1,5 +1,6 @@
 from symfem.functions import MatrixFunction, ScalarFunction
 from symfem.symbols import x
+from sympy import Symbol, Q
 
 from topoptlab.symfem_utils import base_cell, shape_function_matrix
 from topoptlab.symfem_utils import convert_to_code, jacobian, simplify_matrix
@@ -43,23 +44,29 @@ def polynomial(polynomial_order,
         N = shape_function_matrix(basis=basis,nedof=ndim,mode="col")
     # get state variable u
     u = generate_constMatrix(nrow=N.shape[0],ncol=1,name="u")
+    # polynomial_order
+    n = Symbol('n', integer=True, positive=True)
     # create integral
     Jdet = jacobian(ndim=ndim, element_type=element_type, order=order,
                     return_J=False, return_inv=False, return_det=True)
     #
     integrand = N
+    #
     uhat = N.transpose()@u
-    print(uhat.shape)
+    #uhat = MatrixFunction([[ uhat[0,0]**(n-1) ]])
+    #from sympy.assumptions import assuming
+    #integrand = integrand@uhat * Jdet
+    #with assuming(Q.integer(n), Q.ge(n, 2)):
+    #    integrand = simplify_matrix( integrand.integral(ref,x))
     for i in range(polynomial_order-1):
         integrand = integrand@uhat
-    integrand = integrand@uhat * Jdet
+    integrand = integrand@N.transpose() * Jdet
     return simplify_matrix( integrand.integral(ref,x))
 
 if __name__ == "__main__":
     #
-    for dim in range(2,3):
+    for dim in range(1,4):
         print(str(dim)+"D")
         print(convert_to_code(polynomial(polynomial_order=3,
                                          scalarfield=True,
-                                         ndim = dim),vectors=["l"]),"\n")
-        
+                                         ndim = dim),vectors=["l","u"]),"\n")

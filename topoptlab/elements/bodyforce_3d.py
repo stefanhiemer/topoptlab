@@ -46,10 +46,7 @@ def _lf_bodyforce_3d(xe,
     #
     xi,eta,zeta = [_x[:,0] for _x in np.split(x, 3,axis=1)]
     # shape functions have shape (nq,8)
-    shpfcts = shape_functions(xi=xi,eta=eta,zeta=zeta)
-    N = np.zeros((nq,3*shpfcts.shape[1],3))
-    for i in np.arange(3):
-        N[:,i::3,i] = shpfcts
+    N = np.kron(shape_functions(xi=xi, eta=eta, zeta=zeta)[:,:,None], np.eye(3))
     #
     integral = N[None,:,:,:] @ b[:,None,None,:].transpose(0,1,3,2)
     # calculate determinant of jacobian

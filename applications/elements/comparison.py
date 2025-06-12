@@ -5,8 +5,6 @@ from topoptlab.elements.linear_elasticity_2d import lk_linear_elast_2d,_lk_linea
 from topoptlab.elements.linear_elasticity_3d import _lk_linear_elast_3d,lk_linear_elast_3d,lk_linear_elast_aniso_3d
 from topoptlab.elements.poisson_2d import lk_poisson_2d,_lk_poisson_2d,lk_poisson_aniso_2d
 from topoptlab.elements.poisson_3d import lk_poisson_3d,_lk_poisson_3d,lk_poisson_aniso_3d
-from topoptlab.elements.mass_2d import _lm_mass_2d, lm_mass_2d
-from topoptlab.elements.mass_3d import _lm_mass_3d, lm_mass_3d
 from topoptlab.elements.heatexpansion_2d import fk_heatexp_2d,_fk_heatexp_2d,fk_heatexp_aniso_2d
 from topoptlab.elements.heatexpansion_3d import fk_heatexp_3d,_fk_heatexp_3d,fk_heatexp_aniso_3d
 from topoptlab.elements.bodyforce_2d import _lf_bodyforce_2d, lf_bodyforce_2d
@@ -135,10 +133,13 @@ def compare_bodyforce_3d(xe = np.array([[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1]
                                Ke_analyt)
     return
 
-def compare_mass_2d(xe = np.array([[[-1.,-1.],
+def compare_mass_scalar_2d(xe = np.array([[[-1.,-1.],
                                     [1.,-1.],
                                     [1.,1.],
                                     [-1.,1.]]])):
+
+    from topoptlab.elements.mass_scalar_2d import _lm_mass_2d, lm_mass_2d
+
     l = (xe.max(axis=1)-xe.min(axis=1))[0]
     #
     Ke_quad = _lm_mass_2d(xe=xe)
@@ -149,13 +150,67 @@ def compare_mass_2d(xe = np.array([[[-1.,-1.],
                                Ke_analyt)
     return
 
-def compare_mass_3d(xe = np.array([[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
+def compare_mass_scalar_3d(xe = np.array([[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
                                     [-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]]])):
+
+    from topoptlab.elements.mass_scalar_3d import _lm_mass_3d, lm_mass_3d
+
     l = (xe.max(axis=1)-xe.min(axis=1))[0]
     #
     Ke_quad = _lm_mass_3d(xe=xe)
     #
     Ke_analyt = lm_mass_3d(l=l)
+    #
+    np.testing.assert_allclose(Ke_quad[0],
+                               Ke_analyt)
+    return
+
+def compare_mass_vector_2d(xe = np.array([[[-1.,-1.], [1.,-1.],
+                                           [1.,1.], [-1.,1.]]])):
+
+    from topoptlab.elements.mass_vector_2d import _lm_mass_2d, lm_mass_2d
+
+    l = (xe.max(axis=1)-xe.min(axis=1))[0]
+    #
+    Ke_quad = _lm_mass_2d(xe=xe)
+    #
+    Ke_analyt = lm_mass_2d(l=l)
+    #
+    np.testing.assert_allclose(Ke_quad[0],
+                               Ke_analyt)
+    return
+
+def compare_mass_vector_3d(xe = np.array([[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
+                                           [-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]]])):
+
+    from topoptlab.elements.mass_vector_3d import _lm_mass_3d, lm_mass_3d
+
+    l = (xe.max(axis=1)-xe.min(axis=1))[0]
+    #
+    Ke_quad = _lm_mass_3d(xe=xe)
+    #
+    Ke_analyt = lm_mass_3d(l=l)
+    #
+    np.testing.assert_allclose(Ke_quad[0],
+                               Ke_analyt)
+    return
+
+def compare_monomial_scalar_2d(xe = np.array([[[-1.,-1.],
+                                    [1.,-1.],
+                                    [1.,1.],
+                                    [-1.,1.]]])):
+
+    from topoptlab.elements.monomial_scalar_2d import _lm_monomial_2d, lm_cubic_2d
+    #
+    l = (xe.max(axis=1)-xe.min(axis=1))[0]
+    #
+    #
+    np.random.seed(0)
+    u = np.random.rand(xe.shape[0],4)
+    #
+    Ke_quad = _lm_monomial_2d(xe=xe,u=u,n=3)
+    #
+    Ke_analyt = lm_cubic_2d(l=l,u=u[0,:])
     #
     np.testing.assert_allclose(Ke_quad[0],
                                Ke_analyt)
@@ -300,17 +355,25 @@ def compare_elast_iso_3d(xe = np.array([[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1]
 if __name__ == "__main__":
     # cell 135 angle
     # xe = np.array([[-2,-1],[0,-1],[2,1],[0,1]])/2
-    
+
     #
     compare_bodyforce_2d(xe=2*np.array([[[-1,-1],[1,-1],[1,1],[-1,1]],
                                         [[-1,-1],[1,-1],[1,1],[-1,1]]]))
     compare_bodyforce_3d(xe=2*np.array([[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
                                          [-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]]]))
     #
-    compare_mass_2d(xe=2*np.array([[[-1,-1],[1,-1],[1,1],[-1,1]],
+    compare_mass_scalar_2d(xe=2*np.array([[[-1,-1],[1,-1],[1,1],[-1,1]],
                                    [[-1,-1],[1,-1],[1,1],[-1,1]]]))
-    compare_mass_3d(xe=2*np.array([[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
-                                    [-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]]]))
+    compare_mass_scalar_3d(xe=2*np.array([[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
+                                    [-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]]]))#
+    #
+    compare_mass_vector_2d(xe=2*np.array([[[-1,-1],[1,-1],[1,1],[-1,1]],
+                                          [[-1,-1],[1,-1],[1,1],[-1,1]]]))
+    compare_mass_vector_3d(xe=2*np.array([[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
+                                           [-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]]]))
+    #
+    compare_monomial_scalar_2d(xe=2*np.array([[[-1,-1],[1,-1],[1,1],[-1,1]],
+                                          [[-1,-1],[1,-1],[1,1],[-1,1]]]))
     #
     compare_laplacian_aniso_2d(xe=2*np.array([[[-1,-1],[1,-1],[1,1],[-1,1]],
                                               [[-1,-1],[1,-1],[1,1],[-1,1]]]))
@@ -355,3 +418,5 @@ if __name__ == "__main__":
     compare_heatexp_aniso_3d(xe=2*np.array([[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
                                              [-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]]]),
                              DeltaT=None)
+
+    print("All elements compare favorably between analytical and numerical integration.")

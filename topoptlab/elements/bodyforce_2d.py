@@ -48,16 +48,10 @@ def _lf_bodyforce_2d(xe,
     #
     x,w=get_integrpoints(ndim=2,nq=nquad,method=quadr_method)
     nq =w.shape[0]
-    print(x.shape)
     #
     xi,eta = [_x[:,0] for _x in np.split(x, 2,axis=1)]
     # shape functions have shape (nq,4)
-    shpfcts = shape_functions(xi=xi,eta=eta)
-    N = np.zeros((nq,2*shpfcts.shape[1],2))
-    print(xi.shape,eta.shape)
-    print(N.shape,shpfcts.shape)
-    for i in np.arange(2):
-        N[:,i::2,i] = shpfcts
+    N = np.kron(shape_functions(xi=xi, eta=eta)[:,:,None], np.eye(2))
     #
     integral = N[None,:,:,:] @ b[:,None,None,:].transpose(0,1,3,2)
     #integral = b[:,None,None,:] @ N[None,:,:,:].transpose(0,1,3,2)

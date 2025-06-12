@@ -1,11 +1,13 @@
 features
 
 - [ ] add source for scalar field
+- [ ] get rid of manual determinant calculation in elements with quadrature
+- [ ] do the Kronecker product at end in elements which exist for vector/scalar field
 - [ ] assemble documentation
 - [ ] inverse homogenization
 - [ ] add bodyforce
 - [ ] stress constraints
-- [ ] isotropic hyperelasticity 
+- [ ] isotropic hyperelasticity
 - [ ] Neo-Hooke
 - [ ] multimaterial optimization
 - [ ] anisotropic / orientation variable optimization
@@ -19,7 +21,7 @@ features
 - [ ] add aggregation functions
 - [ ] add trapecoidal function for time series integration of objective
 - [ ] smooth envelope function
-- [ ] volume preserving minimum length scale filter / constraint 
+- [ ] volume preserving minimum length scale filter / constraint
 
 generalizations
 - [ ] generalize boundary conditions
@@ -30,7 +32,7 @@ generalizations
 - [ ] add 2D Hashin-Shtrikman bounds
 - [ ] add anisotropic bounds
 - [ ] add constraints as optional functions
-- [ ] generalize export function to divide between nodal and elemental 
+- [ ] generalize export function to divide between nodal and elemental
       variables
 
 clean-ups and streamlining/refactoring
