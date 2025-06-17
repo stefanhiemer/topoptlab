@@ -2,6 +2,7 @@ from itertools import product
 from io import StringIO
 import sys
 from re import sub
+import math
 
 from sympy import symbols, Symbol
 from symfem import create_element, create_reference
@@ -336,8 +337,8 @@ def small_strain_matrix(ndim,nd_inds,basis,isoparam_kws):
     nrows = int((ndim**2 + ndim) /2)
     ncols = int(ndim * len(nd_inds))
     # compute gradients of basis functions
-    Jinv = jacobian(ndim=ndim, 
-                    return_J=False, return_inv=True, return_det=False, 
+    Jinv = jacobian(ndim=ndim,
+                    return_J=False, return_inv=True, return_det=False,
                     **isoparam_kws)
     gradN_T = (VectorFunction(basis).grad(ndim)@Jinv.transpose()).transpose()
     #
@@ -755,7 +756,7 @@ def convert_to_voigt(A):
 
     Returns
     -------
-    A_v : symfem.functions.MatrixFunction, shape (ndim,1)
+    A_v : symfem.functions.MatrixFunction, shape ((ndim**2 + ndim) /2, 1)
         2nd rank tensor in voigt notation
     """
     #
@@ -769,3 +770,39 @@ def convert_to_voigt(A):
         A_v += [[A[1][-1]]]
     A_v += [[A[0][i]] for i in range(ndim-1,0,-1)]
     return MatrixFunction(A_v)
+
+def convert_from_voigt(A_v):
+    """
+    Convert 2nd rank tensor into from its Voigt representation to the standard
+    matrix represenation.
+
+    Parameters
+    ----------
+    A_v : symfem.functions.MatrixFunction, shape ((ndim**2 + ndim) /2, 1)
+        2nd rank tensor in Voigt represenation (so a column vector)
+
+    Returns
+    -------
+    A : symfem.functions.MatrixFunction, shape (ndim,ndim)
+        2nd rank tensor in matrix notation
+    """
+    #
+    if isinstance(A_v,MatrixFunction):
+        l = A_v.shape[0]
+    elif isinstance(A_v,list):
+        l = len(A_v)
+    #
+    ndim = int( -1/2 + math.sqrt(1/2+2*l) )
+    #
+    A = [[0 for j in range(ndim)] for i in range(ndim)]
+    for i in range(ndim):
+        A[i][i] = A_v[i][0]
+    if ndim > 1:
+        A[0][1] = A_v[-1][0]
+        A[1][0] = A_v[-1][0]
+    if ndim > 2:
+        A[1][2] =  A_v[3][0]
+        A[2][1] =  A_v[3][0]
+        A[0][2] =  A_v[4][0]
+        A[2][0] =  A_v[4][0]
+    return MatrixFunction(A)
