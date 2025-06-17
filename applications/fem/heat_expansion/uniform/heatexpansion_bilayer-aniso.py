@@ -25,7 +25,7 @@ def fem_heat_expansion(nelx, nely, nelz=None,
                        Eratio = 0.35,
                        lin_solver="scipy-direct", preconditioner=None,
                        assembly_mode="full",
-                       bc=selffolding_3d,
+                       bc=selffolding_2d,
                        file="fem_heat-expansion_bilayer-aniso",
                        export=True):
     """
@@ -95,10 +95,10 @@ def fem_heat_expansion(nelx, nely, nelz=None,
         xe = np.array([[[-1.,-1.], 
                         [1.,-1.], 
                         [1.,1.], 
-                        [-1.,1.]]]) * np.ones(xPhys.shape)[:,None,None]
+                        [-1.,1.]]])/2 * np.ones(xPhys.shape)[:,None,None]
     elif ndim == 3:
         xe = np.array([[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
-                        [-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]]]) \
+                        [-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]]])/2 \
             * np.ones(xPhys.shape)[:,None,None]
     # isotropic bilayer
     if ndim ==2:
@@ -158,7 +158,7 @@ def fem_heat_expansion(nelx, nely, nelz=None,
     # Construct the index pointers for the coo format
     iK,jK = create_matrixinds(EedofMat,mode=assembly_mode)
     # BC's and support
-    u,f,fixedE,freeE,_ = bc(nelx=nelx,nely=nely,nelz=nelz,ndof=nEdof)
+    u,f,fixedE,freeE,springs = bc(nelx=nelx,nely=nely,nelz=nelz,ndof=nEdof)
     #
     T = np.ones((nTdof,1))
     # interpolate material properties
@@ -169,7 +169,7 @@ def fem_heat_expansion(nelx, nely, nelz=None,
     #
     KE = assemble_matrix(sK=sK,iK=iK,jK=jK,
                          ndof=nEdof,solver=lin_solver,
-                         springs=None)
+                         springs=springs)
     # assemble right hand side
     # forces due to heat expansion per element
     if ndim == 2:
@@ -197,10 +197,10 @@ def fem_heat_expansion(nelx, nely, nelz=None,
     u[freeE, :], fact, precond, = solve_lin(K=KE, rhs=rhsE[freeE], 
                                             solver=lin_solver,
                                             preconditioner=preconditioner)
-    #print(u[1::2].max())
-    #np.savetxt("surface-displacements.csv", 
-    #           u[np.arange(0,2*(nelx+1)*(nely+1),2*(nely+1))+1,0])
-    #
+    print(u[1::2].max())
+    np.savetxt("surface-displacements.csv", 
+               u[np.arange(0,2*(nelx+1)*(nely+1),2*(nely+1))+1,0])
+    
     if export:
         export_vtk(filename=file+"T"+str(ndim),
                    nelx=nelx,nely=nely,nelz=nelz,
@@ -213,9 +213,9 @@ def fem_heat_expansion(nelx, nely, nelz=None,
     return
 
 if __name__ == "__main__":
-    nelx=50
-    nely=10
-    nelz=5
+    nelx=240
+    nely=40
+    nelz=None
     #
     import sys
     if len(sys.argv)>1: 

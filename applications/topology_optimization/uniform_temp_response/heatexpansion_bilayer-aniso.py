@@ -4,6 +4,7 @@ import logging
 from functools import partial
 #
 import numpy as np
+from scipy.signal import sawtooth
 from scipy.sparse.linalg import factorized
 from scipy.ndimage import convolve
 #
@@ -42,6 +43,8 @@ from topoptlab.output_designs import export_vtk,threshold
 from topoptlab.utils import map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel
 # logging related stuff
 from topoptlab.log_utils import init_logging
+# drawing function
+from topoptlab.draw_functions import spring, hinged_support
 
 
 # MAIN DRIVER
@@ -60,7 +63,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
          optimizer="mma", optimizer_kw = None,
          alpha=None,
          nouteriter=2000, ninneriter=15,
-         file="fem_heat-expansion_bilayer-iso",
+         file="fem_heat-expansion_bilayer-aniso",
          display=True,export=True,write_log=True,
          debug=0):
     """
@@ -604,8 +607,55 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                    volfrac=volfrac)
     return x, obj
 
+def sketch(save=False):
+    """
+    Just a sketch to indicate boundary conditions etc.
+    """
+    
+    fig,ax = plt.subplots(figsize=(16,6))
+    # bottom layer
+    ax.plot(np.array([0,1,1,0,0]),np.array([0,0,1,1,0]),c="k")
+    # top layer
+    ax.plot(np.array([0,1,1,0,0]),np.array([1,1,2,2,1]),c="k")
+    # arrows for indication of layer orientation
+    for i in range(5):
+        ax.arrow(x=0.1 + i*0.2, y=0.7, dx=0., dy=-0.4, 
+                 width=0.002, head_length=0.2, 
+                 color="k") 
+        ax.arrow(x=0.05+ i*0.2, y=1.5, dx=0.1, dy=0, 
+                 width=0.01, color="k")
+    # spring
+    x,y = spring(x0=1.,y0=2.,
+                 num_coils = 3, coil_width = 0.02, 
+                 coil_length = 0.4, points_per_coil = 8)
+    ax.plot(x,y, 
+            linewidth=2.,color="gray")
+    x,y = spring(x0=0.,y0=2.,
+                 num_coils = 3, coil_width = 0.02, 
+                 coil_length = 0.4, points_per_coil = 8)
+    ax.plot(x,y, 
+            linewidth=2.,color="gray")
+    # mirror axis
+    ax.axvline(x=0.5, ymin = -1, ymax = 3.,
+               color="b", linestyle="--", linewidth=3., 
+               alpha = 0.7)
+    # 
+    hinged_support(x0=0.5,y0=0.,
+                   ax=ax,fig=fig,
+                   triangle_width=.15,
+                   radius=0.05)
+    #
+    ax.axis("off")
+    ax.set_ylim(-0.5,2.5)
+    if save:
+        plt.savefig(fname="sketch.pdf",format="pdf",bbox_inches="tight")
+    plt.show()
+    return
+
 # The real main driver
 if __name__ == "__main__":
+    #
+    #sketch(save=True)
     # Default input parameters
     nelx=240
     nely=80

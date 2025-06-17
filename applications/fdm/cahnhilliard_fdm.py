@@ -85,7 +85,7 @@ if __name__ == "__main__":
         display = bool(int(sys.argv[3]))
     # Run the simulation
     cahn_hilliard_fd(dim=ndim, grid_size=n,
-                     dx=1.0, dt=0.02,
-                     gamma=1.0, M=1.0,
+                     dx=1.0, dt=0.04,
+                     gamma=0.5, M=1.0,
                      n_steps=int(1e5),
                      display=display)

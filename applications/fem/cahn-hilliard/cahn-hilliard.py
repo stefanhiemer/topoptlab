@@ -79,8 +79,8 @@ def fem_homogenization(nelx, nely, nelz=None, n_steps=10000,
 
     """
     #
-    dt=3.e-3
-    gamma=1.0
+    dt=1.e-2
+    gamma=0.5
     mobility=1.0
     #
     if nelz is None:
@@ -172,6 +172,7 @@ def fem_homogenization(nelx, nely, nelz=None, n_steps=10000,
         mu[:] = lu_solve(AE@c + gamma * KE@c - ME@c)
         # concentration
         c[:] = lu_solve(ME@c - mobility * dt * KE@mu)
+        #c[:] = c * (c[edofMat]*np.prod(el_sidelengths) / 2**ndim).sum() / n
         #
         if ndim == 2 and step % (n_steps // 1000) == 0 and display:
             plt.imshow(map_eltoimg(c,nelx=nelx,nely=nely),
