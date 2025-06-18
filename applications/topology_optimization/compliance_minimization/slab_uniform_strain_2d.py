@@ -1,3 +1,4 @@
+from warnings import warn
 import numpy as np
 
 from topoptlab.compliance_minimization import main
@@ -39,10 +40,11 @@ if __name__ == "__main__":
         display = bool(int(sys.argv[7]))
     if len(sys.argv)>8:
         export = bool(int(sys.argv[8]))
+    warn("At the moment this case is nonsense and will yield a result where the volume constraint is violated. Need to implement GCMMA to check that it can handle this one")
     #
     x,obj = main(nelx=nelx, nely=nely, volfrac=volfrac, penal=penal,
                  rmin=rmin, ft=ft, filter_mode="matrix",
                  optimizer="mma", lin_solver="scipy-direct",
-                 nouteriter=1000,file="uniformstrain_2d",
-                 bcs=singlenode, body_forces_kw={"strain_uniform": np.array([1,0,0])},
+                 nouteriter=1000, file="uniformstrain_2d",
+                 bcs=singlenode, body_forces_kw={"strain_uniform": np.eye(3)},
                  debug=False,display=display,export=export)

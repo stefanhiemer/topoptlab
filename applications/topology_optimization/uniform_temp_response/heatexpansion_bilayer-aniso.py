@@ -24,12 +24,15 @@ from topoptlab.elements.trilinear_hexahedron import create_edofMat as create_edo
 # different elements/physics
 from topoptlab.stiffness_tensors import isotropic_2d,isotropic_3d
 from topoptlab.stiffness_tensors import orthotropic_2d,orthotropic_3d
-from topoptlab.elements.linear_elasticity_2d import _lk_linear_elast_2d
-from topoptlab.elements.linear_elasticity_3d import _lk_linear_elast_3d
+from topoptlab.elements.linear_elasticity_2d import _lk_linear_elast_2d, _lf_strain_2d
+from topoptlab.elements.linear_elasticity_3d import _lk_linear_elast_3d, _lf_strain_3d
 from topoptlab.elements.poisson_2d import lk_poisson_2d
 from topoptlab.elements.poisson_3d import lk_poisson_3d
+from topoptlab.elements.bodyforce_2d import lf_bodyforce_2d
+from topoptlab.elements.bodyforce_3d import lf_bodyforce_3d
 from topoptlab.elements.heatexpansion_2d import _fk_heatexp_2d
 from topoptlab.elements.heatexpansion_3d import _fk_heatexp_3d
+from topoptlab.material_interpolation import simp,simp_dx
 # generic functions for solving phys. problem
 from topoptlab.fem import assemble_matrix,assemble_rhs,apply_bc
 from topoptlab.solve_linsystem import solve_lin
@@ -57,6 +60,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
          filter_mode="matrix",
          lin_solver="scipy-direct", preconditioner=None,
          assembly_mode="full",
+         body_forces_kw={},
          bcs=selffolding_2d, l=1.,
          obj_func=var_maximization, obj_kw={},
          el_flags=None,
@@ -301,6 +305,59 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                                                     nnode_dof=nT_ndof)
         #
         KeET = _fk_heatexp_3d(xe=xe, c=cs, a=a)
+    # fetch body forces
+    if len(body_forces_kw.keys())==0:
+        fe_strain = None
+        fe_dens = None
+    else:
+        # assume each strain is a column vector in Voigt notation
+        if "strain_uniform" in body_forces_kw.keys():
+            # fetch functions to create body force
+            if ndim == 2:
+                lf = _lf_strain_2d
+            elif ndim == 3:
+                lf = _lf_strain_3d
+            # calculate forces for each strain
+            fe_strain = []
+            if len(body_forces_kw["strain_uniform"].shape) == 1:
+                body_forces_kw["strain_uniform"] = body_forces_kw["strain_uniform"][:,None]
+            #
+            for i in range(body_forces_kw["strain_uniform"].shape[-1]):
+                fe_strain.append(lf(body_forces_kw["strain_uniform"][:,i],E=1.0, l=l))
+            fe_strain = np.column_stack(fe_strain)
+            # find the imposed elemental field. Material properties are
+            # unimportant here as it just depends on the geometry of the
+            # element, not its properties. This part is needed for
+            # homogenization related objective functions and may later
+            # become optional via some flags.
+            if ndim == 2 and n_ndof != 1:
+                fixed = np.array([0,1,3])
+            elif ndim == 3 and n_ndof != 1:
+                fixed = np.array([0,1,2,4,5,7,8])
+            elif n_ndof == 1:
+                fixed = np.array([0])
+            free = np.setdiff1d(np.arange(KE.shape[-1]), fixed)
+            u0 = np.zeros(fe_strain.shape)
+            u0[free] = np.linalg.solve(KE[free,:][:,free],
+                                       fe_strain[free,:])
+            if "u0" not in obj_kw.keys():
+                obj_kw["u0"] = u0
+        else:
+            fe_strain = None
+        #
+        if "density_coupled" in body_forces_kw.keys():
+            # fetch functions to create body force
+            if ndim == 2 and n_ndof!=1:
+                lf = lf_bodyforce_2d
+            elif ndim == 3 and n_ndof!=1:
+                lf = lf_bodyforce_3d
+            fe_dens = lf_bodyforce_2d(b=body_forces_kw["density_coupled"])
+        else:
+            fe_dens = None
+        #
+        if len([key for key in body_forces_kw.keys() \
+                if key not in ["density_coupled","strain_uniform"]]):
+            raise NotImplementedError("One type of bodyforce/source has not yet been implemented.")
     # Construct the index pointers for the coo format
     iK,jK = create_matrixinds(edofMat,mode=assembly_mode)
     # function to convert densities, etc. to images/voxels for plotting or the
@@ -371,7 +428,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     # optimization loop
     for loop in np.arange(nouteriter):
         # calculate / interpolate material properties
-        scale = (eps+xPhys**penal*(1-eps))
+        scale = simp(xPhys=xPhys,eps=eps,penal=penal) #(eps+xPhys**penal*(1-eps))
         Kes = KE[None,:,:]*scale[:,None,None]
         # solve FEM, calculate obj. func. and gradients.
         # for
@@ -396,8 +453,23 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             np.add.at(fT[:,0],
                       edofMat.flatten(),
                       (scale[:,None,None]*fTe).flatten())
+            # assemble forces due to body forces
+            f_body = np.zeros(f.shape)
+            u0 = None
+            for bodyforce in body_forces_kw.keys():
+                # assume each strain is a column vector in Voigt notation
+                if "strain_uniform" in body_forces_kw.keys():
+                    fes = fe_strain[None,:,:]*scale[:,None,None]
+                    np.add.at(f_body,
+                              edofMat,
+                              fes)
+                if "density_coupled" in body_forces_kw.keys():
+                    fes = fe_dens[None,:,:]*simp(xPhys=xPhys, eps=0., penal=1.)[:,None,None]
+                    np.add.at(f_body,
+                              edofMat,
+                              fes)
             # assemble right hand side
-            rhs = assemble_rhs(f0=f+fT,solver=lin_solver)
+            rhs = assemble_rhs(f0=f+fT+f_body,solver=lin_solver)
             # apply boundary conditions to matrix
             K = apply_bc(K=K,solver=lin_solver,
                          free=free,fixed=fixed)
@@ -416,6 +488,26 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                                                 Amax=1.,Amin=eps,
                                                 penal=penal,
                                                 **obj_kw)
+                # update sensitivity for quantities that need a small offset to
+                # avoid degeneracy of the FE problem
+                """
+                if f0 is None:
+                    dobj += simp_dx(xPhys=xPhys, eps=1e-9, penal=penal) *\
+                          (np.dot(h[edofMat,i], KE)*u[edofMat,i]).sum(1)
+                elif f0 is None and "strain_uniform" in body_forces_kw.keys():
+                    dobj += simp_dx(xPhys=xPhys, eps=1e-9, penal=penal)*\
+                          (np.dot(h[edofMat,i], KE)*\
+                           (u[edofMat,i] - fe_strain[None,:,i])).sum(1)
+                #else:
+                #    dobj += simp_dx(xPhys=xPhys, eps=1e-9, penal=penal)*\
+                #          (np.dot(h[edofMat,i], KE)*\
+                #           (u[edofMat,i] - f0[:] - fe_strain[None,:,i])).sum(1)
+                # update sensitivity for quantities that do not need a small 
+                # offset to avoid degeneracy of the FE problem
+                if "density_coupled" in body_forces_kw.keys():
+                    dobj -= simp_dx(xPhys=xPhys, eps=0., penal=1.)*\
+                            np.dot(h[edofMat,i],fe_dens[:,i])
+                """
                 # if problem not self adjoint, solve for adjoint variables and
                 # calculate derivatives, else use analytical solution
                 if self_adj:
@@ -694,7 +786,7 @@ if __name__ == "__main__":
     l = np.zeros((2*(nelx+1)*(nely+1),1))
     l[2 *nelx*(nely+1) + 1,0] = 1
     #
-    from topoptlab.geometries import slab
+    #from topoptlab.geometries import slab
     main(nelx=nelx,nely=nely,volfrac=volfrac,penal=penal,rmin=rmin,ft=ft,
          obj_func=var_maximization ,obj_kw={"l": l},
          #el_flags = slab(nelx=nelx, nely=nely, center=((nelx-1)/2,(nely-1)/2), widths=(None,1.), fill_value=2),

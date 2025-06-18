@@ -41,7 +41,7 @@ if __name__ == "__main__":
     #
     x,obj = main(nelx=nelx, nely=nely, volfrac=volfrac, penal=penal,
                  rmin=rmin, ft=ft, filter_mode="matrix",
-                 optimizer="oc", lin_solver="scipy-direct",
+                 optimizer="mma", lin_solver="scipy-direct",
                  nouteriter=1000,file="mbb_2d",
-                 bcs=mbb_2d,
+                 bcs=mbb_2d, #body_forces_kw={"density_coupled": np.array([0,-0.01])},
                  debug=False,display=display,export=export)

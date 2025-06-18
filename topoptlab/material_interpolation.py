@@ -7,17 +7,19 @@ def simp(xPhys, eps, penal):
     xPhys : np.ndarray, shape (n)
         physical SIMP density
     eps : float
-        volume fraction.
+        small offset that is needed for some properties (e. g. stiffness) to 
+        avoid degeneracy of the problem. Should be very small compared to 1 
+        e. g. 1e-9.
     penal : float
         penalty exponent for the SIMP method.
 
     Returns
     -------
     scale : np.ndarray, shape (n)
-        scale factor to multiply with material property
+        scale factor to multiply with material property/matrix.
 
     """
-    return eps+(1-eps)*(xPhys)**penal
+    return eps+(1-eps)*xPhys**penal
 
 def simp_dx(xPhys, eps, penal):
     """
@@ -29,17 +31,19 @@ def simp_dx(xPhys, eps, penal):
     xPhys : np.ndarray, shape (n)
         physical SIMP density
     eps : float
-        volume fraction.
+        small offset that is needed for some properties (e. g. stiffness) to 
+        avoid degeneracy of the problem. Should be very small compared to 1 
+        e. g. 1e-9.
     penal : float
         penalty exponent for the SIMP method.
 
     Returns
     -------
     scale : np.ndarray, shape (n)
-        scale factor to multiply with material property
+        scale factor to multiply with material property/matrix.
 
     """
-    return penal * (1-eps) * (xPhys)**(penal-1)
+    return penal * (1-eps) * xPhys**(penal-1)
 
 def bound_interpol(xPhys,w,
                    bd_low,bd_upp,

@@ -25,6 +25,8 @@ from topoptlab.elements.bodyforce_3d import lf_bodyforce_3d
 # generic functions for solving phys. problem
 from topoptlab.fem import assemble_matrix,assemble_rhs,apply_bc
 from topoptlab.solve_linsystem import solve_lin
+#
+from topoptlab.material_interpolation import simp, simp_dx
 # constrained optimizers
 from topoptlab.optimizer.optimality_criterion import oc_top88,oc_mechanism,oc_generalized
 from topoptlab.optimizer.mma_utils import update_mma,mma_defaultkws,gcmma_defaultkws
@@ -42,7 +44,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
          filter_mode="matrix",
          lin_solver="scipy-direct", preconditioner=None,
          assembly_mode="full",
-         materials_kw={"E": 1.},body_forces_kw={},
+         materials_kw={"E": 1.}, body_forces_kw={},
          bcs=mbb_2d, lk=None, l=1.,
          obj_func=compliance, obj_kw={},
          el_flags=None,
@@ -244,52 +246,59 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         # element degree of freedom matrix plus some helper indices
         edofMat, n1, n2, n3, n4 = create_edofMat3d(nelx=nelx,nely=nely,nelz=nelz,
                                                    nnode_dof=n_ndof)
+    # fetch body forces
     if len(body_forces_kw.keys())==0:
-        pass
+        fe_strain = None
+        fe_dens = None
     else:
-        for bodyforce in body_forces_kw.keys():
-            # assume each strain is a column vector in Voigt notation
-            if "strain_uniform" in body_forces_kw.keys():
-                # fetch functions to create body force
-                if ndim == 2:
-                    lf = lf_strain_2d
-                elif ndim == 3:
-                    lf = lf_strain_3d
-                # calculate forces for each strain
-                fe_strain = []
-                if len(body_forces_kw["strain_uniform"].shape) == 1:
-                    body_forces_kw["strain_uniform"] = body_forces_kw["strain_uniform"][:,None]
-                #
-                for i in range(body_forces_kw["strain_uniform"].shape[-1]):
-                    fe_strain.append(lf(body_forces_kw["strain_uniform"][:,i],E=1.0, l=l))
-                fe_strain = np.column_stack(fe_strain)
-                # find the imposed elemental field. Material properties are
-                # unimportant here as it just depends on the geometry of the
-                # element, not its properties. This part is needed for
-                # homogenization related objective functions and may later
-                # become optional via some flags.
-                if ndim == 2 and n_ndof != 1:
-                    fixed = np.array([0,1,3])
-                elif ndim == 3 and n_ndof != 1:
-                    fixed = np.array([0,1,2,4,5,7,8])
-                elif n_ndof == 1:
-                    fixed = np.array([0])
-                free = np.setdiff1d(np.arange(KE.shape[-1]), fixed)
-                u0 = np.zeros(fe_strain.shape)
-                u0[free] = np.linalg.solve(KE[free,:][:,free],
-                                           fe_strain[free,:])
-                if "u0" not in obj_kw.keys():
-                    obj_kw["u0"] = u0
+        # assume each strain is a column vector in Voigt notation
+        if "strain_uniform" in body_forces_kw.keys():
+            # fetch functions to create body force
+            if ndim == 2:
+                lf = lf_strain_2d
+            elif ndim == 3:
+                lf = lf_strain_3d
+            # calculate forces for each strain
+            fe_strain = []
+            if len(body_forces_kw["strain_uniform"].shape) == 1:
+                body_forces_kw["strain_uniform"] = body_forces_kw["strain_uniform"][:,None]
             #
-            elif "density_coupled" in body_forces_kw.keys():
-                # fetch functions to create body force
-                if ndim == 2 and n_ndof!=1:
-                    lf = lf_bodyforce_2d
-                elif ndim == 3 and n_ndof!=1:
-                    lf = lf_bodyforce_3d
-                fe_dens = lf_bodyforce_2d(b=body_forces_kw["density_coupled"])
-            else:
-                raise NotImplementedError("This type of bodyforce/source has not yet been implemented.")
+            for i in range(body_forces_kw["strain_uniform"].shape[-1]):
+                fe_strain.append(lf(body_forces_kw["strain_uniform"][:,i],E=1.0, l=l))
+            fe_strain = np.column_stack(fe_strain)
+            # find the imposed elemental field. Material properties are
+            # unimportant here as it just depends on the geometry of the
+            # element, not its properties. This part is needed for
+            # homogenization related objective functions and may later
+            # become optional via some flags.
+            if ndim == 2 and n_ndof != 1:
+                fixed = np.array([0,1,3])
+            elif ndim == 3 and n_ndof != 1:
+                fixed = np.array([0,1,2,4,5,7,8])
+            elif n_ndof == 1:
+                fixed = np.array([0])
+            free = np.setdiff1d(np.arange(KE.shape[-1]), fixed)
+            u0 = np.zeros(fe_strain.shape)
+            u0[free] = np.linalg.solve(KE[free,:][:,free],
+                                       fe_strain[free,:])
+            if "u0" not in obj_kw.keys():
+                obj_kw["u0"] = u0
+        else:
+            fe_strain = None
+        #
+        if "density_coupled" in body_forces_kw.keys():
+            # fetch functions to create body force
+            if ndim == 2 and n_ndof!=1:
+                lf = lf_bodyforce_2d
+            elif ndim == 3 and n_ndof!=1:
+                lf = lf_bodyforce_3d
+            fe_dens = lf_bodyforce_2d(b=body_forces_kw["density_coupled"])
+        else:
+            fe_dens = None
+        #
+        if len([key for key in body_forces_kw.keys() \
+                if key not in ["density_coupled","strain_uniform"]]):
+            raise NotImplementedError("One type of bodyforce/source has not yet been implemented.")
     # Construct the index pointers for the coo format
     iK,jK = create_matrixinds(edofMat,mode=assembly_mode)
     # function to convert densities, etc. to images/voxels for plotting or the
@@ -326,6 +335,13 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     u,f,fixed,free,springs = bcs(nelx=nelx,nely=nely,nelz=nelz,
                                  ndof=ndof)
     f0 = None
+    # check that boundary conditions and body forces are compatible
+    if fe_strain is not None:
+        if f.shape[-1] != fe_strain.shape[-1]:
+            raise ValueError("Number of applied strains and boundary conditions is incompatible. Last dimension must be equal.")
+    if fe_dens is not None:
+        if f.shape[-1] != fe_dens.shape[-1]:
+            raise ValueError("Number of density based body forces and boundary conditions is incompatible. Last dimension must be equal.")
     if display:
         # Initialize plot and plot the initial design
         plt.ion()  # Ensure that redrawing is possible
@@ -373,7 +389,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
            loop==0:
             # update physical properties of the elements and thus the entries
             # of the elements
-            scale = (Emin+(xPhys)**penal * (E-Emin))
+            scale = simp(xPhys=xPhys,penal=penal,eps=1e-9)#(Emin+(xPhys)**penal * (E-Emin))
             Kes = KE[None,:,:]*scale[:,None,None]
             if assembly_mode == "full":
                 # this here is more memory efficient than Kes.flatten() as it
@@ -396,11 +412,10 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                               edofMat,
                               fes)
                 if "density_coupled" in body_forces_kw.keys():
-                    fes = fe_dens[None,:,:]*scale[:,None,None]
+                    fes = fe_dens[None,:,:]*simp(xPhys=xPhys, eps=0., penal=1.)[:,None,None]
                     np.add.at(f_body,
                               edofMat,
                               fes)
-
             # assemble right hand side
             rhs = assemble_rhs(f0=f+f_body,
                                solver=lin_solver)
@@ -435,21 +450,24 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                     h[free],_,_ = solve_lin(K, rhs=rhs_adj[free],
                                             solver=lin_solver, P=precond,
                                             preconditioner = preconditioner)
-                if f0 is None and len(body_forces_kw.keys())==0:
-                    dobj += penal*xPhys**(penal-1)*(E-Emin)*\
+                # update sensitivity for quantities that need a small offset to
+                # avoid degeneracy of the FE problem
+                if f0 is None:
+                    dobj += simp_dx(xPhys=xPhys, eps=1e-9, penal=penal) *\
                           (np.dot(h[edofMat,i], KE)*u[edofMat,i]).sum(1)
                 elif f0 is None and "strain_uniform" in body_forces_kw.keys():
-                    #print(fe_strain[None,:,i].shape,u[edofMat,i].shape)
-                    #print((np.dot(h[edofMat,i], KE)*u[edofMat,i] - fe_strain[None,:,i]).shape )
-                    import sys
-                    sys.exit()
-                    dobj += penal*xPhys**(penal-1)*(E-Emin)*\
+                    dobj += simp_dx(xPhys=xPhys, eps=1e-9, penal=penal)*\
                           (np.dot(h[edofMat,i], KE)*\
                            (u[edofMat,i] - fe_strain[None,:,i])).sum(1)
-                else:
-                    dobj += penal*xPhys**(penal-1)*(E-Emin)*\
-                          (np.dot(h[edofMat,i], KE)*\
-                           (u[edofMat,i] - f0[:] - fe_strain[None,:,i])).sum(1)
+                #else:
+                #    dobj += simp_dx(xPhys=xPhys, eps=1e-9, penal=penal)*\
+                #          (np.dot(h[edofMat,i], KE)*\
+                #           (u[edofMat,i] - f0[:] - fe_strain[None,:,i])).sum(1)
+                # update sensitivity for quantities that do not need a small 
+                # offset to avoid degeneracy of the FE problem
+                if "density_coupled" in body_forces_kw.keys():
+                    dobj -= simp_dx(xPhys=xPhys, eps=0., penal=1.)*\
+                            np.dot(h[edofMat,i],fe_dens[:,i])
                 if debug:
                     print("FEM: it.: {0}, problem: {1}, min. u: {2:.10f}, med. u: {3:.10f}, max. u: {4:.10f}".format(
                            loop,i,np.min(u[:,i]),np.median(u[:,i]),np.max(u[:,i])))

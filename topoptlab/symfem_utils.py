@@ -235,33 +235,68 @@ def base_cell(ndim,
     basis : list
         list of basis functions.
     """
-    if order != 1:
-        raise NotImplementedError()
+    if order not in [1]:
+        raise NotImplementedError("Beyond order 1 not yet implemented.")
+    #
     if ndim == 1:
-        # Define the vertived and triangles of the mesh
-        vertices = ((-1,), (1,))
-        # node indices in reference cell of symfem. Check the git to see
-        # how the numbering is done.
-        nd_inds = [0, 1]
-        #
         cell_name = "interval"
     elif ndim == 2:
-        # Define the vertived and triangles of the mesh
-        vertices = ((-1, -1), (1, -1), (1, 1), (-1, 1))
-        # node indices in reference cell of symfem. Check the git to see
-        # how the numbering is done.
-        nd_inds = [0, 1, 3, 2]
-        #
         cell_name = "quadrilateral"
     elif ndim == 3:
-        # Define the vertived and triangles of the mesh
-        vertices = ((-1, -1, -1), (1, -1, -1), (1, 1, -1), (-1, 1, -1),
-                    (-1, -1, 1), (1, -1, 1), (1, 1, 1), (-1, 1, 1))
-        # node indices in reference cell of symfem. Check the git to see
-        # how the numbering is done.
-        nd_inds = [0, 1, 3, 2,
-                   4, 5, 7, 6]
-        cell_name = "hexahedron"
+        cell_name == "hexahedron"
+    #
+    if order == 1:
+        if ndim == 1:
+            # Define the vertived and triangles of the mesh
+            vertices = ((-1,), (1,))
+            # node indices in reference cell of symfem. Check the git to see
+            # how the numbering is done.
+            nd_inds = [0, 1]
+        elif ndim == 2:
+            # Define the vertived and triangles of the mesh
+            vertices = ((-1, -1), (1, -1), (1, 1), (-1, 1))
+            # node indices in reference cell of symfem. Check the git to see
+            # how the numbering is done.
+            nd_inds = [0, 1, 3, 2]
+        elif ndim == 3:
+            # Define the vertived and triangles of the mesh
+            vertices = ((-1, -1, -1), (1, -1, -1), (1, 1, -1), (-1, 1, -1),
+                        (-1, -1, 1), (1, -1, 1), (1, 1, 1), (-1, 1, 1))
+            # node indices in reference cell of symfem. Check the git to see
+            # how the numbering is done.
+            nd_inds = [0, 1, 3, 2,
+                       4, 5, 7, 6]
+    elif order == 2:
+        if ndim == 1:
+            # Define the vertived and triangles of the mesh
+            vertices = ((-1,), (1,), (0,))
+            # node indices in reference cell of symfem. Check the git to see
+            # how the numbering is done.
+            nd_inds = [0, 1, 2]
+        elif ndim == 2:
+            # Define the vertived and triangles of the mesh
+            vertices = ((-1, -1), (1, -1), (1, 1), (-1, 1),
+                        (0, -1), (1, 0), (0, 1), (-1, 0) )
+            # node indices in reference cell of symfem. Check the git to see
+            # how the numbering is done.
+            nd_inds = [0, 1, 3, 2]
+        elif ndim == 3:
+            # Define the vertived and triangles of the mesh
+            vertices = ((-1, -1, -1), (1, -1, -1), (1, 1, -1), (-1, 1, -1),
+                        (-1, -1, 1), (1, -1, 1), (1, 1, 1), (-1, 1, 1), 
+                        (0, -1, -1), (1, 0, -1), (0, 1, -1), (-1, 0, -1),
+                        (0, -1, 1), (1, 0, 1), (0, 1, 1), (-1, 0, 1))
+            # node indices in reference cell of symfem. Check the git to see
+            # how the numbering is done.
+            nd_inds = [0, 1, 3, 2,
+                       4, 5, 7, 6]
+    elif order == 3:
+        if ndim == 1:
+            # Define the vertived and triangles of the mesh
+            vertices = ((-1,), (1,), (-1/3,), (1/3,))
+            # node indices in reference cell of symfem. Check the git to see
+            # how the numbering is done.
+            nd_inds = [1, 2, 0]
     # reorder vertices according to the given node indices
     _vertices = tuple(vertices[i] for i in nd_inds)
     # create element
