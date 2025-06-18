@@ -20,6 +20,8 @@ from topoptlab.elements.trilinear_hexahedron import create_edofMat as create_edo
 # different elements/physics
 from topoptlab.elements.linear_elasticity_2d import lk_linear_elast_2d, lf_strain_2d
 from topoptlab.elements.linear_elasticity_3d import lk_linear_elast_3d, lf_strain_3d
+from topoptlab.element.bodyforce_2d import lf_bodyforce_2d
+from topoptlab.element.bodyforce_3d import lf_bodyforce_3d
 # generic functions for solving phys. problem
 from topoptlab.fem import assemble_matrix,assemble_rhs,apply_bc
 from topoptlab.solve_linsystem import solve_lin
@@ -278,6 +280,14 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                                            fe_strain[free,:])
                 if "u0" not in obj_kw.keys():
                     obj_kw["u0"] = u0
+            #
+            elif "density_coupled" in body_forces_kw.keys():
+                # fetch functions to create body force
+                if ndim == 2 and n_ndof!=1:
+                    lf = lf_bodyforce_2d
+                elif ndim == 3 and n_ndof!=1:
+                    lf = lf_bodyforce_3d
+                fe_dens = lf_bodyforce_2d(b=body_forces_kw["density_coupled"])
             else:
                 raise NotImplementedError("This type of bodyforce/source has not yet been implemented.")
     # Construct the index pointers for the coo format
@@ -382,6 +392,11 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                 # assume each strain is a column vector in Voigt notation
                 if "strain_uniform" in body_forces_kw.keys():
                     fes = fe_strain[None,:,:]*scale[:,None,None]
+                    np.add.at(f_body,
+                              edofMat,
+                              fes)
+                if "density_coupled" in body_forces_kw.keys():
+                    fes = fe_dens[None,:,:]*scale[:,None,None]
                     np.add.at(f_body,
                               edofMat,
                               fes)
