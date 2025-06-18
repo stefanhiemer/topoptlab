@@ -20,8 +20,8 @@ from topoptlab.elements.trilinear_hexahedron import create_edofMat as create_edo
 # different elements/physics
 from topoptlab.elements.linear_elasticity_2d import lk_linear_elast_2d, lf_strain_2d
 from topoptlab.elements.linear_elasticity_3d import lk_linear_elast_3d, lf_strain_3d
-from topoptlab.element.bodyforce_2d import lf_bodyforce_2d
-from topoptlab.element.bodyforce_3d import lf_bodyforce_3d
+from topoptlab.elements.bodyforce_2d import lf_bodyforce_2d
+from topoptlab.elements.bodyforce_3d import lf_bodyforce_3d
 # generic functions for solving phys. problem
 from topoptlab.fem import assemble_matrix,assemble_rhs,apply_bc
 from topoptlab.solve_linsystem import solve_lin
