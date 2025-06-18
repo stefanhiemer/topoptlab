@@ -71,9 +71,9 @@ def ball(nelx, nely, nelz, center, radius, fill_value=1):
 
 def diracdelta(nelx,nely,nelz=None,location=None):
     """
-    Create element flags for a Dirac delta located at the specified location. 
+    Create element flags for a Dirac delta located at the specified location.
     Depending on the location and the number of elements in each direction this
-    results in either a single element with flag 1 or 4/8 elements in 2/3 
+    results in either a single element with flag 1 or 4/8 elements in 2/3
     dimensions.
 
     Parameters
@@ -154,4 +154,41 @@ def bounding_rectangle(nelx,nely,faces=["b","t","r","l"]):
     el_flags = np.zeros(nelx*nely,dtype=int)
     # set to active
     el_flags[indices] = 2
+    return el_flags
+
+def slab(nelx,nely,center,widths=None, fill_value=1):
+    """
+    Create element flags for a slab located at the specified center with the
+    specified width in each dimension.
+
+    Parameters
+    ----------
+    nelx : int
+        number of elements in x direction.
+    nely : int
+        number of elements in y direction.
+    center : list or tuple or np.ndarray
+        coordinates of slab center.
+    widths : iterable of float and None
+        width in x and y direction.
+    fill_value: int
+        value that is prescribed to elements within sphere.
+
+    Returns
+    -------
+    el_flags : np.ndarray
+        element flags of shape (nelx*nely)
+
+    """
+    #
+    widths = [ [nelx,nely][i] if w is None else w for i,w in enumerate(widths)]
+    #
+    n = nelx*nely
+    el = np.arange(n, dtype=np.int32)
+    i,j = np.divmod(el,nely)
+    #
+    mask = (np.abs(i-center[0]) <= widths[0]/2 ) & (np.abs(j-center[1]) <= widths[1]/2)
+    #
+    el_flags = np.zeros(n,dtype=np.int32)
+    el_flags[mask] = fill_value
     return el_flags

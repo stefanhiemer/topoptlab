@@ -19,8 +19,8 @@ from topoptlab.output_designs import export_vtk
 
 # MAIN DRIVER
 def fem_heat_expansion(nelx, nely, nelz=None,
-                       xPhys=None, penal=3., 
-                       Emax=1.0, Emin=1e-9, nu=0.3, 
+                       xPhys=None, penal=3.,
+                       Emax=1.0, Emin=1e-9, nu=0.3,
                        a1=5e-2,a2=1e-1,
                        Eratio = 0.35,
                        lin_solver="scipy-direct", preconditioner=None,
@@ -44,7 +44,7 @@ def fem_heat_expansion(nelx, nely, nelz=None,
     penal : float
         penalty exponent for the SIMP method.
     Emax : float
-        (maximum) Young's modulus. If xPhys is None, all elements take this 
+        (maximum) Young's modulus. If xPhys is None, all elements take this
         value.
     Emin : float
         minimum Young's modulus for the modified SIMP approach.
@@ -55,15 +55,15 @@ def fem_heat_expansion(nelx, nely, nelz=None,
     a2 : float
         heat expansion coefficient of phase 2
     Eratio : float
-        ratio of Young's moduli from 1:2. So 0.35 means the Young's modulus of 
+        ratio of Young's moduli from 1:2. So 0.35 means the Young's modulus of
         phase 2 is 0.35 and the one of phase 1 is 1.
     solver : str
-        solver for linear systems. Check function lin solve for available 
+        solver for linear systems. Check function lin solve for available
         options.
     preconditioner : str or None
-        preconditioner for linear systems. 
+        preconditioner for linear systems.
     assembly_mode : str
-        whether full or only lower triangle of linear system / matrix is 
+        whether full or only lower triangle of linear system / matrix is
         created.
     bc : str or callable
         returns the boundary conditions
@@ -92,9 +92,9 @@ def fem_heat_expansion(nelx, nely, nelz=None,
         xPhys = np.ones(n, dtype=float,order='F')
     #
     if ndim == 2:
-        xe = np.array([[[-1.,-1.], 
-                        [1.,-1.], 
-                        [1.,1.], 
+        xe = np.array([[[-1.,-1.],
+                        [1.,-1.],
+                        [1.,1.],
                         [-1.,1.]]])/2 * np.ones(xPhys.shape)[:,None,None]
     elif ndim == 3:
         xe = np.array([[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
@@ -104,7 +104,7 @@ def fem_heat_expansion(nelx, nely, nelz=None,
     if ndim ==2:
         # stiffness tensor
         cs = [orthotropic_2d(Ex=1., Ey=Eratio, nu_xy=nu, G_xy=0.3) \
-              for i in np.arange(int(nely/2))] 
+              for i in np.arange(int(nely/2))]
         cs += [orthotropic_2d(Ex=Eratio, Ey=1., nu_xy=nu*Eratio, G_xy=0.3) \
                for j in np.arange(int(nely/2),nely)]
         cs = np.tile(np.stack(cs),(nelx,1,1))
@@ -114,11 +114,11 @@ def fem_heat_expansion(nelx, nely, nelz=None,
         a = np.tile(a,(nelx,1,1))
     if ndim ==3:
         # stiffness tensor
-        cs = [orthotropic_3d(Ex=1.0, Ey=Eratio, Ez=Eratio, 
+        cs = [orthotropic_3d(Ex=1.0, Ey=Eratio, Ez=Eratio,
                              nu_xy=nu, nu_xz=nu, nu_yz=nu,
                              G_xy=0.3, G_xz=0.3, G_yz=0.3) \
-              for i in np.arange(int(nely/2))] 
-        cs += [orthotropic_3d(Ex=Eratio, Ey=1.0, Ez=Eratio, 
+              for i in np.arange(int(nely/2))]
+        cs += [orthotropic_3d(Ex=Eratio, Ey=1.0, Ez=Eratio,
                               nu_xy=nu*Eratio, nu_xz=nu, nu_yz=nu,
                               G_xy=0.3, G_xz=0.3, G_yz=0.3) \
                for j in np.arange(int(nely/2),nely)]
@@ -169,7 +169,7 @@ def fem_heat_expansion(nelx, nely, nelz=None,
     #
     KE = assemble_matrix(sK=sK,iK=iK,jK=jK,
                          ndof=nEdof,solver=lin_solver,
-                         springs=springs)
+                         springs=None)
     # assemble right hand side
     # forces due to heat expansion per element
     if ndim == 2:
@@ -194,13 +194,13 @@ def fem_heat_expansion(nelx, nely, nelz=None,
     KE = apply_bc(K=KE,solver=lin_solver,
                  free=freeE,fixed=fixedE)
     # solve linear system. fact is a factorization and precond a preconditioner
-    u[freeE, :], fact, precond, = solve_lin(K=KE, rhs=rhsE[freeE], 
+    u[freeE, :], fact, precond, = solve_lin(K=KE, rhs=rhsE[freeE],
                                             solver=lin_solver,
                                             preconditioner=preconditioner)
     print(u[1::2].max())
-    np.savetxt("surface-displacements.csv", 
+    np.savetxt("surface-displacements.csv",
                u[np.arange(0,2*(nelx+1)*(nely+1),2*(nely+1))+1,0])
-    
+
     if export:
         export_vtk(filename=file+"T"+str(ndim),
                    nelx=nelx,nely=nely,nelz=nelz,
@@ -213,16 +213,16 @@ def fem_heat_expansion(nelx, nely, nelz=None,
     return
 
 if __name__ == "__main__":
-    nelx=240
-    nely=40
+    nelx=60
+    nely=10
     nelz=None
     #
     import sys
-    if len(sys.argv)>1: 
+    if len(sys.argv)>1:
         nelx = int(sys.argv[1])
-    if len(sys.argv)>2: 
+    if len(sys.argv)>2:
         nely = int(sys.argv[2])
-    if len(sys.argv)>3: 
+    if len(sys.argv)>3:
         nelz = int(sys.argv[2])
     #
     fem_heat_expansion(nelx=nelx,nely=nely,nelz=nelz)

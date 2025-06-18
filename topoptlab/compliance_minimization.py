@@ -39,7 +39,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
          nelz=None,
          filter_mode="matrix",
          lin_solver="scipy-direct", preconditioner=None,
-         assembly_mode="full", 
+         assembly_mode="full",
          materials_kw={"E": 1.},body_forces_kw={},
          bcs=mbb_2d, lk=None, l=1.,
          obj_func=compliance, obj_kw={},
@@ -207,6 +207,20 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                 optimizer_kw = gcmma_defaultkws(x.shape[0],ft=ft,n_constr=1)
         else:
             raise ValueError("Unknown optimizer: ", optimizer)
+    # handle element element flags
+    if el_flags is not None and optimizer in ["mma","gcmma"]:
+        # passive
+        mask = el_flags == 1
+        optimizer_kw["xmin"][mask] = 0.
+        optimizer_kw["xmax"][mask] = 0.+1e-9
+        x[mask] = 1.
+        xPhys[mask] = 1.
+        # active
+        mask = el_flags == 2
+        optimizer_kw["xmin"][mask] = 1.-1e-9
+        optimizer_kw["xmax"][mask] = 1.
+        x[mask] = 1.
+        xPhys[mask] = 1.
     # Max and min Young's modulus
     Emin = 1e-9
     E = 1.0
@@ -243,15 +257,15 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                 fe_strain = []
                 if len(body_forces_kw["strain_uniform"].shape) == 1:
                     body_forces_kw["strain_uniform"] = body_forces_kw["strain_uniform"][:,None]
-                # 
+                #
                 for i in range(body_forces_kw["strain_uniform"].shape[-1]):
                     fe_strain.append(lf(body_forces_kw["strain_uniform"][:,i],E=1.0, l=l))
                 fe_strain = np.column_stack(fe_strain)
-                # find the imposed elemental field. Material properties are 
-                # unimportant here as it just depends on the geometry of the 
-                # element, not its properties. This part is needed for 
-                # homogenization related objective functions and may later 
-                # become optional via some flags. 
+                # find the imposed elemental field. Material properties are
+                # unimportant here as it just depends on the geometry of the
+                # element, not its properties. This part is needed for
+                # homogenization related objective functions and may later
+                # become optional via some flags.
                 if ndim == 2 and n_ndof != 1:
                     fixed = np.array([0,1,3])
                 elif ndim == 3 and n_ndof != 1:
@@ -371,7 +385,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                     np.add.at(f_body,
                               edofMat,
                               fes)
-                
+
             # assemble right hand side
             rhs = assemble_rhs(f0=f+f_body,
                                solver=lin_solver)
@@ -388,7 +402,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             for i in np.arange(f.shape[1]):
                 # obj. value, selfadjoint variables, self adjoint flag
                 obj,rhs_adj,self_adj = obj_func(obj=obj, i=i,
-                                                xPhys=xPhys,u=u, 
+                                                xPhys=xPhys,u=u,
                                                 KE=KE, edofMat=edofMat,
                                                 Kes=Kes,
                                                 Amax=E,Amin=Emin,
@@ -410,16 +424,17 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                     dobj += penal*xPhys**(penal-1)*(E-Emin)*\
                           (np.dot(h[edofMat,i], KE)*u[edofMat,i]).sum(1)
                 elif f0 is None and "strain_uniform" in body_forces_kw.keys():
-                    print(fe_strain.shape)
-                    import sys 
+                    #print(fe_strain[None,:,i].shape,u[edofMat,i].shape)
+                    #print((np.dot(h[edofMat,i], KE)*u[edofMat,i] - fe_strain[None,:,i]).shape )
+                    import sys
                     sys.exit()
                     dobj += penal*xPhys**(penal-1)*(E-Emin)*\
                           (np.dot(h[edofMat,i], KE)*\
-                           (u[edofMat,i] - fe_strain[None,:,i] )).sum(1)
+                           (u[edofMat,i] - fe_strain[None,:,i])).sum(1)
                 else:
                     dobj += penal*xPhys**(penal-1)*(E-Emin)*\
                           (np.dot(h[edofMat,i], KE)*\
-                           (u[edofMat,i] - f0[:] - fe_strain[None,:,i] )).sum(1)
+                           (u[edofMat,i] - f0[:] - fe_strain[None,:,i])).sum(1)
                 if debug:
                     print("FEM: it.: {0}, problem: {1}, min. u: {2:.10f}, med. u: {3:.10f}, max. u: {4:.10f}".format(
                            loop,i,np.min(u[:,i]),np.median(u[:,i]),np.max(u[:,i])))

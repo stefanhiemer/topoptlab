@@ -537,7 +537,7 @@ def selffolding_2d(nelx,nely,ndof,**kwargs):
     u = np.zeros((ndof, 1))
     #
     springs = [np.array([2*nelx*(nely+1)+1]),
-               np.array([0.01])]
+               np.array([0.0000])]
     return u,f,fixed,np.setdiff1d(dofs,fixed),springs
 
 def selffolding_3d(nelx,nely,nelz,ndof,**kwargs):
@@ -596,8 +596,8 @@ def selffolding_3d(nelx,nely,nelz,ndof,**kwargs):
 
 def singlenode(nelx,nely,ndof,nelz=None,**kwargs):
     """
-    Fix all dofs of first node. Typically used for homogenization or similar 
-    applications where the forces arise by another source (e. g. heat or via 
+    Fix all dofs of first node. Typically used for homogenization or similar
+    applications where the forces arise by another source (e. g. heat or via
     body forces).
 
     Parameters

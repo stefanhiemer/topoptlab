@@ -248,6 +248,20 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                 optimizer_kw = gcmma_defaultkws(x.shape[0],ft=ft,n_constr=1)
         else:
             raise ValueError("Unknown optimizer: ", optimizer)
+    # handle element element flags
+    if el_flags is not None and optimizer in ["mma","gcmma"]:
+        # passive
+        mask = el_flags == 1
+        optimizer_kw["xmin"][mask] = 0.
+        optimizer_kw["xmax"][mask] = 0.+1e-9
+        x[mask] = 1.
+        xPhys[mask] = 1.
+        # active
+        mask = el_flags == 2
+        optimizer_kw["xmin"][mask] = 1.-1e-9
+        optimizer_kw["xmax"][mask] = 1.
+        x[mask] = 1.
+        xPhys[mask] = 1.
     # get element matrices
     if ndim == 2:
         KE = _lk_linear_elast_2d(xe=xe,c=cs)
@@ -611,7 +625,7 @@ def sketch(save=False):
     """
     Just a sketch to indicate boundary conditions etc.
     """
-    
+
     fig,ax = plt.subplots(figsize=(16,6))
     # bottom layer
     ax.plot(np.array([0,1,1,0,0]),np.array([0,0,1,1,0]),c="k")
@@ -619,27 +633,27 @@ def sketch(save=False):
     ax.plot(np.array([0,1,1,0,0]),np.array([1,1,2,2,1]),c="k")
     # arrows for indication of layer orientation
     for i in range(5):
-        ax.arrow(x=0.1 + i*0.2, y=0.7, dx=0., dy=-0.4, 
-                 width=0.002, head_length=0.2, 
-                 color="k") 
-        ax.arrow(x=0.05+ i*0.2, y=1.5, dx=0.1, dy=0, 
+        ax.arrow(x=0.1 + i*0.2, y=0.7, dx=0., dy=-0.4,
+                 width=0.002, head_length=0.2,
+                 color="k")
+        ax.arrow(x=0.05+ i*0.2, y=1.5, dx=0.1, dy=0,
                  width=0.01, color="k")
     # spring
     x,y = spring(x0=1.,y0=2.,
-                 num_coils = 3, coil_width = 0.02, 
+                 num_coils = 3, coil_width = 0.02,
                  coil_length = 0.4, points_per_coil = 8)
-    ax.plot(x,y, 
+    ax.plot(x,y,
             linewidth=2.,color="gray")
     x,y = spring(x0=0.,y0=2.,
-                 num_coils = 3, coil_width = 0.02, 
+                 num_coils = 3, coil_width = 0.02,
                  coil_length = 0.4, points_per_coil = 8)
-    ax.plot(x,y, 
+    ax.plot(x,y,
             linewidth=2.,color="gray")
     # mirror axis
     ax.axvline(x=0.5, ymin = -1, ymax = 3.,
-               color="b", linestyle="--", linewidth=3., 
+               color="b", linestyle="--", linewidth=3.,
                alpha = 0.7)
-    # 
+    #
     hinged_support(x0=0.5,y0=0.,
                    ax=ax,fig=fig,
                    triangle_width=.15,
@@ -657,8 +671,8 @@ if __name__ == "__main__":
     #
     #sketch(save=True)
     # Default input parameters
-    nelx=240
-    nely=80
+    nelx=60
+    nely=20
     nelz=None
     volfrac=0.5
     rmin=2.4
@@ -680,6 +694,8 @@ if __name__ == "__main__":
     l = np.zeros((2*(nelx+1)*(nely+1),1))
     l[2 *nelx*(nely+1) + 1,0] = 1
     #
+    from topoptlab.geometries import slab
     main(nelx=nelx,nely=nely,volfrac=volfrac,penal=penal,rmin=rmin,ft=ft,
          obj_func=var_maximization ,obj_kw={"l": l},
+         #el_flags = slab(nelx=nelx, nely=nely, center=((nelx-1)/2,(nely-1)/2), widths=(None,1.), fill_value=2),
          bcs=bcs)
