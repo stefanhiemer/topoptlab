@@ -5,32 +5,33 @@ import pytest
 from topoptlab.compliance_minimization import main
 from topoptlab.example_bc.lin_elast import mbb_2d
 
-@pytest.mark.parametrize('nelx, nely, volfrac, ft, rmin, solver, preconditioner, bcs',
-                         [(10,3,0.5,0,2.4,"scipy-direct",None,mbb_2d),
-                          (10,3,0.5,1,2.4,"scipy-cg",None,mbb_2d),
-                          (10,3,0.5,1,2.4,"scipy-cg","scipy-ilu",mbb_2d),
-                          (10,3,0.5,1,2.4,"cvxopt-cholmod",None,mbb_2d),])
+@pytest.mark.parametrize('nelx, nely, volfrac, ft, rmin, solver, preconditioner, assembly_mode, bcs',
+                         [(10,3,0.5,0,2.4,"scipy-direct",None,"full",mbb_2d),
+                          (10,3,0.5,1,2.4,"scipy-cg",None,"full",mbb_2d),
+                          (10,3,0.5,1,2.4,"scipy-cg","scipy-ilu","full",mbb_2d),
+                          (10,3,0.5,1,2.4,"cvxopt-cholmod",None,"full",mbb_2d),
+                          (10,3,0.5,1,2.4,"cvxopt-cholmod",None,"symmetry",mbb_2d),])
 
-def test_compliance_1(nelx, nely, volfrac, 
-                      ft, rmin, 
-                      solver, preconditioner, 
+def test_compliance_1(nelx, nely, volfrac,
+                      ft, rmin,
+                      solver, preconditioner,assembly_mode,
                       bcs):
     """
-    Does exactly the same as function below. Just to allow to have fast and 
+    Does exactly the same as function below. Just to allow to have fast and
     slow tests in same file.
     """
     #
-    x, obj_ref = main(nelx=nelx, nely=nely, volfrac=volfrac, penal=3.0, 
-                      rmin=rmin, ft=ft, 
+    x, obj_ref = main(nelx=nelx, nely=nely, volfrac=volfrac, penal=3.0,
+                      rmin=rmin, ft=ft,
                       filter_mode="matrix",optimizer="oc",
                       bcs=bcs,lin_solver="scipy-direct",
                       display=False,export=False,write_log=False)
     #
-    x, obj = main(nelx=nelx, nely=nely, volfrac=volfrac, penal=3.0, 
-                  rmin=rmin, ft=ft, 
+    x, obj = main(nelx=nelx, nely=nely, volfrac=volfrac, penal=3.0,
+                  rmin=rmin, ft=ft,
                   filter_mode="matrix",optimizer="oc",
                   bcs=bcs,lin_solver=solver,preconditioner=preconditioner,
                   display=False,export=False,write_log=False)
     #
     assert_almost_equal(obj,obj_ref,decimal=5)
-    return 
+    return

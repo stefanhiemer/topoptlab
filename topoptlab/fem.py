@@ -26,15 +26,15 @@ def assemble_matrix(sK,iK,jK,ndof,solver,springs):
     solver : str
         solver used to solve the linear system.
     springs : list
-        contains two np.ndarrays. The first one contains the indices of the 
-        degrees of freedom to which the springs are attached. The second one 
+        contains two np.ndarrays. The first one contains the indices of the
+        degrees of freedom to which the springs are attached. The second one
         contains the spring constants.
 
     Returns
     -------
     M : scipy.sparse.csc_array, shape (ndof,ndof)
         assembled matrix.
-    """ 
+    """
     #
     M = coo_array((sK, (iK, jK)), shape=(ndof, ndof)).tocsc()
     # attach springs to dofs if there
@@ -64,24 +64,24 @@ def deleterowcol(A, delrow, delcol):
         row indices for matrix construction.
     jM : np.ndarray shape (N)
         column indices for matrix construction.
-    """ 
-    # Assumes that matrix is in symmetric csc form  
-    m = A.shape[0] 
-    keep = np.delete(np.arange(0, m), delrow) 
-    A = A[keep, :] 
-    keep = np.delete(np.arange(0, m), delcol) 
-    A = A[:, keep] 
+    """
+    # Assumes that matrix is in symmetric csc form
+    m = A.shape[0]
+    keep = np.delete(np.arange(0, m), delrow)
+    A = A[keep, :]
+    keep = np.delete(np.arange(0, m), delcol)
+    A = A[:, keep]
     return A.tocoo()
 
 def apply_bc(K,solver,free=None,fixed=None):
     if "scipy" in solver:
         #
-        K = K[free, :][:, free] 
+        K = K[free, :][:, free]
     if "cvxopt" in solver:
         # Remove constrained dofs from matrix and convert to coo
         K = deleterowcol(K,fixed,fixed).tocoo()
         #
-        # Solve system  
+        # Solve system
         K = spmatrix(K.data,K.row,K.col)
     return K
 
@@ -104,22 +104,22 @@ def create_matrixinds(edofMat,mode="full"):
         column indices for matrix construction.
 
     """
-    
+
     #
-    ne = edofMat.shape[1]
+    n_nodedof = edofMat.shape[1]
     if mode == "full":
-        iM = np.tile(edofMat,ne)
-        jM = np.repeat(edofMat,ne)
+        iM = np.tile(edofMat,n_nodedof)
+        jM = np.repeat(edofMat,n_nodedof)
     elif mode == "lower":
         #
-        iM = [edofMat[:,i:] for i in np.arange(ne)]
+        iM = [edofMat[:,i:] for i in np.arange(n_nodedof)]
         iM = np.column_stack(iM)
         #
-        jM = np.repeat(edofMat,np.arange(ne,0,-1),axis=1)
+        jM = np.repeat(edofMat,np.arange(n_nodedof,0,-1),axis=1)
         # sort
         mask = iM < jM
         iM[mask],jM[mask] = jM[mask],iM[mask]
-    return iM.flatten(),jM.flatten() 
+    return iM.flatten(),jM.flatten()
 
 def update_indices(indices,fixed,mask):
     """
@@ -201,8 +201,8 @@ def get_integrpoints(ndim,nq,method):
         number of integration/quadrature points.
     method : str or callable
         name of quadrature method or function/callable that returns coordinates of
-        quadrature points and weights. Currently only 'gauss-legendre', 
-        'gauss-hermite', 'gauss-chebyshev' and 'gauss-laguerre' supported as 
+        quadrature points and weights. Currently only 'gauss-legendre',
+        'gauss-hermite', 'gauss-chebyshev' and 'gauss-laguerre' supported as
         str.
 
     Returns

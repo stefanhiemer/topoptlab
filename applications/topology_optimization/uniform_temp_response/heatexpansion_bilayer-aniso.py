@@ -15,6 +15,7 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from skimage.measure import marching_cubes
 # functions to create filters
 from topoptlab.filters import assemble_matrix_filter,assemble_convolution_filter,assemble_helmholtz_filter
+from topoptlab.filters import find_eta
 # default application case that provides boundary conditions, etc.
 from topoptlab.example_bc.lin_elast import selffolding_2d,selffolding_3d
 # set up finite element problem
@@ -55,7 +56,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
          eps=1e-9, nu=0.3,
          kmax=1.0, kmin=1e-9,
          a1=5e-2,a2=1e-1,
-         Eratio = 0.35,kratio=3,
+         Eratio = 0.05,kratio=3,
          nelz=None,
          filter_mode="matrix",
          lin_solver="scipy-direct", preconditioner=None,
@@ -190,6 +191,10 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     xold = x.copy()
     xTilde = x.copy()
     xPhys = x.copy()
+    if ft == 5:
+        beta = 16
+        eta = find_eta(eta0=0.5, xTilde=xTilde, beta=beta, volfrac=volfrac)
+        print("Initial eta", eta)
     #
     if ndim == 2:
         xe = l*np.array([[[-1.,-1.],
@@ -204,9 +209,9 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     Emax = 1.
     if ndim ==2:
         # stiffness tensor
-        cs = [orthotropic_2d(Ex=1., Ey=Eratio, nu_xy=nu, G_xy=0.3) \
+        cs = [orthotropic_2d(Ex=1., Ey=Eratio, nu_xy=nu, G_xy=0.05) \
               for i in np.arange(int(nely/2))]
-        cs += [orthotropic_2d(Ex=Eratio, Ey=1., nu_xy=nu*Eratio, G_xy=0.3) \
+        cs += [orthotropic_2d(Ex=Eratio, Ey=1., nu_xy=nu*Eratio, G_xy=0.05) \
                for j in np.arange(int(nely/2),nely)]
         cs = np.tile(np.stack(cs),(nelx,1,1))
         # lin. expansion coefficient
@@ -360,6 +365,8 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             raise NotImplementedError("One type of bodyforce/source has not yet been implemented.")
     # Construct the index pointers for the coo format
     iK,jK = create_matrixinds(edofMat,mode=assembly_mode)
+    if assembly_mode == "symmetry":
+        assm_indcs = np.column_stack(np.triu_indices_from(KE))
     # function to convert densities, etc. to images/voxels for plotting or the
     # convolution filter.
     if ndim == 2:
@@ -426,7 +433,10 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         ax.axis("off")
         fig.show()
     # optimization loop
+    loopbeta = 0
     for loop in np.arange(nouteriter):
+        #
+        loopbeta += 1
         # calculate / interpolate material properties
         scale = simp(xPhys=xPhys,eps=eps,penal=penal) #(eps+xPhys**penal*(1-eps))
         Kes = KE[None,:,:]*scale[:,None,None]
@@ -441,6 +451,8 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                 # this here is more memory efficient than Kes.flatten() as it
                 # provides a view onto the original Kes array instead of a copy
                 sK = Kes.reshape(np.prod(Kes.shape))
+            elif assembly_mode == "symmetry":
+                sK = Kes[:,assm_indcs[0],assm_indcs[1]].reshape( n*ndof*(ndof+1) )
             # Setup and solve FE problem
             # To Do: loop over boundary conditions if incompatible
             # assemble system matrix
@@ -490,47 +502,34 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                                                 **obj_kw)
                 # update sensitivity for quantities that need a small offset to
                 # avoid degeneracy of the FE problem
-                """
-                if f0 is None:
-                    dobj += simp_dx(xPhys=xPhys, eps=1e-9, penal=penal) *\
-                          (np.dot(h[edofMat,i], KE)*u[edofMat,i]).sum(1)
-                elif f0 is None and "strain_uniform" in body_forces_kw.keys():
-                    dobj += simp_dx(xPhys=xPhys, eps=1e-9, penal=penal)*\
-                          (np.dot(h[edofMat,i], KE)*\
-                           (u[edofMat,i] - fe_strain[None,:,i])).sum(1)
-                #else:
-                #    dobj += simp_dx(xPhys=xPhys, eps=1e-9, penal=penal)*\
-                #          (np.dot(h[edofMat,i], KE)*\
-                #           (u[edofMat,i] - f0[:] - fe_strain[None,:,i])).sum(1)
-                # update sensitivity for quantities that do not need a small 
-                # offset to avoid degeneracy of the FE problem
-                if "density_coupled" in body_forces_kw.keys():
-                    dobj -= simp_dx(xPhys=xPhys, eps=0., penal=1.)*\
-                            np.dot(h[edofMat,i],fe_dens[:,i])
-                """
+                #"""
+                # if problem not self adjoint, solve for adjoint variables and
+                # calculate derivatives, else use analytical solution
                 # if problem not self adjoint, solve for adjoint variables and
                 # calculate derivatives, else use analytical solution
                 if self_adj:
-                    dobj[:] += rhs_adj
+                    #dobj[:] += rhs_adj
+                    h = np.zeros(f.shape)
+                    h[free] = rhs_adj[free]
                 else:
-                    # adjoint problem
                     h = np.zeros(f.shape)
                     h[free],_,_ = solve_lin(K, rhs=rhs_adj[free],
                                             solver=lin_solver, P=precond,
                                             preconditioner = preconditioner)
-                    # gradient
-                    #dobj += penal*xPhys**(penal-1)*(Emax-Emin)*\
-                    #      (np.dot(h[edofMat,i], KE)*\
-                    #       (u[edofMat,i]-f0[:])).sum(1)
-                    dobj += penal*xPhys**(penal-1)*Emax*(1-eps)*\
-                             (np.einsum('ni,nij->nj', h[edofMat,0], KE)*u[edofMat,i]#np.dot(h[edofMat,0], KE)*u[edofMat,i] \
-                              -h[edofMat,0]*fTe[:,:,0]).sum(1)
-                    #penal*xPhys**(penal-1)*(\
-                    #(k2-k1)*(np.dot(hT[edofMatT,0], KeT)*T[edofMatT,0]).sum(1)\
-                    #+(E2-E1)*( np.dot(hE[edofMatE,0], KeE)*u[edofMatE,0] \
-                    #- E[:,None] * (a2-a1) * hE[edofMatE,0]*fTe[:,:,0]
-                    #- a[:,None] * hE[edofMatE,0]*fTe[:,:,0]).sum(1))
-                    #
+                # update sensitivity for quantities that need a small offset to
+                # avoid degeneracy of the FE problem
+                # standard contribution of element stiffness/conductivity
+                dobj_offset = np.matvec(KE,u[edofMat,i])
+                # thermal expansion
+                dobj_offset[:] -= fTe[:,:,0]
+                # contribution due to force induced by strain
+                if "strain_uniform" in body_forces_kw.keys():
+                    dobj_offset -= fe_strain[None,:,i]
+                #
+                if f0 is not None:
+                    dobj_offset -= f0[None,:,i]
+                dobj[:] += simp_dx(xPhys=xPhys, eps=1e-9, penal=penal)*\
+                           (h[edofMat,i]*dobj_offset).sum(axis=1)
                 if debug:
                     print("FEM: it.: {0}, problem: {1}, min. u: {2:.10f}, med. u: {3:.10f}, max. u: {4:.10f}".format(
                            loop,i,np.min(u[:,i]),np.median(u[:,i]),np.max(u[:,i])))
@@ -575,6 +574,11 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         elif ft == 1 and filter_mode == "helmholtz":
             dobj[:] = TF.T @ lu_solve(TF@dobj)
             dv[:] = TF.T @ lu_solve(TF@dv)
+        elif ft == 5:
+            dx = beta * (1 - np.tanh(beta * (xTilde - eta))**2) /\
+                    (np.tanh(beta*eta)+np.tanh(beta*(1-eta)))
+            dobj[:] = np.asarray(H*((dobj*dx)[None].T/Hs))[:, 0]
+            dv[:] = np.asarray(H*((dv*dx)[None].T/Hs))[:, 0]
         elif ft == -1:
             pass
         if debug:
@@ -600,7 +604,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         # method of moving asymptotes
         elif optimizer=="mma":
             xval = x.copy()[None].T
-            xmma,ymma,zmma,lam,xsi,eta,mu,zet,s,low,upp = update_mma(x=x,
+            xmma,ymma,zmma,lam,xsi,_,mu,zet,s,low,upp = update_mma(x=x,
                                                                 xold1=xhist[-1],
                                                                 xold2=xhist[-2],
                                                                 xPhys=xPhys,
@@ -637,6 +641,12 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                                   cval=0)) / hs
         elif ft == 1 and filter_mode == "helmholtz":
             xPhys[:] = TF.T @ lu_solve(TF@x)
+        elif ft in [5] and filter_mode == "matrix":
+            xTilde[:] = np.asarray(H*x[None].T/Hs)[:, 0]
+            eta = find_eta(eta0=eta, xTilde=xTilde, beta=beta, volfrac = volfrac)
+            print(eta)
+            xPhys[:] = (np.tanh(beta*eta)+np.tanh(beta * (xTilde - eta)))/\
+                       (np.tanh(beta*eta)+np.tanh(beta*(1-eta)))
         elif ft == -1:
             xPhys[:]  = x
         if debug:
@@ -659,6 +669,13 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         # convergence check
         if change < 0.01:
             break
+        elif (ft == 5) and (beta < 512) and \
+            (loopbeta >= 50 or change < 0.01):
+            beta = 2 * beta
+            loopbeta = 0
+            logging.info(f"Parameter beta increased to {beta}")
+        elif (ft == 5) and (beta >= 512) and (change < 0.01):
+            break
 
     #
     if display:
@@ -667,7 +684,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     #
     xThresh = threshold(xPhys,
                         volfrac)
-    scale = (eps+xThresh**penal*(1-eps))
+    scale = simp(xPhys=xThresh, eps=eps, penal=penal)
     # update physical properties of the elements and thus the entries
     # of the elements
     if assembly_mode == "full":
@@ -684,8 +701,23 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     np.add.at(fT[:,0],
               edofMat.flatten(),
               (scale[:,None,None]*fTe).flatten())
+    # assemble forces due to body forces
+    f_body = np.zeros(f.shape)
+    u0 = None
+    for bodyforce in body_forces_kw.keys():
+        # assume each strain is a column vector in Voigt notation
+        if "strain_uniform" in body_forces_kw.keys():
+            fes = fe_strain[None,:,:]*scale[:,None,None]
+            np.add.at(f_body,
+                      edofMat,
+                      fes)
+        if "density_coupled" in body_forces_kw.keys():
+            fes = fe_dens[None,:,:]*simp(xPhys=xThresh, eps=0., penal=1.)[:,None,None]
+            np.add.at(f_body,
+                      edofMat,
+                      fes)
     # assemble right hand side
-    rhs = assemble_rhs(f0=f+fT,solver=lin_solver)
+    rhs = assemble_rhs(f0=f+fT+f_body,solver=lin_solver)
     # apply boundary conditions to matrix
     K = apply_bc(K=K,solver=lin_solver,
                  free=free,fixed=fixed)
@@ -763,13 +795,13 @@ if __name__ == "__main__":
     #
     #sketch(save=True)
     # Default input parameters
-    nelx=60
-    nely=20
+    nelx=120
+    nely=40
     nelz=None
     volfrac=0.5
-    rmin=2.4
+    rmin=4.8
     penal=3.0
-    ft=1 # ft==0 -> sens, ft==1 -> dens
+    ft=5 # ft==0 -> sens, ft==1 -> dens
     import sys
     if len(sys.argv)>1: nelx   =int(sys.argv[1])
     if len(sys.argv)>2: nely   =int(sys.argv[2])
@@ -783,11 +815,12 @@ if __name__ == "__main__":
     else:
         bcs=selffolding_3d
     #
-    l = np.zeros((2*(nelx+1)*(nely+1),1))
-    l[2 *nelx*(nely+1) + 1,0] = 1
+    indic = np.zeros((2*(nelx+1)*(nely+1),1))
+    indic[2 *nelx*(nely+1) + 1,0] = 1
     #
-    #from topoptlab.geometries import slab
+    from topoptlab.geometries import slab
     main(nelx=nelx,nely=nely,volfrac=volfrac,penal=penal,rmin=rmin,ft=ft,
-         obj_func=var_maximization ,obj_kw={"l": l},
+         obj_func=var_maximization ,obj_kw={"l": indic},l=1.,
+         body_forces_kw={"density_coupled": np.array([0,-1e-6])},
          #el_flags = slab(nelx=nelx, nely=nely, center=((nelx-1)/2,(nely-1)/2), widths=(None,1.), fill_value=2),
          bcs=bcs)

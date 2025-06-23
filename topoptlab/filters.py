@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.sparse import csc_array,coo_array,coo_matrix
-from scipy.optimize import minimize
+from scipy.optimize import minimize, root_scalar
 from scipy.ndimage import convolve
 
 from topoptlab.fem import create_matrixinds
@@ -16,7 +16,7 @@ def assemble_matrix_filter(nelx,nely,rmin,nelz=None,
     """
     Assemble distance based filters as sparse matrix that is applied on to
     densities/sensitivities by standard multiplication.
-    
+
     Parameters
     ----------
     nelx : int
@@ -24,11 +24,11 @@ def assemble_matrix_filter(nelx,nely,rmin,nelz=None,
     nely : int
         number of elements in y direction.
     rmin : float
-        cutoff radius for the filter. Only elements within the element-center 
-        to element center distance are used for filtering. 
+        cutoff radius for the filter. Only elements within the element-center
+        to element center distance are used for filtering.
     nelz : int or None
         number of elements in z direction. Ignored if ndim < 3.
-    ndim : int 
+    ndim : int
         number of dimensions
 
     Returns
@@ -48,7 +48,7 @@ def assemble_matrix_filter(nelx,nely,rmin,nelz=None,
     el = np.arange(n)
     # filter size
     nfilter = int(n*((2*(np.ceil(rmin)-1)+1)**ndim))
-    # create empty arrays for indices and values of final filter 
+    # create empty arrays for indices and values of final filter
     iH = np.zeros(nfilter)
     jH = np.zeros(nfilter)
     sH = np.zeros(nfilter)
@@ -109,7 +109,7 @@ def assemble_convolution_filter(nelx,nely,rmin,
     """
     Assemble distance based filter as image/voxel convolution filter. Returns
     the kernel and the normalization constants
-    
+
     Parameters
     ----------
     nelx : int
@@ -117,8 +117,8 @@ def assemble_convolution_filter(nelx,nely,rmin,
     nely : int
         number of elements in y direction.
     rmin : float
-        cutoff radius for the filter. Only elements within the element-center 
-        to element center distance are used for filtering. 
+        cutoff radius for the filter. Only elements within the element-center
+        to element center distance are used for filtering.
     mapping : callable,
         converts property from 1D np.ndarray to image/voxel.
     invmapping : callable,
@@ -128,7 +128,7 @@ def assemble_convolution_filter(nelx,nely,rmin,
 
     Returns
     -------
-    h : np.ndarray, shape (nfilter,nfilter) or (nfilter,nfilter,nfilter) 
+    h : np.ndarray, shape (nfilter,nfilter) or (nfilter,nfilter,nfilter)
         convolution kernel.
     hs : np.ndarray, shape (n)
         normalization constants.
@@ -139,7 +139,7 @@ def assemble_convolution_filter(nelx,nely,rmin,
     #
     x = np.arange(-np.floor(rmin),np.floor(rmin)+1)
     if nelz is None:
-        # 
+        #
         n = nelx*nely
         #
         x = np.tile(x,(nfilter,1))
@@ -147,7 +147,7 @@ def assemble_convolution_filter(nelx,nely,rmin,
         # hat function
         kernel = np.maximum(0.0,rmin - np.sqrt(x**2 + y**2))
     else:
-        # 
+        #
         n = nelx*nely*nelz
         #
         x = np.tile(x,(nfilter,nfilter,1))
@@ -166,14 +166,14 @@ def assemble_helmholtz_filter(nelx,nely,rmin,nelz=None,l=np.array([1.,1.]),
                               n1=None,n2=None,n3=None,n4=None,
                               **kwargs):
     """
-    Assemble Helmholtz PDE based filter from "Efficient topology optimization 
+    Assemble Helmholtz PDE based filter from "Efficient topology optimization
     in MATLAB using 88 lines of code".
-    
-    This filter works by mappinging the element densities to nodes via the 
-    operator TF, then performing the actual filter operation by solving a 
-    Helmholtz / screened Poisson PDE in the standard FEM style with subsequent 
-    back-mapping of the nodal (filtered) densities to the elements. 
-    
+
+    This filter works by mappinging the element densities to nodes via the
+    operator TF, then performing the actual filter operation by solving a
+    Helmholtz / screened Poisson PDE in the standard FEM style with subsequent
+    back-mapping of the nodal (filtered) densities to the elements.
+
     Parameters
     ----------
     nelx : int
@@ -181,7 +181,7 @@ def assemble_helmholtz_filter(nelx,nely,rmin,nelz=None,l=np.array([1.,1.]),
     nely : int
         number of elements in y direction.
     volfrac : float
-        volume fraction. 
+        volume fraction.
     rmin : float
         cutoff radius for the filter.
     nelz : int or None
@@ -201,7 +201,7 @@ def assemble_helmholtz_filter(nelx,nely,rmin,nelz=None,l=np.array([1.,1.]),
         stiffness matrix.
     TF : csc matrix
         mapping (or in this special case averaging) operator that maps element
-        densities to nodes and its inverse maps nodal densities back to the 
+        densities to nodes and its inverse maps nodal densities back to the
         elements.
 
     """
@@ -217,7 +217,7 @@ def assemble_helmholtz_filter(nelx,nely,rmin,nelz=None,l=np.array([1.,1.]),
     # element indices
     nel = np.prod([nelx,nely,nelz][:ndim])
     el = np.arange(nel)
-    # 
+    #
     if n1 is None:
         elx,ely = np.arange(nelx)[:,None], np.arange(nely)[None,:]
         n1 = ((nely+1)*elx+ely).flatten()
@@ -244,99 +244,142 @@ def assemble_helmholtz_filter(nelx,nely,rmin,nelz=None,l=np.array([1.,1.]),
     TF = coo_matrix((sTF, (iTF, jTF)), shape=(ndof,nelx*nely)).tocsc()
     return KF,TF
 
-def find_eta(eta0,xTilde,beta,volfrac):
+def find_eta(eta0, xTilde, beta, volfrac,
+             **kwargs):
     """
-    Find volume preserving eta for the relaxed Haeviside projection similar to 
-    what has been done in 
-    
+    Find volume preserving eta for the relaxed Haeviside projection similar to
+    what has been done in
+
     Xu S, Cai Y, Cheng G (2010) Volume preserving nonlinear density filter based on Heaviside functions. Struct Multidiscip Optim 41:495–505
-    
+
     Parameters
     ----------
     eta0 : float
         initial guess for threshold value.
+    xTilde : np.ndarray
+        intermediate densities (typically before a density filter is applied).
     beta : np.ndarray
-        sharpness factor. The higher the more we approach the Haeviside 
-        function which si recovered in the limit of beta to infinity
-    rmin : float
-        filter radius. 
+        sharpness factor. The higher the more we approach the Haeviside
+        function which is recovered in the limit of beta to infinity
     volfrac : float
-        volume fraction. 
+        volume fraction.
 
     Returns
     -------
     eta : float
-        unnormalized filter.
+        volume conserving eta.
 
     """
-    result = minimize(_eta_residual, x0=eta0,
-                      bounds=[[0., 1.]], 
-                      method='Nelder-Mead',jac=True,tol=1e-10,
-                      args=(xTilde,beta,volfrac))
-    if result.success:
-        return result.x
+    # unfortunately scipy.optimize needs f to change sign between the
+    # respective ends of the brackets, therefor the eta found by this function
+    # is offset by -1/2 to the value later used
+    result = root_scalar(f=_root_func,fprime=True,method="newton",
+                         x0=eta0-1/2, x1=0.,
+                         args=(xTilde,beta,volfrac),
+                         bracket=[-1/2,1/2])
+    #
+    if result.converged:
+        return result.root+1/2
     else:
         raise ValueError("volume conserving eta could not be found: ",result)
 
-def _eta_residual(eta,xTilde,beta,volfrac):
+def _root_func(eta,xTilde,beta,volfrac):
     """
-    Residual for findined the volume preserving eta for the relaxed Haeviside 
-    projection.
-    
+    Function whose root is the volume preserving threshold.
+
     Parameters
     ----------
-    eta0 : float
-        initial guess for threshold value.
+    eta : float
+        current threshold value.
+    xTilde : np.ndarray
+        intermediate densities (typically before a density filter is applied).
     beta : np.ndarray
-        sharpness factor. The higher the more we approach the Haeviside 
-        function which si recovered in the limit of beta to infinity
-    rmin : float
-        filter radius. 
+        sharpness factor. The higher the more we approach the Haeviside
+        function which is recovered in the limit of beta to infinity
     volfrac : float
-        volume fraction. 
+        volume fraction.
 
     Returns
     -------
-    eta : float
-        unnormalized filter.
+    res : float
+        value of current volume fraction - intended volume fraction.
+    gradient : float
+        gradient for Newton procedure
 
     """
-    # Calculate the expression for given eta
-    xPhys = (np.tanh(beta * eta) + np.tanh(beta * (xTilde - eta))) / \
+    #
+    eta = eta + 1/2
+    #
+    xPhys = eta_projection(eta=eta,xTilde=xTilde,beta=beta)
+    # terms
+    tanh_bn = np.tanh(beta * eta)
+    tanh_b1n = np.tanh(beta * (1 - eta))
+    tanh_bx_n = np.tanh(beta * (xTilde - eta))
+    tanh_bn_x = np.tanh(beta * (eta - xTilde))
+
+    sech2_bn = 1 - tanh_bn**2
+    sech2_bx_n = 1 - tanh_bx_n**2
+    sech2_b1n = 1 - tanh_b1n**2
+    #
+    denom1 = tanh_bn + tanh_b1n
+    denom2 = denom1 ** 2
+    #
+    term1 = -sech2_bx_n
+    term2 =  sech2_bn * (tanh_b1n + tanh_bn_x) + sech2_b1n * (tanh_bn + tanh_bx_n)
+    return xPhys.mean()-volfrac, beta*(term1/denom1 + term2/denom2).mean()
+
+def eta_projection(eta,xTilde,beta):
+    """
+    eta projection.
+
+    Parameters
+    ----------
+    eta : float
+        threshold value.
+    xTilde : np.ndarray
+        intermediate densities (typically before a density filter is applied).
+    beta : np.ndarray
+        sharpness factor. The higher the more we approach the Haeviside
+        function which is recovered in the limit of beta to infinity
+
+    Returns
+    -------
+    xProj : np.ndarray
+        projected densities.
+
+    """
+    return (np.tanh(beta * eta) + np.tanh(beta * (xTilde - eta))) / \
            (np.tanh(beta * eta) + np.tanh(beta * (1 - eta)))
-    #grad = -beta * np.sinh(beta)**(-1) * np.cosh(beta * (xTilde - eta))**(-2) * \
-    #        np.sinh(xTilde * beta) * np.sinh((1 - xTilde) * beta)
-    return (np.mean(xPhys) - volfrac)**2, None#, grad.mean()
 
 def AMfilter(x, baseplate='S', sensitivities=None):
     """
-    Applies the filter by 
-    
-    Langelaar, Matthijs. "An additive manufacturing filter for topology 
-    optimization of print-ready designs." Structural and multidisciplinary 
+    Applies the filter by
+
+    Langelaar, Matthijs. "An additive manufacturing filter for topology
+    optimization of print-ready designs." Structural and multidisciplinary
     optimization 55 (2017): 871-883.
-    
-    
-    Applies a filter to densities that enforces that each density cannot be 
+
+
+    Applies a filter to densities that enforces that each density cannot be
     larger then the maximum density of its supporting region.
-    
+
     Parameters
     ----------
     x : np.ndarray
-        Blueprint design (2D array), with values between 0 and 1 and shape 
+        Blueprint design (2D array), with values between 0 and 1 and shape
         (nely,nelx). The shape is needed to determine the positions of elements
         with respect to the baseplate.
     baseplate : str, optional
         Character indicating baseplate orientation: 'N', 'E', 'S', 'W'. Default is 'S'.
         For 'X', the filter bypasses and returns the input as-is.
     sensitivities : np.ndarray
-        sensitivities associated with the design input shape 
+        sensitivities associated with the design input shape
         (nely,nelx,nsens).
-        
+
     Returns
     -------
     xi or sensitivities: np.ndarray
-        Printable design density (nely,nelx) or sensitivities (nely,nelx,nSens) 
+        Printable design density (nely,nelx) or sensitivities (nely,nelx,nSens)
         after filtering.
     """
     # number of supporting elements
@@ -365,8 +408,8 @@ def AMfilter(x, baseplate='S', sensitivities=None):
     #print("cbr:\n",cbr)
     #print()
     for i in np.arange(nely-2,-1,-1):
-        cbr = np.pad(xi[i+1,:] + SHIFT, 
-                     (1, 1), 
+        cbr = np.pad(xi[i+1,:] + SHIFT,
+                     (1, 1),
                      'constant',
                      constant_values=SHIFT)
         #print(cbr)
@@ -374,9 +417,9 @@ def AMfilter(x, baseplate='S', sensitivities=None):
         Xi[i,:] = keep[i,:]**(1 / Q) - BACKSHIFT
         sq[i,:] = np.sqrt((x[i,:] - Xi[i,:])**2 + ep)
         xi[i,:] = 0.5 * ((x[i,:] + Xi[i,:]) - sq[i,:] + np.sqrt(ep))
-    # Process sensitivities if provided. 
+    # Process sensitivities if provided.
     if sensitivities is not None:
-        # 
+        #
         nSens = sensitivities.shape[-1]
         # sensitivities as obtained by the usual adjoint analysis. this must be
         # rotated and filtered
@@ -386,7 +429,7 @@ def AMfilter(x, baseplate='S', sensitivities=None):
         # precalculate indices later for fast multiplication via sparse matrix
         qi = np.repeat(np.arange(nelx), Ns)
         qj = np.tile([-1, 0, 1], nelx) + qi
-        # Lagrangian multipliers for adjoint sensitivity analysis 
+        # Lagrangian multipliers for adjoint sensitivity analysis
         lambda_vals = np.zeros((nelx,nSens))
         # iterate from top to base layer
         for i in np.arange(nely-1):
@@ -394,8 +437,8 @@ def AMfilter(x, baseplate='S', sensitivities=None):
             dsmindx = 0.5 * (1 - (x[i, :] - Xi[i, :]) / sq[i, :])
             dsmindXi = 1 - dsmindx
             # smax sensitivity terms
-            cbr = np.pad(xi[i + 1, :] + SHIFT, 
-                         (1, 1), 
+            cbr = np.pad(xi[i + 1, :] + SHIFT,
+                         (1, 1),
                          'constant',
                          constant_values=SHIFT)  # Pad with zeros
             dmx = np.zeros((nelx,Ns))
@@ -403,13 +446,13 @@ def AMfilter(x, baseplate='S', sensitivities=None):
                 dmx[:,j] = (P/Q) * keep[i, :]**((1/Q) - 1) * cbr[np.arange(nelx)+j]**(P - 1)
             # Rearrange data for quick multiplication
             qs = dmx.flatten()
-            dsmaxdxi = csc_array((qs[1:-1],(qi[1:-1], qj[1:-1])), 
+            dsmaxdxi = csc_array((qs[1:-1],(qi[1:-1], qj[1:-1])),
                                    shape=(nelx, nelx))
             # Update sensitivities
             for k in np.arange(nSens):
                 dfx[i,:,k] = dsmindx * (dfxi[i,:,k] + lambda_vals[:,k])
                 lambda_vals[:,k] = ((dfxi[i,:,k] + lambda_vals[:,k]) * dsmindXi) @ dsmaxdxi
-        # base layer 
+        # base layer
         dfx[-1,:,:] = dfxi[-1,:,:]+lambda_vals[:,:]
     if sensitivities is None:
         # Rotate xi back to original orientation if rotated
@@ -417,5 +460,5 @@ def AMfilter(x, baseplate='S', sensitivities=None):
     else:
         # Rotate sensitivities back to original orientation if rotated
         #print("gradient before backrotation")
-        #print(dfx) 
+        #print(dfx)
         return np.rot90(dfx, -nRot)

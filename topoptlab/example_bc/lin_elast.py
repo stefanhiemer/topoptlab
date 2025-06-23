@@ -537,7 +537,7 @@ def selffolding_2d(nelx,nely,ndof,**kwargs):
     u = np.zeros((ndof, 1))
     #
     springs = [np.array([2*nelx*(nely+1)+1]),
-               np.array([0.01])]
+               np.array([1e-4])]
     return u,f,fixed,np.setdiff1d(dofs,fixed),springs
 
 def selffolding_3d(nelx,nely,nelz,ndof,**kwargs):

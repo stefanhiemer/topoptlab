@@ -300,7 +300,9 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                 if key not in ["density_coupled","strain_uniform"]]):
             raise NotImplementedError("One type of bodyforce/source has not yet been implemented.")
     # Construct the index pointers for the coo format
-    iK,jK = create_matrixinds(edofMat,mode=assembly_mode)
+    iK,jK = create_matrixinds(edofMat, mode=assembly_mode)
+    if assembly_mode == "symmetry":
+        assm_indcs = np.column_stack(np.triu_indices_from(KE))
     # function to convert densities, etc. to images/voxels for plotting or the
     # convolution filter.
     if ndim == 2:
@@ -395,6 +397,8 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                 # this here is more memory efficient than Kes.flatten() as it
                 # provides a view onto the original Kes array instead of a copy
                 sK = Kes.reshape(np.prod(Kes.shape))
+            elif assembly_mode == "symmetry":
+                sK = Kes[:,assm_indcs[0],assm_indcs[1]].reshape( n*ndof*(ndof+1) )
             # Setup and solve FE problem
             # To Do: loop over boundary conditions if incompatible
             # assemble system matrix
@@ -452,18 +456,17 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                                             preconditioner = preconditioner)
                 # update sensitivity for quantities that need a small offset to
                 # avoid degeneracy of the FE problem
-                if f0 is None:
-                    dobj += simp_dx(xPhys=xPhys, eps=1e-9, penal=penal) *\
-                          (np.dot(h[edofMat,i], KE)*u[edofMat,i]).sum(1)
-                elif f0 is None and "strain_uniform" in body_forces_kw.keys():
-                    dobj += simp_dx(xPhys=xPhys, eps=1e-9, penal=penal)*\
-                          (np.dot(h[edofMat,i], KE)*\
-                           (u[edofMat,i] - fe_strain[None,:,i])).sum(1)
-                #else:
-                #    dobj += simp_dx(xPhys=xPhys, eps=1e-9, penal=penal)*\
-                #          (np.dot(h[edofMat,i], KE)*\
-                #           (u[edofMat,i] - f0[:] - fe_strain[None,:,i])).sum(1)
-                # update sensitivity for quantities that do not need a small 
+                # standard contribution of element stiffness/conductivity
+                dobj_offset = np.matvec(KE,u[edofMat,i])
+                # contribution due to force induced by strain
+                if "strain_uniform" in body_forces_kw.keys():
+                    dobj_offset -= fe_strain[None,:,i]
+                # generic density dependent element wise force
+                if f0 is not None:
+                    dobj_offset -= f0[None,:,i]
+                dobj[:] += simp_dx(xPhys=xPhys, eps=1e-9, penal=penal)*\
+                           (h[edofMat,i]*dobj_offset).sum(axis=1)
+                # update sensitivity for quantities that do not need a small
                 # offset to avoid degeneracy of the FE problem
                 if "density_coupled" in body_forces_kw.keys():
                     dobj -= simp_dx(xPhys=xPhys, eps=0., penal=1.)*\

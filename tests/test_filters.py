@@ -44,11 +44,11 @@ def test_normalization(nelx,nely,nelz,rmin,filter_mode):
         H,Hs = assemble_matrix_filter(nelx=nelx,nely=nely,nelz=nelz,
                                       rmin=rmin,ndim=ndim)
         if isinstance(H,spmatrix):
-            actual = asarray(H*x[None].T/Hs)[:, 0] 
+            actual = asarray(H*x[None].T/Hs)[:, 0]
         elif isinstance(H,sparray):
             actual = H @ x / Hs
     elif filter_mode == "convolution":
-        h,hs = assemble_convolution_filter(nelx=nelx,nely=nely,nelz=nelz, 
+        h,hs = assemble_convolution_filter(nelx=nelx,nely=nely,nelz=nelz,
                                            rmin=rmin,
                                            mapping=mapping,
                                            invmapping=invmapping)
@@ -94,13 +94,13 @@ def test_consistency(nelx,nely,nelz,rmin):
     # matrix filter
     H,Hs = assemble_matrix_filter(nelx=nelx,nely=nely,nelz=nelz,
                                   rmin=rmin,ndim=ndim)
-    
+
     if isinstance(H,spmatrix):
-        desired = asarray(H*x[None].T/Hs)[:, 0] 
+        desired = asarray(H*x[None].T/Hs)[:, 0]
     elif isinstance(H,sparray):
         desired = H @ x / Hs
     # convolution filter
-    h,hs = assemble_convolution_filter(nelx=nelx,nely=nely,nelz=nelz, 
+    h,hs = assemble_convolution_filter(nelx=nelx,nely=nely,nelz=nelz,
                                        rmin=rmin,
                                        mapping=mapping,
                                        invmapping=invmapping)
@@ -111,7 +111,23 @@ def test_consistency(nelx,nely,nelz,rmin):
     #
     assert_almost_equal(actual, desired)
     return
-    
 
+from topoptlab.filters import find_eta, eta_projection
 
-    
+@pytest.mark.parametrize('n, beta, volfrac',
+                         [(10,10,0.3),
+                          (10,1,0.5),])
+
+def test_volume_conservation(n,beta,volfrac):
+    #
+    seed(0)
+    x = rand(n)
+    #
+    assert_almost_equal(eta_projection(xTilde=x,
+                                       eta=find_eta(xTilde=x,
+                                                    beta=beta,
+                                                    eta0=0.5,
+                                                    volfrac=volfrac),
+                                       beta=beta).mean(),
+                        volfrac)
+    return
