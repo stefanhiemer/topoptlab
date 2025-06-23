@@ -194,7 +194,6 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     if ft == 5:
         beta = 16
         eta = find_eta(eta0=0.5, xTilde=xTilde, beta=beta, volfrac=volfrac)
-        print("Initial eta", eta)
     #
     if ndim == 2:
         xe = l*np.array([[[-1.,-1.],
@@ -248,6 +247,8 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             #
             if optimizer_kw is None:
                 optimizer_kw = mma_defaultkws(x.shape[0],ft=ft,n_constr=1)
+            if ft == 5:
+                optimizer_kw["move"] = 0.05
         elif optimizer == "gcmma":
             # gcmma needs results of the two previous iterations
             nhistory = 2
@@ -644,7 +645,6 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         elif ft in [5] and filter_mode == "matrix":
             xTilde[:] = np.asarray(H*x[None].T/Hs)[:, 0]
             eta = find_eta(eta0=eta, xTilde=xTilde, beta=beta, volfrac = volfrac)
-            print(eta)
             xPhys[:] = (np.tanh(beta*eta)+np.tanh(beta * (xTilde - eta)))/\
                        (np.tanh(beta*eta)+np.tanh(beta*(1-eta)))
         elif ft == -1:
@@ -667,16 +667,17 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             to_log("it.: {0} obj.: {1:.10f} vol.: {2:.10f} ch.: {3:.10f}".format(
                          loop+1, obj, xPhys.mean(), change))
         # convergence check
-        if change < 0.01:
+        if change < 0.01 and beta is None:
             break
-        elif (ft == 5) and (beta < 512) and \
-            (loopbeta >= 50 or change < 0.01):
+        # parameter continuation
+        elif (ft == 5) and (beta < 256) and \
+            (loopbeta >= 100 or change < 0.01):
             beta = 2 * beta
             loopbeta = 0
             logging.info(f"Parameter beta increased to {beta}")
-        elif (ft == 5) and (beta >= 512) and (change < 0.01):
+        # convergence check
+        elif (ft == 5) and (beta >= 256) and (change < 0.01):
             break
-
     #
     if display:
         plt.show()
@@ -694,7 +695,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     # assemble system matrix
     K = assemble_matrix(sK=sK,iK=iK,jK=jK,
                         ndof=ndof,solver=lin_solver,
-                        springs=None)
+                        springs=springs)
     # assemble temperature expansion induced forces
     fTe = KeET@T[edofMatT]
     fT = np.zeros(f.shape)
@@ -795,13 +796,13 @@ if __name__ == "__main__":
     #
     #sketch(save=True)
     # Default input parameters
-    nelx=120
-    nely=40
+    nelx=240
+    nely=80
     nelz=None
     volfrac=0.5
-    rmin=4.8
+    rmin=9.6
     penal=3.0
-    ft=5 # ft==0 -> sens, ft==1 -> dens
+    ft=1 # ft==0 -> sens, ft==1 -> dens
     import sys
     if len(sys.argv)>1: nelx   =int(sys.argv[1])
     if len(sys.argv)>2: nely   =int(sys.argv[2])
@@ -822,5 +823,6 @@ if __name__ == "__main__":
     main(nelx=nelx,nely=nely,volfrac=volfrac,penal=penal,rmin=rmin,ft=ft,
          obj_func=var_maximization ,obj_kw={"l": indic},l=1.,
          body_forces_kw={"density_coupled": np.array([0,-1e-6])},
-         #el_flags = slab(nelx=nelx, nely=nely, center=((nelx-1)/2,(nely-1)/2), widths=(None,1.), fill_value=2),
+         alpha=None,
+         #el_flags = slab(nelx=nelx, nely=nely, center=((nelx-1)/2,(nely-1)/2), widths=(None,2.), fill_value=2),
          bcs=bcs)

@@ -274,7 +274,7 @@ def find_eta(eta0, xTilde, beta, volfrac,
     # respective ends of the brackets, therefor the eta found by this function
     # is offset by -1/2 to the value later used
     result = root_scalar(f=_root_func,fprime=True,method="newton",
-                         x0=eta0-1/2, x1=0.,
+                         x0=eta0-1/2, x1=0., maxiter=1000,
                          args=(xTilde,beta,volfrac),
                          bracket=[-1/2,1/2])
     #

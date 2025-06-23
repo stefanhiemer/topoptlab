@@ -221,7 +221,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         xPhys[mask] = 1.
         # active
         mask = el_flags == 2
-        optimizer_kw["xmin"][mask] = 1.-1e-9
+        optimizer_kw["xmin"][mask] = 1.- 1e-9
         optimizer_kw["xmax"][mask] = 1.
         x[mask] = 1.
         xPhys[mask] = 1.
