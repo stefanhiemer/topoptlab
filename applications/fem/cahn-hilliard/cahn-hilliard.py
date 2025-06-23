@@ -24,7 +24,7 @@ from topoptlab.utils import map_eltoimg
 from topoptlab.output_designs import export_vtk
 
 # MAIN DRIVER
-def fem_homogenization(nelx, nely, nelz=None, n_steps=10000,
+def fem_cahn(nelx, nely, nelz=None, n_steps=10000,
                        xPhys=None, penal=3,
                        Emax=1.0, Emin=1e-3, nu=1/3,
                        lin_solver="scipy-lu", preconditioner=None,
@@ -32,8 +32,8 @@ def fem_homogenization(nelx, nely, nelz=None, n_steps=10000,
                        file="cahn-hilliard", display=True,
                        export=False, debug=False):
     """
-    Run a single finite element simulation on a regular grid performing linear
-    homogenization along the lines of
+    Run a single finite element simulation on a regular grid solving the 
+    Cahn-Hilliard equation.
 
     Andreassen, Erik, and Casper Schousboe Andreasen. "How to determine
     composite material properties using numerical homogenization."
@@ -215,4 +215,4 @@ if __name__ == "__main__":
     if len(sys.argv)>3:
         nelz = int(sys.argv[3])
     #
-    fem_homogenization(nelx=nelx, nely=nely, nelz=nelz, l=128.)
+    fem_cahn(nelx=nelx, nely=nely, nelz=nelz, l=128.)

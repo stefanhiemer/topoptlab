@@ -98,7 +98,9 @@ def convert_to_code(matrix,matrices=[],vectors=[],
                     lines)
     return lines
 
-def generate_constMatrix(ncol,nrow,name,symmetric=False):
+def generate_constMatrix(ncol,nrow,name,
+                         symmetric=False, 
+                         return_symbols=False):
     """
     Generate matrix full of symbolic constants as a list of lists
 
@@ -112,38 +114,57 @@ def generate_constMatrix(ncol,nrow,name,symmetric=False):
         name to put in front of indices.
     symmetric : bool
         if True, matrix generated in symmetric fashion
+    return_symbols : bool
+        if True, returns the list of symbols of the entries. May be needed if 
+        you want to apply assumptions on them in a Sympy assumptions context.
 
     Returns
     -------
     M : symfem.functions.MatrixFunction
         symfem MatrixFunction filled with symbolic entries e. g. for a 2x2
         [[M11,M12],[M21,M22]].
+    symbol_list : list
+        list of all symbols used for the matrix/vector
 
     """
+    #
     M = []
+    if return_symbols:
+        symbol_list = []
     for i in range(1,nrow+1):
+        # create the matrix as list of lists 
         if nrow != 1 and ncol !=1:
             variables = " ".join([name+str(i)+str(j) for j in range(1,ncol+1)])
+        # create row vector as list 
         elif nrow == 1:
             variables = " ".join([name+str(j) for j in range(1,ncol+1)])
+        # create column vector as list 
         elif ncol == 1:
             variables = " ".join([name+str(i) for j in range(1,ncol+1)])
+        # create symbols
         variables = symbols(variables)
+        # convert to list
         if isinstance(variables, Symbol):
             variables = [variables]
         elif isinstance(variables,tuple):
             variables = list(variables)
-
+        #
         M.append( variables )
+        if return_symbols:
+            symbol_list = symbol_list + variables
+    # make matrix symmetric
     if symmetric:
-        # check
         if ncol != nrow:
             raise ValueError("For matrix to be symmetric, it must be square. Currenly ncol != nrow")
         #
         for i in range(nrow):
             for j in range(i+1,nrow):
                 M[j][i] = M[i][j]
-    return MatrixFunction(M)
+    #
+    if not return_symbols:
+        return MatrixFunction(M)
+    else:
+        return MatrixFunction(M), symbol_list
 
 def stifftens_isotropic(ndim,plane_stress=True):
     """
@@ -176,13 +197,12 @@ def stifftens_isotropic(ndim,plane_stress=True):
                                                        [nu,1-nu,0],
                                                        [0,0,(1-nu)/2]])
     elif ndim == 3:
-        return E/((1+nu)*(1-2*nu))*MatrixFunction([
-                                            [1-nu,nu,nu,0,0,0],
-                                            [nu,1-nu,nu,0,0,0],
-                                            [nu,nu,1-nu,0,0,0],
-                                            [0,0,0,(1-nu)/2,0,0],
-                                            [0,0,0,0,(1-nu)/2,0],
-                                            [0,0,0,0,0,(1-nu)/2]])
+        return E/((1+nu)*(1-2*nu))*MatrixFunction([[1-nu,nu,nu,0,0,0],
+                                                   [nu,1-nu,nu,0,0,0],
+                                                   [nu,nu,1-nu,0,0,0],
+                                                   [0,0,0,(1-nu)/2,0,0],
+                                                   [0,0,0,0,(1-nu)/2,0],
+                                                   [0,0,0,0,0,(1-nu)/2]])
 
 def simplify_matrix(M):
     """
@@ -235,7 +255,7 @@ def base_cell(ndim,
     basis : list
         list of basis functions.
     """
-    if order not in [1]:
+    if order not in [1,2]:
         raise NotImplementedError("Beyond order 1 not yet implemented.")
     #
     if ndim == 1:
@@ -243,9 +263,9 @@ def base_cell(ndim,
     elif ndim == 2:
         cell_name = "quadrilateral"
     elif ndim == 3:
-        cell_name == "hexahedron"
+        cell_name = "hexahedron"
     #
-    if order == 1:
+    if order == 1 and element_type=="Lagrange":
         if ndim == 1:
             # Define the vertived and triangles of the mesh
             vertices = ((-1,), (1,))
@@ -266,7 +286,7 @@ def base_cell(ndim,
             # how the numbering is done.
             nd_inds = [0, 1, 3, 2,
                        4, 5, 7, 6]
-    elif order == 2:
+    elif order == 2 and element_type=="Lagrange":
         if ndim == 1:
             # Define the vertived and triangles of the mesh
             vertices = ((-1,), (1,), (0,))
@@ -276,31 +296,46 @@ def base_cell(ndim,
         elif ndim == 2:
             # Define the vertived and triangles of the mesh
             vertices = ((-1, -1), (1, -1), (1, 1), (-1, 1),
-                        (0, -1), (1, 0), (0, 1), (-1, 0) )
+                        (0, -1), (1, 0), (0, 1), (-1, 0), 
+                        (0, 0) )
             # node indices in reference cell of symfem. Check the git to see
             # how the numbering is done.
-            nd_inds = [0, 1, 3, 2]
+            nd_inds = [0, 1, 3, 2,
+                       4, 6, 7, 5, 
+                       8]
         elif ndim == 3:
             # Define the vertived and triangles of the mesh
             vertices = ((-1, -1, -1), (1, -1, -1), (1, 1, -1), (-1, 1, -1),
                         (-1, -1, 1), (1, -1, 1), (1, 1, 1), (-1, 1, 1), 
                         (0, -1, -1), (1, 0, -1), (0, 1, -1), (-1, 0, -1),
-                        (0, -1, 1), (1, 0, 1), (0, 1, 1), (-1, 0, 1))
+                        (0, 0, -1), 
+                        (-1, -1, 0), (1, -1, 0), (1, 1, 0), (-1, 1, 0),
+                        (0, -1, 0), (1, 0, 0), (0, 1, 0), (-1, 0, 0),
+                        (0, 0, 0), 
+                        (0, -1, 1), (1, 0, 1), (0, 1, 1), (-1, 0, 1), 
+                        (0, 0, 1))
             # node indices in reference cell of symfem. Check the git to see
             # how the numbering is done.
-            nd_inds = [0, 1, 3, 2,
-                       4, 5, 7, 6]
-    elif order == 3:
+            nd_inds = [0, 1, 3, 2, 
+                       4, 5, 7, 6, 
+                       8, 11, 13, 9, 
+                       20, 
+                       10, 12, 15, 14, 
+                       21, 23, 24, 22, 
+                       26, 
+                       16, 18, 19, 17, 
+                       25]
+    elif order == 3 and element_type=="Lagrange":
         if ndim == 1:
             # Define the vertived and triangles of the mesh
-            vertices = ((-1,), (1,), (-1/3,), (1/3,))
+            vertices = ((-1,), (-1/3,), (1/3,), (1,) )
             # node indices in reference cell of symfem. Check the git to see
             # how the numbering is done.
             nd_inds = [1, 2, 0]
     # reorder vertices according to the given node indices
     _vertices = tuple(vertices[i] for i in nd_inds)
     # create element
-    element = create_element(cell_name, element_type, 1)
+    element = create_element(cell_name, element_type, order=order)
     # Create a reference cell with these vertices: this will be used
     # to compute the integrals
     reference = create_reference(cell_name, vertices=_vertices)
@@ -309,6 +344,41 @@ def base_cell(ndim,
     # reorder basis function according to the current node ordering
     basis = [basis[i] for i in nd_inds]
     return vertices, nd_inds, reference, basis
+
+def determine_nodeinds(vertices, basis_funcs, ndim):
+    """
+    Find index of each vertex by finding the basis function that amounts to 1.
+    
+    For a set of vertex coordinates, determine to which basis function each
+    vertex corresponds. Keep in mind that the current default unit cell used 
+    by symfem is in the interval [0,1] whereas mine is typically in the 
+    interval [-1,1].
+
+    Parameters
+    ----------
+    vertices : tuple
+        coordinates of vertices as created by base cell
+    basis_funcs : list of symfem.functions.ScalarFunction
+        list of basis functions which are usually extracted by calling
+        element.get_basis_functions().
+    ndim : int
+        number of dimensions
+
+    Returns
+    -------
+    indices : list
+        indices of vertices
+    """
+    ndim = len(vertices[0])
+    inds = []
+    for vertex in vertices:
+        # shift from interval [-1,1] to [0,1]
+        vertex = [c/2 + 1/2 for c in vertex]
+        # evaluate basis functions at vertex
+        ind = [i for i,func in enumerate(basis_funcs) \
+               if func.subs(vars=["x","y", "z"][:ndim], values=vertex)==1]
+        inds = inds + ind
+    return inds
 
 def shape_function_matrix(basis,nedof,
                           mode="col"):
