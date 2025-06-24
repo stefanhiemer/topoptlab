@@ -7,10 +7,13 @@ from topoptlab.elements.trilinear_hexahedron import create_edofMat as create_edo
 from topoptlab.example_bc.lin_elast import selffolding_2d, selffolding_3d
 # different elements/physics
 from topoptlab.stiffness_tensors import orthotropic_2d, orthotropic_3d
-from topoptlab.elements.linear_elasticity_2d import _lk_linear_elast_2d
-from topoptlab.elements.linear_elasticity_3d import _lk_linear_elast_3d
+from topoptlab.elements.linear_elasticity_2d import lk_linear_elast_2d,_lf_strain_2d
+from topoptlab.elements.linear_elasticity_3d import lk_linear_elast_3d,_lf_strain_3d
+from topoptlab.elements.bodyforce_2d import lf_bodyforce_2d
+from topoptlab.elements.bodyforce_3d import lf_bodyforce_3d
 from topoptlab.elements.heatexpansion_2d import _fk_heatexp_2d
 from topoptlab.elements.heatexpansion_3d import _fk_heatexp_3d
+from topoptlab.material_interpolation import simp,simp_dx,ramp,ramp_dx
 # generic functions for solving phys. problem
 from topoptlab.fem import assemble_matrix,assemble_rhs,apply_bc
 from topoptlab.solve_linsystem import solve_lin
@@ -19,13 +22,14 @@ from topoptlab.output_designs import export_vtk
 
 # MAIN DRIVER
 def fem_heat_expansion(nelx, nely, nelz=None,
-                       xPhys=None, penal=3.,
-                       Emax=1.0, Emin=1e-9, nu=0.3,
-                       a1=5e-2,a2=1e-1,
-                       Eratio = 0.35,
+                       xPhys=None, penal=3., eps=1e-9,
+                       Emax=1.0, Emin=1e-9, nu=0.3, G=0.05,
+                       a1=2.5e-2, a2=5e-2,
+                       Eratio = 0.05,
                        lin_solver="scipy-direct", preconditioner=None,
                        assembly_mode="full",
-                       bc=selffolding_2d,
+                       body_forces_kw={},
+                       bc=selffolding_2d, l=1.,
                        file="fem_heat-expansion_bilayer-aniso",
                        export=True):
     """
@@ -92,35 +96,39 @@ def fem_heat_expansion(nelx, nely, nelz=None,
         xPhys = np.ones(n, dtype=float,order='F')
     #
     if ndim == 2:
-        xe = np.array([[[-1.,-1.],
+        xe = l*np.array([[[-1.,-1.],
                         [1.,-1.],
                         [1.,1.],
                         [-1.,1.]]])/2 * np.ones(xPhys.shape)[:,None,None]
     elif ndim == 3:
-        xe = np.array([[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
+        xe = l*np.array([[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
                         [-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]]])/2 \
             * np.ones(xPhys.shape)[:,None,None]
     # isotropic bilayer
     if ndim ==2:
         # stiffness tensor
-        cs = [orthotropic_2d(Ex=1., Ey=Eratio, nu_xy=nu, G_xy=0.3) \
+        cs = [orthotropic_2d(Ex=1., Ey=Eratio, nu_xy=nu, G_xy=G) \
               for i in np.arange(int(nely/2))]
-        cs += [orthotropic_2d(Ex=Eratio, Ey=1., nu_xy=nu*Eratio, G_xy=0.3) \
+        cs += [orthotropic_2d(Ex=Eratio, Ey=1., nu_xy=nu*Eratio, G_xy=G) \
                for j in np.arange(int(nely/2),nely)]
         cs = np.tile(np.stack(cs),(nelx,1,1))
         # lin. expansion coefficient
         a = np.stack([np.diag([a1,a2]) for i in np.arange(int(nely/2))]+\
                      [np.diag([a2,a1]) for i in np.arange(int(nely/2))])
         a = np.tile(a,(nelx,1,1))
+        print(cs[:nely])
+        print(a[:nely])
+        import sys
+        sys.exit()
     if ndim ==3:
         # stiffness tensor
         cs = [orthotropic_3d(Ex=1.0, Ey=Eratio, Ez=Eratio,
                              nu_xy=nu, nu_xz=nu, nu_yz=nu,
-                             G_xy=0.3, G_xz=0.3, G_yz=0.3) \
+                             G_xy=G, G_xz=G, G_yz=G) \
               for i in np.arange(int(nely/2))]
         cs += [orthotropic_3d(Ex=Eratio, Ey=1.0, Ez=Eratio,
                               nu_xy=nu*Eratio, nu_xz=nu, nu_yz=nu,
-                              G_xy=0.3, G_xz=0.3, G_yz=0.3) \
+                              G_xy=G, G_xz=G, G_yz=G) \
                for j in np.arange(int(nely/2),nely)]
         cs = np.tile(np.stack(cs),(nelx*nelz,1,1))
         # lin. expansion coefficient
@@ -130,7 +138,7 @@ def fem_heat_expansion(nelx, nely, nelz=None,
     # get element stiffness matrix and element of freedom matrix
     nT_ndof = 1
     if ndim == 2:
-        KE = _lk_linear_elast_2d(xe=xe,c=cs)
+        KE = lk_linear_elast_2d(c=cs)
         # infer nodal degrees of freedom assuming that we have 4/8 nodes in 2/3
         nE_ndof = int(KE.shape[-1]/4)
         # number of degrees of freedom
@@ -142,7 +150,7 @@ def fem_heat_expansion(nelx, nely, nelz=None,
         TedofMat, n1, n2, n3, n4 = create_edofMat2d(nelx=nelx,nely=nely,
                                                     nnode_dof=1)
     elif ndim == 3:
-        KE = _lk_linear_elast_3d(xe=xe,c=cs)
+        KE = lk_linear_elast_3d(c=cs)
         # infer nodal degrees of freedom assuming that we have 4/8 nodes in 2/3
         nE_ndof = int(KE.shape[-1]/8)
         # number of degrees of freedom
@@ -155,6 +163,59 @@ def fem_heat_expansion(nelx, nely, nelz=None,
         TedofMat, n1, n2, n3, n4 = create_edofMat3d(nelx=nelx,nely=nely,
                                                     nelz=nelz,
                                                     nnode_dof=1)
+    # fetch body forces
+    if len(body_forces_kw.keys())==0:
+        fe_strain = None
+        fe_dens = None
+    else:
+        # assume each strain is a column vector in Voigt notation
+        if "strain_uniform" in body_forces_kw.keys():
+            # fetch functions to create body force
+            if ndim == 2:
+                lf = _lf_strain_2d
+            elif ndim == 3:
+                lf = _lf_strain_3d
+            # calculate forces for each strain
+            fe_strain = []
+            if len(body_forces_kw["strain_uniform"].shape) == 1:
+                body_forces_kw["strain_uniform"] = body_forces_kw["strain_uniform"][:,None]
+            #
+            for i in range(body_forces_kw["strain_uniform"].shape[-1]):
+                fe_strain.append(lf(body_forces_kw["strain_uniform"][:,i],E=1.0, l=l))
+            fe_strain = np.column_stack(fe_strain)
+            # find the imposed elemental field. Material properties are
+            # unimportant here as it just depends on the geometry of the
+            # element, not its properties. This part is needed for
+            # homogenization related objective functions and may later
+            # become optional via some flags.
+            if ndim == 2 and n_nEdof != 1:
+                fixed = np.array([0,1,3])
+            elif ndim == 3 and n_nEdof != 1:
+                fixed = np.array([0,1,2,4,5,7,8])
+            elif n_ndof == 1:
+                fixed = np.array([0])
+            free = np.setdiff1d(np.arange(KE.shape[-1]), fixed)
+            u0 = np.zeros(fe_strain.shape)
+            u0[free] = np.linalg.solve(KE[free,:][:,free],
+                                       fe_strain[free,:])
+            if "u0" not in obj_kw.keys():
+                obj_kw["u0"] = u0
+        else:
+            fe_strain = None
+        #
+        if "density_coupled" in body_forces_kw.keys():
+            # fetch functions to create body force
+            if ndim == 2 and nE_ndof!=1:
+                lf = lf_bodyforce_2d
+            elif ndim == 3 and nE_ndof!=1:
+                lf = lf_bodyforce_3d
+            fe_dens = lf_bodyforce_2d(b=body_forces_kw["density_coupled"])
+        else:
+            fe_dens = None
+        #
+        if len([key for key in body_forces_kw.keys() \
+                if key not in ["density_coupled","strain_uniform"]]):
+            raise NotImplementedError("One type of bodyforce/source has not yet been implemented.")
     # Construct the index pointers for the coo format
     iK,jK = create_matrixinds(EedofMat,mode=assembly_mode)
     # BC's and support
@@ -165,7 +226,10 @@ def fem_heat_expansion(nelx, nely, nelz=None,
     E = (Emin+xPhys**penal*(Emax-Emin))
     # entries of stiffness matrix
     if assembly_mode == "full":
-        sK = (E[:,None,None] * KE).flatten()
+        sK = (E[:,None,None] * KE[None,:,:]).reshape(np.prod(E.shape+KE.shape))
+    elif assembly_mode == "symmetry":
+        sK = (E[:,None,None] * KE[None,:,:])[:,assm_indcs[0],assm_indcs[1]].\
+              reshape( n*nE_ndof*(nE_ndof+1) )
     #
     KE = assemble_matrix(sK=sK,iK=iK,jK=jK,
                          ndof=nEdof,solver=lin_solver,
@@ -187,8 +251,23 @@ def fem_heat_expansion(nelx, nely, nelz=None,
     np.add.at(fT[:,0],
               EedofMat.flatten(),
               fTe.flatten())
+    # assemble forces due to body forces
+    f_body = np.zeros(f.shape)
+    u0 = None
+    for bodyforce in body_forces_kw.keys():
+        # assume each strain is a column vector in Voigt notation
+        if "strain_uniform" in body_forces_kw.keys():
+            fes = fe_strain[None,:,:]*scale[:,None,None]
+            np.add.at(f_body,
+                      edofMat,
+                      fes)
+        if "density_coupled" in body_forces_kw.keys():
+            fes = fe_dens[None,:,:]*simp(xPhys=xPhys, eps=eps, penal=penal)[:,None,None]
+            np.add.at(f_body,
+                      EedofMat,
+                      fes)
     # assemble completely
-    rhsE = assemble_rhs(f0=f+fT,
+    rhsE = assemble_rhs(f0=f+fT+f_body,
                         solver=lin_solver)
     # apply boundary conditions to matrix
     KE = apply_bc(K=KE,solver=lin_solver,
@@ -198,8 +277,8 @@ def fem_heat_expansion(nelx, nely, nelz=None,
                                             solver=lin_solver,
                                             preconditioner=preconditioner)
     print(u[1::2].max())
-    np.savetxt("surface-displacements.csv",
-               u[np.arange(0,2*(nelx+1)*(nely+1),2*(nely+1))+1,0])
+    #np.savetxt("surface-displacements.csv",
+    #           u[np.arange(0,2*(nelx+1)*(nely+1),2*(nely+1))+1,0])
 
     if export:
         export_vtk(filename=file+"T"+str(ndim),
@@ -225,4 +304,6 @@ if __name__ == "__main__":
     if len(sys.argv)>3:
         nelz = int(sys.argv[2])
     #
-    fem_heat_expansion(nelx=nelx,nely=nely,nelz=nelz)
+    fem_heat_expansion(nelx=nelx,nely=nely,nelz=nelz,l=1,
+                       #body_forces_kw={"density_coupled": np.array([0,-1e-5])}
+                       )

@@ -33,7 +33,7 @@ from topoptlab.elements.bodyforce_2d import lf_bodyforce_2d
 from topoptlab.elements.bodyforce_3d import lf_bodyforce_3d
 from topoptlab.elements.heatexpansion_2d import _fk_heatexp_2d
 from topoptlab.elements.heatexpansion_3d import _fk_heatexp_3d
-from topoptlab.material_interpolation import simp,simp_dx
+from topoptlab.material_interpolation import simp,simp_dx,ramp,ramp_dx
 # generic functions for solving phys. problem
 from topoptlab.fem import assemble_matrix,assemble_rhs,apply_bc
 from topoptlab.solve_linsystem import solve_lin
@@ -53,10 +53,10 @@ from topoptlab.draw_functions import spring, hinged_support
 
 # MAIN DRIVER
 def main(nelx, nely, volfrac, penal, rmin, ft,
-         eps=1e-9, nu=0.3,
+         eps=1e-9, nu=0.3, G=0.05,
          kmax=1.0, kmin=1e-9,
-         a1=5e-2,a2=1e-1,
-         Eratio = 0.05,kratio=3,
+         a1=1e-2, a2=5e-2,
+         Eratio = 0.05, kratio=3,
          nelz=None,
          filter_mode="matrix",
          lin_solver="scipy-direct", preconditioner=None,
@@ -68,7 +68,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
          optimizer="mma", optimizer_kw = None,
          alpha=None,
          nouteriter=2000, ninneriter=15,
-         file="fem_heat-expansion_bilayer-aniso",
+         file="to_heat-expansion_bilayer-aniso",
          display=True,export=True,write_log=True,
          debug=0):
     """
@@ -194,6 +194,8 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     if ft == 5:
         beta = 16
         eta = find_eta(eta0=0.5, xTilde=xTilde, beta=beta, volfrac=volfrac)
+    else:
+        beta = None
     #
     if ndim == 2:
         xe = l*np.array([[[-1.,-1.],
@@ -221,11 +223,11 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         # stiffness tensor
         cs = [orthotropic_3d(Ex=Emax, Ey=Eratio, Ez=Eratio,
                              nu_xy=nu, nu_xz=nu, nu_yz=nu,
-                             G_xy=0.3, G_xz=0.3, G_yz=0.3) \
+                             G_xy=0.05, G_xz=0.05, G_yz=0.05) \
               for i in np.arange(int(nely/2))]
         cs += [orthotropic_3d(Ex=Eratio, Ey=Emax, Ez=Eratio,
                               nu_xy=nu*Eratio, nu_xz=nu, nu_yz=nu,
-                              G_xy=0.3, G_xz=0.3, G_yz=0.3) \
+                              G_xy=0.05, G_xz=0.05, G_yz=0.05) \
                for j in np.arange(int(nely/2),nely)]
         cs = np.tile(np.stack(cs),(nelx*nelz,1,1))
         # lin. expansion coefficient
@@ -350,6 +352,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                 obj_kw["u0"] = u0
         else:
             fe_strain = None
+            u0 = None
         #
         if "density_coupled" in body_forces_kw.keys():
             # fetch functions to create body force
@@ -439,7 +442,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         #
         loopbeta += 1
         # calculate / interpolate material properties
-        scale = simp(xPhys=xPhys,eps=eps,penal=penal) #(eps+xPhys**penal*(1-eps))
+        scale = ramp(xPhys=xPhys,eps=eps,penal=penal) #(eps+xPhys**penal*(1-eps))
         Kes = KE[None,:,:]*scale[:,None,None]
         # solve FEM, calculate obj. func. and gradients.
         # for
@@ -468,7 +471,6 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                       (scale[:,None,None]*fTe).flatten())
             # assemble forces due to body forces
             f_body = np.zeros(f.shape)
-            u0 = None
             for bodyforce in body_forces_kw.keys():
                 # assume each strain is a column vector in Voigt notation
                 if "strain_uniform" in body_forces_kw.keys():
@@ -477,7 +479,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                               edofMat,
                               fes)
                 if "density_coupled" in body_forces_kw.keys():
-                    fes = fe_dens[None,:,:]*simp(xPhys=xPhys, eps=0., penal=1.)[:,None,None]
+                    fes = fe_dens[None,:,:]*ramp(xPhys=xPhys, eps=0., penal=1.)[:,None,None]
                     np.add.at(f_body,
                               edofMat,
                               fes)
@@ -685,7 +687,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     #
     xThresh = threshold(xPhys,
                         volfrac)
-    scale = simp(xPhys=xThresh, eps=eps, penal=penal)
+    scale = ramp(xPhys=xThresh, eps=eps, penal=penal)
     # update physical properties of the elements and thus the entries
     # of the elements
     if assembly_mode == "full":
@@ -713,7 +715,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                       edofMat,
                       fes)
         if "density_coupled" in body_forces_kw.keys():
-            fes = fe_dens[None,:,:]*simp(xPhys=xThresh, eps=0., penal=1.)[:,None,None]
+            fes = fe_dens[None,:,:]*ramp(xPhys=xThresh, eps=0., penal=1.)[:,None,None]
             np.add.at(f_body,
                       edofMat,
                       fes)
@@ -742,7 +744,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         export_vtk(filename=file,
                    nelx=nelx,nely=nely,nelz=nelz,
                    xPhys=xPhys,x=x,
-                   u=u_bw,f=f+ft,
+                   u=u_bw,f=f+ft+f_body,
                    volfrac=volfrac)
     return x, obj
 
@@ -796,12 +798,12 @@ if __name__ == "__main__":
     #
     #sketch(save=True)
     # Default input parameters
-    nelx=240
-    nely=80
+    nelx=60
+    nely=int(nelx/3)
     nelz=None
     volfrac=0.5
-    rmin=9.6
-    penal=3.0
+    rmin=0.04*nelx
+    penal=4/3
     ft=1 # ft==0 -> sens, ft==1 -> dens
     import sys
     if len(sys.argv)>1: nelx   =int(sys.argv[1])
@@ -822,7 +824,7 @@ if __name__ == "__main__":
     from topoptlab.geometries import slab
     main(nelx=nelx,nely=nely,volfrac=volfrac,penal=penal,rmin=rmin,ft=ft,
          obj_func=var_maximization ,obj_kw={"l": indic},l=1.,
-         body_forces_kw={"density_coupled": np.array([0,-1e-6])},
+         body_forces_kw={"density_coupled": np.array([0,-1e-5])},
          alpha=None,
          #el_flags = slab(nelx=nelx, nely=nely, center=((nelx-1)/2,(nely-1)/2), widths=(None,2.), fill_value=2),
          bcs=bcs)
