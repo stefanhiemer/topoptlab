@@ -7,8 +7,8 @@ from topoptlab.elements.trilinear_hexahedron import create_edofMat as create_edo
 from topoptlab.example_bc.lin_elast import selffolding_2d, selffolding_3d
 # different elements/physics
 from topoptlab.stiffness_tensors import orthotropic_2d, orthotropic_3d
-from topoptlab.elements.linear_elasticity_2d import lk_linear_elast_2d,_lf_strain_2d
-from topoptlab.elements.linear_elasticity_3d import lk_linear_elast_3d,_lf_strain_3d
+from topoptlab.elements.linear_elasticity_2d import _lk_linear_elast_2d,_lf_strain_2d
+from topoptlab.elements.linear_elasticity_3d import _lk_linear_elast_3d,_lf_strain_3d
 from topoptlab.elements.bodyforce_2d import lf_bodyforce_2d
 from topoptlab.elements.bodyforce_3d import lf_bodyforce_3d
 from topoptlab.elements.heatexpansion_2d import _fk_heatexp_2d
@@ -116,10 +116,6 @@ def fem_heat_expansion(nelx, nely, nelz=None,
         a = np.stack([np.diag([a1,a2]) for i in np.arange(int(nely/2))]+\
                      [np.diag([a2,a1]) for i in np.arange(int(nely/2))])
         a = np.tile(a,(nelx,1,1))
-        print(cs[:nely])
-        print(a[:nely])
-        import sys
-        sys.exit()
     if ndim ==3:
         # stiffness tensor
         cs = [orthotropic_3d(Ex=1.0, Ey=Eratio, Ez=Eratio,
@@ -138,7 +134,7 @@ def fem_heat_expansion(nelx, nely, nelz=None,
     # get element stiffness matrix and element of freedom matrix
     nT_ndof = 1
     if ndim == 2:
-        KE = lk_linear_elast_2d(c=cs)
+        KE = _lk_linear_elast_2d(xe=xe,c=cs)
         # infer nodal degrees of freedom assuming that we have 4/8 nodes in 2/3
         nE_ndof = int(KE.shape[-1]/4)
         # number of degrees of freedom
@@ -150,7 +146,7 @@ def fem_heat_expansion(nelx, nely, nelz=None,
         TedofMat, n1, n2, n3, n4 = create_edofMat2d(nelx=nelx,nely=nely,
                                                     nnode_dof=1)
     elif ndim == 3:
-        KE = lk_linear_elast_3d(c=cs)
+        KE = _lk_linear_elast_3d(xe=xe,c=cs)
         # infer nodal degrees of freedom assuming that we have 4/8 nodes in 2/3
         nE_ndof = int(KE.shape[-1]/8)
         # number of degrees of freedom
@@ -188,18 +184,16 @@ def fem_heat_expansion(nelx, nely, nelz=None,
             # element, not its properties. This part is needed for
             # homogenization related objective functions and may later
             # become optional via some flags.
-            if ndim == 2 and n_nEdof != 1:
+            if ndim == 2 and nE_ndof != 1:
                 fixed = np.array([0,1,3])
-            elif ndim == 3 and n_nEdof != 1:
+            elif ndim == 3 and nE_ndof != 1:
                 fixed = np.array([0,1,2,4,5,7,8])
-            elif n_ndof == 1:
+            elif nE_ndof == 1:
                 fixed = np.array([0])
             free = np.setdiff1d(np.arange(KE.shape[-1]), fixed)
             u0 = np.zeros(fe_strain.shape)
             u0[free] = np.linalg.solve(KE[free,:][:,free],
                                        fe_strain[free,:])
-            if "u0" not in obj_kw.keys():
-                obj_kw["u0"] = u0
         else:
             fe_strain = None
         #
@@ -216,19 +210,23 @@ def fem_heat_expansion(nelx, nely, nelz=None,
         if len([key for key in body_forces_kw.keys() \
                 if key not in ["density_coupled","strain_uniform"]]):
             raise NotImplementedError("One type of bodyforce/source has not yet been implemented.")
+    #
+    if assembly_mode == "symmetry":
+        assm_indcs = np.column_stack(np.triu_indices_from(KE[0]))
     # Construct the index pointers for the coo format
-    iK,jK = create_matrixinds(EedofMat,mode=assembly_mode)
+    iK,jK = create_matrixinds(edofMat=EedofMat,mode=assembly_mode)
     # BC's and support
     u,f,fixedE,freeE,springs = bc(nelx=nelx,nely=nely,nelz=nelz,ndof=nEdof)
     #
     T = np.ones((nTdof,1))
     # interpolate material properties
-    E = (Emin+xPhys**penal*(Emax-Emin))
+    scale = (Emin+xPhys**penal*(Emax-Emin))
+    E = Emax * scale
     # entries of stiffness matrix
     if assembly_mode == "full":
-        sK = (E[:,None,None] * KE[None,:,:]).reshape(np.prod(E.shape+KE.shape))
+        sK = (E[:,None,None] * KE).reshape(np.prod(E.shape+KE.shape[1:]))
     elif assembly_mode == "symmetry":
-        sK = (E[:,None,None] * KE[None,:,:])[:,assm_indcs[0],assm_indcs[1]].\
+        sK = (E[:,None,None] * KE)[:,assm_indcs[0],assm_indcs[1]].\
               reshape( n*nE_ndof*(nE_ndof+1) )
     #
     KE = assemble_matrix(sK=sK,iK=iK,jK=jK,
@@ -259,7 +257,7 @@ def fem_heat_expansion(nelx, nely, nelz=None,
         if "strain_uniform" in body_forces_kw.keys():
             fes = fe_strain[None,:,:]*scale[:,None,None]
             np.add.at(f_body,
-                      edofMat,
+                      EedofMat,
                       fes)
         if "density_coupled" in body_forces_kw.keys():
             fes = fe_dens[None,:,:]*simp(xPhys=xPhys, eps=eps, penal=penal)[:,None,None]
@@ -276,7 +274,7 @@ def fem_heat_expansion(nelx, nely, nelz=None,
     u[freeE, :], fact, precond, = solve_lin(K=KE, rhs=rhsE[freeE],
                                             solver=lin_solver,
                                             preconditioner=preconditioner)
-    print(u[1::2].max())
+    print(u[2 *nelx*(nely+1) + 1,0])
     #np.savetxt("surface-displacements.csv",
     #           u[np.arange(0,2*(nelx+1)*(nely+1),2*(nely+1))+1,0])
 
@@ -292,9 +290,11 @@ def fem_heat_expansion(nelx, nely, nelz=None,
     return
 
 if __name__ == "__main__":
-    nelx=60
-    nely=10
+    nelx=120
+    nely=int(nelx/6)
     nelz=None
+    L = 60
+    l = 60/nelx
     #
     import sys
     if len(sys.argv)>1:
@@ -304,6 +304,6 @@ if __name__ == "__main__":
     if len(sys.argv)>3:
         nelz = int(sys.argv[2])
     #
-    fem_heat_expansion(nelx=nelx,nely=nely,nelz=nelz,l=1,
-                       #body_forces_kw={"density_coupled": np.array([0,-1e-5])}
+    fem_heat_expansion(nelx=nelx,nely=nely,nelz=nelz,l=l,
+                       body_forces_kw={"density_coupled": np.array([0,-1e-7])}
                        )

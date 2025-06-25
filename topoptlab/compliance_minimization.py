@@ -14,7 +14,7 @@ from topoptlab.filters import assemble_matrix_filter,assemble_convolution_filter
 # default application case that provides boundary conditions, etc.
 from topoptlab.example_bc.lin_elast import mbb_2d
 # set up finite element problem
-from topoptlab.fem import create_matrixinds
+from topoptlab.fem import create_matrixinds,assemble_matrix,assemble_rhs,apply_bc
 from topoptlab.elements.bilinear_quadrilateral import create_edofMat as create_edofMat2d
 from topoptlab.elements.trilinear_hexahedron import create_edofMat as create_edofMat3d
 # different elements/physics
@@ -23,7 +23,6 @@ from topoptlab.elements.linear_elasticity_3d import lk_linear_elast_3d, lf_strai
 from topoptlab.elements.bodyforce_2d import lf_bodyforce_2d
 from topoptlab.elements.bodyforce_3d import lf_bodyforce_3d
 # generic functions for solving phys. problem
-from topoptlab.fem import assemble_matrix,assemble_rhs,apply_bc
 from topoptlab.solve_linsystem import solve_lin
 #
 from topoptlab.material_interpolation import simp, simp_dx
@@ -300,9 +299,12 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                 if key not in ["density_coupled","strain_uniform"]]):
             raise NotImplementedError("One type of bodyforce/source has not yet been implemented.")
     # Construct the index pointers for the coo format
-    iK,jK = create_matrixinds(edofMat, mode=assembly_mode)
-    if assembly_mode == "symmetry":
-        assm_indcs = np.column_stack(np.triu_indices_from(KE))
+    iK,jK = create_matrixinds(edofMat=edofMat, mode=assembly_mode)
+    if assembly_mode == "lower":
+        assm_indcs = np.column_stack(np.tril_indices_from(KE))
+        assm_indcs = np.flip(assm_indcs[np.argsort(assm_indcs[:,1]),:],
+                             axis=1)
+        print(assm_indcs)
     # function to convert densities, etc. to images/voxels for plotting or the
     # convolution filter.
     if ndim == 2:
@@ -397,8 +399,10 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                 # this here is more memory efficient than Kes.flatten() as it
                 # provides a view onto the original Kes array instead of a copy
                 sK = Kes.reshape(np.prod(Kes.shape))
-            elif assembly_mode == "symmetry":
-                sK = Kes[:,assm_indcs[0],assm_indcs[1]].reshape( n*ndof*(ndof+1) )
+            elif assembly_mode == "lower":
+                sK = Kes[:,assm_indcs[:,0],assm_indcs[:,1]].reshape( n*int(KE.shape[-1]/2*(KE.shape[-1]+1)),order="F" )
+                #sK = Kes[:,assm_indcs[:,0]]
+                #sK = Kes[:,:,assm_indcs[:,1]].reshape( n*int(ndof/2*(ndof+1)) )
             # Setup and solve FE problem
             # To Do: loop over boundary conditions if incompatible
             # assemble system matrix
@@ -464,6 +468,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                 # generic density dependent element wise force
                 if f0 is not None:
                     dobj_offset -= f0[None,:,i]
+                # 
                 dobj[:] += simp_dx(xPhys=xPhys, eps=1e-9, penal=penal)*\
                            (h[edofMat,i]*dobj_offset).sum(axis=1)
                 # update sensitivity for quantities that do not need a small

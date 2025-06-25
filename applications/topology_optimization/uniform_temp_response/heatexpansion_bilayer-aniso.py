@@ -192,7 +192,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     xTilde = x.copy()
     xPhys = x.copy()
     if ft == 5:
-        beta = 16
+        beta = 1
         eta = find_eta(eta0=0.5, xTilde=xTilde, beta=beta, volfrac=volfrac)
     else:
         beta = None
@@ -368,8 +368,8 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                 if key not in ["density_coupled","strain_uniform"]]):
             raise NotImplementedError("One type of bodyforce/source has not yet been implemented.")
     # Construct the index pointers for the coo format
-    iK,jK = create_matrixinds(edofMat,mode=assembly_mode)
-    if assembly_mode == "symmetry":
+    iK,jK = create_matrixinds(edofMat=edofMat,mode=assembly_mode)
+    if assembly_mode == "lower":
         assm_indcs = np.column_stack(np.triu_indices_from(KE))
     # function to convert densities, etc. to images/voxels for plotting or the
     # convolution filter.
@@ -443,7 +443,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         loopbeta += 1
         # calculate / interpolate material properties
         scale = ramp(xPhys=xPhys,eps=eps,penal=penal) #(eps+xPhys**penal*(1-eps))
-        Kes = KE[None,:,:]*scale[:,None,None]
+        Kes = KE*scale[:,None,None]
         # solve FEM, calculate obj. func. and gradients.
         # for
         if optimizer in ["oc","mma", "ocm","ocg"] or\
@@ -479,7 +479,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                               edofMat,
                               fes)
                 if "density_coupled" in body_forces_kw.keys():
-                    fes = fe_dens[None,:,:]*ramp(xPhys=xPhys, eps=0., penal=1.)[:,None,None]
+                    fes = fe_dens[None,:,:]*simp(xPhys=xPhys, eps=0., penal=1.)[:,None,None]
                     np.add.at(f_body,
                               edofMat,
                               fes)
@@ -531,8 +531,13 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                 #
                 if f0 is not None:
                     dobj_offset -= f0[None,:,i]
-                dobj[:] += simp_dx(xPhys=xPhys, eps=1e-9, penal=penal)*\
+                dobj[:] += ramp_dx(xPhys=xPhys, eps=eps, penal=penal)*\
                            (h[edofMat,i]*dobj_offset).sum(axis=1)
+                # update sensitivity for quantities that do not need a small
+                # offset to avoid degeneracy of the FE problem
+                if "density_coupled" in body_forces_kw.keys():
+                    dobj -= simp_dx(xPhys=xPhys, eps=0., penal=1.)*\
+                                    np.dot(h[edofMat,i],fe_dens[:,i])
                 if debug:
                     print("FEM: it.: {0}, problem: {1}, min. u: {2:.10f}, med. u: {3:.10f}, max. u: {4:.10f}".format(
                            loop,i,np.min(u[:,i]),np.median(u[:,i]),np.max(u[:,i])))
@@ -607,7 +612,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         # method of moving asymptotes
         elif optimizer=="mma":
             xval = x.copy()[None].T
-            xmma,ymma,zmma,lam,xsi,_,mu,zet,s,low,upp = update_mma(x=x,
+            xmma,ymma,zmma,lam,xsi,eta_mma,mu,zet,s,low,upp = update_mma(x=x,
                                                                 xold1=xhist[-1],
                                                                 xold2=xhist[-2],
                                                                 xPhys=xPhys,
@@ -715,7 +720,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                       edofMat,
                       fes)
         if "density_coupled" in body_forces_kw.keys():
-            fes = fe_dens[None,:,:]*ramp(xPhys=xThresh, eps=0., penal=1.)[:,None,None]
+            fes = fe_dens[None,:,:]*ramp(xPhys=xThresh, eps=eps, penal=penal)[:,None,None]
             np.add.at(f_body,
                       edofMat,
                       fes)
@@ -798,13 +803,13 @@ if __name__ == "__main__":
     #
     #sketch(save=True)
     # Default input parameters
-    nelx=60
-    nely=int(nelx/3)
+    nelx=240
+    nely=int(nelx/6)
     nelz=None
     volfrac=0.5
-    rmin=0.04*nelx
-    penal=4/3
-    ft=1 # ft==0 -> sens, ft==1 -> dens
+    rmin=0.02*nelx
+    penal=3
+    ft=5 # ft==0 -> sens, ft==1 -> dens
     import sys
     if len(sys.argv)>1: nelx   =int(sys.argv[1])
     if len(sys.argv)>2: nely   =int(sys.argv[2])
@@ -823,8 +828,8 @@ if __name__ == "__main__":
     #
     from topoptlab.geometries import slab
     main(nelx=nelx,nely=nely,volfrac=volfrac,penal=penal,rmin=rmin,ft=ft,
-         obj_func=var_maximization ,obj_kw={"l": indic},l=1.,
-         body_forces_kw={"density_coupled": np.array([0,-1e-5])},
+         obj_func=var_maximization ,obj_kw={"l": indic},l=60/nelx,
+         body_forces_kw={"density_coupled": np.array([0,-1e-7])},
          alpha=None,
          #el_flags = slab(nelx=nelx, nely=nely, center=((nelx-1)/2,(nely-1)/2), widths=(None,2.), fill_value=2),
          bcs=bcs)

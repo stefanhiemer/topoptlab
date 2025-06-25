@@ -59,7 +59,7 @@ def solve_lin(K,rhs,solver,
     # sparse cholesky decomposition
     elif solver == "cvxopt-cholmod":
         B = matrix(rhs)
-        factorization = symbolic(K, uplo='U')
+        factorization = symbolic(K, uplo='L')
         numeric(K, factorization)
         solve(factorization, B)
         #linsolve(K,B)
