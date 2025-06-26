@@ -106,20 +106,21 @@ def create_matrixinds(edofMat,mode="full"):
     """
 
     #
-    n_nodedof = edofMat.shape[1]
     if mode == "full":
-        iM = np.tile(edofMat,n_nodedof)
-        jM = np.repeat(edofMat,n_nodedof)
+        iM = np.tile(edofMat,edofMat.shape[1])
+        jM = np.repeat(edofMat,edofMat.shape[1])
     elif mode == "lower":
         #
-        iM = [edofMat[:,i:] for i in np.arange(n_nodedof)]
+        iM = [edofMat[:,i:] for i in np.arange(edofMat.shape[1])]
         iM = np.column_stack(iM)
+        #print(iM)
         #
-        jM = np.repeat(edofMat,np.arange(n_nodedof,0,-1),axis=1)
+        jM = np.repeat(edofMat,np.arange(edofMat.shape[1],0,-1),axis=1)
+        #print(jM)
         # sort
         mask = iM < jM
         iM[mask],jM[mask] = jM[mask],iM[mask]
-    return iM.flatten(),jM.flatten()
+    return iM.reshape(np.prod(iM.shape)),jM.reshape(np.prod(iM.shape))
 
 def update_indices(indices,fixed,mask):
     """

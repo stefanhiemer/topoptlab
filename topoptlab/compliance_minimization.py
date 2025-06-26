@@ -302,9 +302,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     iK,jK = create_matrixinds(edofMat=edofMat, mode=assembly_mode)
     if assembly_mode == "lower":
         assm_indcs = np.column_stack(np.tril_indices_from(KE))
-        assm_indcs = np.flip(assm_indcs[np.argsort(assm_indcs[:,1]),:],
-                             axis=1)
-        print(assm_indcs)
+        assm_indcs = assm_indcs[np.lexsort( (assm_indcs[:,0],assm_indcs[:,1]) )]
     # function to convert densities, etc. to images/voxels for plotting or the
     # convolution filter.
     if ndim == 2:
@@ -400,7 +398,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                 # provides a view onto the original Kes array instead of a copy
                 sK = Kes.reshape(np.prod(Kes.shape))
             elif assembly_mode == "lower":
-                sK = Kes[:,assm_indcs[:,0],assm_indcs[:,1]].reshape( n*int(KE.shape[-1]/2*(KE.shape[-1]+1)),order="F" )
+                sK = Kes[:,assm_indcs[:,0],assm_indcs[:,1]].reshape( n*int(KE.shape[-1]/2*(KE.shape[-1]+1)))
                 #sK = Kes[:,assm_indcs[:,0]]
                 #sK = Kes[:,:,assm_indcs[:,1]].reshape( n*int(ndof/2*(ndof+1)) )
             # Setup and solve FE problem
@@ -468,7 +466,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                 # generic density dependent element wise force
                 if f0 is not None:
                     dobj_offset -= f0[None,:,i]
-                # 
+                #
                 dobj[:] += simp_dx(xPhys=xPhys, eps=1e-9, penal=penal)*\
                            (h[edofMat,i]*dobj_offset).sum(axis=1)
                 # update sensitivity for quantities that do not need a small
