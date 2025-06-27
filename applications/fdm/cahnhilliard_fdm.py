@@ -91,20 +91,21 @@ def cahn_hilliard_fd(dim=2, grid_size=128,
 
     return c
 
-def run_simulation(seed, gamma):
+def run_simulation(seed, gamma=0.5):
     c = cahn_hilliard_fd(
                          dim=ndim,
                          grid_size=n,
                          dx=1.0,
-                         dt=0.04,
+                         dt=0.04 * 0.5/gamma,
                          gamma=gamma,
                          M=1.0,
-                         n_steps=int(1e5),
+                         n_steps=int(1e2),
                          display=False,
                          seed=seed,
                          dtype=np.float32)
     #
-    np.savetxt(f"runs/cahn-hilliard-{seed}.csv", c)
+    np.savetxt(f"runs/cahn-hilliard-gamma-{gamma}_{seed}.csv", c,
+               header=f'# gamma {gamma}')
     return 
 
 if __name__ == "__main__":
@@ -124,10 +125,14 @@ if __name__ == "__main__":
     #cahn_hilliard_fd(dim=ndim, grid_size=n,
     #                 dx=1.0, dt=0.04,
     #                 gamma=0.5, M=1.0,
-    #                 n_steps=int(1e3),
+    #                 n_steps=int(1e5),
     #                 display=display)
+    
     #
-    #
-    seeds = range(200)
-    with Pool() as pool:
-        pool.map(run_simulation, seeds)
+    from functools import partial
+    seeds = range(960)
+    for gamma in [0.5,1.,2.,3.,4.]:
+        
+        simul = partial(run_simulation,gamma=gamma)
+        with Pool(24) as pool:
+            pool.map(simul, seeds)
