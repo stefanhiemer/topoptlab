@@ -21,6 +21,8 @@ def mma_defaultkws(n,ft,n_constr):
         dictionary filled with default arguments.
 
     """
+    if n_constr == 0:
+        raise ValueError("GCMMA needs to have at least one constraint.")
     #
     optimizer_kw = {}
     # number of constraints
@@ -73,6 +75,8 @@ def gcmma_defaultkws(n,ft,n_constr):
         dictionary filled with default arguments.
 
     """
+    if n_constr == 0:
+        raise ValueError("GCMMA needs to have at least one constraint.")
     #
     optimizer_kw = {}
     # number of constraints

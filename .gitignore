@@ -8,3 +8,4 @@ old_cholmod.py
 !images/*.pdf
 !images/*.png
 *.log
+applications/fdm/runs

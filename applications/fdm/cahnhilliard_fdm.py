@@ -1,3 +1,5 @@
+from multiprocessing import Pool
+
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -5,7 +7,9 @@ def cahn_hilliard_fd(dim=2, grid_size=128,
                      dx=1.0, dt=0.01,
                      gamma=1.0, M=1.0,
                      n_steps=1000,
-                     display=True):
+                     display=True,
+                     seed=0,
+                     dtype=np.float32):
     """
     Solves the Cahn-Hilliard equation using finite differences via operator 
     split and explicit time integration.
@@ -33,15 +37,6 @@ def cahn_hilliard_fd(dim=2, grid_size=128,
         final concentration.
 
     """
-    np.random.seed(0)
-    # Grid and initial condition
-    if dim == 2:
-        c = np.random.rand(grid_size, grid_size) * 0.01
-    elif dim == 3:
-        c = np.random.rand(grid_size, grid_size, grid_size) * 0.01
-    else:
-        raise ValueError("Only 2D and 3D cases are supported.")
-    c = c - c.mean()
     # Laplacian operator (finite difference)
     def laplacian(f):
         if dim == 2:
@@ -55,25 +50,36 @@ def cahn_hilliard_fd(dim=2, grid_size=128,
                 np.roll(f, 1, axis=1) + np.roll(f, -1, axis=1) +
                 np.roll(f, 1, axis=2) + np.roll(f, -1, axis=2) - 6 * f
             ) / dx**2
-
+    # set random seed
+    np.random.seed(seed)
+    # Grid and initial condition
+    if dim == 2:
+        c = np.random.rand(grid_size, grid_size) * 0.01
+    elif dim == 3:
+        c = np.random.rand(grid_size, grid_size, grid_size) * 0.01
+    else:
+        raise ValueError("Only 2D and 3D cases are supported.")
+    c = (c - c.mean()).astype(dtype)
     # Time-stepping loop
-    mu = np.zeros(c.shape)
+    mu = np.zeros(c.shape,dtype=dtype)
     for step in np.arange(n_steps):
         # compute chemical potential
         mu[:] =  c**3 - c - gamma * laplacian(c)
         # update concentration
         c[:] += dt * M * laplacian(mu)
         #
-        print("time.: {0:.10f} min(c).: {1:.10f} max(c).: {2:.10f} volfrac.: {3:.10f}".format(
-                     dt*(step+1), c.min(), c.max(), np.mean(c) * dx**dim))
         # Optional: Visualization for 2D
         if dim == 2 and step % (n_steps // 100) == 0 and display:
+            print("time.: {0:.10f} min(c).: {1:.10f} max(c).: {2:.10f} volfrac.: {3:.10f}".format(
+                         dt*(step+1), c.min(), c.max(), np.mean(c) * dx**dim))
             plt.imshow(c, cmap='RdBu', origin='lower')
             plt.colorbar(label='Concentration')
             plt.title(f"Step {step}")
             plt.pause(0.001)
             plt.clf()
-
+    print(mu.dtype,c.dtype)
+    print("final time.: {0:.10f} min(c).: {1:.10f} max(c).: {2:.10f} volfrac.: {3:.10f}".format(
+                 dt*(step+1), c.min(), c.max(), np.mean(c) * dx**dim))
     # Final visualization
     if dim == 2 and display:
         plt.imshow(c, cmap='RdBu', origin='lower')
@@ -85,11 +91,27 @@ def cahn_hilliard_fd(dim=2, grid_size=128,
 
     return c
 
+def run_simulation(seed, gamma):
+    c = cahn_hilliard_fd(
+                         dim=ndim,
+                         grid_size=n,
+                         dx=1.0,
+                         dt=0.04,
+                         gamma=gamma,
+                         M=1.0,
+                         n_steps=int(1e5),
+                         display=False,
+                         seed=seed,
+                         dtype=np.float32)
+    #
+    np.savetxt(f"runs/cahn-hilliard-{seed}.csv", c)
+    return 
+
 if __name__ == "__main__":
     #
     ndim = 2
-    n = 128
-    display=True
+    n = 256
+    display=False
     #
     import sys
     if len(sys.argv)>1:
@@ -98,9 +120,14 @@ if __name__ == "__main__":
         n = int(sys.argv[2])
     if len(sys.argv)>3:
         display = bool(int(sys.argv[3]))
-    # Run the simulation
-    cahn_hilliard_fd(dim=ndim, grid_size=n,
-                     dx=1.0, dt=0.04,
-                     gamma=0.5, M=1.0,
-                     n_steps=int(1e5),
-                     display=display)
+    # 
+    #cahn_hilliard_fd(dim=ndim, grid_size=n,
+    #                 dx=1.0, dt=0.04,
+    #                 gamma=0.5, M=1.0,
+    #                 n_steps=int(1e3),
+    #                 display=display)
+    #
+    #
+    seeds = range(200)
+    with Pool() as pool:
+        pool.map(run_simulation, seeds)

@@ -60,7 +60,6 @@ def solve_lin(K,rhs,solver,
     elif solver == "cvxopt-cholmod":
         B = matrix(rhs)
         factorization = symbolic(K, uplo='L')
-        print(factorization)
         numeric(K, factorization)
         solve(factorization, B)
         #linsolve(K,B)
