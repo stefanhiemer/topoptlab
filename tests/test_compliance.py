@@ -49,7 +49,7 @@ def test_compliance_filters_slow(nelx, nely, volfrac, ft, rmin, filter_mode, bcs
     return 
 
 @pytest.mark.parametrize('optimizer, obj_ref',
-                         [("mma",233.4879433637),])
+                         [("mma",233.70379443299032),])
 
 def test_compliance_optimizers(optimizer,obj_ref):
     """

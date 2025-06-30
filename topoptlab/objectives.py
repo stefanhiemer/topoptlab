@@ -43,7 +43,7 @@ def compliance(xPhys, u, KE, edofMat, i,
 
     """
     ce = (np.dot(u[edofMat,i], KE) * u[edofMat,i]).sum(1)
-    obj += ((Amin+xPhys**penal*(Amax-Amin))*ce).sum()
+    obj += ((Amin+xPhys[:,0]**penal*(Amax-Amin))*ce).sum()
     dc = (-1) * penal*xPhys**(penal-1)*(Amax-Amin)*ce
     #return obj, dc, True #
     return obj,-u, True

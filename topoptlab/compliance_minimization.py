@@ -36,6 +36,8 @@ from topoptlab.output_designs import export_vtk
 from topoptlab.utils import map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel
 # logging related stuff
 from topoptlab.log_utils import init_logging
+#
+from mmapy import mmasub
 
 # MAIN DRIVER
 def main(nelx, nely, volfrac, penal, rmin, ft,
@@ -181,14 +183,19 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     elif lk is None and ndim == 3:
         lk = lk_linear_elast_3d
     # Allocate design variables (as array), initialize and allocate sens.
-    x = volfrac * np.ones(n, dtype=float,order='F')
+    x = volfrac * np.ones( (n,1), dtype=float,order='F')
     #x = np.random.rand(n)
     #x = x/x.mean() * volfrac
     xTilde = x.copy()
     xPhys = x.copy()
     # initialize arrays for gradients
-    dobj = np.zeros(x.shape[0],order="F")
-    dv = np.ones(x.shape[0],order="F")
+    dobj = np.zeros( x.shape,order="F")
+    # initialize constraints
+    n_constr = 0
+    if volfrac is not None:
+        n_constr += 1 
+    constrs = np.zeros( (n_constr, 1) )
+    dconstrs = np.zeros( (n, n_constr) )
     # initialize solver
     if optimizer_kw is None:
         if optimizer in ["oc","ocm","ocg"]:
@@ -216,8 +223,8 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         mask = el_flags == 1
         optimizer_kw["xmin"][mask] = 0.
         optimizer_kw["xmax"][mask] = 0.+1e-9
-        x[mask] = 1.
-        xPhys[mask] = 1.
+        x[mask,0] = 1.
+        xPhys[mask,0] = 1.
         # active
         mask = el_flags == 2
         optimizer_kw["xmin"][mask] = 1.- 1e-9
@@ -392,7 +399,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             # update physical properties of the elements and thus the entries
             # of the elements
             scale = simp(xPhys=xPhys,penal=penal,eps=1e-9)#(Emin+(xPhys)**penal * (E-Emin))
-            Kes = KE[None,:,:]*scale[:,None,None]
+            Kes = KE[None,:,:]*scale[:,:,None]
             if assembly_mode == "full":
                 # this here is more memory efficient than Kes.flatten() as it
                 # provides a view onto the original Kes array instead of a copy
@@ -413,12 +420,12 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             for bodyforce in body_forces_kw.keys():
                 # assume each strain is a column vector in Voigt notation
                 if "strain_uniform" in body_forces_kw.keys():
-                    fes = fe_strain[None,:,:]*scale[:,None,None]
+                    fes = fe_strain[None,:,:]*scale[:,:,None]
                     np.add.at(f_body,
                               edofMat,
                               fes)
                 if "density_coupled" in body_forces_kw.keys():
-                    fes = fe_dens[None,:,:]*simp(xPhys=xPhys, eps=0., penal=1.)[:,None,None]
+                    fes = fe_dens[None,:,:]*simp(xPhys=xPhys, eps=0., penal=1.)[:,:,None]
                     np.add.at(f_body,
                               edofMat,
                               fes)
@@ -434,7 +441,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                                                   preconditioner=preconditioner)
             # Objective and objective gradient
             obj = 0
-            dobj[:] = np.zeros(x.shape[0])
+            dobj[:] = 0.
             for i in np.arange(f.shape[1]):
                 # obj. value, selfadjoint variables, self adjoint flag
                 obj,rhs_adj,self_adj = obj_func(obj=obj, i=i,
@@ -467,13 +474,13 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                 if f0 is not None:
                     dobj_offset -= f0[None,:,i]
                 #
-                dobj[:] += simp_dx(xPhys=xPhys, eps=1e-9, penal=penal)*\
-                           (h[edofMat,i]*dobj_offset).sum(axis=1)
+                dobj[:,0] += (simp_dx(xPhys=xPhys, eps=1e-9, penal=penal)*\
+                             h[edofMat,i]*dobj_offset).sum(axis=1)
                 # update sensitivity for quantities that do not need a small
                 # offset to avoid degeneracy of the FE problem
                 if "density_coupled" in body_forces_kw.keys():
-                    dobj -= simp_dx(xPhys=xPhys, eps=0., penal=1.)*\
-                            np.dot(h[edofMat,i],fe_dens[:,i])
+                    dobj[:,0] -= simp_dx(xPhys=xPhys, eps=0., penal=1.)[:,0]*\
+                                         np.dot(h[edofMat,i],fe_dens[:,i])
                 if debug:
                     print("FEM: it.: {0}, problem: {1}, min. u: {2:.10f}, med. u: {3:.10f}, max. u: {4:.10f}".format(
                            loop,i,np.min(u[:,i]),np.median(u[:,i]),np.max(u[:,i])))
@@ -481,21 +488,23 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         else:
             raise NotImplementedError("Unknown optimizer.")
         # Constraints and constraint gradients
+        constrs[:,0] = 0.
+        dconstrs[:,:] = 0.
         if volfrac is not None:
-            volconstr = np.array([xPhys.mean() - volfrac])
+            constrs[0,0] = xPhys.mean() - volfrac
             if optimizer in ["mma","gcmma"]:
-                dv[:] = np.ones(x.shape[0]) /(x.shape[0]*volfrac)
+                dconstrs[:,0:1] = np.ones(x.shape) /(x.shape[0]*volfrac)
             elif optimizer in ["oc","ocm","ocg"]:
-                dv[:] = np.ones(x.shape[0])
+                dconstrs[:,0] = np.ones(x.shape[0])
         if debug:
             print("Pre-Sensitivity Filter: it.: {0}, dobj: {1:.10f}, dv: {2:.10f}".format(
                    loop,
                    np.max(dobj),
-                   np.min(dv)))
+                   np.min(dconstrs)))
         # Sensitivity filtering:
         if ft == 0 and filter_mode == "matrix":
-            dobj[:] = np.asarray((H*(x*dobj))[None].T /
-                               Hs)[:, 0] / np.maximum(0.001, x)
+            dobj[:] = np.asarray(H@(x*dobj) /
+                                 Hs) / np.maximum(0.001, x)
             #dobj[:] = H @ (dc*x) / Hs / np.maximum(0.001, x)
         elif ft == 0 and filter_mode == "convolution":
             dobj[:] = invmapping(convolve(mapping(dobj/hs),
@@ -505,8 +514,8 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         elif ft == 0 and filter_mode == "helmholtz":
             dobj[:] = TF.T @ lu_solve(TF@(dobj*xPhys))/np.maximum(0.001, x)
         elif ft == 1 and filter_mode == "matrix":
-            dobj[:] = np.asarray(H*(dobj[None].T/Hs))[:, 0]
-            dv[:] = np.asarray(H*(dv[None].T/Hs))[:, 0]
+            dobj[:] = np.asarray(H*(dobj/Hs))
+            dconstrs[:] = np.asarray(H*(dconstrs/Hs))
             #dobj[:] = H @ (dobj/Hs)
             #dv[:] = H @ (dv/Hs)
         elif ft == 1 and filter_mode == "convolution":
@@ -514,50 +523,62 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                                           h,
                                           mode="constant",
                                           cval=0))
-            dv[:] = invmapping(convolve(mapping(dv/hs),
+            dconstrs[:] = invmapping(convolve(mapping(dconstrs/hs),
                                         h,
                                         mode="constant",
                                         cval=0))
         elif ft == 1 and filter_mode == "helmholtz":
             dobj[:] = TF.T @ lu_solve(TF@dobj)
-            dv[:] = TF.T @ lu_solve(TF@dv)
+            dconstrs[:] = TF.T @ lu_solve(TF@dconstrs)
         elif ft == -1:
             pass
         if debug:
             print("Post-Sensitivity Filter: it.: {0}, max. dobj: {1:.10f}, min. dv: {2:.10f}".format(
                    loop,
                    np.max(dobj),
-                   np.min(dv)))
+                   np.min(dconstrs)))
         # density update by optimizer
         # optimality criteria
         if optimizer=="oc":
-            (x[:], g) = oc_top88(x=x, volfrac=volfrac,
-                                 dc=dobj, dv=dv, g=g,
+            (x[:,0], g) = oc_top88(x=x[:,0], volfrac=volfrac,
+                                 dc=dobj[:,0], dv=dconstrs[:,0], g=g,
                                  el_flags=el_flags)
         elif optimizer=="ocm":
-            (x[:], g) = oc_mechanism(x=x, volfrac=volfrac,
-                                     dc=dobj, dv=dv, g=g,
+            (x[:,0], g) = oc_mechanism(x=x[:,0], volfrac=volfrac,
+                                     dc=dobj[:,0], dv=dconstrs[:,0], g=g,
                                      el_flags=el_flags)
         elif optimizer=="ocg":
-            (x[:], g) = oc_generalized(x=x, volfrac=volfrac,
-                                       dc=dobj, dv=dv, g=g,
+            (x[:,0], g) = oc_generalized(x=x[:,0], volfrac=volfrac,
+                                       dc=dobj[:,0], dv=dconstrs[:,0], g=g,
                                        el_flags=el_flags)
         # method of moving asymptotes
         elif optimizer=="mma":
-            xmma,ymma,zmma,lam,xsi,eta,mu,zet,s,low,upp = update_mma(x=x,
-                                                                xold1=xhist[-2][:,None],
-                                                                xold2=xhist[-3][:,None],
-                                                                xPhys=xPhys,
-                                                                obj=obj,
-                                                                dobj=dobj,
-                                                                constrs=volconstr,
-                                                                dconstr=dv,
-                                                                iteration=loop,
-                                                                **optimizer_kw)
+            #xmma,ymma,zmma,lam,xsi,eta,mu,zet,s,low,upp = update_mma(x=x,
+            #                                                    xold1=xhist[-2][:,None],
+            #                                                    xold2=xhist[-3][:,None],
+            #                                                    xPhys=xPhys,
+            #                                                    obj=obj,
+            #                                                    dobj=dobj,
+            #                                                    constrs=volconstr,
+            #                                                    dconstr=dv,
+            #                                                    iteration=loop,
+            #                                                    **optimizer_kw)
+            xmma,ymma,zmma,lam,xsi,eta_mma,mu,zet,s,low,upp = mmasub(m=optimizer_kw["nconstr"],
+                                                                 n=x.shape[0],
+                                                                 iter=i,
+                                                                 xval=x,
+                                                                 xold1=xhist[-1],
+                                                                 xold2=xhist[-2],
+                                                                 f0val=obj,
+                                                                 df0dx=dobj,
+                                                                 fval=constrs,
+                                                                 dfdx=dconstrs.T,
+                                                                 **optimizer_kw)
+            
             # update asymptotes
             optimizer_kw["low"] = low
             optimizer_kw["upp"] = upp
-            x = xmma.copy().flatten()
+            x = xmma.copy()
         if debug:
             print("Post Density Update: it.: {0}, med. x.: {1:.10f}, med. xTilde: {2:.10f}, med. xPhys: {3:.10f}".format(
                    loop, np.median(x),np.median(xTilde),np.median(xPhys)))
@@ -565,10 +586,11 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         if ((loop-accelerator_kw["accel_start"])%accelerator_kw["accel_freq"])==0 \
             and loop >= accelerator_kw["accel_start"] and \
             accelerator_kw["accelerator"] is not None:
-            x = accelerator_kw["accelerator"](x=x,xhist=xhist,
-                                             **accelerator_kw)
+            x[:] = accelerator_kw["accelerator"](x=x.reshape( np.prod(x.shape), order="F" ),
+                                                 xhist=[_x.reshape( np.prod(x.shape), order="F" ) for _x in xhist],
+                                                 **accelerator_kw).reshape(x.shape,order="F")
         elif mix is not None:
-            x = xhist[-1]*(1-mix) + x*mix
+            x[:] = xhist[-1]*(1-mix) + x*mix
         # append history
         xhist.append(x.copy())
         # prune history if too long
@@ -581,7 +603,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         if ft == 0:
             xPhys[:] = x
         elif ft == 1 and filter_mode == "matrix":
-            xPhys[:] = np.asarray(H*x[None].T/Hs)[:, 0]
+            xPhys[:] = np.asarray(H*x/Hs)
             #xPhys[:] = H @ x / Hs
         elif ft == 1 and filter_mode == "convolution":
             xPhys[:] = invmapping(convolve(mapping(x),

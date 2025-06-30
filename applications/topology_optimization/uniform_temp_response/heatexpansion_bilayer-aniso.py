@@ -479,7 +479,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                               edofMat,
                               fes)
                 if "density_coupled" in body_forces_kw.keys():
-                    fes = fe_dens[None,:,:]*simp(xPhys=xPhys, eps=0., penal=1.)[:,None,None]
+                    fes = fe_dens[None,:,:]*ramp(xPhys=xPhys, eps=0., penal=0.)[:,None,None]
                     np.add.at(f_body,
                               edofMat,
                               fes)
@@ -536,7 +536,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                 # update sensitivity for quantities that do not need a small
                 # offset to avoid degeneracy of the FE problem
                 if "density_coupled" in body_forces_kw.keys():
-                    dobj -= simp_dx(xPhys=xPhys, eps=0., penal=1.)*\
+                    dobj -= ramp_dx(xPhys=xPhys, eps=0., penal=0.)*\
                                     np.dot(h[edofMat,i],fe_dens[:,i])
                 if debug:
                     print("FEM: it.: {0}, problem: {1}, min. u: {2:.10f}, med. u: {3:.10f}, max. u: {4:.10f}".format(
@@ -803,13 +803,13 @@ if __name__ == "__main__":
     #
     #sketch(save=True)
     # Default input parameters
-    nelx=120
-    nely=int(nelx/3)
+    nelx=240
+    nely=int(nelx/6)
     nelz=None
     volfrac=0.5
     rmin=0.04*nelx
     penal=3
-    ft=1 # ft==0 -> sens, ft==1 -> dens
+    ft=5 # ft==0 -> sens, ft==1 -> dens
     import sys
     if len(sys.argv)>1: nelx   =int(sys.argv[1])
     if len(sys.argv)>2: nely   =int(sys.argv[2])
@@ -830,7 +830,8 @@ if __name__ == "__main__":
     main(nelx=nelx,nely=nely,volfrac=volfrac,penal=penal,rmin=rmin,ft=ft,
          obj_func=var_maximization ,obj_kw={"l": indic},l=60/nelx,
          body_forces_kw={"density_coupled": np.array([0,-1e-7])},
-         alpha=None,
-         el_flags = sphere(nelx=nelx, nely=nely, center=(nelx-1,0),
-                           radius=rmin, fill_value=2),
+         alpha=0.5,
+         #el_flags = sphere(nelx=nelx, nely=nely, center=(nelx-1,0),
+         #                  radius=rmin, fill_value=2),
+         display=True,
          bcs=bcs)

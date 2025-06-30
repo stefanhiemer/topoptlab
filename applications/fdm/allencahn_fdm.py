@@ -3,6 +3,8 @@ from warnings import warn
 import numpy as np
 import matplotlib.pyplot as plt
 
+from topoptlab.fdm import laplacian_2d,laplacian_3d
+
 def cahn_hilliard_fd(ndim=2, grid_size=128,
                      dx=1.0, dt=0.01,
                      gamma=1.0, M=1.0,
@@ -35,6 +37,11 @@ def cahn_hilliard_fd(ndim=2, grid_size=128,
         final concentration.
 
     """
+    # fetch laplacian operator
+    if ndim == 2:
+        laplacian = laplacian_2d
+    elif ndim == 2:
+        laplacian = laplacian_3d
     warn("No sanity checks yet.")
     np.random.seed(0)
     # Grid and initial condition
@@ -45,25 +52,10 @@ def cahn_hilliard_fd(ndim=2, grid_size=128,
     else:
         raise ValueError("Only 2D and 3D cases are supported.")
     c = c - c.mean()
-    # Laplacian operator (finite difference)
-    def laplacian(f):
-        if ndim == 2:
-            return (
-                np.roll(f, 1, axis=0) + np.roll(f, -1, axis=0) +
-                np.roll(f, 1, axis=1) + np.roll(f, -1, axis=1) - 4 * f
-            ) / dx**2
-        elif ndim == 3:
-            return (
-                np.roll(f, 1, axis=0) + np.roll(f, -1, axis=0) +
-                np.roll(f, 1, axis=1) + np.roll(f, -1, axis=1) +
-                np.roll(f, 1, axis=2) + np.roll(f, -1, axis=2) - 6 * f
-            ) / dx**2
-
     # Time-stepping loop
-    mu = np.zeros(c.shape)
     for step in np.arange(n_steps):
         # update concentration
-        c[:] += dt * M * ( gamma * laplacian(c) + c - c**3 )
+        c[:] += dt * M * ( gamma * laplacian(f=c,dx=dx) + c - c**3 )
         #
         print("time.: {0:.10f} min(c).: {1:.10f} max(c).: {2:.10f} volfrac.: {3:.10f}".format(
                      dt*(step+1), c.min(), c.max(), np.mean(c) * dx**ndim))

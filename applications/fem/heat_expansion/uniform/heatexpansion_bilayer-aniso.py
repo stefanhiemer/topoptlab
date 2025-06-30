@@ -92,18 +92,21 @@ def fem_heat_expansion(nelx, nely, nelz=None,
     elif ndim == 3:
         n = nelx * nely * nelz
     #
-    if xPhys is None:
-        xPhys = np.ones(n, dtype=float,order='F')
-    #
     if ndim == 2:
         xe = l*np.array([[[-1.,-1.],
                         [1.,-1.],
                         [1.,1.],
-                        [-1.,1.]]])/2 * np.ones(xPhys.shape)[:,None,None]
+                        [-1.,1.]]])/2 * np.ones(n)[:,None,None]
     elif ndim == 3:
         xe = l*np.array([[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
                         [-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]]])/2 \
-            * np.ones(xPhys.shape)[:,None,None]
+            * np.ones(n)[:,None,None]
+    #
+    if isinstance(l,float):
+        l = np.array( [l for i in np.arange(ndim)])
+    #
+    if xPhys is None:
+        xPhys = np.ones(n, dtype=float,order='F')
     # isotropic bilayer
     if ndim ==2:
         # stiffness tensor
@@ -203,7 +206,7 @@ def fem_heat_expansion(nelx, nely, nelz=None,
                 lf = lf_bodyforce_2d
             elif ndim == 3 and nE_ndof!=1:
                 lf = lf_bodyforce_3d
-            fe_dens = lf_bodyforce_2d(b=body_forces_kw["density_coupled"])
+            fe_dens = lf_bodyforce_2d(b=body_forces_kw["density_coupled"],l=l)
         else:
             fe_dens = None
         #
@@ -231,7 +234,7 @@ def fem_heat_expansion(nelx, nely, nelz=None,
     #
     KE = assemble_matrix(sK=sK,iK=iK,jK=jK,
                          ndof=nEdof,solver=lin_solver,
-                         springs=None)
+                         springs=springs)
     # assemble right hand side
     # forces due to heat expansion per element
     if ndim == 2:
@@ -290,7 +293,7 @@ def fem_heat_expansion(nelx, nely, nelz=None,
     return
 
 if __name__ == "__main__":
-    nelx=120
+    nelx=240
     nely=int(nelx/6)
     nelz=None
     L = 60

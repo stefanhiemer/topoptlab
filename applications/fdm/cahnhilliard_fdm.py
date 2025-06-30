@@ -3,6 +3,8 @@ from multiprocessing import Pool
 import numpy as np
 import matplotlib.pyplot as plt
 
+from topoptlab.fdm import laplacian_2d,laplacian_3d
+
 def cahn_hilliard_fd(dim=2, grid_size=128,
                      dx=1.0, dt=0.01,
                      gamma=1.0, M=1.0,
@@ -37,22 +39,14 @@ def cahn_hilliard_fd(dim=2, grid_size=128,
         final concentration.
 
     """
-    # Laplacian operator (finite difference)
-    def laplacian(f):
-        if dim == 2:
-            return (
-                np.roll(f, 1, axis=0) + np.roll(f, -1, axis=0) +
-                np.roll(f, 1, axis=1) + np.roll(f, -1, axis=1) - 4 * f
-            ) / dx**2
-        elif dim == 3:
-            return (
-                np.roll(f, 1, axis=0) + np.roll(f, -1, axis=0) +
-                np.roll(f, 1, axis=1) + np.roll(f, -1, axis=1) +
-                np.roll(f, 1, axis=2) + np.roll(f, -1, axis=2) - 6 * f
-            ) / dx**2
+    # fetch laplacian operator
+    if ndim == 2:
+        laplacian = laplacian_2d
+    elif ndim == 2:
+        laplacian = laplacian_3d
     # set random seed
     np.random.seed(seed)
-    # Grid and initial condition
+    # grid and initial condition
     if dim == 2:
         c = np.random.rand(grid_size, grid_size) * 0.01
     elif dim == 3:
@@ -64,9 +58,9 @@ def cahn_hilliard_fd(dim=2, grid_size=128,
     mu = np.zeros(c.shape,dtype=dtype)
     for step in np.arange(n_steps):
         # compute chemical potential
-        mu[:] =  c**3 - c - gamma * laplacian(c)
+        mu[:] =  c**3 - c - gamma * laplacian(f=c,dx=dx)
         # update concentration
-        c[:] += dt * M * laplacian(mu)
+        c[:] += dt * M * laplacian(f=mu,dx=dx)
         #
         # Optional: Visualization for 2D
         if dim == 2 and step % (n_steps // 100) == 0 and display:
@@ -77,7 +71,6 @@ def cahn_hilliard_fd(dim=2, grid_size=128,
             plt.title(f"Step {step}")
             plt.pause(0.001)
             plt.clf()
-    print(mu.dtype,c.dtype)
     print("final time.: {0:.10f} min(c).: {1:.10f} max(c).: {2:.10f} volfrac.: {3:.10f}".format(
                  dt*(step+1), c.min(), c.max(), np.mean(c) * dx**dim))
     # Final visualization
@@ -99,7 +92,7 @@ def run_simulation(seed, gamma=0.5):
                          dt=0.04 * 0.5/gamma,
                          gamma=gamma,
                          M=1.0,
-                         n_steps=int(1e2),
+                         n_steps=int(1e5),
                          display=False,
                          seed=seed,
                          dtype=np.float32)
@@ -111,7 +104,7 @@ def run_simulation(seed, gamma=0.5):
 if __name__ == "__main__":
     #
     ndim = 2
-    n = 256
+    n = 128
     display=False
     #
     import sys
@@ -122,17 +115,17 @@ if __name__ == "__main__":
     if len(sys.argv)>3:
         display = bool(int(sys.argv[3]))
     # 
-    #cahn_hilliard_fd(dim=ndim, grid_size=n,
-    #                 dx=1.0, dt=0.04,
-    #                 gamma=0.5, M=1.0,
-    #                 n_steps=int(1e5),
-    #                 display=display)
+    cahn_hilliard_fd(dim=ndim, grid_size=n,
+                     dx=1.0, dt=0.04,
+                     gamma=0.5, M=1.0,
+                     n_steps=int(1e5),
+                     display=display)
     
     #
-    from functools import partial
-    seeds = range(960)
-    for gamma in [0.5,1.,2.,3.,4.]:
-        
-        simul = partial(run_simulation,gamma=gamma)
-        with Pool(24) as pool:
-            pool.map(simul, seeds)
+    #from functools import partial
+    #seeds = range(960)
+    #for gamma in [0.5,1.,2.,3.,4.]:
+    #    
+    #    simul = partial(run_simulation,gamma=gamma)
+    #    with Pool(24) as pool:
+    #        pool.map(simul, seeds)
