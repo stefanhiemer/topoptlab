@@ -308,5 +308,5 @@ if __name__ == "__main__":
         nelz = int(sys.argv[2])
     #
     fem_heat_expansion(nelx=nelx,nely=nely,nelz=nelz,l=l,
-                       body_forces_kw={"density_coupled": np.array([0,-1e-7])}
-                       )
+                       body_forces_kw={"density_coupled": np.array([0,-1e-7])},
+                       export=False)

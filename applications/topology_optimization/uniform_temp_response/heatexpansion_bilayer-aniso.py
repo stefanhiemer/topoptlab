@@ -830,8 +830,8 @@ if __name__ == "__main__":
     main(nelx=nelx,nely=nely,volfrac=volfrac,penal=penal,rmin=rmin,ft=ft,
          obj_func=var_maximization ,obj_kw={"l": indic},l=60/nelx,
          body_forces_kw={"density_coupled": np.array([0,-1e-7])},
-         alpha=0.5,
+         alpha=None,
          #el_flags = sphere(nelx=nelx, nely=nely, center=(nelx-1,0),
          #                  radius=rmin, fill_value=2),
-         display=True,
+         display=False,
          bcs=bcs)
