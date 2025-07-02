@@ -156,11 +156,11 @@ def assemble_convolution_filter(nelx,nely,rmin,
         # hat function
         kernel = np.maximum(0.0,rmin - np.sqrt(x**2 + y**2 + z**2))
     # normalization constants
-    hs = invmapping(convolve(mapping(np.ones(n,dtype=np.float64)),
+    hs = invmapping(convolve(mapping(np.ones(n ,dtype=np.float64)),
                     kernel,
                     mode="constant",
                     cval=0))
-    return kernel,hs
+    return kernel[:,:,None],hs[:,None]
 
 def assemble_helmholtz_filter(nelx,nely,rmin,nelz=None,l=np.array([1.,1.]),
                               n1=None,n2=None,n3=None,n4=None,

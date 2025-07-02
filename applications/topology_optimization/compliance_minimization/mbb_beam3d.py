@@ -37,7 +37,7 @@ if __name__ == "__main__":
     main(nelx=nelx, nely=nely, nelz=nelz, volfrac=volfrac, penal=penal, 
          rmin=rmin, ft=ft, filter_mode="matrix", 
          optimizer="oc", lin_solver = "scipy-direct",
-         nouteriter=10,
+         nouteriter=5,
          bcs=mbb_3d,
          file="mbb_3d",
          debug=False,display=display,

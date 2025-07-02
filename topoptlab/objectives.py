@@ -101,7 +101,11 @@ def compliance_squarederror(xPhys, u, c0, KE, edofMat, i,
         delta = c - c0[i]
     obj += delta**2
     dc = 2*delta * (-1) * penal*xPhys**(penal-1)*(Amax-Amin)*ce
-    return obj, -u * (c-c0), True
+    return obj, -u * (c-c0), True 
+
+def volume(xPhys, **kwargs):
+    
+    return xPhys.sum(axis=0)
 
 def var_maximization(u, l, i,
                      obj, **kwargs):

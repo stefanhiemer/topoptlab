@@ -37,7 +37,7 @@ def test_normalization(nelx,nely,nelz,rmin,filter_mode):
         invmapping = partial(map_voxeltoel,
                              nelx=nelx,nely=nely,nelz=nelz)
     #
-    x = ones(n,order="F")
+    x = ones((n,1),order="F")
     #
     desired = x.sum()
     if filter_mode == "matrix":
@@ -90,7 +90,7 @@ def test_consistency(nelx,nely,nelz,rmin):
                              nelx=nelx,nely=nely,nelz=nelz)
     #
     seed(0)
-    x = rand(n).flatten(order="F")
+    x = rand(n,1).flatten(order="F")
     # matrix filter
     H,Hs = assemble_matrix_filter(nelx=nelx,nely=nely,nelz=nelz,
                                   rmin=rmin,ndim=ndim)

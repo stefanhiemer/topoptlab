@@ -5,6 +5,7 @@ old_cholmod.py
 *.stl
 *.png
 *.pdf
+*.step
 !images/*.pdf
 !images/*.png
 *.log

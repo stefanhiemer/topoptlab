@@ -33,7 +33,7 @@ from topoptlab.objectives import compliance
 # output final design to a Paraview readable format
 from topoptlab.output_designs import export_vtk
 # map element data to img/voxel
-from topoptlab.utils import map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel
+from topoptlab.utils import map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel,check_simulation_params
 # logging related stuff
 from topoptlab.log_utils import init_logging
 #
@@ -41,6 +41,9 @@ from mmapy import mmasub
 
 # MAIN DRIVER
 def main(nelx, nely, volfrac, penal, rmin, ft,
+         simulation_kw = {"grid": "regular", 
+                          "element order": 1,
+                          "meshfile": None},
          nelz=None,
          filter_mode="matrix",
          lin_solver="scipy-direct", preconditioner=None,
@@ -142,6 +145,8 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     None.
 
     """
+    #
+    check_simulation_params(simulation_kw)
     #
     if nelz is None:
         ndim = 2
@@ -334,6 +339,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                                            rmin=rmin,
                                            mapping=mapping,
                                            invmapping=invmapping)
+        print(h.shape,hs.shape)
     elif filter_mode == "helmholtz" and ft in [0,1]:
         KF,TF = assemble_helmholtz_filter(nelx=nelx,nely=nely,nelz=nelz,
                                           rmin=rmin, l=l,
@@ -456,11 +462,11 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                 # calculate derivatives, else use analytical solution
                 if self_adj:
                     #dobj[:] += rhs_adj
-                    h = np.zeros(f.shape)
-                    h[free] = rhs_adj[free]
+                    adj = np.zeros(f.shape)
+                    adj[free] = rhs_adj[free]
                 else:
-                    h = np.zeros(f.shape)
-                    h[free],_,_ = solve_lin(K, rhs=rhs_adj[free],
+                    adj = np.zeros(f.shape)
+                    adj[free],_,_ = solve_lin(K, rhs=rhs_adj[free],
                                             solver=lin_solver, P=precond,
                                             preconditioner = preconditioner)
                 # update sensitivity for quantities that need a small offset to
@@ -475,12 +481,12 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                     dobj_offset -= f0[None,:,i]
                 #
                 dobj[:,0] += (simp_dx(xPhys=xPhys, eps=1e-9, penal=penal)*\
-                             h[edofMat,i]*dobj_offset).sum(axis=1)
+                             adj[edofMat,i]*dobj_offset).sum(axis=1)
                 # update sensitivity for quantities that do not need a small
                 # offset to avoid degeneracy of the FE problem
                 if "density_coupled" in body_forces_kw.keys():
                     dobj[:,0] -= simp_dx(xPhys=xPhys, eps=0., penal=1.)[:,0]*\
-                                         np.dot(h[edofMat,i],fe_dens[:,i])
+                                         np.dot(adj[edofMat,i],fe_dens[:,i])
                 if debug:
                     print("FEM: it.: {0}, problem: {1}, min. u: {2:.10f}, med. u: {3:.10f}, max. u: {4:.10f}".format(
                            loop,i,np.min(u[:,i]),np.median(u[:,i]),np.max(u[:,i])))
@@ -508,9 +514,9 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             #dobj[:] = H @ (dc*x) / Hs / np.maximum(0.001, x)
         elif ft == 0 and filter_mode == "convolution":
             dobj[:] = invmapping(convolve(mapping(dobj/hs),
-                               h,
-                               mode="constant",
-                               cval=0)) / np.maximum(0.001, x)
+                                 h,
+                                 mode="constant",
+                                 cval=0)) / np.maximum(0.001, x)
         elif ft == 0 and filter_mode == "helmholtz":
             dobj[:] = TF.T @ lu_solve(TF@(dobj*xPhys))/np.maximum(0.001, x)
         elif ft == 1 and filter_mode == "matrix":
