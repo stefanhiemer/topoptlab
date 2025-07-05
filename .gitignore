@@ -6,6 +6,7 @@ old_cholmod.py
 *.png
 *.pdf
 *.step
+*.msh
 *.prof
 !images/*.pdf
 !images/*.png
