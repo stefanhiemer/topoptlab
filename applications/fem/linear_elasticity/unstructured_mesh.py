@@ -1,4 +1,4 @@
-from topoptlab.geometry_parser import parse_cad_and_mesh
+from topoptlab.geometry_parser import parse_cad_and_mesh,boxunion_meshing
 
 if __name__ == "__main__":
     
@@ -6,7 +6,11 @@ if __name__ == "__main__":
     if len(sys.argv)>1: 
         pass
     else:
-        parse_cad_and_mesh(file="box.step",
-                       mesh_dim=3, 
-                       mesh_file="output.msh",
-                       show_gui=True)
+        #äparse_cad_and_mesh(file="box.step",
+        #               mesh_dim=3, 
+        #               mesh_file="output.msh",
+        #               show_gui=True)
+        boxunion_meshing(file="test.step",
+                         mesh_dim=3, 
+                         mesh_file="output.msh",
+                         show_gui=True)
