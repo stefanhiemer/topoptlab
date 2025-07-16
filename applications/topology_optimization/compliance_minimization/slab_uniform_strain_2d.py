@@ -1,7 +1,7 @@
 from warnings import warn
 import numpy as np
 
-from topoptlab.compliance_minimization import main
+from topoptlab.topology_optimization import main
 from topoptlab.example_bc.lin_elast import singlenode
 from topoptlab.accelerators import anderson
 

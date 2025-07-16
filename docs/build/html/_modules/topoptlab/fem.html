@@ -1,0 +1,356 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>topoptlab.fem &mdash; topoptlab 0.0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=d45e8c67"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            topoptlab
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../topoptlab.html">topoptlab package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">topoptlab</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">topoptlab.fem</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for topoptlab.fem</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">product</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">scipy.sparse</span> <span class="kn">import</span> <span class="n">coo_array</span>
+
+<span class="kn">from</span> <span class="nn">cvxopt</span> <span class="kn">import</span> <span class="n">spmatrix</span>
+
+<span class="kn">from</span> <span class="nn">topoptlab.elements.bilinear_quadrilateral</span> <span class="kn">import</span> <span class="n">shape_functions</span>
+
+<div class="viewcode-block" id="assemble_matrix">
+<a class="viewcode-back" href="../../topoptlab.fem.html#topoptlab.fem.assemble_matrix">[docs]</a>
+<span class="k">def</span> <span class="nf">assemble_matrix</span><span class="p">(</span><span class="n">sK</span><span class="p">,</span><span class="n">iK</span><span class="p">,</span><span class="n">jK</span><span class="p">,</span><span class="n">ndof</span><span class="p">,</span><span class="n">solver</span><span class="p">,</span><span class="n">springs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Assemble matrix from indices.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    sK : np.ndarray</span>
+<span class="sd">        element degree of freedom matrix.</span>
+<span class="sd">    sK : np.ndarray</span>
+<span class="sd">        matrix values.</span>
+<span class="sd">    iK : np.ndarray</span>
+<span class="sd">        matrix row indices.</span>
+<span class="sd">    jK : np.ndarray</span>
+<span class="sd">        matrix column indices.</span>
+<span class="sd">    ndof : int</span>
+<span class="sd">        number of degrees of freedom</span>
+<span class="sd">    solver : str</span>
+<span class="sd">        solver used to solve the linear system.</span>
+<span class="sd">    springs : list</span>
+<span class="sd">        contains two np.ndarrays. The first one contains the indices of the</span>
+<span class="sd">        degrees of freedom to which the springs are attached. The second one</span>
+<span class="sd">        contains the spring constants.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    M : scipy.sparse.csc_array, shape (ndof,ndof)</span>
+<span class="sd">        assembled matrix.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1">#</span>
+    <span class="n">M</span> <span class="o">=</span> <span class="n">coo_array</span><span class="p">((</span><span class="n">sK</span><span class="p">,</span> <span class="p">(</span><span class="n">iK</span><span class="p">,</span> <span class="n">jK</span><span class="p">)),</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">ndof</span><span class="p">,</span> <span class="n">ndof</span><span class="p">))</span><span class="o">.</span><span class="n">tocsc</span><span class="p">()</span>
+    <span class="c1"># attach springs to dofs if there</span>
+    <span class="k">if</span> <span class="n">springs</span><span class="p">:</span>
+        <span class="n">inds</span><span class="p">,</span><span class="n">spring_const</span> <span class="o">=</span> <span class="n">springs</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span><span class="n">k</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">inds</span><span class="p">,</span><span class="n">spring_const</span><span class="p">):</span>
+            <span class="n">M</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">i</span><span class="p">]</span> <span class="o">+=</span> <span class="n">k</span>
+    <span class="k">return</span> <span class="n">M</span></div>
+
+
+<div class="viewcode-block" id="assemble_rhs">
+<a class="viewcode-back" href="../../topoptlab.fem.html#topoptlab.fem.assemble_rhs">[docs]</a>
+<span class="k">def</span> <span class="nf">assemble_rhs</span><span class="p">(</span><span class="n">f0</span><span class="p">,</span><span class="n">solver</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">f0</span></div>
+
+
+<div class="viewcode-block" id="deleterowcol">
+<a class="viewcode-back" href="../../topoptlab.fem.html#topoptlab.fem.deleterowcol">[docs]</a>
+<span class="k">def</span> <span class="nf">deleterowcol</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">delrow</span><span class="p">,</span> <span class="n">delcol</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Stolen from the topopt_cholmod.py code by Niels Aage and Villads Egede.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    A : scipy.sparse.csc_matrix (nodf,ndof)</span>
+<span class="sd">        element degree of freedom matrix.</span>
+<span class="sd">    delrow : np.ndarray</span>
+<span class="sd">        rows to delete .</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    iM : np.ndarray shape (N)</span>
+<span class="sd">        row indices for matrix construction.</span>
+<span class="sd">    jM : np.ndarray shape (N)</span>
+<span class="sd">        column indices for matrix construction.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Assumes that matrix is in symmetric csc form</span>
+    <span class="n">m</span> <span class="o">=</span> <span class="n">A</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">keep</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">m</span><span class="p">),</span> <span class="n">delrow</span><span class="p">)</span>
+    <span class="n">A</span> <span class="o">=</span> <span class="n">A</span><span class="p">[</span><span class="n">keep</span><span class="p">,</span> <span class="p">:]</span>
+    <span class="n">keep</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">m</span><span class="p">),</span> <span class="n">delcol</span><span class="p">)</span>
+    <span class="n">A</span> <span class="o">=</span> <span class="n">A</span><span class="p">[:,</span> <span class="n">keep</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">A</span><span class="o">.</span><span class="n">tocoo</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="apply_bc">
+<a class="viewcode-back" href="../../topoptlab.fem.html#topoptlab.fem.apply_bc">[docs]</a>
+<span class="k">def</span> <span class="nf">apply_bc</span><span class="p">(</span><span class="n">K</span><span class="p">,</span><span class="n">solver</span><span class="p">,</span><span class="n">free</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">fixed</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="s2">&quot;scipy&quot;</span> <span class="ow">in</span> <span class="n">solver</span><span class="p">:</span>
+        <span class="c1">#</span>
+        <span class="n">K</span> <span class="o">=</span> <span class="n">K</span><span class="p">[</span><span class="n">free</span><span class="p">,</span> <span class="p">:][:,</span> <span class="n">free</span><span class="p">]</span>
+    <span class="k">if</span> <span class="s2">&quot;cvxopt&quot;</span> <span class="ow">in</span> <span class="n">solver</span><span class="p">:</span>
+        <span class="c1"># Remove constrained dofs from matrix and convert to coo</span>
+        <span class="n">K</span> <span class="o">=</span> <span class="n">deleterowcol</span><span class="p">(</span><span class="n">K</span><span class="p">,</span><span class="n">fixed</span><span class="p">,</span><span class="n">fixed</span><span class="p">)</span><span class="o">.</span><span class="n">tocoo</span><span class="p">()</span>
+        <span class="c1">#</span>
+        <span class="c1"># Solve system</span>
+        <span class="n">K</span> <span class="o">=</span> <span class="n">spmatrix</span><span class="p">(</span><span class="n">K</span><span class="o">.</span><span class="n">data</span><span class="p">,</span><span class="n">K</span><span class="o">.</span><span class="n">row</span><span class="p">,</span><span class="n">K</span><span class="o">.</span><span class="n">col</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">K</span></div>
+
+
+<div class="viewcode-block" id="create_matrixinds">
+<a class="viewcode-back" href="../../topoptlab.fem.html#topoptlab.fem.create_matrixinds">[docs]</a>
+<span class="k">def</span> <span class="nf">create_matrixinds</span><span class="p">(</span><span class="n">edofMat</span><span class="p">,</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;full&quot;</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create matrix indices to set up FE linear system / matrix.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    edofMat : np.ndarray (nel,n_nodedof)</span>
+<span class="sd">        element degree of freedom matrix.</span>
+<span class="sd">    mode : str</span>
+<span class="sd">        construct .</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    iM : np.ndarray shape (N)</span>
+<span class="sd">        row indices for matrix construction.</span>
+<span class="sd">    jM : np.ndarray shape (N)</span>
+<span class="sd">        column indices for matrix construction.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1">#</span>
+    <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;full&quot;</span><span class="p">:</span>
+        <span class="n">iM</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">tile</span><span class="p">(</span><span class="n">edofMat</span><span class="p">,</span><span class="n">edofMat</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">jM</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">edofMat</span><span class="p">,</span><span class="n">edofMat</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+    <span class="k">elif</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;lower&quot;</span><span class="p">:</span>
+        <span class="c1">#</span>
+        <span class="n">iM</span> <span class="o">=</span> <span class="p">[</span><span class="n">edofMat</span><span class="p">[:,</span><span class="n">i</span><span class="p">:]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">edofMat</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])]</span>
+        <span class="n">iM</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">(</span><span class="n">iM</span><span class="p">)</span>
+        <span class="c1">#print(iM)</span>
+        <span class="c1">#</span>
+        <span class="n">jM</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">edofMat</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">edofMat</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="mi">0</span><span class="p">,</span><span class="o">-</span><span class="mi">1</span><span class="p">),</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="c1">#print(jM)</span>
+        <span class="c1"># sort</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">iM</span> <span class="o">&lt;</span> <span class="n">jM</span>
+        <span class="n">iM</span><span class="p">[</span><span class="n">mask</span><span class="p">],</span><span class="n">jM</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span> <span class="o">=</span> <span class="n">jM</span><span class="p">[</span><span class="n">mask</span><span class="p">],</span><span class="n">iM</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">iM</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="n">iM</span><span class="o">.</span><span class="n">shape</span><span class="p">)),</span><span class="n">jM</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="n">iM</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="update_indices">
+<a class="viewcode-back" href="../../topoptlab.fem.html#topoptlab.fem.update_indices">[docs]</a>
+<span class="k">def</span> <span class="nf">update_indices</span><span class="p">(</span><span class="n">indices</span><span class="p">,</span><span class="n">fixed</span><span class="p">,</span><span class="n">mask</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Update the indices for the stiffness matrix construction by kicking out</span>
+<span class="sd">    the fixed degrees of freedom and renumbering the indices. This is useful</span>
+<span class="sd">    only if just one set of boundary conditions needs to be solved.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    indices : np.ndarray</span>
+<span class="sd">        indices of degrees of freedom used to construct the stiffness matrix.</span>
+<span class="sd">    fixed : np.ndarray</span>
+<span class="sd">        indices of fixed degrees of freedom.</span>
+<span class="sd">    mask : np.ndarray</span>
+<span class="sd">        mask to kick out fixed degrees of freedom.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    indices : np.ndarray</span>
+<span class="sd">        updated indices.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">val</span><span class="p">,</span> <span class="n">ind</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">indices</span><span class="p">,</span><span class="n">return_inverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="n">_mask</span> <span class="o">=</span> <span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="n">fixed</span><span class="p">)</span>
+    <span class="n">val</span><span class="p">[</span><span class="n">_mask</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">_mask</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+
+    <span class="k">return</span> <span class="n">val</span><span class="p">[</span><span class="n">ind</span><span class="p">][</span><span class="n">mask</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="interpolate">
+<a class="viewcode-back" href="../../topoptlab.fem.html#topoptlab.fem.interpolate">[docs]</a>
+<span class="k">def</span> <span class="nf">interpolate</span><span class="p">(</span><span class="n">ue</span><span class="p">,</span><span class="n">xi</span><span class="p">,</span><span class="n">eta</span><span class="p">,</span><span class="n">zeta</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                <span class="n">shape_functions</span><span class="o">=</span><span class="n">shape_functions</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Interpolate node values in each element. Coordinates are assumed to be</span>
+<span class="sd">    in the reference domain.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    ue : np.ndarray,shape (nels,nedof).</span>
+<span class="sd">        node values used for interpolation.</span>
+<span class="sd">    xi : np.ndarray</span>
+<span class="sd">        x coordinate of shape (nels). Coordinates are assumed to be</span>
+<span class="sd">        in the reference domain.</span>
+<span class="sd">    eta : np.ndarray</span>
+<span class="sd">        y coordinate of shape (ncoords). Coordinates are assumed to be</span>
+<span class="sd">        in the reference domain.</span>
+<span class="sd">    zeta : np.ndarray</span>
+<span class="sd">        z coordinate of shape (ncoords). Coordinates are assumed to be</span>
+<span class="sd">        in the reference domain.</span>
+<span class="sd">    shape_functions : callable</span>
+<span class="sd">        shape functions of respective element</span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    u : np.ndarray, shape (nels,nnodedof)</span>
+<span class="sd">        interpolated state variable.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># interpolate</span>
+    <span class="k">if</span> <span class="n">zeta</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">interpolation</span> <span class="o">=</span> <span class="n">shape_functions</span><span class="p">(</span><span class="n">xi</span><span class="p">,</span><span class="n">eta</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">interpolation</span> <span class="o">=</span> <span class="n">shape_functions</span><span class="p">(</span><span class="n">xi</span><span class="p">,</span><span class="n">eta</span><span class="p">,</span><span class="n">zeta</span><span class="p">)</span>
+    <span class="c1"># get parameters for reshaping to desired end shape</span>
+    <span class="n">nshapef</span> <span class="o">=</span> <span class="n">interpolation</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">nnodedof</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">ue</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">/</span><span class="n">nshapef</span><span class="p">)</span>
+    <span class="n">u</span> <span class="o">=</span> <span class="n">ue</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">interpolation</span><span class="p">,</span> <span class="n">nnodedof</span><span class="p">)[</span><span class="kc">None</span><span class="p">,:]</span>
+    <span class="n">u</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">tile</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">nnodedof</span><span class="p">),(</span><span class="n">nshapef</span><span class="p">,</span><span class="mi">1</span><span class="p">)))</span>
+    <span class="k">return</span> <span class="n">u</span></div>
+
+
+<div class="viewcode-block" id="get_integrpoints">
+<a class="viewcode-back" href="../../topoptlab.fem.html#topoptlab.fem.get_integrpoints">[docs]</a>
+<span class="k">def</span> <span class="nf">get_integrpoints</span><span class="p">(</span><span class="n">ndim</span><span class="p">,</span><span class="n">nq</span><span class="p">,</span><span class="n">method</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get integration points and weights for numerical quadrature of integrals in</span>
+<span class="sd">    interval [-1,1].</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    ndim : int</span>
+<span class="sd">        number of spatial dimensions.</span>
+<span class="sd">    nq : int</span>
+<span class="sd">        number of integration/quadrature points.</span>
+<span class="sd">    method : str or callable</span>
+<span class="sd">        name of quadrature method or function/callable that returns coordinates of</span>
+<span class="sd">        quadrature points and weights. Currently only &#39;gauss-legendre&#39;,</span>
+<span class="sd">        &#39;gauss-hermite&#39;, &#39;gauss-chebyshev&#39; and &#39;gauss-laguerre&#39; supported as</span>
+<span class="sd">        str.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    x : np.ndarray, shape (nq,ndim)</span>
+<span class="sd">        coordinates of quadrature point.</span>
+<span class="sd">    w : np.ndarray, shape (nq)</span>
+<span class="sd">        weight of quadrature points.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">&quot;gauss-legendre&quot;</span><span class="p">:</span>
+        <span class="n">x</span><span class="p">,</span><span class="n">w</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">polynomial</span><span class="o">.</span><span class="n">legendre</span><span class="o">.</span><span class="n">leggauss</span><span class="p">(</span><span class="n">nq</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">&quot;gauss-hermite&quot;</span><span class="p">:</span>
+        <span class="n">x</span><span class="p">,</span><span class="n">w</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">polynomial</span><span class="o">.</span><span class="n">hermite</span><span class="o">.</span><span class="n">hermgauss</span><span class="p">(</span><span class="n">nq</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">&quot;gauss-chebyshev&quot;</span><span class="p">:</span>
+        <span class="n">x</span><span class="p">,</span><span class="n">w</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">polynomial</span><span class="o">.</span><span class="n">chebyshev</span><span class="o">.</span><span class="n">chebgauss</span><span class="p">(</span><span class="n">nq</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">&quot;gauss-laguerre&quot;</span><span class="p">:</span>
+        <span class="n">x</span><span class="p">,</span><span class="n">w</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">polynomial</span><span class="o">.</span><span class="n">laguerre</span><span class="o">.</span><span class="n">laggauss</span><span class="p">(</span><span class="n">nq</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">method</span><span class="p">,</span> <span class="s1">&#39;__call__&#39;</span><span class="p">):</span>
+        <span class="n">x</span><span class="p">,</span><span class="n">w</span> <span class="o">=</span> <span class="n">method</span><span class="p">(</span><span class="n">nq</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Invalid quadrature method.&quot;</span><span class="p">)</span>
+    <span class="c1"># generate grid of points</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">product</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">repeat</span><span class="o">=</span><span class="n">ndim</span><span class="p">)))</span>
+    <span class="n">w</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">product</span><span class="p">(</span><span class="n">w</span><span class="p">,</span><span class="n">repeat</span><span class="o">=</span><span class="n">ndim</span><span class="p">))),</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">x</span><span class="p">,</span><span class="n">w</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Stefan Hiemer.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

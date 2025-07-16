@@ -1,0 +1,382 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>topoptlab.utils module &mdash; topoptlab 0.0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=d45e8c67"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="topoptlab.timestepper module" href="topoptlab.timestepper.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            topoptlab
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="topoptlab.html">topoptlab package</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="topoptlab.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.accelerators.html">topoptlab.accelerators module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.compliance_minimization.html">topoptlab.compliance_minimization module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.composite_bounds_2d.html">topoptlab.composite_bounds_2d module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.design_analysis.html">topoptlab.design_analysis module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.draw_functions.html">topoptlab.draw_functions module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.fdm.html">topoptlab.fdm module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.fem.html">topoptlab.fem module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.filters.html">topoptlab.filters module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.geometries.html">topoptlab.geometries module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.geometry_parser.html">topoptlab.geometry_parser module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.linear_solvers.html">topoptlab.linear_solvers module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.log_utils.html">topoptlab.log_utils module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.material_interpolation.html">topoptlab.material_interpolation module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.multigrid.html">topoptlab.multigrid module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.objectives.html">topoptlab.objectives module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.output_designs.html">topoptlab.output_designs module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.rotation_matrices.html">topoptlab.rotation_matrices module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.solve_linsystem.html">topoptlab.solve_linsystem module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.stiffness_tensors.html">topoptlab.stiffness_tensors module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.symfem_utils.html">topoptlab.symfem_utils module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.timestepper.html">topoptlab.timestepper module</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">topoptlab.utils module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#topoptlab.utils.check_simulation_params"><code class="docutils literal notranslate"><span class="pre">check_simulation_params()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#topoptlab.utils.elid_to_coords"><code class="docutils literal notranslate"><span class="pre">elid_to_coords()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#topoptlab.utils.even_spaced_ternary"><code class="docutils literal notranslate"><span class="pre">even_spaced_ternary()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#topoptlab.utils.map_eltoimg"><code class="docutils literal notranslate"><span class="pre">map_eltoimg()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#topoptlab.utils.map_eltovoxel"><code class="docutils literal notranslate"><span class="pre">map_eltovoxel()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#topoptlab.utils.map_imgtoel"><code class="docutils literal notranslate"><span class="pre">map_imgtoel()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#topoptlab.utils.map_voxeltoel"><code class="docutils literal notranslate"><span class="pre">map_voxeltoel()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#topoptlab.utils.parse_logfile"><code class="docutils literal notranslate"><span class="pre">parse_logfile()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#topoptlab.utils.parse_logfile_old"><code class="docutils literal notranslate"><span class="pre">parse_logfile_old()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#topoptlab.utils.unique_sort"><code class="docutils literal notranslate"><span class="pre">unique_sort()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#topoptlab.utils.upsampling"><code class="docutils literal notranslate"><span class="pre">upsampling()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="topoptlab.html#module-topoptlab">Module contents</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">topoptlab</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="topoptlab.html">topoptlab package</a></li>
+      <li class="breadcrumb-item active">topoptlab.utils module</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/topoptlab.utils.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-topoptlab.utils">
+<span id="topoptlab-utils-module"></span><h1>topoptlab.utils module<a class="headerlink" href="#module-topoptlab.utils" title="Link to this heading"></a></h1>
+<dl class="py function">
+<dt class="sig sig-object py" id="topoptlab.utils.check_simulation_params">
+<span class="sig-prename descclassname"><span class="pre">topoptlab.utils.</span></span><span class="sig-name descname"><span class="pre">check_simulation_params</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">simulation_kw</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/topoptlab/utils.html#check_simulation_params"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#topoptlab.utils.check_simulation_params" title="Link to this definition"></a></dt>
+<dd><p>Check that general simulation parameters are sensible or implemented.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>simulation_kw</strong> (<em>dictionary</em>) – contains general information about simulation. At the moment, only
+“grid”,”element order”, “meshfile” are supported with contents
+“regular”,1,None.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="topoptlab.utils.elid_to_coords">
+<span class="sig-prename descclassname"><span class="pre">topoptlab.utils.</span></span><span class="sig-name descname"><span class="pre">elid_to_coords</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">el</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nelx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nely</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nelz</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/topoptlab/utils.html#elid_to_coords"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#topoptlab.utils.elid_to_coords" title="Link to this definition"></a></dt>
+<dd><p>Map element ids to cartesian coordinates in the usual regular grid.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>el</strong> (<em>np.ndarray</em><em>, </em><em>shape</em><em> (</em><em>n</em><em>)</em>) – elment IDs.</p></li>
+<li><p><strong>nelx</strong> (<em>int</em>) – number of elements in x direction.</p></li>
+<li><p><strong>nely</strong> (<em>int</em>) – number of elements in y direction.</p></li>
+<li><p><strong>nelz</strong> (<em>int</em><em> or </em><em>None</em>) – number of elements in z direction.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>img</strong> – quantity mapped to image.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray shape (nely,nelx)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="topoptlab.utils.even_spaced_ternary">
+<span class="sig-prename descclassname"><span class="pre">topoptlab.utils.</span></span><span class="sig-name descname"><span class="pre">even_spaced_ternary</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">npoints</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/topoptlab/utils.html#even_spaced_ternary"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#topoptlab.utils.even_spaced_ternary" title="Link to this definition"></a></dt>
+<dd><p>Create even spaced points for a ternary phase system.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>npoints</strong> (<em>int</em>) – number of points.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>fracs</strong> – phase fractions.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray shape (k+1,3)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="topoptlab.utils.map_eltoimg">
+<span class="sig-prename descclassname"><span class="pre">topoptlab.utils.</span></span><span class="sig-name descname"><span class="pre">map_eltoimg</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">quant</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nelx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nely</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/topoptlab/utils.html#map_eltoimg"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#topoptlab.utils.map_eltoimg" title="Link to this definition"></a></dt>
+<dd><p>Map quantity located on elements on the usual regular grid to an image.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>quant</strong> (<em>np.ndarray</em><em>, </em><em>shape</em><em> (</em><em>n</em><em>,</em><em>nchannel</em><em>)</em>) – some quantity defined on each element (e. g. element density).</p></li>
+<li><p><strong>nelx</strong> (<em>int</em>) – number of elements in x direction.</p></li>
+<li><p><strong>nely</strong> (<em>int</em>) – number of elements in y direction.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>img</strong> – quantity mapped to image.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray, shape (nely,nelx,nchannel)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="topoptlab.utils.map_eltovoxel">
+<span class="sig-prename descclassname"><span class="pre">topoptlab.utils.</span></span><span class="sig-name descname"><span class="pre">map_eltovoxel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">quant</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nelx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nely</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nelz</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/topoptlab/utils.html#map_eltovoxel"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#topoptlab.utils.map_eltovoxel" title="Link to this definition"></a></dt>
+<dd><p>Map quantity located on elements on the usual regular grid to a voxels.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>quant</strong> (<em>np.ndarray</em><em>, </em><em>shape</em><em> (</em><em>n</em><em>,</em><em>nchannel</em><em>)</em>) – some quantity defined on each element (e. g. element density).</p></li>
+<li><p><strong>nelx</strong> (<em>int</em>) – number of elements in x direction.</p></li>
+<li><p><strong>nely</strong> (<em>int</em>) – number of elements in y direction.</p></li>
+<li><p><strong>nelz</strong> (<em>int</em><em> or </em><em>None</em>) – number of elements in z direction.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>voxel</strong> – quantity mapped to voxels.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray shape (nelz,nely,nelx,nchannel)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="topoptlab.utils.map_imgtoel">
+<span class="sig-prename descclassname"><span class="pre">topoptlab.utils.</span></span><span class="sig-name descname"><span class="pre">map_imgtoel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">img</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nelx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nely</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/topoptlab/utils.html#map_imgtoel"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#topoptlab.utils.map_imgtoel" title="Link to this definition"></a></dt>
+<dd><p>Map image of quantity back to 1D np.ndarray with correct (!) ordering.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>img</strong> (<em>np.ndarray</em><em>, </em><em>shape</em><em> (</em><em>nely</em><em>,</em><em>nelx</em><em>)</em>) – image of quantity (e. g. of element densities).</p></li>
+<li><p><strong>nelx</strong> (<em>int</em>) – number of elements in x direction.</p></li>
+<li><p><strong>nely</strong> (<em>int</em>) – number of elements in y direction.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>quant</strong> – quantity mapped back to 1D np.ndarray with hopefully correct ordering.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray, shape (n)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="topoptlab.utils.map_voxeltoel">
+<span class="sig-prename descclassname"><span class="pre">topoptlab.utils.</span></span><span class="sig-name descname"><span class="pre">map_voxeltoel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">voxel</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nelx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nely</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nelz</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/topoptlab/utils.html#map_voxeltoel"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#topoptlab.utils.map_voxeltoel" title="Link to this definition"></a></dt>
+<dd><p>Map voxels of quantity back to on elements on the usual regular grid.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>voxel</strong> (<em>np.ndarray</em><em>, </em><em>shape</em><em> (</em><em>nelz</em><em>,</em><em>nely</em><em>,</em><em>nelx</em><em>,</em><em>nchannel</em><em>)</em>) – voxels of quantity (e. g. of element densities).</p></li>
+<li><p><strong>nelx</strong> (<em>int</em>) – number of elements in x direction.</p></li>
+<li><p><strong>nely</strong> (<em>int</em>) – number of elements in y direction.</p></li>
+<li><p><strong>nelz</strong> (<em>int</em><em> or </em><em>None</em>) – number of elements in z direction.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>quant</strong> – quantity mapped back to 1D np.ndarray with hopefully correct ordering.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray, shape (n,nchannel)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="topoptlab.utils.parse_logfile">
+<span class="sig-prename descclassname"><span class="pre">topoptlab.utils.</span></span><span class="sig-name descname"><span class="pre">parse_logfile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/topoptlab/utils.html#parse_logfile"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#topoptlab.utils.parse_logfile" title="Link to this definition"></a></dt>
+<dd><p>Parse log file of the compliance minimization TO workflow.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>file</strong> (<em>str</em>) – filename of the logfile.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>params</strong> (<em>dict</em>) – contains some of the parameters like system size and shape,
+optimizer etc..</p></li>
+<li><p><strong>data</strong> (<em>np.ndarray</em>) – iteration history over objective function, volume constraint, change.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="topoptlab.utils.parse_logfile_old">
+<span class="sig-prename descclassname"><span class="pre">topoptlab.utils.</span></span><span class="sig-name descname"><span class="pre">parse_logfile_old</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/topoptlab/utils.html#parse_logfile_old"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#topoptlab.utils.parse_logfile_old" title="Link to this definition"></a></dt>
+<dd><p>Parse log file of the folding mechanism TO workflow. This is legacy and
+will be deprecated soon.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>file</strong> (<em>str</em>) – filename of the logfile.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>params</strong> (<em>dict</em>) – contains some of the parameters like system size and shape,
+optimizer etc..</p></li>
+<li><p><strong>data</strong> (<em>np.ndarray</em>) – iteration history over objective function, volume constraint, change.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="topoptlab.utils.unique_sort">
+<span class="sig-prename descclassname"><span class="pre">topoptlab.utils.</span></span><span class="sig-name descname"><span class="pre">unique_sort</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">iM</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">jM</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">combine</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/topoptlab/utils.html#unique_sort"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#topoptlab.utils.unique_sort" title="Link to this definition"></a></dt>
+<dd><p>Sort first according to iM, then sort values of equal value iM according
+to jM.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>iM</strong> (<em>np.ndarray</em><em>, </em><em>shape</em><em> (</em><em>n</em><em>)</em>) – first array.</p></li>
+<li><p><strong>jM</strong> (<em>np.ndarray</em><em>, </em><em>shape</em><em> (</em><em>n</em><em>)</em>) – second array.</p></li>
+<li><p><strong>combine</strong> (<em>scalar bool</em>) – if True, stack both to to a column array of shape (n,2)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>iM</strong> (<em>np.ndarray shape (n)</em>) – if not combine returns sorted iM</p></li>
+<li><p><strong>jM</strong> (<em>np.ndarray shape (n)</em>) – if not combine returns sorted jM</p></li>
+<li><p><strong>M</strong> (<em>np.ndarray shape (n,2)</em>) – if combine returns column stack of sort iM and jM.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="topoptlab.utils.upsampling">
+<span class="sig-prename descclassname"><span class="pre">topoptlab.utils.</span></span><span class="sig-name descname"><span class="pre">upsampling</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">magnification</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nelx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nely</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nelz</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_flat</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">order</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/topoptlab/utils.html#upsampling"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#topoptlab.utils.upsampling" title="Link to this definition"></a></dt>
+<dd><p>Upsample current design variables defined on the standard regular grid to
+a larger design by interpolation. With order 0 the design is replicated on
+a finer scale in a volume conserving fashion, otherwise spline
+interpolation might violate this.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>x</strong> (<em>np.ndarray shape</em><em> (</em><em>n</em><em>)</em>) – design variables.</p></li>
+<li><p><strong>magnification</strong> (<em>float</em>) – magnification factor.</p></li>
+<li><p><strong>nelx</strong> (<em>int</em>) – number of elements in x direction.</p></li>
+<li><p><strong>nely</strong> (<em>int</em>) – number of elements in y direction.</p></li>
+<li><p><strong>nelz</strong> (<em>int</em><em> or </em><em>None</em><em>, </em><em>optional</em>) – number of elements in z direction. The default is None.</p></li>
+<li><p><strong>return_flat</strong> (<em>bool</em><em>, </em><em>optional</em>) – return the design variables flattened. If false returns an image or a
+voxel graphic. The default is True.</p></li>
+<li><p><strong>order</strong> (<em>int</em><em>, </em><em>optional</em>) – order of spline interpolation for upsampling. The default is 0.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>x_new</strong> – upsampled design variables.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray shape (n) or shape (nely,nelx) or shape (nelz,nely,nelx)</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="topoptlab.timestepper.html" class="btn btn-neutral float-left" title="topoptlab.timestepper module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Stefan Hiemer.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,363 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>topoptlab.material_interpolation module &mdash; topoptlab 0.0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=d45e8c67"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="topoptlab.multigrid module" href="topoptlab.multigrid.html" />
+    <link rel="prev" title="topoptlab.log_utils module" href="topoptlab.log_utils.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            topoptlab
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="topoptlab.html">topoptlab package</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="topoptlab.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.accelerators.html">topoptlab.accelerators module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.compliance_minimization.html">topoptlab.compliance_minimization module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.composite_bounds_2d.html">topoptlab.composite_bounds_2d module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.design_analysis.html">topoptlab.design_analysis module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.draw_functions.html">topoptlab.draw_functions module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.fdm.html">topoptlab.fdm module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.fem.html">topoptlab.fem module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.filters.html">topoptlab.filters module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.geometries.html">topoptlab.geometries module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.geometry_parser.html">topoptlab.geometry_parser module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.linear_solvers.html">topoptlab.linear_solvers module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.log_utils.html">topoptlab.log_utils module</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">topoptlab.material_interpolation module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#topoptlab.material_interpolation.bound_interpol"><code class="docutils literal notranslate"><span class="pre">bound_interpol()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#topoptlab.material_interpolation.bound_interpol_dx"><code class="docutils literal notranslate"><span class="pre">bound_interpol_dx()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#topoptlab.material_interpolation.heatexpcoeff_binary_iso"><code class="docutils literal notranslate"><span class="pre">heatexpcoeff_binary_iso()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#topoptlab.material_interpolation.heatexpcoeff_binary_iso_dx"><code class="docutils literal notranslate"><span class="pre">heatexpcoeff_binary_iso_dx()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#topoptlab.material_interpolation.ramp"><code class="docutils literal notranslate"><span class="pre">ramp()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#topoptlab.material_interpolation.ramp_dx"><code class="docutils literal notranslate"><span class="pre">ramp_dx()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#topoptlab.material_interpolation.simp"><code class="docutils literal notranslate"><span class="pre">simp()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#topoptlab.material_interpolation.simp_dx"><code class="docutils literal notranslate"><span class="pre">simp_dx()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.multigrid.html">topoptlab.multigrid module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.objectives.html">topoptlab.objectives module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.output_designs.html">topoptlab.output_designs module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.rotation_matrices.html">topoptlab.rotation_matrices module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.solve_linsystem.html">topoptlab.solve_linsystem module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.stiffness_tensors.html">topoptlab.stiffness_tensors module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.symfem_utils.html">topoptlab.symfem_utils module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.timestepper.html">topoptlab.timestepper module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.utils.html">topoptlab.utils module</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="topoptlab.html#module-topoptlab">Module contents</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">topoptlab</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="topoptlab.html">topoptlab package</a></li>
+      <li class="breadcrumb-item active">topoptlab.material_interpolation module</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/topoptlab.material_interpolation.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-topoptlab.material_interpolation">
+<span id="topoptlab-material-interpolation-module"></span><h1>topoptlab.material_interpolation module<a class="headerlink" href="#module-topoptlab.material_interpolation" title="Link to this heading"></a></h1>
+<dl class="py function">
+<dt class="sig sig-object py" id="topoptlab.material_interpolation.bound_interpol">
+<span class="sig-prename descclassname"><span class="pre">topoptlab.material_interpolation.</span></span><span class="sig-name descname"><span class="pre">bound_interpol</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">xPhys</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">w</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bd_low</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bd_upp</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bd_kws</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/topoptlab/material_interpolation.html#bound_interpol"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#topoptlab.material_interpolation.bound_interpol" title="Link to this definition"></a></dt>
+<dd><p>Interpolate a material property A between a lower and upper bound according
+to</p>
+<p>A_interpol = (1-w) A_low + w A_upp</p>
+<p>This scheme was to my knowledge first suggested in</p>
+<p>Bendsøe, Martin P., and Ole Sigmund. “Material interpolation schemes in
+topology optimization.” Archive of applied mechanics 69 (1999): 635-654.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>xPhys</strong> (<em>np.ndarray</em><em>, </em><em>shape</em><em> (</em><em>n</em><em>)</em>) – physical, relative density of stronger phase</p></li>
+<li><p><strong>w</strong> (<em>float</em>) – weight to trade-off between lower and upper bound. Must be between 0/1.</p></li>
+<li><p><strong>bd_low</strong> (<em>callable</em>) – lower bound on property A that takes x and bd_kws as input
+arguments.</p></li>
+<li><p><strong>bd_upp</strong> (<em>callable</em>) – upper bound on property A that takes xP and bd_kws as input
+arguments.</p></li>
+<li><p><strong>bd_kws</strong> (<em>dict</em>) – dictionary that contains the keywords necessary for the bound
+functions.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>A</strong> – scale factor to multiply with material property</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray, shape (n)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="topoptlab.material_interpolation.bound_interpol_dx">
+<span class="sig-prename descclassname"><span class="pre">topoptlab.material_interpolation.</span></span><span class="sig-name descname"><span class="pre">bound_interpol_dx</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">xPhys</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">w</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bd_low_dx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bd_upp_dx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bd_kws</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/topoptlab/material_interpolation.html#bound_interpol_dx"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#topoptlab.material_interpolation.bound_interpol_dx" title="Link to this definition"></a></dt>
+<dd><p>Derivative of bound interpolation with regards to phys. densities</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>xPhys</strong> (<em>np.ndarray</em><em>, </em><em>shape</em><em> (</em><em>n</em><em>)</em>) – physical SIMP density</p></li>
+<li><p><strong>w</strong> (<em>float</em>) – weight to trade-off between lower and upper bound. Must be between 0/1.</p></li>
+<li><p><strong>penal</strong> (<em>float</em>) – penalty exponent for the SIMP method.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>A</strong> – scale factor to multiply with material property</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray, shape (n)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="topoptlab.material_interpolation.heatexpcoeff_binary_iso">
+<span class="sig-prename descclassname"><span class="pre">topoptlab.material_interpolation.</span></span><span class="sig-name descname"><span class="pre">heatexpcoeff_binary_iso</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">xPhys</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">K</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Kmin</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Kmax</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">amin</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">amax</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/topoptlab/material_interpolation.html#heatexpcoeff_binary_iso"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#topoptlab.material_interpolation.heatexpcoeff_binary_iso" title="Link to this definition"></a></dt>
+<dd><p>Return the linear heatexpansion coefficient of a composite consisting of two
+isotropic substances. Taken from Eq. 2.26 of</p>
+<p>Rosen, B. Walter, and Zvi Hashin. “Effective thermal expansion coefficients
+and specific heats of composite materials.” International Journal of
+Engineering Science 8.2 (1970): 157-173.</p>
+<p>As in this equation it is not stated how K* (effective bulk modulus) is
+calculated, I assume it to be provided by some material interpolation
+function (e. g. SIMP). Mind you that this interpolation must lie between
+the Hashin-Shtrikman bounds.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>xPhys</strong> (<em>np.ndarray</em><em>, </em><em>shape</em><em> (</em><em>n</em><em>)</em>) – physical, relative density of stronger phase</p></li>
+<li><p><strong>K</strong> (<em>np.ndarray</em><em>, </em><em>shape</em><em> (</em><em>n</em><em>)</em>) – interpolated / effective bulk modulus</p></li>
+<li><p><strong>Kmin</strong> (<em>float</em>) – smaller bulk modulus</p></li>
+<li><p><strong>Kmax</strong> (<em>float</em>) – larger bulk modulus</p></li>
+<li><p><strong>amin</strong> (<em>float</em>) – heat expansion coefficient of weaker phase.</p></li>
+<li><p><strong>amax</strong> (<em>float</em>) – heat expansion coefficient of stronger phase.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>a</strong> – interpolated heat expansion coefficient</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray, shape (n)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="topoptlab.material_interpolation.heatexpcoeff_binary_iso_dx">
+<span class="sig-prename descclassname"><span class="pre">topoptlab.material_interpolation.</span></span><span class="sig-name descname"><span class="pre">heatexpcoeff_binary_iso_dx</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">xPhys</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">K</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dKdx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Kmin</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Kmax</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">amin</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">amax</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/topoptlab/material_interpolation.html#heatexpcoeff_binary_iso_dx"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#topoptlab.material_interpolation.heatexpcoeff_binary_iso_dx" title="Link to this definition"></a></dt>
+<dd><p>Return the derivative of the linear heatexpansion coefficient of a
+composite consisting of two isotropic substances.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>xPhys</strong> (<em>np.ndarray</em><em>, </em><em>shape</em><em> (</em><em>n</em><em>)</em>) – physical, relative density of stronger phase</p></li>
+<li><p><strong>K</strong> (<em>np.ndarray</em><em>, </em><em>shape</em><em> (</em><em>n</em><em>)</em>) – interpolated / effective bulk modulus</p></li>
+<li><p><strong>dKdx</strong> (<em>np.ndarray</em><em>, </em><em>shape</em><em> (</em><em>n</em><em>)</em>) – derivative of interpolated / effective bulk modulus</p></li>
+<li><p><strong>Kmin</strong> (<em>float</em>) – smaller bulk modulus</p></li>
+<li><p><strong>Kmax</strong> (<em>float</em>) – larger bulk modulus</p></li>
+<li><p><strong>amin</strong> (<em>float</em>) – heat expansion coefficient of weaker phase.</p></li>
+<li><p><strong>amax</strong> (<em>float</em>) – heat expansion coefficient of stronger phase.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>a</strong> – interpolated heat expansion coefficient</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray, shape (n)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="topoptlab.material_interpolation.ramp">
+<span class="sig-prename descclassname"><span class="pre">topoptlab.material_interpolation.</span></span><span class="sig-name descname"><span class="pre">ramp</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">xPhys</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eps</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">penal</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/topoptlab/material_interpolation.html#ramp"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#topoptlab.material_interpolation.ramp" title="Link to this definition"></a></dt>
+<dd><p>Return scale factor for the RAMP method:</p>
+<p>Stolpe, Mathias, and Krister Svanberg. “An alternative interpolation scheme
+for minimum compliance topology optimization.” Structural and
+Multidisciplinary Optimization 22.2 (2001): 116-124.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>xPhys</strong> (<em>np.ndarray</em><em>, </em><em>shape</em><em> (</em><em>n</em><em>)</em>) – physical RAMP density</p></li>
+<li><p><strong>eps</strong> (<em>float</em>) – small offset that is needed for some properties (e. g. stiffness) to
+avoid degeneracy of the problem. Should be very small compared to 1
+e. g. 1e-9.</p></li>
+<li><p><strong>penal</strong> (<em>float</em>) – penalty factor for the RAMP method.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>scale</strong> – scale factor to multiply with material property/matrix.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray, shape (n)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="topoptlab.material_interpolation.ramp_dx">
+<span class="sig-prename descclassname"><span class="pre">topoptlab.material_interpolation.</span></span><span class="sig-name descname"><span class="pre">ramp_dx</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">xPhys</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eps</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">penal</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/topoptlab/material_interpolation.html#ramp_dx"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#topoptlab.material_interpolation.ramp_dx" title="Link to this definition"></a></dt>
+<dd><p>Return the derivative of the scale factor for the RAMP method:</p>
+<p>Stolpe, Mathias, and Krister Svanberg. “An alternative interpolation scheme
+for minimum compliance topology optimization.” Structural and
+Multidisciplinary Optimization 22.2 (2001): 116-124.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>xPhys</strong> (<em>np.ndarray</em><em>, </em><em>shape</em><em> (</em><em>n</em><em>)</em>) – physical RAMP density</p></li>
+<li><p><strong>eps</strong> (<em>float</em>) – small offset that is needed for some properties (e. g. stiffness) to
+avoid degeneracy of the problem. Should be very small compared to 1
+e. g. 1e-9.</p></li>
+<li><p><strong>penal</strong> (<em>float</em>) – penalty factor for the RAMP method.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>scale</strong> – scale factor to multiply with material property/matrix.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray, shape (n)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="topoptlab.material_interpolation.simp">
+<span class="sig-prename descclassname"><span class="pre">topoptlab.material_interpolation.</span></span><span class="sig-name descname"><span class="pre">simp</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">xPhys</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eps</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">penal</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/topoptlab/material_interpolation.html#simp"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#topoptlab.material_interpolation.simp" title="Link to this definition"></a></dt>
+<dd><p>Return scale factor for the modified SIMP method by</p>
+<p>Sigmund, Ole. “Morphology-based black and white filters for topology
+optimization.” Structural and Multidisciplinary Optimization 33.4 (2007):
+401-424.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>xPhys</strong> (<em>np.ndarray</em><em>, </em><em>shape</em><em> (</em><em>n</em><em>)</em>) – physical SIMP density</p></li>
+<li><p><strong>eps</strong> (<em>float</em>) – small offset that is needed for some properties (e. g. stiffness) to
+avoid degeneracy of the problem. Should be very small compared to 1
+e. g. 1e-9.</p></li>
+<li><p><strong>penal</strong> (<em>float</em>) – penalty exponent for the SIMP method.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>scale</strong> – scale factor to multiply with material property/matrix.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray, shape (n)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="topoptlab.material_interpolation.simp_dx">
+<span class="sig-prename descclassname"><span class="pre">topoptlab.material_interpolation.</span></span><span class="sig-name descname"><span class="pre">simp_dx</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">xPhys</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eps</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">penal</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/topoptlab/material_interpolation.html#simp_dx"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#topoptlab.material_interpolation.simp_dx" title="Link to this definition"></a></dt>
+<dd><p>Return the derivative of the scale factor for the modified SIMP method</p>
+<p>Sigmund, Ole. “Morphology-based black and white filters for topology
+optimization.” Structural and Multidisciplinary Optimization 33.4 (2007):
+401-424.</p>
+<p>with regards to the SIMP density.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>xPhys</strong> (<em>np.ndarray</em><em>, </em><em>shape</em><em> (</em><em>n</em><em>)</em>) – physical SIMP density</p></li>
+<li><p><strong>eps</strong> (<em>float</em>) – small offset that is needed for some properties (e. g. stiffness) to
+avoid degeneracy of the problem. Should be very small compared to 1
+e. g. 1e-9.</p></li>
+<li><p><strong>penal</strong> (<em>float</em>) – penalty exponent for the SIMP method.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>scale</strong> – scale factor to multiply with material property/matrix.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray, shape (n)</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="topoptlab.log_utils.html" class="btn btn-neutral float-left" title="topoptlab.log_utils module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="topoptlab.multigrid.html" class="btn btn-neutral float-right" title="topoptlab.multigrid module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Stefan Hiemer.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

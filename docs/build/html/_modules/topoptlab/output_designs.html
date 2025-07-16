@@ -1,0 +1,316 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>topoptlab.output_designs &mdash; topoptlab 0.0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=d45e8c67"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            topoptlab
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../topoptlab.html">topoptlab package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">topoptlab</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">topoptlab.output_designs</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for topoptlab.output_designs</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">meshio</span> <span class="kn">import</span> <span class="n">Mesh</span>
+<span class="kn">from</span> <span class="nn">meshio.xdmf</span> <span class="kn">import</span> <span class="n">TimeSeriesWriter</span>
+
+<div class="viewcode-block" id="threshold">
+<a class="viewcode-back" href="../../topoptlab.output_designs.html#topoptlab.output_designs.threshold">[docs]</a>
+<span class="k">def</span> <span class="nf">threshold</span><span class="p">(</span><span class="n">xPhys</span><span class="p">,</span>
+              <span class="n">volfrac</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Threshold grey scale design to black and white design.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    xPhys : np.array, shape (nel)</span>
+<span class="sd">        element densities for topology optimization used for scaling the </span>
+<span class="sd">        material properties. </span>
+<span class="sd">    volfrac : float</span>
+<span class="sd">        volume fraction.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    xPhys : np.array, shape (nel)</span>
+<span class="sd">        thresholded element densities for topology optimization used for scaling the </span>
+<span class="sd">        material properties. </span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">indices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">flip</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">xPhys</span><span class="p">))</span>
+    <span class="n">vt</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">volfrac</span><span class="o">*</span><span class="n">xPhys</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+    <span class="n">xThresh</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">xPhys</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+    <span class="n">xThresh</span><span class="p">[</span><span class="n">indices</span><span class="p">[:</span><span class="n">vt</span><span class="p">]]</span> <span class="o">=</span> <span class="mf">1.</span>
+    <span class="n">xThresh</span><span class="p">[</span><span class="n">indices</span><span class="p">[</span><span class="n">vt</span><span class="p">:]]</span> <span class="o">=</span> <span class="mf">0.</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Thresholded Vol.: </span><span class="si">{0:.3f}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">vt</span><span class="o">/</span><span class="n">xThresh</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+    <span class="k">return</span> <span class="n">xThresh</span></div>
+
+
+<div class="viewcode-block" id="export_vtk">
+<a class="viewcode-back" href="../../topoptlab.output_designs.html#topoptlab.output_designs.export_vtk">[docs]</a>
+<span class="k">def</span> <span class="nf">export_vtk</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> 
+               <span class="n">nelx</span><span class="p">,</span><span class="n">nely</span><span class="p">,</span> 
+               <span class="n">xPhys</span><span class="p">,</span>
+               <span class="n">nelz</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">x</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">u</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">f</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">u_bw</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">f_bw</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">xTilde</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">volfrac</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Export design to a vtk file for visualisation e. g. with Paraview.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    filename : str</span>
+<span class="sd">        filename without &quot;.vtk&quot; ending.</span>
+<span class="sd">    nelx : int</span>
+<span class="sd">        number of elements in x direction.</span>
+<span class="sd">    nely : int</span>
+<span class="sd">        number of elements in y direction.</span>
+<span class="sd">    xPhys : np.ndarray</span>
+<span class="sd">        densities used to scale the material properties.</span>
+<span class="sd">    nelz : int</span>
+<span class="sd">        number of elements in y direction.</span>
+<span class="sd">    x : np.ndarray, optional</span>
+<span class="sd">        interemdiary densities as (usually) returned by the optimizer.</span>
+<span class="sd">    u : np.ndarray, optional</span>
+<span class="sd">        field variable (displacements, temperature) which is usually the left </span>
+<span class="sd">        hand side of the generic matrix problem Ku=f. The default is None.</span>
+<span class="sd">    f : np.ndarray, optional</span>
+<span class="sd">        flow variable (forces, heat sources/sinks) which is usually the right </span>
+<span class="sd">        hand side of the generic matrix problem Ku=f</span>
+<span class="sd">    u_bw : np.ndarray, optional</span>
+<span class="sd">        field variable of the final black/white design. The default is None.</span>
+<span class="sd">    f_bw : np.ndarray, optional</span>
+<span class="sd">        flow variable of the final black/white design. The default is None.</span>
+<span class="sd">    xTilde : np.ndarray, optional</span>
+<span class="sd">        interemdiary densities by the density filter. So far they only occur </span>
+<span class="sd">        if Haeviside projections are used. The default is None.</span>
+<span class="sd">    volfrac : float, optional</span>
+<span class="sd">        volume fraction. If not None, then also a thresholded designed is </span>
+<span class="sd">        stored. The default is None.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    None.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="c1"># construct node positions for meshio </span>
+    <span class="k">if</span> <span class="n">nelz</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">_x</span><span class="p">,</span><span class="n">_y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="n">nelx</span><span class="p">,</span><span class="n">nelx</span><span class="o">+</span><span class="mi">1</span><span class="p">),</span>
+                            <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">nely</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="n">nely</span><span class="o">+</span><span class="mi">1</span><span class="p">))</span>
+        <span class="n">points</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">((</span><span class="n">_x</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="s2">&quot;F&quot;</span><span class="p">),</span>
+                                  <span class="n">_y</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="s2">&quot;F&quot;</span><span class="p">)))</span> 
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1">#</span>
+        <span class="n">xcoords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="n">nelx</span><span class="p">,</span><span class="n">nelx</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">ycoords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">nely</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="n">nely</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">zcoords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="n">nelz</span><span class="p">,</span><span class="n">nelz</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span>
+        <span class="c1">#</span>
+        <span class="n">_x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">tile</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">xcoords</span><span class="p">,</span><span class="n">nely</span><span class="o">+</span><span class="mi">1</span><span class="p">),</span><span class="n">nelz</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+        <span class="n">_y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">tile</span><span class="p">(</span><span class="n">ycoords</span><span class="p">,(</span><span class="n">nelx</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="n">nelz</span><span class="o">+</span><span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+        <span class="n">_z</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">zcoords</span><span class="p">,(</span><span class="n">nelx</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="n">nely</span><span class="o">+</span><span class="mi">1</span><span class="p">))</span>
+        <span class="c1">#</span>
+        <span class="n">points</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">((</span><span class="n">_x</span><span class="p">,</span><span class="n">_y</span><span class="p">,</span><span class="n">_z</span><span class="p">))</span> 
+    <span class="c1"># insert data for nodes</span>
+    <span class="n">node_data</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">u</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># takes care of multiple load cases</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">u</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+            <span class="n">node_data</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="sa">f</span><span class="s2">&quot;u</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">:</span> <span class="n">u</span><span class="p">[:,</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">points</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                                         <span class="nb">int</span><span class="p">(</span><span class="n">u</span><span class="p">[:,</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">/</span><span class="n">points</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))})</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">u_bw</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># takes care of multiple load cases</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">u_bw</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+            <span class="n">node_data</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="sa">f</span><span class="s2">&quot;u_bw</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">:</span> <span class="n">u_bw</span><span class="p">[:,</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">points</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                                         <span class="nb">int</span><span class="p">(</span><span class="n">u_bw</span><span class="p">[:,</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">/</span><span class="n">points</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))})</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">f</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># takes care of multiple load cases</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">u</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+            <span class="n">node_data</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="sa">f</span><span class="s2">&quot;f</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">:</span> <span class="n">f</span><span class="p">[:,</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">points</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                                             <span class="nb">int</span><span class="p">(</span><span class="n">f</span><span class="p">[:,</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">/</span><span class="n">points</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))})</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">f_bw</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># takes care of multiple load cases</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">f_bw</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+            <span class="n">node_data</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="sa">f</span><span class="s2">&quot;f_bw</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">:</span> <span class="n">f_bw</span><span class="p">[:,</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">points</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                                             <span class="nb">int</span><span class="p">(</span><span class="n">f_bw</span><span class="p">[:,</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">/</span><span class="n">points</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]))})</span>
+    <span class="c1"># assign node IDs to each cell. </span>
+    <span class="k">if</span> <span class="n">nelz</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">elx</span><span class="p">,</span><span class="n">ely</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nelx</span><span class="p">)[:,</span><span class="kc">None</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nely</span><span class="p">)[</span><span class="kc">None</span><span class="p">,:]</span>
+        <span class="n">n1</span> <span class="o">=</span> <span class="p">((</span><span class="n">nely</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="n">elx</span><span class="o">+</span><span class="n">ely</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+        <span class="n">n2</span> <span class="o">=</span> <span class="p">((</span><span class="n">nely</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="n">elx</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">+</span><span class="n">ely</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+        <span class="n">idMat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">((</span><span class="n">n1</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="n">n2</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="n">n2</span><span class="p">,</span> <span class="n">n1</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">elx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nelx</span><span class="p">)[</span><span class="kc">None</span><span class="p">,:,</span><span class="kc">None</span><span class="p">]</span>
+        <span class="n">ely</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nely</span><span class="p">)[</span><span class="kc">None</span><span class="p">,</span><span class="kc">None</span><span class="p">,:]</span>
+        <span class="n">elz</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nelz</span><span class="p">)[:,</span><span class="kc">None</span><span class="p">,</span><span class="kc">None</span><span class="p">]</span>
+        <span class="n">n1</span> <span class="o">=</span> <span class="p">((</span><span class="n">nelx</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="n">nely</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="n">elz</span> <span class="o">+</span> <span class="p">(</span><span class="n">nely</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="n">elx</span> <span class="o">+</span> <span class="n">ely</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+        <span class="n">n2</span> <span class="o">=</span> <span class="p">((</span><span class="n">nelx</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="n">nely</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="n">elz</span> <span class="o">+</span> <span class="p">(</span><span class="n">nely</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="n">elx</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="n">ely</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+        <span class="n">n3</span> <span class="o">=</span> <span class="p">((</span><span class="n">nelx</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="n">nely</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="n">elz</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">nely</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="n">elx</span> <span class="o">+</span> <span class="n">ely</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+        <span class="n">n4</span> <span class="o">=</span> <span class="p">((</span><span class="n">nelx</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="n">nely</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="n">elz</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">nely</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="n">elx</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="n">ely</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+        <span class="n">idMat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">((</span><span class="n">n1</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span><span class="n">n2</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span><span class="n">n2</span><span class="p">,</span><span class="n">n1</span><span class="p">,</span>
+                                 <span class="n">n3</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span><span class="n">n4</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span><span class="n">n4</span><span class="p">,</span><span class="n">n3</span><span class="p">))</span>
+    <span class="c1"># insert data for elements</span>
+    <span class="n">el_data</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">el_data</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;xPhys&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">xPhys</span><span class="p">]})</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">x</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">el_data</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;x&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">x</span><span class="p">]})</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">xTilde</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">el_data</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;xTilde&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">xTilde</span><span class="p">]})</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">volfrac</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">el_data</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="s2">&quot;xThresh&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">threshold</span><span class="p">(</span><span class="n">xPhys</span><span class="p">,</span><span class="n">volfrac</span><span class="p">)]})</span>
+    <span class="c1">#</span>
+    <span class="k">if</span> <span class="n">nelz</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">Mesh</span><span class="p">(</span><span class="n">points</span><span class="p">,</span>
+             <span class="p">[(</span><span class="s2">&quot;quad&quot;</span><span class="p">,</span> <span class="n">idMat</span><span class="p">)],</span>
+             <span class="n">point_data</span><span class="o">=</span><span class="n">node_data</span><span class="p">,</span>
+             <span class="n">cell_data</span><span class="o">=</span><span class="n">el_data</span><span class="p">)</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">filename</span><span class="o">+</span><span class="s2">&quot;.vtk&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">Mesh</span><span class="p">(</span><span class="n">points</span><span class="p">,</span>
+             <span class="p">[(</span><span class="s2">&quot;hexahedron&quot;</span><span class="p">,</span> <span class="n">idMat</span><span class="p">)],</span>
+             <span class="n">point_data</span><span class="o">=</span><span class="n">node_data</span><span class="p">,</span>
+             <span class="n">cell_data</span><span class="o">=</span><span class="n">el_data</span><span class="p">)</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">filename</span><span class="o">+</span><span class="s2">&quot;.vtk&quot;</span><span class="p">)</span>
+    <span class="k">return</span></div>
+
+
+<div class="viewcode-block" id="export_stl">
+<a class="viewcode-back" href="../../topoptlab.output_designs.html#topoptlab.output_designs.export_stl">[docs]</a>
+<span class="k">def</span> <span class="nf">export_stl</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> 
+               <span class="n">nelx</span><span class="p">,</span><span class="n">nely</span><span class="p">,</span> 
+               <span class="n">xPhys</span><span class="p">,</span>
+               <span class="n">volfrac</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Export design to a stl file for 3D printing.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    filename : str</span>
+<span class="sd">        filename without &quot;.vtk&quot; ending.</span>
+<span class="sd">    nelx : int</span>
+<span class="sd">        number of elements in x direction.</span>
+<span class="sd">    nely : int</span>
+<span class="sd">        number of elements in y direction.</span>
+<span class="sd">    xPhys : np.ndarray</span>
+<span class="sd">        densities used to scale the material properties.</span>
+<span class="sd">    volfrac : float, optional</span>
+<span class="sd">        volume fraction. If not None, then also a thresholded designed is </span>
+<span class="sd">        stored. The default is None.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    None.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># threshold densities to get final design</span>
+    <span class="n">mask</span> <span class="o">=</span> <span class="p">(</span><span class="n">threshold</span><span class="p">(</span><span class="n">xPhys</span><span class="p">,</span><span class="n">volfrac</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="c1"># construct node positions for meshio </span>
+    <span class="n">_x</span><span class="p">,</span><span class="n">_y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="n">nelx</span><span class="p">,</span><span class="n">nelx</span><span class="o">+</span><span class="mi">1</span><span class="p">),</span>
+                        <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="n">nely</span><span class="p">,</span><span class="n">nely</span><span class="o">+</span><span class="mi">1</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">::</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">points</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">((</span><span class="n">_x</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="s2">&quot;F&quot;</span><span class="p">),</span>
+                              <span class="n">_y</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="s2">&quot;F&quot;</span><span class="p">)))</span> 
+    <span class="c1"># assign node IDs to each triangle cell.</span>
+    <span class="n">elx</span><span class="p">,</span><span class="n">ely</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nelx</span><span class="p">)[:,</span><span class="kc">None</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nely</span><span class="p">)[</span><span class="kc">None</span><span class="p">,:]</span>
+    <span class="n">n1</span> <span class="o">=</span> <span class="p">((</span><span class="n">nely</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="n">elx</span><span class="o">+</span><span class="n">ely</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+    <span class="n">n2</span> <span class="o">=</span> <span class="p">((</span><span class="n">nely</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="n">elx</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">+</span><span class="n">ely</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+    <span class="n">idMat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">((</span><span class="n">n1</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="n">n2</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="n">n2</span><span class="p">,</span> <span class="n">n1</span><span class="p">))</span>
+    <span class="n">idMat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">((</span><span class="n">idMat</span><span class="p">[</span><span class="n">mask</span><span class="p">][:,[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">]],</span>
+                       <span class="n">idMat</span><span class="p">[</span><span class="n">mask</span><span class="p">][:,[</span><span class="mi">0</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">]]))</span>
+    <span class="c1">#</span>
+    <span class="n">Mesh</span><span class="p">(</span><span class="n">points</span><span class="p">,</span>
+         <span class="p">[(</span><span class="s2">&quot;triangle&quot;</span><span class="p">,</span> <span class="n">idMat</span><span class="p">)],</span>
+         <span class="n">point_data</span><span class="o">=</span><span class="p">{},</span> 
+         <span class="n">cell_data</span><span class="o">=</span><span class="p">{})</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">filename</span><span class="o">+</span><span class="s2">&quot;.stl&quot;</span><span class="p">)</span>
+    <span class="k">return</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Stefan Hiemer.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -23,6 +23,7 @@ dependencies = ["numpy",
                 "cvxopt",
                 "mmapy",
                 "meshio",
+                "symfem",
                 "scikit-image"]
 
 [project.optional-dependencies]

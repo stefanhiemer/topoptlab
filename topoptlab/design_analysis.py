@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.ndimage import grey_opening,grey_closing
+from scipy.ndimage import grey_opening, grey_closing
 
 from topoptlab.geometries import sphere, ball
 from topoptlab.utils import map_eltoimg, map_eltovoxel
@@ -11,7 +11,7 @@ def gray_indicator(x):
     
     Sigmund, Ole. "Morphology-based black and white filters for topology 
     optimization." Structural and Multidisciplinary Optimization 33.4 (2007): 
-        401-424.
+    401-424.
     
     For a design with all densities at 1/2 returns 1, if all densities either
     1 or 0 it returns 0.

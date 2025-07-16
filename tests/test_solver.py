@@ -2,7 +2,7 @@ from numpy.testing import assert_almost_equal
 
 import pytest
 
-from topoptlab.compliance_minimization import main
+from topoptlab.topology_optimization import main
 from topoptlab.example_bc.lin_elast import mbb_2d,mbb_3d
 
 @pytest.mark.parametrize('nelx, nely, volfrac, ft, rmin, solver, preconditioner, bcs',

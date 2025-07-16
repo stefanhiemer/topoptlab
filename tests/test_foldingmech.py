@@ -2,7 +2,7 @@ from numpy.testing import assert_almost_equal
 
 import pytest
 
-from topoptlab.folding_mechanism import main
+from topoptlab.legacy.folding_mechanism import main
 
 @pytest.mark.parametrize('ft, rmin,, obj_ref',
                          [(0,1.5,-0.63242477),]) 

@@ -1,0 +1,303 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>topoptlab.fem module &mdash; topoptlab 0.0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=d45e8c67"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="topoptlab.filters module" href="topoptlab.filters.html" />
+    <link rel="prev" title="topoptlab.fdm module" href="topoptlab.fdm.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            topoptlab
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="topoptlab.html">topoptlab package</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="topoptlab.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.accelerators.html">topoptlab.accelerators module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.compliance_minimization.html">topoptlab.compliance_minimization module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.composite_bounds_2d.html">topoptlab.composite_bounds_2d module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.design_analysis.html">topoptlab.design_analysis module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.draw_functions.html">topoptlab.draw_functions module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.fdm.html">topoptlab.fdm module</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">topoptlab.fem module</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#topoptlab.fem.apply_bc"><code class="docutils literal notranslate"><span class="pre">apply_bc()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#topoptlab.fem.assemble_matrix"><code class="docutils literal notranslate"><span class="pre">assemble_matrix()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#topoptlab.fem.assemble_rhs"><code class="docutils literal notranslate"><span class="pre">assemble_rhs()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#topoptlab.fem.create_matrixinds"><code class="docutils literal notranslate"><span class="pre">create_matrixinds()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#topoptlab.fem.deleterowcol"><code class="docutils literal notranslate"><span class="pre">deleterowcol()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#topoptlab.fem.get_integrpoints"><code class="docutils literal notranslate"><span class="pre">get_integrpoints()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#topoptlab.fem.interpolate"><code class="docutils literal notranslate"><span class="pre">interpolate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#topoptlab.fem.update_indices"><code class="docutils literal notranslate"><span class="pre">update_indices()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.filters.html">topoptlab.filters module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.geometries.html">topoptlab.geometries module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.geometry_parser.html">topoptlab.geometry_parser module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.linear_solvers.html">topoptlab.linear_solvers module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.log_utils.html">topoptlab.log_utils module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.material_interpolation.html">topoptlab.material_interpolation module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.multigrid.html">topoptlab.multigrid module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.objectives.html">topoptlab.objectives module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.output_designs.html">topoptlab.output_designs module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.rotation_matrices.html">topoptlab.rotation_matrices module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.solve_linsystem.html">topoptlab.solve_linsystem module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.stiffness_tensors.html">topoptlab.stiffness_tensors module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.symfem_utils.html">topoptlab.symfem_utils module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.timestepper.html">topoptlab.timestepper module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="topoptlab.utils.html">topoptlab.utils module</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="topoptlab.html#module-topoptlab">Module contents</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">topoptlab</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="topoptlab.html">topoptlab package</a></li>
+      <li class="breadcrumb-item active">topoptlab.fem module</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/topoptlab.fem.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-topoptlab.fem">
+<span id="topoptlab-fem-module"></span><h1>topoptlab.fem module<a class="headerlink" href="#module-topoptlab.fem" title="Link to this heading"></a></h1>
+<dl class="py function">
+<dt class="sig sig-object py" id="topoptlab.fem.apply_bc">
+<span class="sig-prename descclassname"><span class="pre">topoptlab.fem.</span></span><span class="sig-name descname"><span class="pre">apply_bc</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">K</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">solver</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">free</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fixed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/topoptlab/fem.html#apply_bc"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#topoptlab.fem.apply_bc" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="topoptlab.fem.assemble_matrix">
+<span class="sig-prename descclassname"><span class="pre">topoptlab.fem.</span></span><span class="sig-name descname"><span class="pre">assemble_matrix</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sK</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">iK</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">jK</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ndof</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">solver</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">springs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/topoptlab/fem.html#assemble_matrix"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#topoptlab.fem.assemble_matrix" title="Link to this definition"></a></dt>
+<dd><p>Assemble matrix from indices.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sK</strong> (<em>np.ndarray</em>) – element degree of freedom matrix.</p></li>
+<li><p><strong>sK</strong> – matrix values.</p></li>
+<li><p><strong>iK</strong> (<em>np.ndarray</em>) – matrix row indices.</p></li>
+<li><p><strong>jK</strong> (<em>np.ndarray</em>) – matrix column indices.</p></li>
+<li><p><strong>ndof</strong> (<em>int</em>) – number of degrees of freedom</p></li>
+<li><p><strong>solver</strong> (<em>str</em>) – solver used to solve the linear system.</p></li>
+<li><p><strong>springs</strong> (<em>list</em>) – contains two np.ndarrays. The first one contains the indices of the
+degrees of freedom to which the springs are attached. The second one
+contains the spring constants.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>M</strong> – assembled matrix.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>scipy.sparse.csc_array, shape (ndof,ndof)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="topoptlab.fem.assemble_rhs">
+<span class="sig-prename descclassname"><span class="pre">topoptlab.fem.</span></span><span class="sig-name descname"><span class="pre">assemble_rhs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">f0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">solver</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/topoptlab/fem.html#assemble_rhs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#topoptlab.fem.assemble_rhs" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="topoptlab.fem.create_matrixinds">
+<span class="sig-prename descclassname"><span class="pre">topoptlab.fem.</span></span><span class="sig-name descname"><span class="pre">create_matrixinds</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">edofMat</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'full'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/topoptlab/fem.html#create_matrixinds"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#topoptlab.fem.create_matrixinds" title="Link to this definition"></a></dt>
+<dd><p>Create matrix indices to set up FE linear system / matrix.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>edofMat</strong> (<em>np.ndarray</em><em> (</em><em>nel</em><em>,</em><em>n_nodedof</em><em>)</em>) – element degree of freedom matrix.</p></li>
+<li><p><strong>mode</strong> (<em>str</em>) – construct .</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>iM</strong> (<em>np.ndarray shape (N)</em>) – row indices for matrix construction.</p></li>
+<li><p><strong>jM</strong> (<em>np.ndarray shape (N)</em>) – column indices for matrix construction.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="topoptlab.fem.deleterowcol">
+<span class="sig-prename descclassname"><span class="pre">topoptlab.fem.</span></span><span class="sig-name descname"><span class="pre">deleterowcol</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">A</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delrow</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delcol</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/topoptlab/fem.html#deleterowcol"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#topoptlab.fem.deleterowcol" title="Link to this definition"></a></dt>
+<dd><p>Stolen from the topopt_cholmod.py code by Niels Aage and Villads Egede.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>A</strong> (<em>scipy.sparse.csc_matrix</em><em> (</em><em>nodf</em><em>,</em><em>ndof</em><em>)</em>) – element degree of freedom matrix.</p></li>
+<li><p><strong>delrow</strong> (<em>np.ndarray</em>) – rows to delete .</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>iM</strong> (<em>np.ndarray shape (N)</em>) – row indices for matrix construction.</p></li>
+<li><p><strong>jM</strong> (<em>np.ndarray shape (N)</em>) – column indices for matrix construction.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="topoptlab.fem.get_integrpoints">
+<span class="sig-prename descclassname"><span class="pre">topoptlab.fem.</span></span><span class="sig-name descname"><span class="pre">get_integrpoints</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ndim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nq</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">method</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/topoptlab/fem.html#get_integrpoints"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#topoptlab.fem.get_integrpoints" title="Link to this definition"></a></dt>
+<dd><p>Get integration points and weights for numerical quadrature of integrals in
+interval [-1,1].</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ndim</strong> (<em>int</em>) – number of spatial dimensions.</p></li>
+<li><p><strong>nq</strong> (<em>int</em>) – number of integration/quadrature points.</p></li>
+<li><p><strong>method</strong> (<em>str</em><em> or </em><em>callable</em>) – name of quadrature method or function/callable that returns coordinates of
+quadrature points and weights. Currently only ‘gauss-legendre’,
+‘gauss-hermite’, ‘gauss-chebyshev’ and ‘gauss-laguerre’ supported as
+str.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>x</strong> (<em>np.ndarray, shape (nq,ndim)</em>) – coordinates of quadrature point.</p></li>
+<li><p><strong>w</strong> (<em>np.ndarray, shape (nq)</em>) – weight of quadrature points.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="topoptlab.fem.interpolate">
+<span class="sig-prename descclassname"><span class="pre">topoptlab.fem.</span></span><span class="sig-name descname"><span class="pre">interpolate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ue</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">xi</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eta</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">zeta=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shape_functions=&lt;function</span> <span class="pre">shape_functions&gt;</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/topoptlab/fem.html#interpolate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#topoptlab.fem.interpolate" title="Link to this definition"></a></dt>
+<dd><p>Interpolate node values in each element. Coordinates are assumed to be
+in the reference domain.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ue</strong> (<em>np.ndarray</em><em>,</em><em>shape</em><em> (</em><em>nels</em><em>,</em><em>nedof</em><em>)</em><em>.</em>) – node values used for interpolation.</p></li>
+<li><p><strong>xi</strong> (<em>np.ndarray</em>) – x coordinate of shape (nels). Coordinates are assumed to be
+in the reference domain.</p></li>
+<li><p><strong>eta</strong> (<em>np.ndarray</em>) – y coordinate of shape (ncoords). Coordinates are assumed to be
+in the reference domain.</p></li>
+<li><p><strong>zeta</strong> (<em>np.ndarray</em>) – z coordinate of shape (ncoords). Coordinates are assumed to be
+in the reference domain.</p></li>
+<li><p><strong>shape_functions</strong> (<em>callable</em>) – shape functions of respective element</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>u</strong> – interpolated state variable.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray, shape (nels,nnodedof)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="topoptlab.fem.update_indices">
+<span class="sig-prename descclassname"><span class="pre">topoptlab.fem.</span></span><span class="sig-name descname"><span class="pre">update_indices</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">indices</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fixed</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/topoptlab/fem.html#update_indices"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#topoptlab.fem.update_indices" title="Link to this definition"></a></dt>
+<dd><p>Update the indices for the stiffness matrix construction by kicking out
+the fixed degrees of freedom and renumbering the indices. This is useful
+only if just one set of boundary conditions needs to be solved.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>indices</strong> (<em>np.ndarray</em>) – indices of degrees of freedom used to construct the stiffness matrix.</p></li>
+<li><p><strong>fixed</strong> (<em>np.ndarray</em>) – indices of fixed degrees of freedom.</p></li>
+<li><p><strong>mask</strong> (<em>np.ndarray</em>) – mask to kick out fixed degrees of freedom.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>indices</strong> – updated indices.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="topoptlab.fdm.html" class="btn btn-neutral float-left" title="topoptlab.fdm module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="topoptlab.filters.html" class="btn btn-neutral float-right" title="topoptlab.filters module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Stefan Hiemer.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,1059 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>topoptlab.symfem_utils &mdash; topoptlab 0.0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=d45e8c67"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            topoptlab
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../topoptlab.html">topoptlab package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">topoptlab</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">topoptlab.symfem_utils</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for topoptlab.symfem_utils</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">product</span>
+<span class="kn">from</span> <span class="nn">io</span> <span class="kn">import</span> <span class="n">StringIO</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">from</span> <span class="nn">re</span> <span class="kn">import</span> <span class="n">sub</span>
+<span class="kn">import</span> <span class="nn">math</span>
+
+<span class="kn">from</span> <span class="nn">sympy</span> <span class="kn">import</span> <span class="n">symbols</span><span class="p">,</span> <span class="n">Symbol</span>
+<span class="kn">from</span> <span class="nn">symfem</span> <span class="kn">import</span> <span class="n">create_element</span><span class="p">,</span> <span class="n">create_reference</span>
+<span class="kn">from</span> <span class="nn">symfem.functions</span> <span class="kn">import</span> <span class="n">VectorFunction</span><span class="p">,</span> <span class="n">MatrixFunction</span>
+
+<div class="viewcode-block" id="convert_to_code">
+<a class="viewcode-back" href="../../topoptlab.symfem_utils.html#topoptlab.symfem_utils.convert_to_code">[docs]</a>
+<span class="k">def</span> <span class="nf">convert_to_code</span><span class="p">(</span><span class="n">matrix</span><span class="p">,</span><span class="n">matrices</span><span class="o">=</span><span class="p">[],</span><span class="n">vectors</span><span class="o">=</span><span class="p">[],</span>
+                    <span class="n">np_functions</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;cos&quot;</span><span class="p">,</span><span class="s2">&quot;sin&quot;</span><span class="p">,</span><span class="s2">&quot;tan&quot;</span><span class="p">],</span>
+                    <span class="n">npndarray</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="n">max_line_length</span><span class="o">=</span><span class="mi">200</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Convert the printed expression by symfem to strings that can be</span>
+<span class="sd">    converted to code.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    matrix : symfem.functions.MatrixFunction</span>
+<span class="sd">        symfem output.</span>
+<span class="sd">    matrices : list</span>
+<span class="sd">        list of strs for the tensor indices to be converted to array indices.</span>
+<span class="sd">        E. g. the tensor &quot;c&quot; appears in the equation, the current element</span>
+<span class="sd">        derivation routines will return function that contain the elements of</span>
+<span class="sd">        this tensor in the format c11,c12,etc. This function converts these</span>
+<span class="sd">        entries to c[0,0],c[0,1],etc.</span>
+<span class="sd">    vectors : list</span>
+<span class="sd">        list of strs with same logic as matrices, but instead c1,c2,etc. are</span>
+<span class="sd">        converted to c[0],c[1],etc.</span>
+<span class="sd">    npndarray: bool</span>
+<span class="sd">        if True, writes the output as numpy ndarray</span>
+<span class="sd">    max_line_length : int</span>
+<span class="sd">        counts number of length until first &quot;]&quot;. If larger than the specified</span>
+<span class="sd">        value, line breaks occur at every &quot;,&quot;, otherwise at every &quot;],&quot;.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    lines : str</span>
+<span class="sd">        symfem output converted to code that can be copy pasted into a</span>
+<span class="sd">        function.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># convert symfem.MatrixFunction to list to better print it</span>
+    <span class="n">ls</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">matrix</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+        <span class="n">ls</span><span class="o">.</span><span class="n">append</span><span class="p">([])</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">matrix</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+            <span class="n">ls</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">matrix</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">])</span>
+    <span class="c1"># create a StringIO object to capture print output</span>
+    <span class="n">stringio_capturer</span> <span class="o">=</span> <span class="n">StringIO</span><span class="p">()</span>
+    <span class="c1"># redirect stdout to the StringIO object</span>
+    <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span> <span class="o">=</span> <span class="n">stringio_capturer</span>
+    <span class="c1"># feed the matrix into the capturer</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">ls</span><span class="p">)</span>
+    <span class="c1"># reset stdout back to normal</span>
+    <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">__stdout__</span>
+    <span class="c1"># convert printed output to string</span>
+    <span class="n">lines</span> <span class="o">=</span> <span class="n">stringio_capturer</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span>
+    <span class="n">stringio_capturer</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="c1">#</span>
+    <span class="n">first_line</span> <span class="o">=</span> <span class="n">lines</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;],&quot;</span><span class="p">,</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="c1">#</span>
+    <span class="k">if</span> <span class="n">npndarray</span><span class="p">:</span>
+        <span class="c1">#</span>
+        <span class="n">delta</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="s2">&quot;np.array(&quot;</span><span class="o">+</span><span class="n">first_line</span><span class="p">)</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">first_line</span><span class="p">)</span>
+        <span class="c1"># add np.array</span>
+        <span class="n">lines</span> <span class="o">=</span> <span class="s2">&quot;np.array(&quot;</span> <span class="o">+</span> <span class="n">lines</span>
+        <span class="n">lines</span> <span class="o">=</span> <span class="n">lines</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;)&quot;</span>
+        <span class="c1">#</span>
+        <span class="c1"># add line break after every comma</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">first_line</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">max_line_length</span><span class="p">:</span>
+            <span class="n">lines</span> <span class="o">=</span> <span class="n">lines</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">,</span><span class="s2">&quot;,</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">+</span><span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s2">&quot; &quot;</span><span class="p">]</span><span class="o">*</span><span class="p">(</span><span class="n">delta</span><span class="o">+</span><span class="mi">1</span><span class="p">)))</span>
+            <span class="n">lines</span> <span class="o">=</span> <span class="n">lines</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot; [&quot;</span><span class="p">,</span><span class="s2">&quot;[&quot;</span><span class="p">)</span>
+        <span class="c1"># add line break after every &quot;],&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">lines</span> <span class="o">=</span> <span class="n">lines</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;],&quot;</span><span class="p">,</span><span class="s2">&quot;],</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">+</span><span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="s2">&quot; &quot;</span><span class="p">]</span><span class="o">*</span><span class="n">delta</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># add line break after every comma</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">first_line</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">max_line_length</span><span class="p">:</span>
+            <span class="n">lines</span> <span class="o">=</span> <span class="n">lines</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">,</span><span class="s2">&quot;,</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="c1"># add line break after every &quot;],&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">lines</span> <span class="o">=</span> <span class="n">lines</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;],&quot;</span><span class="p">,</span><span class="s2">&quot;],</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="c1"># add numpy prefix to functions</span>
+    <span class="k">for</span> <span class="n">npfunc</span> <span class="ow">in</span> <span class="n">np_functions</span><span class="p">:</span>
+        <span class="n">lines</span> <span class="o">=</span> <span class="n">lines</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">npfunc</span><span class="p">,</span><span class="s2">&quot;np.&quot;</span><span class="o">+</span><span class="n">npfunc</span><span class="p">)</span>
+    <span class="c1"># replace entries ala &quot;c11&quot; with corresponding array entries c[0,0]</span>
+    <span class="k">for</span> <span class="n">matrix</span> <span class="ow">in</span> <span class="n">matrices</span><span class="p">:</span>
+        <span class="n">lines</span> <span class="o">=</span> <span class="n">sub</span><span class="p">(</span><span class="n">matrix</span> <span class="o">+</span> <span class="sa">r</span><span class="s1">&#39;(\d)(\d)&#39;</span><span class="p">,</span>
+              <span class="k">lambda</span> <span class="n">m</span><span class="p">:</span> <span class="n">matrix</span> <span class="o">+</span>  <span class="sa">f</span><span class="s1">&#39;[</span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span><span class="o">-</span><span class="mi">1</span><span class="si">}</span><span class="s1">,</span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">2</span><span class="p">))</span><span class="o">-</span><span class="mi">1</span><span class="si">}</span><span class="s1">]&#39;</span><span class="p">,</span>
+              <span class="n">lines</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">vector</span> <span class="ow">in</span> <span class="n">vectors</span><span class="p">:</span>
+        <span class="c1"># replace entries ala &quot;c1&quot; with corresponding array entries c[0]</span>
+        <span class="n">lines</span> <span class="o">=</span> <span class="n">sub</span><span class="p">(</span><span class="n">vector</span> <span class="o">+</span> <span class="sa">r</span><span class="s1">&#39;(\d)&#39;</span><span class="p">,</span>
+                    <span class="k">lambda</span> <span class="n">m</span><span class="p">:</span> <span class="n">vector</span> <span class="o">+</span> <span class="sa">f</span><span class="s1">&#39;[</span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span><span class="o">-</span><span class="mi">1</span><span class="si">}</span><span class="s1">]&#39;</span><span class="p">,</span>
+                    <span class="n">lines</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">lines</span></div>
+
+
+<div class="viewcode-block" id="generate_constMatrix">
+<a class="viewcode-back" href="../../topoptlab.symfem_utils.html#topoptlab.symfem_utils.generate_constMatrix">[docs]</a>
+<span class="k">def</span> <span class="nf">generate_constMatrix</span><span class="p">(</span><span class="n">ncol</span><span class="p">,</span><span class="n">nrow</span><span class="p">,</span><span class="n">name</span><span class="p">,</span>
+                         <span class="n">symmetric</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> 
+                         <span class="n">return_symbols</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Generate matrix full of symbolic constants as a list of lists</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    ncol : int</span>
+<span class="sd">        number of rows.</span>
+<span class="sd">    nrow : int</span>
+<span class="sd">        number of cols.</span>
+<span class="sd">    name : str</span>
+<span class="sd">        name to put in front of indices.</span>
+<span class="sd">    symmetric : bool</span>
+<span class="sd">        if True, matrix generated in symmetric fashion</span>
+<span class="sd">    return_symbols : bool</span>
+<span class="sd">        if True, returns the list of symbols of the entries. May be needed if </span>
+<span class="sd">        you want to apply assumptions on them in a Sympy assumptions context.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    M : symfem.functions.MatrixFunction</span>
+<span class="sd">        symfem MatrixFunction filled with symbolic entries e. g. for a 2x2</span>
+<span class="sd">        [[M11,M12],[M21,M22]].</span>
+<span class="sd">    symbol_list : list</span>
+<span class="sd">        list of all symbols used for the matrix/vector</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1">#</span>
+    <span class="n">M</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="n">return_symbols</span><span class="p">:</span>
+        <span class="n">symbol_list</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="n">nrow</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+        <span class="c1"># create the matrix as list of lists </span>
+        <span class="k">if</span> <span class="n">nrow</span> <span class="o">!=</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">ncol</span> <span class="o">!=</span><span class="mi">1</span><span class="p">:</span>
+            <span class="n">variables</span> <span class="o">=</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">name</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">)</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">j</span><span class="p">)</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="n">ncol</span><span class="o">+</span><span class="mi">1</span><span class="p">)])</span>
+        <span class="c1"># create row vector as list </span>
+        <span class="k">elif</span> <span class="n">nrow</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">variables</span> <span class="o">=</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">name</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">j</span><span class="p">)</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="n">ncol</span><span class="o">+</span><span class="mi">1</span><span class="p">)])</span>
+        <span class="c1"># create column vector as list </span>
+        <span class="k">elif</span> <span class="n">ncol</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">variables</span> <span class="o">=</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">name</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="n">ncol</span><span class="o">+</span><span class="mi">1</span><span class="p">)])</span>
+        <span class="c1"># create symbols</span>
+        <span class="n">variables</span> <span class="o">=</span> <span class="n">symbols</span><span class="p">(</span><span class="n">variables</span><span class="p">)</span>
+        <span class="c1"># convert to list</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">variables</span><span class="p">,</span> <span class="n">Symbol</span><span class="p">):</span>
+            <span class="n">variables</span> <span class="o">=</span> <span class="p">[</span><span class="n">variables</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">variables</span><span class="p">,</span><span class="nb">tuple</span><span class="p">):</span>
+            <span class="n">variables</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">variables</span><span class="p">)</span>
+        <span class="c1">#</span>
+        <span class="n">M</span><span class="o">.</span><span class="n">append</span><span class="p">(</span> <span class="n">variables</span> <span class="p">)</span>
+        <span class="k">if</span> <span class="n">return_symbols</span><span class="p">:</span>
+            <span class="n">symbol_list</span> <span class="o">=</span> <span class="n">symbol_list</span> <span class="o">+</span> <span class="n">variables</span>
+    <span class="c1"># make matrix symmetric</span>
+    <span class="k">if</span> <span class="n">symmetric</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">ncol</span> <span class="o">!=</span> <span class="n">nrow</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;For matrix to be symmetric, it must be square. Currenly ncol != nrow&quot;</span><span class="p">)</span>
+        <span class="c1">#</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nrow</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span><span class="n">nrow</span><span class="p">):</span>
+                <span class="n">M</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">M</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">j</span><span class="p">]</span>
+    <span class="c1">#</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">return_symbols</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">MatrixFunction</span><span class="p">(</span><span class="n">M</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">MatrixFunction</span><span class="p">(</span><span class="n">M</span><span class="p">),</span> <span class="n">symbol_list</span></div>
+
+
+<div class="viewcode-block" id="stifftens_isotropic">
+<a class="viewcode-back" href="../../topoptlab.symfem_utils.html#topoptlab.symfem_utils.stifftens_isotropic">[docs]</a>
+<span class="k">def</span> <span class="nf">stifftens_isotropic</span><span class="p">(</span><span class="n">ndim</span><span class="p">,</span><span class="n">plane_stress</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    stiffness tensor for isotropic material expressed in Terms of Young&#39;s</span>
+<span class="sd">    modulus E and Poisson&#39;s ratio v.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    ndim : int</span>
+<span class="sd">        number of dimensions</span>
+<span class="sd">    plane_stress : bool</span>
+<span class="sd">        if True, return stiffness tensor for plane stress, otherwise return</span>
+<span class="sd">        stiffness tensor for plane strain</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    c : symfem.functions.MatrixFunction</span>
+<span class="sd">        stiffness tensor.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">E</span><span class="p">,</span><span class="n">nu</span> <span class="o">=</span> <span class="n">symbols</span><span class="p">(</span><span class="s2">&quot;E nu&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">ndim</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">MatrixFunction</span><span class="p">([[</span><span class="n">E</span><span class="p">]])</span>
+    <span class="k">elif</span> <span class="n">ndim</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">plane_stress</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">E</span><span class="o">/</span><span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="n">nu</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">*</span><span class="n">MatrixFunction</span><span class="p">([[</span><span class="mi">1</span><span class="p">,</span><span class="n">nu</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span>
+                                               <span class="p">[</span><span class="n">nu</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span>
+                                               <span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,(</span><span class="mi">1</span><span class="o">-</span><span class="n">nu</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span><span class="p">]])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">E</span><span class="o">/</span><span class="p">((</span><span class="mi">1</span><span class="o">+</span><span class="n">nu</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="mi">2</span><span class="o">*</span><span class="n">nu</span><span class="p">))</span><span class="o">*</span><span class="n">MatrixFunction</span><span class="p">([[</span><span class="mi">1</span><span class="o">-</span><span class="n">nu</span><span class="p">,</span><span class="n">nu</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span>
+                                                       <span class="p">[</span><span class="n">nu</span><span class="p">,</span><span class="mi">1</span><span class="o">-</span><span class="n">nu</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span>
+                                                       <span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,(</span><span class="mi">1</span><span class="o">-</span><span class="n">nu</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span><span class="p">]])</span>
+    <span class="k">elif</span> <span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">E</span><span class="o">/</span><span class="p">((</span><span class="mi">1</span><span class="o">+</span><span class="n">nu</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="mi">2</span><span class="o">*</span><span class="n">nu</span><span class="p">))</span><span class="o">*</span><span class="n">MatrixFunction</span><span class="p">([[</span><span class="mi">1</span><span class="o">-</span><span class="n">nu</span><span class="p">,</span><span class="n">nu</span><span class="p">,</span><span class="n">nu</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span>
+                                                   <span class="p">[</span><span class="n">nu</span><span class="p">,</span><span class="mi">1</span><span class="o">-</span><span class="n">nu</span><span class="p">,</span><span class="n">nu</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span>
+                                                   <span class="p">[</span><span class="n">nu</span><span class="p">,</span><span class="n">nu</span><span class="p">,</span><span class="mi">1</span><span class="o">-</span><span class="n">nu</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span>
+                                                   <span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,(</span><span class="mi">1</span><span class="o">-</span><span class="n">nu</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span>
+                                                   <span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,(</span><span class="mi">1</span><span class="o">-</span><span class="n">nu</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span>
+                                                   <span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,(</span><span class="mi">1</span><span class="o">-</span><span class="n">nu</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span><span class="p">]])</span></div>
+
+
+<div class="viewcode-block" id="simplify_matrix">
+<a class="viewcode-back" href="../../topoptlab.symfem_utils.html#topoptlab.symfem_utils.simplify_matrix">[docs]</a>
+<span class="k">def</span> <span class="nf">simplify_matrix</span><span class="p">(</span><span class="n">M</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    simplify element-wise the given MatrixFunction.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    M : symfem.functions.MatrixFunction or list</span>
+<span class="sd">        matrix to be simplified.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    M_new : symfem.functions.MatrixFunction</span>
+<span class="sd">        simplified matrix.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">M</span><span class="p">,</span> <span class="n">MatrixFunction</span><span class="p">):</span>
+        <span class="n">nrow</span><span class="p">,</span><span class="n">ncol</span> <span class="o">=</span> <span class="n">M</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="n">M</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">M</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+        <span class="n">nrow</span><span class="p">,</span><span class="n">ncol</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">M</span><span class="p">),</span><span class="nb">len</span><span class="p">(</span><span class="n">M</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">M_new</span> <span class="o">=</span> <span class="p">[[</span><span class="mi">0</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">ncol</span><span class="p">)]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nrow</span><span class="p">)]</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span><span class="n">j</span> <span class="ow">in</span> <span class="n">product</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">M</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span><span class="nb">range</span><span class="p">(</span><span class="n">M</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])):</span>
+        <span class="n">M_new</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">M</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">as_sympy</span><span class="p">()</span><span class="o">.</span><span class="n">simplify</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">MatrixFunction</span><span class="p">(</span><span class="n">M_new</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="base_cell">
+<a class="viewcode-back" href="../../topoptlab.symfem_utils.html#topoptlab.symfem_utils.base_cell">[docs]</a>
+<span class="k">def</span> <span class="nf">base_cell</span><span class="p">(</span><span class="n">ndim</span><span class="p">,</span>
+              <span class="n">element_type</span><span class="o">=</span><span class="s2">&quot;Lagrange&quot;</span><span class="p">,</span>
+              <span class="n">order</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create the basic cell, location of vertices, the node indices, the</span>
+<span class="sd">    reference cell and the basis functions.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    ndim : int</span>
+<span class="sd">        number of spatial dimensions.</span>
+<span class="sd">    element_type : str</span>
+<span class="sd">        type of element.</span>
+<span class="sd">    order : int</span>
+<span class="sd">        order of element.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    vertices : tuple</span>
+<span class="sd">        coordinates of vertices</span>
+<span class="sd">    nd_inds : list</span>
+<span class="sd">        list of indices with regards to the reference cell of symfem. Check the</span>
+<span class="sd">        reference cell numbering out in the symfem documentation or git.</span>
+<span class="sd">    reference : symfem.references.vertices</span>
+<span class="sd">        reference cell object.</span>
+<span class="sd">    basis : list</span>
+<span class="sd">        list of basis functions.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">order</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">]:</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Beyond order 1 not yet implemented.&quot;</span><span class="p">)</span>
+    <span class="c1">#</span>
+    <span class="k">if</span> <span class="n">ndim</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">cell_name</span> <span class="o">=</span> <span class="s2">&quot;interval&quot;</span>
+    <span class="k">elif</span> <span class="n">ndim</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="n">cell_name</span> <span class="o">=</span> <span class="s2">&quot;quadrilateral&quot;</span>
+    <span class="k">elif</span> <span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="n">cell_name</span> <span class="o">=</span> <span class="s2">&quot;hexahedron&quot;</span>
+    <span class="c1">#</span>
+    <span class="k">if</span> <span class="n">order</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">element_type</span><span class="o">==</span><span class="s2">&quot;Lagrange&quot;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">ndim</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="c1"># Define the vertived and triangles of the mesh</span>
+            <span class="n">vertices</span> <span class="o">=</span> <span class="p">((</span><span class="o">-</span><span class="mi">1</span><span class="p">,),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,))</span>
+            <span class="c1"># node indices in reference cell of symfem. Check the git to see</span>
+            <span class="c1"># how the numbering is done.</span>
+            <span class="n">nd_inds</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="n">ndim</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="c1"># Define the vertived and triangles of the mesh</span>
+            <span class="n">vertices</span> <span class="o">=</span> <span class="p">((</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+            <span class="c1"># node indices in reference cell of symfem. Check the git to see</span>
+            <span class="c1"># how the numbering is done.</span>
+            <span class="n">nd_inds</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="c1"># Define the vertived and triangles of the mesh</span>
+            <span class="n">vertices</span> <span class="o">=</span> <span class="p">((</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span>
+                        <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+            <span class="c1"># node indices in reference cell of symfem. Check the git to see</span>
+            <span class="c1"># how the numbering is done.</span>
+            <span class="n">nd_inds</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span>
+                       <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">6</span><span class="p">]</span>
+    <span class="k">elif</span> <span class="n">order</span> <span class="o">==</span> <span class="mi">2</span> <span class="ow">and</span> <span class="n">element_type</span><span class="o">==</span><span class="s2">&quot;Lagrange&quot;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">ndim</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="c1"># Define the vertived and triangles of the mesh</span>
+            <span class="n">vertices</span> <span class="o">=</span> <span class="p">((</span><span class="o">-</span><span class="mi">1</span><span class="p">,),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,),</span> <span class="p">(</span><span class="mi">0</span><span class="p">,))</span>
+            <span class="c1"># node indices in reference cell of symfem. Check the git to see</span>
+            <span class="c1"># how the numbering is done.</span>
+            <span class="n">nd_inds</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="n">ndim</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="c1"># Define the vertived and triangles of the mesh</span>
+            <span class="n">vertices</span> <span class="o">=</span> <span class="p">((</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+                        <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> 
+                        <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="p">)</span>
+            <span class="c1"># node indices in reference cell of symfem. Check the git to see</span>
+            <span class="c1"># how the numbering is done.</span>
+            <span class="n">nd_inds</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span>
+                       <span class="mi">4</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> 
+                       <span class="mi">8</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="c1"># Define the vertived and triangles of the mesh</span>
+            <span class="n">vertices</span> <span class="o">=</span> <span class="p">((</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span>
+                        <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> 
+                        <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span>
+                        <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> 
+                        <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+                        <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+                        <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> 
+                        <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> 
+                        <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+            <span class="c1"># node indices in reference cell of symfem. Check the git to see</span>
+            <span class="c1"># how the numbering is done.</span>
+            <span class="n">nd_inds</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> 
+                       <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> 
+                       <span class="mi">8</span><span class="p">,</span> <span class="mi">11</span><span class="p">,</span> <span class="mi">13</span><span class="p">,</span> <span class="mi">9</span><span class="p">,</span> 
+                       <span class="mi">20</span><span class="p">,</span> 
+                       <span class="mi">10</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">15</span><span class="p">,</span> <span class="mi">14</span><span class="p">,</span> 
+                       <span class="mi">21</span><span class="p">,</span> <span class="mi">23</span><span class="p">,</span> <span class="mi">24</span><span class="p">,</span> <span class="mi">22</span><span class="p">,</span> 
+                       <span class="mi">26</span><span class="p">,</span> 
+                       <span class="mi">16</span><span class="p">,</span> <span class="mi">18</span><span class="p">,</span> <span class="mi">19</span><span class="p">,</span> <span class="mi">17</span><span class="p">,</span> 
+                       <span class="mi">25</span><span class="p">]</span>
+    <span class="k">elif</span> <span class="n">order</span> <span class="o">==</span> <span class="mi">3</span> <span class="ow">and</span> <span class="n">element_type</span><span class="o">==</span><span class="s2">&quot;Lagrange&quot;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">ndim</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="c1"># Define the vertived and triangles of the mesh</span>
+            <span class="n">vertices</span> <span class="o">=</span> <span class="p">((</span><span class="o">-</span><span class="mi">1</span><span class="p">,),</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="o">/</span><span class="mi">3</span><span class="p">,),</span> <span class="p">(</span><span class="mi">1</span><span class="o">/</span><span class="mi">3</span><span class="p">,),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,)</span> <span class="p">)</span>
+            <span class="c1"># node indices in reference cell of symfem. Check the git to see</span>
+            <span class="c1"># how the numbering is done.</span>
+            <span class="n">nd_inds</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+    <span class="c1"># reorder vertices according to the given node indices</span>
+    <span class="n">_vertices</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">vertices</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">nd_inds</span><span class="p">)</span>
+    <span class="c1"># create element</span>
+    <span class="n">element</span> <span class="o">=</span> <span class="n">create_element</span><span class="p">(</span><span class="n">cell_name</span><span class="p">,</span> <span class="n">element_type</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="n">order</span><span class="p">)</span>
+    <span class="c1"># Create a reference cell with these vertices: this will be used</span>
+    <span class="c1"># to compute the integrals</span>
+    <span class="n">reference</span> <span class="o">=</span> <span class="n">create_reference</span><span class="p">(</span><span class="n">cell_name</span><span class="p">,</span> <span class="n">vertices</span><span class="o">=</span><span class="n">_vertices</span><span class="p">)</span>
+    <span class="c1"># map the basis functions to the cell</span>
+    <span class="n">basis</span> <span class="o">=</span> <span class="n">element</span><span class="o">.</span><span class="n">map_to_cell</span><span class="p">(</span><span class="n">_vertices</span><span class="p">)</span>
+    <span class="c1"># reorder basis function according to the current node ordering</span>
+    <span class="n">basis</span> <span class="o">=</span> <span class="p">[</span><span class="n">basis</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">nd_inds</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">vertices</span><span class="p">,</span> <span class="n">nd_inds</span><span class="p">,</span> <span class="n">reference</span><span class="p">,</span> <span class="n">basis</span></div>
+
+
+<div class="viewcode-block" id="determine_nodeinds">
+<a class="viewcode-back" href="../../topoptlab.symfem_utils.html#topoptlab.symfem_utils.determine_nodeinds">[docs]</a>
+<span class="k">def</span> <span class="nf">determine_nodeinds</span><span class="p">(</span><span class="n">vertices</span><span class="p">,</span> <span class="n">basis_funcs</span><span class="p">,</span> <span class="n">ndim</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Find index of each vertex by finding the basis function that amounts to 1.</span>
+<span class="sd">    </span>
+<span class="sd">    For a set of vertex coordinates, determine to which basis function each</span>
+<span class="sd">    vertex corresponds. Keep in mind that the current default unit cell used </span>
+<span class="sd">    by symfem is in the interval [0,1] whereas mine is typically in the </span>
+<span class="sd">    interval [-1,1].</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    vertices : tuple</span>
+<span class="sd">        coordinates of vertices as created by base cell</span>
+<span class="sd">    basis_funcs : list of symfem.functions.ScalarFunction</span>
+<span class="sd">        list of basis functions which are usually extracted by calling</span>
+<span class="sd">        element.get_basis_functions().</span>
+<span class="sd">    ndim : int</span>
+<span class="sd">        number of dimensions</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    indices : list</span>
+<span class="sd">        indices of vertices</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">ndim</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">vertices</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">inds</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">vertex</span> <span class="ow">in</span> <span class="n">vertices</span><span class="p">:</span>
+        <span class="c1"># shift from interval [-1,1] to [0,1]</span>
+        <span class="n">vertex</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span><span class="o">/</span><span class="mi">2</span> <span class="o">+</span> <span class="mi">1</span><span class="o">/</span><span class="mi">2</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">vertex</span><span class="p">]</span>
+        <span class="c1"># evaluate basis functions at vertex</span>
+        <span class="n">ind</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span><span class="n">func</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">basis_funcs</span><span class="p">)</span> \
+               <span class="k">if</span> <span class="n">func</span><span class="o">.</span><span class="n">subs</span><span class="p">(</span><span class="nb">vars</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">,</span><span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;z&quot;</span><span class="p">][:</span><span class="n">ndim</span><span class="p">],</span> <span class="n">values</span><span class="o">=</span><span class="n">vertex</span><span class="p">)</span><span class="o">==</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">inds</span> <span class="o">=</span> <span class="n">inds</span> <span class="o">+</span> <span class="n">ind</span>
+    <span class="k">return</span> <span class="n">inds</span></div>
+
+
+<div class="viewcode-block" id="shape_function_matrix">
+<a class="viewcode-back" href="../../topoptlab.symfem_utils.html#topoptlab.symfem_utils.shape_function_matrix">[docs]</a>
+<span class="k">def</span> <span class="nf">shape_function_matrix</span><span class="p">(</span><span class="n">basis</span><span class="p">,</span><span class="n">nedof</span><span class="p">,</span>
+                          <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;col&quot;</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Generate the shape function matrix for scalar or vector fields.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    basis : list</span>
+<span class="sd">        list of basis functions as generated by base_cell</span>
+<span class="sd">    nedof : int</span>
+<span class="sd">        number of nodal degrees of freedom.</span>
+<span class="sd">    mode : str</span>
+<span class="sd">        either &quot;row&quot; or &quot;col&quot; which results in shape (nedof,n_nodes) or</span>
+<span class="sd">        (n_nodes,nedof)</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    shape_function_matrix : symfem.functions.MatrixFunction</span>
+<span class="sd">        shape function matrix either of shape</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1">#</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">basis</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+        <span class="n">n_nodes</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">basis</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">basis</span><span class="p">,</span> <span class="p">(</span><span class="n">VectorFunction</span><span class="p">,</span><span class="n">MatrixFunction</span><span class="p">)):</span>
+        <span class="n">n_nodes</span> <span class="o">=</span> <span class="n">basis</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">mode</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;row&quot;</span><span class="p">,</span><span class="s2">&quot;col&quot;</span><span class="p">]:</span>
+        <span class="c1">#</span>
+        <span class="n">shpfc_matr</span> <span class="o">=</span> <span class="p">[[</span><span class="mi">0</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nedof</span><span class="o">*</span><span class="n">n_nodes</span><span class="p">)]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nedof</span><span class="p">)]</span>
+        <span class="c1">#</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nedof</span><span class="p">):</span>
+            <span class="n">shpfc_matr</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">i</span><span class="p">::</span><span class="n">nedof</span><span class="p">]</span> <span class="o">=</span> <span class="n">basis</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Unknown construction mode.&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;col&quot;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">MatrixFunction</span><span class="p">(</span><span class="n">shpfc_matr</span><span class="p">)</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">MatrixFunction</span><span class="p">(</span><span class="n">shpfc_matr</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="small_strain_matrix">
+<a class="viewcode-back" href="../../topoptlab.symfem_utils.html#topoptlab.symfem_utils.small_strain_matrix">[docs]</a>
+<span class="k">def</span> <span class="nf">small_strain_matrix</span><span class="p">(</span><span class="n">ndim</span><span class="p">,</span><span class="n">nd_inds</span><span class="p">,</span><span class="n">basis</span><span class="p">,</span><span class="n">isoparam_kws</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create the small strain matrix commonly referred to as B matrix.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    ndim : int</span>
+<span class="sd">        number of spatial dimensions.</span>
+<span class="sd">    element_type : str</span>
+<span class="sd">        type of element.</span>
+<span class="sd">    order : int</span>
+<span class="sd">        order of element.</span>
+<span class="sd">    basis : list</span>
+<span class="sd">        list of basis functions as generated by base_cell</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    bmatrix : symfem.functions.Matrixfunction</span>
+<span class="sd">        small displacement matrix.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">nrows</span> <span class="o">=</span> <span class="nb">int</span><span class="p">((</span><span class="n">ndim</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">ndim</span><span class="p">)</span> <span class="o">/</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">ncols</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">ndim</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">nd_inds</span><span class="p">))</span>
+    <span class="c1"># compute gradients of basis functions</span>
+    <span class="n">Jinv</span> <span class="o">=</span> <span class="n">jacobian</span><span class="p">(</span><span class="n">ndim</span><span class="o">=</span><span class="n">ndim</span><span class="p">,</span>
+                    <span class="n">return_J</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">return_inv</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">return_det</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                    <span class="o">**</span><span class="n">isoparam_kws</span><span class="p">)</span>
+    <span class="n">gradN_T</span> <span class="o">=</span> <span class="p">(</span><span class="n">VectorFunction</span><span class="p">(</span><span class="n">basis</span><span class="p">)</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">ndim</span><span class="p">)</span><span class="nd">@Jinv</span><span class="o">.</span><span class="n">transpose</span><span class="p">())</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span>
+    <span class="c1">#</span>
+    <span class="n">bmatrix</span> <span class="o">=</span> <span class="p">[[</span><span class="mi">0</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">ncols</span><span class="p">)]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nrows</span><span class="p">)]</span>
+    <span class="c1"># tension</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">ndim</span><span class="p">):</span>
+        <span class="n">bmatrix</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">i</span><span class="p">::</span><span class="n">ndim</span><span class="p">]</span> <span class="o">=</span> <span class="n">gradN_T</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+    <span class="c1"># shear</span>
+    <span class="n">i</span><span class="p">,</span><span class="n">j</span> <span class="o">=</span> <span class="n">ndim</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span><span class="n">ndim</span><span class="o">-</span><span class="mi">1</span>
+    <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nrows</span><span class="o">-</span><span class="n">ndim</span><span class="p">):</span>
+        <span class="c1">#</span>
+        <span class="n">bmatrix</span><span class="p">[</span><span class="n">ndim</span><span class="o">+</span><span class="n">k</span><span class="p">][</span><span class="n">i</span><span class="p">::</span><span class="n">ndim</span><span class="p">]</span> <span class="o">=</span> <span class="n">gradN_T</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+        <span class="n">bmatrix</span><span class="p">[</span><span class="n">ndim</span><span class="o">+</span><span class="n">k</span><span class="p">][</span><span class="n">j</span><span class="p">::</span><span class="n">ndim</span><span class="p">]</span> <span class="o">=</span> <span class="n">gradN_T</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="c1">#</span>
+        <span class="n">i</span><span class="p">,</span><span class="n">j</span> <span class="o">=</span> <span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">%</span><span class="n">ndim</span> <span class="p">,</span> <span class="p">(</span><span class="n">j</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">%</span><span class="n">ndim</span>
+    <span class="k">return</span> <span class="n">MatrixFunction</span><span class="p">(</span><span class="n">bmatrix</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="scale_cell">
+<a class="viewcode-back" href="../../topoptlab.symfem_utils.html#topoptlab.symfem_utils.scale_cell">[docs]</a>
+<span class="k">def</span> <span class="nf">scale_cell</span><span class="p">(</span><span class="n">vertices</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Scale/rotate the vertices/nodes basic cell by lengths l and angles g.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    vertices : tuple</span>
+<span class="sd">        coordinates of vertices as created by base cell</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    vertices_new : symfem.functions.MatrixFunction, shape (ndim,1)</span>
+<span class="sd">        coordinate according to ispoarametric map</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span> <span class="nn">sympy.functions.elementary.trigonometric</span> <span class="kn">import</span> <span class="n">tan</span>
+    <span class="c1">#</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">vertices</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+        <span class="n">vertices</span> <span class="o">=</span> <span class="n">MatrixFunction</span><span class="p">(</span><span class="n">vertices</span><span class="p">)</span>
+    <span class="c1">#</span>
+    <span class="n">ndim</span> <span class="o">=</span> <span class="n">vertices</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="c1"># rotation angles</span>
+    <span class="n">g</span> <span class="o">=</span> <span class="n">generate_constMatrix</span><span class="p">(</span><span class="n">ncol</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span><span class="n">nrow</span><span class="o">=</span><span class="n">ndim</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;g&quot;</span><span class="p">)</span>
+    <span class="c1"># create rotation matrix</span>
+    <span class="n">R</span> <span class="o">=</span> <span class="p">[</span> <span class="p">[</span><span class="mi">0</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">ndim</span><span class="p">)]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">ndim</span><span class="p">)]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">ndim</span><span class="p">):</span>
+        <span class="n">R</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">ndim</span><span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+        <span class="n">R</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">tan</span><span class="p">(</span><span class="n">g</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">R</span> <span class="o">=</span> <span class="n">MatrixFunction</span><span class="p">(</span><span class="n">R</span><span class="p">)</span>
+    <span class="c1"># cell lengths</span>
+    <span class="n">l</span> <span class="o">=</span> <span class="n">generate_constMatrix</span><span class="p">(</span><span class="n">ncol</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span><span class="n">nrow</span><span class="o">=</span><span class="n">ndim</span><span class="p">,</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;l&quot;</span><span class="p">)</span>
+    <span class="c1"># create stretch matrix</span>
+    <span class="n">S</span> <span class="o">=</span> <span class="p">[</span> <span class="p">[</span><span class="mi">0</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">ndim</span><span class="p">)]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">ndim</span><span class="p">)]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">ndim</span><span class="p">):</span>
+        <span class="n">S</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">l</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">S</span> <span class="o">=</span> <span class="n">MatrixFunction</span><span class="p">(</span><span class="n">S</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span>
+    <span class="c1"># affine transformation matrix</span>
+    <span class="k">return</span> <span class="n">vertices</span><span class="o">@</span><span class="p">(</span><span class="n">R</span><span class="nd">@S</span><span class="p">)</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="isoparametric_map">
+<a class="viewcode-back" href="../../topoptlab.symfem_utils.html#topoptlab.symfem_utils.isoparametric_map">[docs]</a>
+<span class="k">def</span> <span class="nf">isoparametric_map</span><span class="p">(</span><span class="n">basis</span><span class="p">,</span><span class="n">vertices</span><span class="p">,</span><span class="n">ndim</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create the basic cell, location of vertices, the node indices, the</span>
+<span class="sd">    reference cell and the basis functions.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    basis : list</span>
+<span class="sd">        list of basis functions.</span>
+<span class="sd">    vertices : tuple</span>
+<span class="sd">        coordinates of vertices as created by base cell</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    coord : symfem.functions.MatrixFunction, shape (ndim,1)</span>
+<span class="sd">        coordinate according to ispoarametric map</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1">#</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">vertices</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+        <span class="n">vertices</span> <span class="o">=</span> <span class="n">MatrixFunction</span><span class="p">(</span><span class="n">vertices</span><span class="p">)</span>
+    <span class="c1"># get number of nodes and convert to Matrix function</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">basis</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+        <span class="n">basis</span> <span class="o">=</span> <span class="n">MatrixFunction</span><span class="p">([[</span><span class="n">b</span><span class="p">]</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">basis</span><span class="p">])</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">basis</span><span class="p">,</span> <span class="p">(</span><span class="n">VectorFunction</span><span class="p">)):</span>
+        <span class="n">basis</span> <span class="o">=</span> <span class="n">MatrixFunction</span><span class="p">([[</span><span class="n">b</span><span class="p">]</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">basis</span><span class="p">])</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">basis</span><span class="p">,</span><span class="n">MatrixFunction</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">basis</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;If basis is provided as MatrixFunction, must have shape (n_nodes,1)&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">vertices</span><span class="o">.</span><span class="n">tranpose</span><span class="p">()</span><span class="nd">@basis</span></div>
+
+
+<div class="viewcode-block" id="jacobian">
+<a class="viewcode-back" href="../../topoptlab.symfem_utils.html#topoptlab.symfem_utils.jacobian">[docs]</a>
+<span class="k">def</span> <span class="nf">jacobian</span><span class="p">(</span><span class="n">ndim</span><span class="p">,</span>
+             <span class="n">element_type</span><span class="o">=</span><span class="s2">&quot;Lagrange&quot;</span><span class="p">,</span>
+             <span class="n">order</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+             <span class="n">return_J</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+             <span class="n">return_inv</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+             <span class="n">return_det</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+             <span class="n">debug</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Symbolically compute the Jacobian of the isoparametric mapping.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    ndim : int</span>
+<span class="sd">        number of spatial dimensions. Must be between 1 and 3.</span>
+<span class="sd">    element_type : str</span>
+<span class="sd">        type of element.</span>
+<span class="sd">    order : int</span>
+<span class="sd">        order of element.</span>
+<span class="sd">    return_J : bool</span>
+<span class="sd">        if True, return Jacobian matrix.</span>
+<span class="sd">    return_inv : bool</span>
+<span class="sd">        if True, return inverse of Jacobian matrix.</span>
+<span class="sd">    return_det : bool</span>
+<span class="sd">        if True, return determinant of Jacobian matrix.</span>
+<span class="sd">    debug : bool</span>
+<span class="sd">        if True, print additional information.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    J : symfem.functions.MatrixFunction</span>
+<span class="sd">        jacobian of isoparametric mapping.</span>
+<span class="sd">    Jinv : symfem.functions.MatrixFunction</span>
+<span class="sd">        inverse of jacobian of isoparametric mapping.</span>
+<span class="sd">    Jdet : symfem.functions.MatrixFunction</span>
+<span class="sd">        determinant of jacobian of isoparametric mapping.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1">#</span>
+    <span class="n">vertices</span><span class="p">,</span> <span class="n">nd_inds</span><span class="p">,</span> <span class="n">ref</span><span class="p">,</span> <span class="n">basis</span>  <span class="o">=</span> <span class="n">base_cell</span><span class="p">(</span><span class="n">ndim</span><span class="o">=</span><span class="n">ndim</span><span class="p">,</span>
+                                               <span class="n">element_type</span><span class="o">=</span><span class="n">element_type</span><span class="p">,</span>
+                                               <span class="n">order</span><span class="o">=</span><span class="n">order</span><span class="p">)</span>
+    <span class="c1">#</span>
+    <span class="n">gradN</span> <span class="o">=</span> <span class="n">VectorFunction</span><span class="p">(</span><span class="n">basis</span><span class="p">)</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="n">ndim</span><span class="p">)</span>
+    <span class="c1">#</span>
+    <span class="n">scaled</span> <span class="o">=</span> <span class="n">scale_cell</span><span class="p">(</span><span class="n">vertices</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">debug</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;cell in physical space:</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">scaled</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;basis functions in reference space:</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">basis</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;gradient of basis functions in reference space:</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span><span class="n">gradN</span><span class="p">)</span>
+    <span class="c1">#</span>
+    <span class="n">J</span> <span class="o">=</span> <span class="n">simplify_matrix</span><span class="p">(</span> <span class="n">gradN</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span><span class="nd">@scaled</span> <span class="p">)</span>
+    <span class="k">if</span> <span class="n">return_det</span> <span class="ow">or</span> <span class="n">return_inv</span><span class="p">:</span>
+        <span class="n">Jdet</span> <span class="o">=</span> <span class="n">J</span><span class="o">.</span><span class="n">det</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">return_inv</span><span class="p">:</span>
+        <span class="c1"># adjungate matrix</span>
+        <span class="n">Jinv</span> <span class="o">=</span> <span class="p">[[[]</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">ndim</span><span class="p">)]</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">ndim</span><span class="p">)]</span>
+        <span class="k">if</span> <span class="n">ndim</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">Jinv</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span><span class="n">J</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="n">Jdet</span>
+        <span class="k">elif</span> <span class="n">ndim</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">Jinv</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="n">Jinv</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">J</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="o">/</span><span class="n">Jdet</span><span class="p">,</span> <span class="n">J</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">/</span><span class="n">Jdet</span>
+            <span class="n">Jinv</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span> <span class="n">Jinv</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="n">J</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="o">/</span><span class="n">Jdet</span><span class="p">,</span> <span class="o">-</span><span class="n">J</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">/</span><span class="n">Jdet</span>
+        <span class="k">elif</span> <span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="c1">#</span>
+            <span class="n">Jinv</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">J</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="n">J</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">J</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span><span class="o">*</span><span class="n">J</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">1</span><span class="p">])</span> <span class="o">/</span> <span class="n">Jdet</span>
+            <span class="n">Jinv</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="p">(</span><span class="n">J</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="n">J</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">J</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span><span class="o">*</span><span class="n">J</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">1</span><span class="p">])</span> <span class="o">/</span> <span class="n">Jdet</span>
+            <span class="n">Jinv</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">J</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="n">J</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">J</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span><span class="o">*</span><span class="n">J</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">])</span> <span class="o">/</span> <span class="n">Jdet</span>
+            <span class="c1">#</span>
+            <span class="n">Jinv</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="p">(</span><span class="n">J</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">J</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">J</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span><span class="o">*</span><span class="n">J</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span> <span class="o">/</span> <span class="n">Jdet</span>
+            <span class="n">Jinv</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">J</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">J</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">J</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span><span class="o">*</span><span class="n">J</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="p">)</span> <span class="o">/</span> <span class="n">Jdet</span>
+            <span class="n">Jinv</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="p">(</span><span class="n">J</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">J</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">J</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span><span class="o">*</span><span class="n">J</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span> <span class="o">/</span> <span class="n">Jdet</span>
+            <span class="c1">#</span>
+            <span class="n">Jinv</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">J</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">J</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">J</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="n">J</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span> <span class="o">/</span> <span class="n">Jdet</span>
+            <span class="n">Jinv</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="p">(</span><span class="n">J</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">J</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">J</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="n">J</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span> <span class="o">/</span> <span class="n">Jdet</span>
+            <span class="n">Jinv</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">J</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">J</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">J</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="n">J</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span> <span class="o">/</span> <span class="n">Jdet</span>
+        <span class="c1">#</span>
+        <span class="n">Jinv</span> <span class="o">=</span> <span class="n">simplify_matrix</span><span class="p">(</span> <span class="n">MatrixFunction</span><span class="p">(</span><span class="n">Jinv</span><span class="p">)</span> <span class="p">)</span>
+    <span class="k">if</span> <span class="nb">all</span><span class="p">([</span><span class="n">return_J</span><span class="p">,</span> <span class="ow">not</span> <span class="n">return_inv</span><span class="p">,</span> <span class="ow">not</span> <span class="n">return_det</span><span class="p">]):</span>
+        <span class="k">return</span> <span class="n">J</span>
+    <span class="k">elif</span> <span class="nb">all</span><span class="p">([</span><span class="ow">not</span> <span class="n">return_J</span><span class="p">,</span> <span class="n">return_inv</span><span class="p">,</span> <span class="ow">not</span> <span class="n">return_det</span><span class="p">]):</span>
+        <span class="k">return</span> <span class="n">Jinv</span>
+    <span class="k">elif</span> <span class="nb">all</span><span class="p">([</span><span class="ow">not</span> <span class="n">return_J</span><span class="p">,</span> <span class="ow">not</span> <span class="n">return_inv</span><span class="p">,</span> <span class="n">return_det</span><span class="p">]):</span>
+        <span class="k">return</span> <span class="n">Jdet</span>
+    <span class="k">elif</span> <span class="nb">all</span><span class="p">([</span><span class="n">return_J</span><span class="p">,</span> <span class="n">return_inv</span><span class="p">,</span> <span class="ow">not</span> <span class="n">return_det</span><span class="p">]):</span>
+        <span class="k">return</span> <span class="n">J</span><span class="p">,</span> <span class="n">Jinv</span>
+    <span class="k">elif</span> <span class="nb">all</span><span class="p">([</span><span class="n">return_J</span><span class="p">,</span> <span class="ow">not</span> <span class="n">return_inv</span><span class="p">,</span> <span class="n">return_det</span><span class="p">]):</span>
+        <span class="k">return</span> <span class="n">J</span><span class="p">,</span> <span class="n">Jdet</span>
+    <span class="k">elif</span> <span class="nb">all</span><span class="p">([</span><span class="ow">not</span> <span class="n">return_J</span><span class="p">,</span> <span class="n">return_inv</span><span class="p">,</span> <span class="n">return_det</span><span class="p">]):</span>
+        <span class="k">return</span> <span class="n">Jinv</span><span class="p">,</span> <span class="n">Jdet</span>
+    <span class="k">elif</span> <span class="nb">all</span><span class="p">([</span><span class="n">return_J</span><span class="p">,</span><span class="n">return_inv</span><span class="p">,</span><span class="n">return_det</span><span class="p">]):</span>
+        <span class="k">return</span> <span class="n">J</span><span class="p">,</span> <span class="n">Jinv</span><span class="p">,</span> <span class="n">Jdet</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;At least on of the return options must be True.&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="rotation_matrix">
+<a class="viewcode-back" href="../../topoptlab.symfem_utils.html#topoptlab.symfem_utils.rotation_matrix">[docs]</a>
+<span class="k">def</span> <span class="nf">rotation_matrix</span><span class="p">(</span><span class="n">ndim</span><span class="p">,</span><span class="n">mode</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    rotation matrix around y and z axis with angles phi (y axis) and theta</span>
+<span class="sd">    (z axis).</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    ndim : int</span>
+<span class="sd">        number of spatial dimensions.</span>
+<span class="sd">    mode : str or None</span>
+<span class="sd">        Either None or &quot;voigt&quot;. If None, returns the standard rotation matrix.</span>
+<span class="sd">        Either None or &quot;voigt&quot;. If None, returns the standard rotation matrix.</span>
+<span class="sd">        If &quot;voigt&quot; rotation matrix for 2nd rank tensors in Voigt notation</span>
+<span class="sd">        (&quot;Voigt vectors&quot;)  or 4th rank tensors (&quot;Voigt matrices&quot;).</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    R : symfem.functions.MatrixFunction, shape (ndim,ndim) or</span>
+<span class="sd">        ((ndim**2 + ndim) /2,(ndim**2 + ndim) /2)</span>
+<span class="sd">        rotation matrix.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span> <span class="nn">sympy.functions.elementary.trigonometric</span> <span class="kn">import</span> <span class="n">sin</span><span class="p">,</span><span class="n">cos</span>
+    <span class="c1"># introduce angle variables</span>
+    <span class="k">if</span> <span class="n">ndim</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">pass</span>
+    <span class="k">elif</span> <span class="n">ndim</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="n">theta</span> <span class="o">=</span> <span class="n">symbols</span><span class="p">(</span><span class="s2">&quot;theta&quot;</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="n">theta</span><span class="p">,</span><span class="n">phi</span> <span class="o">=</span> <span class="n">symbols</span><span class="p">(</span><span class="s2">&quot;theta phi&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;ndim has to be integer and between 1 and 3.&quot;</span><span class="p">)</span>
+    <span class="c1"># standard rotation matrix</span>
+    <span class="k">if</span> <span class="n">mode</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">ndim</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">R</span> <span class="o">=</span>  <span class="n">MatrixFunction</span><span class="p">([[</span><span class="mi">1</span><span class="p">]])</span>
+        <span class="k">elif</span> <span class="n">ndim</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">theta</span> <span class="o">=</span> <span class="n">symbols</span><span class="p">(</span><span class="s2">&quot;theta&quot;</span><span class="p">)</span>
+            <span class="n">R</span> <span class="o">=</span>  <span class="n">MatrixFunction</span><span class="p">([[</span><span class="n">cos</span><span class="p">(</span><span class="n">theta</span><span class="p">),</span><span class="o">-</span><span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">)],</span>
+                                 <span class="p">[</span><span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">),</span><span class="n">cos</span><span class="p">(</span><span class="n">theta</span><span class="p">)]])</span>
+        <span class="k">elif</span> <span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="n">theta</span><span class="p">,</span><span class="n">phi</span> <span class="o">=</span> <span class="n">symbols</span><span class="p">(</span><span class="s2">&quot;theta phi&quot;</span><span class="p">)</span>
+            <span class="n">R</span> <span class="o">=</span> <span class="n">MatrixFunction</span><span class="p">([[</span><span class="n">cos</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span><span class="o">*</span><span class="n">cos</span><span class="p">(</span><span class="n">phi</span><span class="p">),</span><span class="o">-</span><span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">),</span><span class="n">cos</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span><span class="o">*</span><span class="n">sin</span><span class="p">(</span><span class="n">phi</span><span class="p">)],</span>
+                                <span class="p">[</span><span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span><span class="o">*</span><span class="n">cos</span><span class="p">(</span><span class="n">phi</span><span class="p">),</span><span class="n">cos</span><span class="p">(</span><span class="n">theta</span><span class="p">),</span><span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span><span class="o">*</span><span class="n">sin</span><span class="p">(</span><span class="n">phi</span><span class="p">)],</span>
+                                <span class="p">[</span><span class="o">-</span><span class="n">sin</span><span class="p">(</span><span class="n">phi</span><span class="p">),</span><span class="mi">0</span><span class="p">,</span><span class="n">cos</span><span class="p">(</span><span class="n">phi</span><span class="p">)]])</span>
+        <span class="k">return</span> <span class="n">R</span>
+    <span class="k">elif</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;voigt&quot;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">ndim</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">R</span> <span class="o">=</span>  <span class="n">MatrixFunction</span><span class="p">([[</span><span class="mi">1</span><span class="p">]])</span>
+        <span class="k">elif</span> <span class="n">ndim</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">R</span> <span class="o">=</span> <span class="n">MatrixFunction</span><span class="p">([[</span><span class="n">cos</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span> <span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span> <span class="o">-</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">theta</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span><span class="p">],</span>
+                                <span class="p">[</span><span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span> <span class="n">cos</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span>  <span class="n">sin</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">theta</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span><span class="p">],</span>
+                                <span class="p">[</span> <span class="n">sin</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">theta</span><span class="p">),</span> <span class="o">-</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">theta</span><span class="p">),</span>    <span class="n">cos</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">theta</span><span class="p">)]])</span>
+        <span class="k">elif</span> <span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="n">R</span> <span class="o">=</span> <span class="n">MatrixFunction</span><span class="p">([[</span><span class="n">cos</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="o">*</span><span class="n">cos</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span>
+                                 <span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span>
+                                 <span class="n">sin</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="o">*</span><span class="n">cos</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span>
+                                 <span class="mi">0</span><span class="p">,</span>
+                                 <span class="n">sin</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span><span class="o">*</span><span class="n">cos</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span><span class="o">*</span><span class="n">cos</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span>
+                                 <span class="mi">0</span><span class="p">],</span>
+                                <span class="p">[</span><span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="o">*</span><span class="n">cos</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span>
+                                 <span class="n">cos</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span>
+                                 <span class="n">sin</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="o">*</span><span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span>
+                                 <span class="mi">0</span><span class="p">,</span>
+                                 <span class="n">sin</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span><span class="o">*</span><span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="o">*</span><span class="n">cos</span><span class="p">(</span><span class="n">phi</span><span class="p">),</span>
+                                 <span class="mi">0</span><span class="p">],</span>
+                                <span class="p">[</span><span class="n">sin</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span>
+                                 <span class="mi">0</span><span class="p">,</span>
+                                 <span class="n">cos</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span>
+                                 <span class="mi">0</span><span class="p">,</span>
+                                 <span class="o">-</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span>
+                                 <span class="mi">0</span><span class="p">],</span>
+                                <span class="p">[</span><span class="o">-</span><span class="n">cos</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span> <span class="o">-</span> <span class="n">theta</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span> <span class="o">+</span> <span class="n">cos</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span> <span class="o">+</span> <span class="n">theta</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span>
+                                 <span class="mi">0</span><span class="p">,</span>
+                                 <span class="n">cos</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span> <span class="o">-</span> <span class="n">theta</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span> <span class="o">-</span> <span class="n">cos</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span> <span class="o">+</span> <span class="n">theta</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span>
+                                 <span class="mi">0</span><span class="p">,</span>
+                                 <span class="o">-</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span> <span class="o">-</span> <span class="n">theta</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span> <span class="o">+</span> <span class="n">sin</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span> <span class="o">+</span> <span class="n">theta</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span>
+                                 <span class="mi">0</span><span class="p">],</span>
+                                <span class="p">[</span><span class="o">-</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span> <span class="o">-</span> <span class="n">theta</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span> <span class="o">-</span> <span class="n">sin</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span> <span class="o">+</span> <span class="n">theta</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span>
+                                 <span class="mi">0</span><span class="p">,</span>
+                                 <span class="n">sin</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span> <span class="o">-</span> <span class="n">theta</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span> <span class="o">+</span> <span class="n">sin</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span> <span class="o">+</span> <span class="n">theta</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span>
+                                 <span class="mi">0</span><span class="p">,</span>
+                                 <span class="n">cos</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span> <span class="o">-</span> <span class="n">theta</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span> <span class="o">+</span> <span class="n">cos</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span> <span class="o">+</span> <span class="n">theta</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span>
+                                 <span class="mi">0</span><span class="p">],</span>
+                                <span class="p">[</span><span class="mi">2</span><span class="o">*</span><span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span><span class="o">*</span><span class="n">cos</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="o">*</span><span class="n">cos</span><span class="p">(</span><span class="n">theta</span><span class="p">),</span>
+                                 <span class="o">-</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">theta</span><span class="p">),</span>
+                                 <span class="mi">2</span><span class="o">*</span><span class="n">sin</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="o">*</span><span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span><span class="o">*</span><span class="n">cos</span><span class="p">(</span><span class="n">theta</span><span class="p">),</span>
+                                 <span class="mi">0</span><span class="p">,</span>
+                                 <span class="n">cos</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span> <span class="o">-</span> <span class="mi">2</span><span class="o">*</span><span class="n">theta</span><span class="p">)</span><span class="o">/</span><span class="mi">4</span> <span class="o">-</span> <span class="n">cos</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span> <span class="o">+</span> <span class="mi">2</span><span class="o">*</span><span class="n">theta</span><span class="p">)</span><span class="o">/</span><span class="mi">4</span><span class="p">,</span>
+                                 <span class="mi">0</span><span class="p">]])</span>
+        <span class="k">return</span> <span class="n">R</span></div>
+
+
+<div class="viewcode-block" id="rotation_matrix_dangle">
+<a class="viewcode-back" href="../../topoptlab.symfem_utils.html#topoptlab.symfem_utils.rotation_matrix_dangle">[docs]</a>
+<span class="k">def</span> <span class="nf">rotation_matrix_dangle</span><span class="p">(</span><span class="n">ndim</span><span class="p">,</span><span class="n">mode</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    1st derivative of rotation matrix around y and z axis with angles phi</span>
+<span class="sd">    (y axis) and theta (z axis).</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    ndim : int</span>
+<span class="sd">        number of spatial dimensions.</span>
+<span class="sd">    mode : str or None</span>
+<span class="sd">        Either None or &quot;voigt&quot;. If None, returns derivatives of the standard</span>
+<span class="sd">        rotation matrix. If &quot;voigt&quot; rotation matrix for 2nd rank tensors in</span>
+<span class="sd">        Voigt notation (&quot;Voigt vectors&quot;)  or 4th rank tensors</span>
+<span class="sd">        (&quot;Voigt matrices&quot;).</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    dRdtheta : symfem.functions.MatrixFunction, shape (ndim,ndim) or</span>
+<span class="sd">        ((ndim**2 + ndim) /2,(ndim**2 + ndim) /2)</span>
+<span class="sd">        1st derivative of rotation matrix with regards to theta.</span>
+<span class="sd">    dRdphi : symfem.functions.MatrixFunction, shape (ndim,ndim) or</span>
+<span class="sd">        ((ndim**2 + ndim) /2,(ndim**2 + ndim) /2)</span>
+<span class="sd">        1st derivative of rotation matrix with regards to phi.</span>
+
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">from</span> <span class="nn">sympy.functions.elementary.trigonometric</span> <span class="kn">import</span> <span class="n">sin</span><span class="p">,</span><span class="n">cos</span>
+    <span class="c1"># introduce angle variables</span>
+    <span class="k">if</span> <span class="n">ndim</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">pass</span>
+    <span class="k">elif</span> <span class="n">ndim</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="n">theta</span> <span class="o">=</span> <span class="n">symbols</span><span class="p">(</span><span class="s2">&quot;theta&quot;</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="n">theta</span><span class="p">,</span><span class="n">phi</span> <span class="o">=</span> <span class="n">symbols</span><span class="p">(</span><span class="s2">&quot;theta phi&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;ndim has to be integer and between 1 and 3.&quot;</span><span class="p">)</span>
+    <span class="c1"># standard rotation matrix</span>
+    <span class="k">if</span> <span class="n">mode</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">ndim</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">R</span> <span class="o">=</span>  <span class="n">MatrixFunction</span><span class="p">([[</span><span class="mi">1</span><span class="p">]])</span>
+        <span class="k">elif</span> <span class="n">ndim</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">theta</span> <span class="o">=</span> <span class="n">symbols</span><span class="p">(</span><span class="s2">&quot;theta&quot;</span><span class="p">)</span>
+            <span class="n">dRdtheta</span> <span class="o">=</span>  <span class="n">MatrixFunction</span><span class="p">([[</span><span class="o">-</span><span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">),</span> <span class="o">-</span><span class="n">cos</span><span class="p">(</span><span class="n">theta</span><span class="p">)],</span>
+                                        <span class="p">[</span><span class="n">cos</span><span class="p">(</span><span class="n">theta</span><span class="p">),</span> <span class="o">-</span><span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">)]])</span>
+            <span class="k">return</span> <span class="n">dRdtheta</span>
+
+        <span class="k">elif</span> <span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="n">theta</span><span class="p">,</span><span class="n">phi</span> <span class="o">=</span> <span class="n">symbols</span><span class="p">(</span><span class="s2">&quot;theta phi&quot;</span><span class="p">)</span>
+            <span class="n">dRdtheta</span> <span class="o">=</span> <span class="n">MatrixFunction</span><span class="p">([[</span><span class="o">-</span><span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span><span class="o">*</span><span class="n">cos</span><span class="p">(</span><span class="n">phi</span><span class="p">),</span> <span class="o">-</span><span class="n">cos</span><span class="p">(</span><span class="n">theta</span><span class="p">),</span> <span class="o">-</span><span class="n">sin</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span><span class="o">*</span><span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">)],</span>
+                                       <span class="p">[</span><span class="n">cos</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span><span class="o">*</span><span class="n">cos</span><span class="p">(</span><span class="n">theta</span><span class="p">),</span> <span class="o">-</span><span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">),</span>  <span class="n">sin</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span><span class="o">*</span><span class="n">cos</span><span class="p">(</span><span class="n">theta</span><span class="p">)],</span>
+                                       <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]])</span>
+            <span class="n">dRdphi</span> <span class="o">=</span> <span class="n">MatrixFunction</span><span class="p">([[</span><span class="o">-</span><span class="n">sin</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span><span class="o">*</span><span class="n">cos</span><span class="p">(</span><span class="n">theta</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span> <span class="n">cos</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span><span class="o">*</span><span class="n">cos</span><span class="p">(</span><span class="n">theta</span><span class="p">)],</span>
+                                     <span class="p">[</span><span class="o">-</span><span class="n">sin</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span><span class="o">*</span><span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span> <span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span><span class="o">*</span><span class="n">cos</span><span class="p">(</span><span class="n">phi</span><span class="p">)],</span>
+                                     <span class="p">[</span><span class="o">-</span><span class="n">cos</span><span class="p">(</span><span class="n">phi</span><span class="p">),</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="n">sin</span><span class="p">(</span><span class="n">phi</span><span class="p">)]])</span>
+
+            <span class="k">return</span> <span class="n">dRdtheta</span><span class="p">,</span><span class="n">dRdphi</span>
+    <span class="k">elif</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;voigt&quot;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">ndim</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">R</span> <span class="o">=</span>  <span class="n">MatrixFunction</span><span class="p">([[</span><span class="mi">1</span><span class="p">]])</span>
+        <span class="k">elif</span> <span class="n">ndim</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">dRdtheta</span> <span class="o">=</span> <span class="n">MatrixFunction</span><span class="p">([[</span><span class="o">-</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">theta</span><span class="p">),</span> <span class="n">sin</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">theta</span><span class="p">),</span> <span class="o">-</span><span class="n">cos</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">theta</span><span class="p">)],</span>
+                                       <span class="p">[</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">theta</span><span class="p">),</span>   <span class="o">-</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">theta</span><span class="p">),</span>    <span class="n">cos</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">theta</span><span class="p">)],</span>
+                                       <span class="p">[</span><span class="mi">2</span><span class="o">*</span><span class="n">cos</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">theta</span><span class="p">),</span> <span class="o">-</span><span class="mi">2</span><span class="o">*</span><span class="n">cos</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">theta</span><span class="p">),</span> <span class="o">-</span><span class="mi">2</span><span class="o">*</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">theta</span><span class="p">)]])</span>
+            <span class="k">return</span> <span class="n">dRdtheta</span>
+        <span class="k">elif</span> <span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="n">dRdtheta</span> <span class="o">=</span> <span class="n">MatrixFunction</span><span class="p">([[</span><span class="o">-</span><span class="mi">2</span><span class="o">*</span><span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span><span class="o">*</span><span class="n">cos</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="o">*</span><span class="n">cos</span><span class="p">(</span><span class="n">theta</span><span class="p">),</span>
+                                        <span class="n">sin</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">theta</span><span class="p">),</span>
+                                        <span class="o">-</span><span class="mi">2</span><span class="o">*</span><span class="n">sin</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="o">*</span><span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span><span class="o">*</span><span class="n">cos</span><span class="p">(</span><span class="n">theta</span><span class="p">),</span>
+                                        <span class="mi">0</span><span class="p">,</span>
+                                        <span class="o">-</span><span class="n">cos</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span> <span class="o">-</span> <span class="mi">2</span><span class="o">*</span><span class="n">theta</span><span class="p">)</span><span class="o">/</span><span class="mi">4</span> <span class="o">+</span> <span class="n">cos</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span> <span class="o">+</span> <span class="mi">2</span><span class="o">*</span><span class="n">theta</span><span class="p">)</span><span class="o">/</span><span class="mi">4</span><span class="p">,</span>
+                                        <span class="mi">0</span><span class="p">],</span>
+                                       <span class="p">[</span><span class="mi">2</span><span class="o">*</span><span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span><span class="o">*</span><span class="n">cos</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="o">*</span><span class="n">cos</span><span class="p">(</span><span class="n">theta</span><span class="p">),</span>
+                                        <span class="o">-</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">theta</span><span class="p">),</span>
+                                        <span class="mi">2</span><span class="o">*</span><span class="n">sin</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="o">*</span><span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span><span class="o">*</span><span class="n">cos</span><span class="p">(</span><span class="n">theta</span><span class="p">),</span>
+                                        <span class="mi">0</span><span class="p">,</span>
+                                        <span class="n">cos</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span> <span class="o">-</span> <span class="mi">2</span><span class="o">*</span><span class="n">theta</span><span class="p">)</span><span class="o">/</span><span class="mi">4</span> <span class="o">-</span> <span class="n">cos</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span> <span class="o">+</span> <span class="mi">2</span><span class="o">*</span><span class="n">theta</span><span class="p">)</span><span class="o">/</span><span class="mi">4</span><span class="p">,</span>
+                                        <span class="mi">0</span><span class="p">],</span>
+                                       <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
+                                       <span class="p">[</span><span class="o">-</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span> <span class="o">-</span> <span class="n">theta</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span> <span class="o">-</span> <span class="n">sin</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span> <span class="o">+</span> <span class="n">theta</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span>
+                                        <span class="mi">0</span><span class="p">,</span>
+                                        <span class="n">sin</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span> <span class="o">-</span> <span class="n">theta</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span> <span class="o">+</span> <span class="n">sin</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span> <span class="o">+</span> <span class="n">theta</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span>
+                                        <span class="mi">0</span><span class="p">,</span>
+                                        <span class="n">cos</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span> <span class="o">-</span> <span class="n">theta</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span> <span class="o">+</span> <span class="n">cos</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span> <span class="o">+</span> <span class="n">theta</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span>
+                                        <span class="mi">0</span><span class="p">],</span>
+                                       <span class="p">[</span><span class="n">cos</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span> <span class="o">-</span> <span class="n">theta</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span> <span class="o">-</span> <span class="n">cos</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span> <span class="o">+</span> <span class="n">theta</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span>
+                                        <span class="mi">0</span><span class="p">,</span>
+                                        <span class="o">-</span><span class="n">cos</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span> <span class="o">-</span> <span class="n">theta</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span> <span class="o">+</span> <span class="n">cos</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span> <span class="o">+</span> <span class="n">theta</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span>
+                                        <span class="mi">0</span><span class="p">,</span>
+                                        <span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">sin</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">),</span>
+                                        <span class="mi">0</span><span class="p">],</span>
+                                       <span class="p">[</span><span class="mi">2</span><span class="o">*</span><span class="n">cos</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="o">*</span><span class="n">cos</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">theta</span><span class="p">),</span>
+                                        <span class="o">-</span><span class="mi">2</span><span class="o">*</span><span class="n">cos</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">theta</span><span class="p">),</span>
+                                        <span class="mi">2</span><span class="o">*</span><span class="n">sin</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="o">*</span><span class="n">cos</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">theta</span><span class="p">),</span>
+                                        <span class="mi">0</span><span class="p">,</span>
+                                        <span class="n">sin</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span> <span class="o">-</span> <span class="mi">2</span><span class="o">*</span><span class="n">theta</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span> <span class="o">+</span> <span class="n">sin</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span> <span class="o">+</span> <span class="mi">2</span><span class="o">*</span><span class="n">theta</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span>
+                                        <span class="mi">0</span><span class="p">]])</span>
+            <span class="n">dRdphi</span> <span class="o">=</span> <span class="n">MatrixFunction</span><span class="p">([[</span><span class="o">-</span><span class="mi">2</span><span class="o">*</span><span class="n">sin</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span><span class="o">*</span><span class="n">cos</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span><span class="o">*</span><span class="n">cos</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span>
+                                      <span class="mi">0</span><span class="p">,</span>
+                                      <span class="mi">2</span><span class="o">*</span><span class="n">sin</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span><span class="o">*</span><span class="n">cos</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span><span class="o">*</span><span class="n">cos</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span>
+                                      <span class="mi">0</span><span class="p">,</span>
+                                      <span class="n">cos</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span><span class="p">)</span><span class="o">*</span><span class="n">cos</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span>
+                                      <span class="mi">0</span><span class="p">],</span>
+                                     <span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="o">*</span><span class="n">sin</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span><span class="o">*</span><span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="o">*</span><span class="n">cos</span><span class="p">(</span><span class="n">phi</span><span class="p">),</span>
+                                      <span class="mi">0</span><span class="p">,</span>
+                                      <span class="mi">2</span><span class="o">*</span><span class="n">sin</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span><span class="o">*</span><span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="o">*</span><span class="n">cos</span><span class="p">(</span><span class="n">phi</span><span class="p">),</span>
+                                      <span class="mi">0</span><span class="p">,</span>
+                                      <span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="o">*</span><span class="n">cos</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span><span class="p">),</span>
+                                      <span class="mi">0</span><span class="p">],</span>
+                                     <span class="p">[</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span><span class="p">),</span>
+                                      <span class="mi">0</span><span class="p">,</span>
+                                      <span class="o">-</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span><span class="p">),</span>
+                                      <span class="mi">0</span><span class="p">,</span>
+                                      <span class="o">-</span><span class="n">cos</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span><span class="p">),</span>
+                                      <span class="mi">0</span><span class="p">],</span>
+                                     <span class="p">[</span><span class="mi">2</span><span class="o">*</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">sin</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="n">sin</span><span class="p">(</span><span class="n">theta</span><span class="p">),</span>
+                                      <span class="mi">0</span><span class="p">,</span>
+                                      <span class="o">-</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span> <span class="o">-</span> <span class="n">theta</span><span class="p">)</span> <span class="o">+</span> <span class="n">sin</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span> <span class="o">+</span> <span class="n">theta</span><span class="p">),</span>
+                                      <span class="mi">0</span><span class="p">,</span>
+                                      <span class="o">-</span><span class="n">cos</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span> <span class="o">-</span> <span class="n">theta</span><span class="p">)</span> <span class="o">+</span> <span class="n">cos</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span> <span class="o">+</span> <span class="n">theta</span><span class="p">),</span>
+                                      <span class="mi">0</span><span class="p">],</span>
+                                     <span class="p">[</span><span class="mi">2</span><span class="o">*</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">sin</span><span class="p">(</span><span class="n">phi</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="n">cos</span><span class="p">(</span><span class="n">theta</span><span class="p">),</span>
+                                      <span class="mi">0</span><span class="p">,</span>
+                                      <span class="n">cos</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span> <span class="o">-</span> <span class="n">theta</span><span class="p">)</span> <span class="o">+</span> <span class="n">cos</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span> <span class="o">+</span> <span class="n">theta</span><span class="p">),</span>
+                                      <span class="mi">0</span><span class="p">,</span>
+                                      <span class="o">-</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span> <span class="o">-</span> <span class="n">theta</span><span class="p">)</span> <span class="o">-</span> <span class="n">sin</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span> <span class="o">+</span> <span class="n">theta</span><span class="p">),</span>
+                                      <span class="mi">0</span><span class="p">],</span>
+                                     <span class="p">[</span><span class="o">-</span><span class="n">cos</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span> <span class="o">-</span> <span class="mi">2</span><span class="o">*</span><span class="n">theta</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span> <span class="o">+</span> <span class="n">cos</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span> <span class="o">+</span> <span class="mi">2</span><span class="o">*</span><span class="n">theta</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span>
+                                      <span class="mi">0</span><span class="p">,</span>
+                                      <span class="n">cos</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span> <span class="o">-</span> <span class="mi">2</span><span class="o">*</span><span class="n">theta</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span> <span class="o">-</span> <span class="n">cos</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span> <span class="o">+</span> <span class="mi">2</span><span class="o">*</span><span class="n">theta</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span>
+                                      <span class="mi">0</span><span class="p">,</span>
+                                      <span class="o">-</span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span> <span class="o">-</span> <span class="mi">2</span><span class="o">*</span><span class="n">theta</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span> <span class="o">+</span> <span class="n">sin</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">phi</span> <span class="o">+</span> <span class="mi">2</span><span class="o">*</span><span class="n">theta</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span>
+                                      <span class="mi">0</span><span class="p">]])</span>
+            <span class="k">return</span> <span class="n">dRdtheta</span><span class="p">,</span><span class="n">dRdphi</span>
+        <span class="k">return</span> <span class="n">R</span></div>
+
+
+<div class="viewcode-block" id="convert_to_voigt">
+<a class="viewcode-back" href="../../topoptlab.symfem_utils.html#topoptlab.symfem_utils.convert_to_voigt">[docs]</a>
+<span class="k">def</span> <span class="nf">convert_to_voigt</span><span class="p">(</span><span class="n">A</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Convert 2nd rank tensor into its Voigt representation.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    A : symfem.functions.MatrixFunction, shape (ndim,ndim)</span>
+<span class="sd">        2nd rank tensor</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    A_v : symfem.functions.MatrixFunction, shape ((ndim**2 + ndim) /2, 1)</span>
+<span class="sd">        2nd rank tensor in voigt notation</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1">#</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">A</span><span class="p">,</span><span class="n">MatrixFunction</span><span class="p">):</span>
+        <span class="n">ndim</span> <span class="o">=</span> <span class="n">A</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">A</span><span class="p">,</span><span class="nb">list</span><span class="p">):</span>
+        <span class="n">ndim</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">A</span><span class="p">)</span>
+    <span class="c1">#</span>
+    <span class="n">A_v</span> <span class="o">=</span> <span class="p">[[</span><span class="n">A</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">i</span><span class="p">]]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">ndim</span><span class="p">)]</span>
+    <span class="k">if</span> <span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="n">A_v</span> <span class="o">+=</span> <span class="p">[[</span><span class="n">A</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]]]</span>
+    <span class="n">A_v</span> <span class="o">+=</span> <span class="p">[[</span><span class="n">A</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">i</span><span class="p">]]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">ndim</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="o">-</span><span class="mi">1</span><span class="p">)]</span>
+    <span class="k">return</span> <span class="n">MatrixFunction</span><span class="p">(</span><span class="n">A_v</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="convert_from_voigt">
+<a class="viewcode-back" href="../../topoptlab.symfem_utils.html#topoptlab.symfem_utils.convert_from_voigt">[docs]</a>
+<span class="k">def</span> <span class="nf">convert_from_voigt</span><span class="p">(</span><span class="n">A_v</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Convert 2nd rank tensor into from its Voigt representation to the standard</span>
+<span class="sd">    matrix represenation.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    A_v : symfem.functions.MatrixFunction, shape ((ndim**2 + ndim) /2, 1)</span>
+<span class="sd">        2nd rank tensor in Voigt represenation (so a column vector)</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    A : symfem.functions.MatrixFunction, shape (ndim,ndim)</span>
+<span class="sd">        2nd rank tensor in matrix notation</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1">#</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">A_v</span><span class="p">,</span><span class="n">MatrixFunction</span><span class="p">):</span>
+        <span class="n">l</span> <span class="o">=</span> <span class="n">A_v</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">A_v</span><span class="p">,</span><span class="nb">list</span><span class="p">):</span>
+        <span class="n">l</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">A_v</span><span class="p">)</span>
+    <span class="c1">#</span>
+    <span class="n">ndim</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span> <span class="o">-</span><span class="mi">1</span><span class="o">/</span><span class="mi">2</span> <span class="o">+</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">1</span><span class="o">/</span><span class="mi">2</span><span class="o">+</span><span class="mi">2</span><span class="o">*</span><span class="n">l</span><span class="p">)</span> <span class="p">)</span>
+    <span class="c1">#</span>
+    <span class="n">A</span> <span class="o">=</span> <span class="p">[[</span><span class="mi">0</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">ndim</span><span class="p">)]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">ndim</span><span class="p">)]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">ndim</span><span class="p">):</span>
+        <span class="n">A</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">A_v</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">ndim</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">A</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">A_v</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">A</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">A_v</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">ndim</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="n">A</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span>  <span class="n">A_v</span><span class="p">[</span><span class="mi">3</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">A</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span>  <span class="n">A_v</span><span class="p">[</span><span class="mi">3</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">A</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span>  <span class="n">A_v</span><span class="p">[</span><span class="mi">4</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">A</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span>  <span class="n">A_v</span><span class="p">[</span><span class="mi">4</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">MatrixFunction</span><span class="p">(</span><span class="n">A</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Stefan Hiemer.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

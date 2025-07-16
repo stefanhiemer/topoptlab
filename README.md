@@ -1,4 +1,5 @@
-# toptopt lab 
+# toptoptlab 
+
 This project is a collection of topology optimization techniques many of which
 are already published in Matlab. This project is there to make these techniques
 available to people without Matlab licenses but also to offer a basis on which
@@ -6,6 +7,13 @@ new methods can be implemented quickly. Please be aware that Matlab is
 optimized for tasks like topology optimization while Python is a general 
 purpose language, so you will likely see slower performance here than in 
 equivalent Matlab scripts.
+
+# How to Use 
+
+Topoptlab can be used either as a black box function that returns an optimal 
+design to you once provided with a set of boundary conditions and parameter or 
+as a general purpose topology optimization and finite element library.
+
 
 # Monolithic Codes
 
@@ -39,3 +47,12 @@ pytest -m slow
 # Roadmap
 
 See [ROADMAP.md](./ROADMAP.md) for a list of upcoming features.
+
+# Getting Report Bugs, and Suggest Enhancements
+
+If you found a bug or you want to suggest a new feature/enhancement, submit it on the [issue tracker](https://github.com/stefanhiemer/topoptlab/).
+
+# How to Contribute
+
+If you want to contribute, fork the repository and open a pull request. However before doing that
+I suggest to contact the maintainers via an enhancement suggestion in the issue tracker (see above).

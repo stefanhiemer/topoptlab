@@ -4,7 +4,7 @@ from glob import glob
 import numpy as np
 import matplotlib.pyplot as plt
 
-from topoptlab.folding_mechanism import main
+from topoptlab.legacy.folding_mechanism import main
 
 def run_examples():
     #

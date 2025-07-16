@@ -1,4 +1,4 @@
-from topoptlab.compliance_minimization import main
+from topoptlab.topology_optimization import main
 from topoptlab.example_bc.heat_conduction import heatplate_2d
 from topoptlab.elements.poisson_2d import lk_poisson_2d
 

@@ -1,0 +1,492 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>topoptlab.utils &mdash; topoptlab 0.0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=d45e8c67"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            topoptlab
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../topoptlab.html">topoptlab package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">topoptlab</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">topoptlab.utils</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for topoptlab.utils</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">scipy.ndimage</span> <span class="kn">import</span> <span class="n">zoom</span>
+
+<div class="viewcode-block" id="check_simulation_params">
+<a class="viewcode-back" href="../../topoptlab.utils.html#topoptlab.utils.check_simulation_params">[docs]</a>
+<span class="k">def</span> <span class="nf">check_simulation_params</span><span class="p">(</span><span class="n">simulation_kw</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Check that general simulation parameters are sensible or implemented.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    simulation_kw : dictionary</span>
+<span class="sd">        contains general information about simulation. At the moment, only</span>
+<span class="sd">        &quot;grid&quot;,&quot;element order&quot;, &quot;meshfile&quot; are supported with contents </span>
+<span class="sd">        &quot;regular&quot;,1,None.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    None</span>
+<span class="sd">    </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">admissible</span> <span class="o">=</span> <span class="p">[[</span><span class="s2">&quot;regular&quot;</span><span class="p">],</span>
+                  <span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+                  <span class="p">[</span><span class="kc">None</span><span class="p">]]</span>
+    <span class="n">keys</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;grid&quot;</span><span class="p">,</span><span class="s2">&quot;element order&quot;</span><span class="p">,</span> <span class="s2">&quot;meshfile&quot;</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span><span class="n">key</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">keys</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">simulation_kw</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="ow">in</span> <span class="n">admissible</span><span class="p">[</span><span class="n">i</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2"> must be one of those: </span><span class="si">{</span><span class="n">admissible</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">return</span></div>
+
+
+
+<div class="viewcode-block" id="even_spaced_ternary">
+<a class="viewcode-back" href="../../topoptlab.utils.html#topoptlab.utils.even_spaced_ternary">[docs]</a>
+<span class="k">def</span> <span class="nf">even_spaced_ternary</span><span class="p">(</span><span class="n">npoints</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create even spaced points for a ternary phase system.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    npoints : int</span>
+<span class="sd">        number of points.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    fracs : np.ndarray shape (k+1,3)</span>
+<span class="sd">        phase fractions.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="n">fracs</span> <span class="o">=</span> <span class="p">[]</span> 
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span><span class="n">a</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span><span class="mf">1.0</span><span class="p">,</span><span class="n">npoints</span><span class="p">)):</span>
+        <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span><span class="mf">1.0</span><span class="p">,</span><span class="n">npoints</span><span class="p">)[:(</span><span class="n">npoints</span><span class="o">-</span><span class="n">i</span><span class="p">)]:</span>
+            <span class="n">fracs</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">a</span><span class="p">,</span><span class="n">b</span><span class="p">,</span><span class="mi">1</span><span class="o">-</span><span class="n">a</span><span class="o">-</span><span class="n">b</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">fracs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="parse_logfile_old">
+<a class="viewcode-back" href="../../topoptlab.utils.html#topoptlab.utils.parse_logfile_old">[docs]</a>
+<span class="k">def</span> <span class="nf">parse_logfile_old</span><span class="p">(</span><span class="n">file</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Parse log file of the folding mechanism TO workflow. This is legacy and </span>
+<span class="sd">    will be deprecated soon.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    file : str</span>
+<span class="sd">        filename of the logfile.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    params : dict</span>
+<span class="sd">        contains some of the parameters like system size and shape, </span>
+<span class="sd">        optimizer etc..</span>
+<span class="sd">    data : np.ndarray</span>
+<span class="sd">        iteration history over objective function, volume constraint, change.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">params</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file</span><span class="p">,</span><span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="c1"># 1st line</span>
+        <span class="n">params</span><span class="p">[</span><span class="s2">&quot;optimizer&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="c1"># 2nd line</span>
+        <span class="n">line</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">line</span><span class="p">)</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
+            <span class="n">nelx</span><span class="p">,</span><span class="n">nely</span> <span class="o">=</span> <span class="n">line</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> 
+            <span class="n">params</span><span class="p">[</span><span class="s2">&quot;nelx&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">nelx</span><span class="p">)</span> 
+            <span class="n">params</span><span class="p">[</span><span class="s2">&quot;nely&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">nely</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">line</span><span class="p">)</span> <span class="o">==</span> <span class="mi">6</span><span class="p">:</span>
+            <span class="n">nelx</span><span class="p">,</span><span class="n">nely</span><span class="p">,</span><span class="n">nelz</span> <span class="o">=</span> <span class="n">line</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+            <span class="n">params</span><span class="p">[</span><span class="s2">&quot;nelx&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">nelx</span><span class="p">)</span> 
+            <span class="n">params</span><span class="p">[</span><span class="s2">&quot;nely&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">nely</span><span class="p">)</span>
+            <span class="n">params</span><span class="p">[</span><span class="s2">&quot;nelz&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">nelz</span><span class="p">)</span>
+        <span class="c1"># 3rd line</span>
+        <span class="n">line</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">)</span>
+        <span class="n">params</span><span class="p">[</span><span class="s2">&quot;volfrac&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="mi">1</span><span class="p">][:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">params</span><span class="p">[</span><span class="s2">&quot;rmin&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="mi">3</span><span class="p">][:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">params</span><span class="p">[</span><span class="s2">&quot;penal&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="c1"># 4th line </span>
+        <span class="n">params</span><span class="p">[</span><span class="s2">&quot;filter&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">,</span><span class="mi">2</span><span class="p">)[</span><span class="mi">2</span><span class="p">]</span>
+        <span class="c1">#</span>
+        <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span><span class="n">line</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">,</span><span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">f</span><span class="p">]</span>
+        <span class="c1"># last_line</span>
+        <span class="n">final</span> <span class="o">=</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">lines</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">)[</span><span class="mi">2</span><span class="p">::</span><span class="mi">2</span><span class="p">]]</span>
+        
+    <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="n">lines</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot; &quot;</span><span class="p">,</span>
+                      <span class="n">skiprows</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">usecols</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">4</span><span class="p">,</span><span class="mi">6</span><span class="p">,</span><span class="mi">8</span><span class="p">])</span> 
+    <span class="k">return</span> <span class="n">params</span><span class="p">,</span><span class="n">data</span><span class="p">,</span><span class="n">final</span></div>
+
+
+<div class="viewcode-block" id="parse_logfile">
+<a class="viewcode-back" href="../../topoptlab.utils.html#topoptlab.utils.parse_logfile">[docs]</a>
+<span class="k">def</span> <span class="nf">parse_logfile</span><span class="p">(</span><span class="n">file</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Parse log file of the compliance minimization TO workflow.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    file : str</span>
+<span class="sd">        filename of the logfile.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    params : dict</span>
+<span class="sd">        contains some of the parameters like system size and shape, </span>
+<span class="sd">        optimizer etc..</span>
+<span class="sd">    data : np.ndarray</span>
+<span class="sd">        iteration history over objective function, volume constraint, change.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="n">params</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file</span><span class="p">,</span><span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="c1"># 1st line</span>
+        <span class="n">params</span><span class="p">[</span><span class="s2">&quot;optimizer&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="c1"># 2nd line</span>
+        <span class="n">params</span><span class="p">[</span><span class="s2">&quot;ndim&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="c1"># 3rd line</span>
+        <span class="n">line</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">line</span><span class="p">)</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
+            <span class="n">nelx</span><span class="p">,</span><span class="n">nely</span> <span class="o">=</span> <span class="n">line</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span> 
+            <span class="n">params</span><span class="p">[</span><span class="s2">&quot;nelx&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">nelx</span><span class="p">)</span> 
+            <span class="n">params</span><span class="p">[</span><span class="s2">&quot;nely&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">nely</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">line</span><span class="p">)</span> <span class="o">==</span> <span class="mi">6</span><span class="p">:</span>
+            <span class="n">nelx</span><span class="p">,</span><span class="n">nely</span><span class="p">,</span><span class="n">nelz</span> <span class="o">=</span> <span class="n">line</span><span class="p">[</span><span class="mi">1</span><span class="p">::</span><span class="mi">2</span><span class="p">]</span>
+            <span class="n">params</span><span class="p">[</span><span class="s2">&quot;nelx&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">nelx</span><span class="p">)</span> 
+            <span class="n">params</span><span class="p">[</span><span class="s2">&quot;nely&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">nely</span><span class="p">)</span>
+            <span class="n">params</span><span class="p">[</span><span class="s2">&quot;nelz&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">nelz</span><span class="p">)</span>
+        <span class="c1"># 4th line</span>
+        <span class="n">line</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">)</span>
+        <span class="n">params</span><span class="p">[</span><span class="s2">&quot;volfrac&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="mi">1</span><span class="p">][:])</span>
+        <span class="n">params</span><span class="p">[</span><span class="s2">&quot;rmin&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="mi">3</span><span class="p">][:])</span>
+        <span class="n">params</span><span class="p">[</span><span class="s2">&quot;penal&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">line</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="c1"># 5th line </span>
+        <span class="n">params</span><span class="p">[</span><span class="s2">&quot;filter&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">,</span><span class="mi">1</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="c1"># 6th line</span>
+        <span class="n">params</span><span class="p">[</span><span class="s2">&quot;filter method&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">,</span><span class="mi">1</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="c1"># </span>
+        <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span><span class="n">line</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">,</span><span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">f</span><span class="p">]</span>
+        <span class="c1"># last_line</span>
+        <span class="c1">#final = [float(i) for i in lines[-1].strip().split(&quot; &quot;)[2::2]]</span>
+        
+    <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">loadtxt</span><span class="p">(</span><span class="n">lines</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s2">&quot; &quot;</span><span class="p">,</span>
+                      <span class="n">skiprows</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">usecols</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span><span class="mi">5</span><span class="p">,</span><span class="mi">7</span><span class="p">])</span> 
+    <span class="k">return</span> <span class="n">params</span><span class="p">,</span><span class="n">data</span></div>
+
+
+<div class="viewcode-block" id="unique_sort">
+<a class="viewcode-back" href="../../topoptlab.utils.html#topoptlab.utils.unique_sort">[docs]</a>
+<span class="k">def</span> <span class="nf">unique_sort</span><span class="p">(</span><span class="n">iM</span><span class="p">,</span><span class="n">jM</span><span class="p">,</span><span class="n">combine</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Sort first according to iM, then sort values of equal value iM according </span>
+<span class="sd">    to jM.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    iM : np.ndarray, shape (n)</span>
+<span class="sd">        first array.</span>
+<span class="sd">    jM : np.ndarray, shape (n)</span>
+<span class="sd">        second array.</span>
+<span class="sd">    combine : scalar bool</span>
+<span class="sd">        if True, stack both to to a column array of shape (n,2) </span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    iM : np.ndarray shape (n)</span>
+<span class="sd">        if not combine returns sorted iM</span>
+<span class="sd">    jM : np.ndarray shape (n)</span>
+<span class="sd">        if not combine returns sorted jM</span>
+<span class="sd">    M : np.ndarray shape (n,2)</span>
+<span class="sd">        if combine returns column stack of sort iM and jM.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="n">inds</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">lexsort</span><span class="p">((</span><span class="n">jM</span><span class="p">,</span><span class="n">iM</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">combine</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">((</span><span class="n">iM</span><span class="p">[</span><span class="n">inds</span><span class="p">],</span><span class="n">jM</span><span class="p">[</span><span class="n">inds</span><span class="p">]))</span> 
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">iM</span><span class="p">[</span><span class="n">inds</span><span class="p">],</span><span class="n">jM</span><span class="p">[</span><span class="n">inds</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="map_eltoimg">
+<a class="viewcode-back" href="../../topoptlab.utils.html#topoptlab.utils.map_eltoimg">[docs]</a>
+<span class="k">def</span> <span class="nf">map_eltoimg</span><span class="p">(</span><span class="n">quant</span><span class="p">,</span><span class="n">nelx</span><span class="p">,</span><span class="n">nely</span><span class="p">,</span><span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Map quantity located on elements on the usual regular grid to an image.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    quant : np.ndarray, shape (n,nchannel)</span>
+<span class="sd">        some quantity defined on each element (e. g. element density).</span>
+<span class="sd">    nelx : int</span>
+<span class="sd">        number of elements in x direction.</span>
+<span class="sd">    nely : int</span>
+<span class="sd">        number of elements in y direction.</span>
+<span class="sd">        </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    img : np.ndarray, shape (nely,nelx,nchannel)</span>
+<span class="sd">        quantity mapped to image.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1">#</span>
+    <span class="n">shape</span> <span class="o">=</span> <span class="p">(</span><span class="n">nely</span><span class="p">,</span><span class="n">nelx</span><span class="p">)</span><span class="o">+</span><span class="n">quant</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+    <span class="k">return</span> <span class="n">quant</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span><span class="n">order</span><span class="o">=</span><span class="s2">&quot;F&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="map_imgtoel">
+<a class="viewcode-back" href="../../topoptlab.utils.html#topoptlab.utils.map_imgtoel">[docs]</a>
+<span class="k">def</span> <span class="nf">map_imgtoel</span><span class="p">(</span><span class="n">img</span><span class="p">,</span><span class="n">nelx</span><span class="p">,</span><span class="n">nely</span><span class="p">,</span><span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Map image of quantity back to 1D np.ndarray with correct (!) ordering.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    img : np.ndarray, shape (nely,nelx)</span>
+<span class="sd">        image of quantity (e. g. of element densities).</span>
+<span class="sd">    nelx : int</span>
+<span class="sd">        number of elements in x direction.</span>
+<span class="sd">    nely : int</span>
+<span class="sd">        number of elements in y direction.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    quant : np.ndarray, shape (n)</span>
+<span class="sd">        quantity mapped back to 1D np.ndarray with hopefully correct ordering.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">shape</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">([</span><span class="n">nelx</span><span class="o">*</span><span class="n">nely</span><span class="p">])</span><span class="o">+</span><span class="n">img</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">:]</span>
+    <span class="k">return</span> <span class="n">img</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span><span class="n">order</span><span class="o">=</span><span class="s2">&quot;F&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="map_eltovoxel">
+<a class="viewcode-back" href="../../topoptlab.utils.html#topoptlab.utils.map_eltovoxel">[docs]</a>
+<span class="k">def</span> <span class="nf">map_eltovoxel</span><span class="p">(</span><span class="n">quant</span><span class="p">,</span><span class="n">nelx</span><span class="p">,</span><span class="n">nely</span><span class="p">,</span><span class="n">nelz</span><span class="p">,</span><span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Map quantity located on elements on the usual regular grid to a voxels.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    quant : np.ndarray, shape (n,nchannel)</span>
+<span class="sd">        some quantity defined on each element (e. g. element density).</span>
+<span class="sd">    nelx : int</span>
+<span class="sd">        number of elements in x direction.</span>
+<span class="sd">    nely : int</span>
+<span class="sd">        number of elements in y direction.</span>
+<span class="sd">    nelz : int or None</span>
+<span class="sd">        number of elements in z direction.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    voxel : np.ndarray shape (nelz,nely,nelx,nchannel)</span>
+<span class="sd">        quantity mapped to voxels.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1">#</span>
+    <span class="n">shape</span> <span class="o">=</span> <span class="p">(</span><span class="n">nelz</span><span class="p">,</span><span class="n">nelx</span><span class="p">,</span><span class="n">nely</span><span class="p">)</span><span class="o">+</span><span class="n">quant</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+    <span class="k">return</span> <span class="n">quant</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span><span class="o">.</span><span class="n">transpose</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span><span class="o">+</span><span class="nb">tuple</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">))))</span></div>
+
+
+<div class="viewcode-block" id="map_voxeltoel">
+<a class="viewcode-back" href="../../topoptlab.utils.html#topoptlab.utils.map_voxeltoel">[docs]</a>
+<span class="k">def</span> <span class="nf">map_voxeltoel</span><span class="p">(</span><span class="n">voxel</span><span class="p">,</span><span class="n">nelx</span><span class="p">,</span><span class="n">nely</span><span class="p">,</span><span class="n">nelz</span><span class="p">,</span><span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Map voxels of quantity back to on elements on the usual regular grid.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    voxel : np.ndarray, shape (nelz,nely,nelx,nchannel)</span>
+<span class="sd">        voxels of quantity (e. g. of element densities).</span>
+<span class="sd">    nelx : int</span>
+<span class="sd">        number of elements in x direction.</span>
+<span class="sd">    nely : int</span>
+<span class="sd">        number of elements in y direction.</span>
+<span class="sd">    nelz : int or None</span>
+<span class="sd">        number of elements in z direction.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    quant : np.ndarray, shape (n,nchannel)</span>
+<span class="sd">        quantity mapped back to 1D np.ndarray with hopefully correct ordering.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">shape</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">([</span><span class="n">nelx</span><span class="o">*</span><span class="n">nely</span><span class="o">*</span><span class="n">nelz</span><span class="p">])</span><span class="o">+</span><span class="n">voxel</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">3</span><span class="p">:]</span>
+    <span class="n">voxel</span> <span class="o">=</span> <span class="n">voxel</span><span class="o">.</span><span class="n">transpose</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span><span class="o">+</span><span class="nb">tuple</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">voxel</span><span class="o">.</span><span class="n">shape</span><span class="p">))))</span>
+    <span class="k">return</span> <span class="n">voxel</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="elid_to_coords">
+<a class="viewcode-back" href="../../topoptlab.utils.html#topoptlab.utils.elid_to_coords">[docs]</a>
+<span class="k">def</span> <span class="nf">elid_to_coords</span><span class="p">(</span><span class="n">el</span><span class="p">,</span><span class="n">nelx</span><span class="p">,</span><span class="n">nely</span><span class="p">,</span><span class="n">nelz</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Map element ids to cartesian coordinates in the usual regular grid.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    el : np.ndarray, shape (n)</span>
+<span class="sd">        elment IDs.</span>
+<span class="sd">    nelx : int</span>
+<span class="sd">        number of elements in x direction.</span>
+<span class="sd">    nely : int</span>
+<span class="sd">        number of elements in y direction.</span>
+<span class="sd">    nelz : int or None</span>
+<span class="sd">        number of elements in z direction.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    img : np.ndarray shape (nely,nelx)</span>
+<span class="sd">        quantity mapped to image.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># find coordinates of each element/density</span>
+    <span class="k">if</span> <span class="n">nelz</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">x</span><span class="p">,</span><span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">divmod</span><span class="p">(</span><span class="n">el</span><span class="p">,</span><span class="n">nely</span><span class="p">)</span> <span class="c1"># same as np.floor(el/nely),el%nely</span>
+        <span class="k">return</span> <span class="n">x</span><span class="p">,</span><span class="n">y</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">z</span><span class="p">,</span><span class="n">rest</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">divmod</span><span class="p">(</span><span class="n">el</span><span class="p">,</span><span class="n">nelx</span><span class="o">*</span><span class="n">nely</span><span class="p">)</span>
+        <span class="n">x</span><span class="p">,</span><span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">divmod</span><span class="p">(</span><span class="n">rest</span><span class="p">,</span><span class="n">nely</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">,</span><span class="n">z</span></div>
+
+
+<div class="viewcode-block" id="upsampling">
+<a class="viewcode-back" href="../../topoptlab.utils.html#topoptlab.utils.upsampling">[docs]</a>
+<span class="k">def</span> <span class="nf">upsampling</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">magnification</span><span class="p">,</span>
+               <span class="n">nelx</span><span class="p">,</span><span class="n">nely</span><span class="p">,</span><span class="n">nelz</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">return_flat</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Upsample current design variables defined on the standard regular grid to </span>
+<span class="sd">    a larger design by interpolation. With order 0 the design is replicated on</span>
+<span class="sd">    a finer scale in a volume conserving fashion, otherwise spline </span>
+<span class="sd">    interpolation might violate this.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    x : np.ndarray shape (n)</span>
+<span class="sd">        design variables.</span>
+<span class="sd">    magnification : float</span>
+<span class="sd">        magnification factor.</span>
+<span class="sd">    nelx : int</span>
+<span class="sd">        number of elements in x direction.</span>
+<span class="sd">    nely : int</span>
+<span class="sd">        number of elements in y direction.</span>
+<span class="sd">    nelz : int or None, optional</span>
+<span class="sd">        number of elements in z direction. The default is None.</span>
+<span class="sd">    return_flat : bool, optional</span>
+<span class="sd">        return the design variables flattened. If false returns an image or a </span>
+<span class="sd">        voxel graphic. The default is True.</span>
+<span class="sd">    order : int, optional</span>
+<span class="sd">        order of spline interpolation for upsampling. The default is 0.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    x_new : np.ndarray shape (n) or shape (nely,nelx) or shape (nelz,nely,nelx)</span>
+<span class="sd">        upsampled design variables.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="k">if</span> <span class="n">nelz</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">map_eltoimg</span><span class="p">(</span><span class="n">quant</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">nelx</span><span class="o">=</span><span class="n">nelx</span><span class="p">,</span> <span class="n">nely</span><span class="o">=</span><span class="n">nely</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">map_eltovoxel</span><span class="p">(</span><span class="n">quant</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">nelx</span><span class="o">=</span><span class="n">nelx</span><span class="p">,</span> <span class="n">nely</span><span class="o">=</span><span class="n">nely</span><span class="p">,</span> <span class="n">nelz</span><span class="o">=</span><span class="n">nelz</span><span class="p">)</span>
+    <span class="c1">#</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="n">zoom</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">zoom</span><span class="o">=</span><span class="n">magnification</span><span class="p">,</span>
+             <span class="n">order</span><span class="o">=</span><span class="n">order</span><span class="p">,</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;nearest&quot;</span><span class="p">,</span><span class="n">cval</span><span class="o">=</span><span class="mf">0.</span><span class="p">)</span>
+    <span class="c1">#</span>
+    <span class="k">if</span> <span class="n">return_flat</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">nelz</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">map_imgtoel</span><span class="p">(</span><span class="n">quant</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">nelx</span><span class="o">=</span><span class="n">nelx</span><span class="p">,</span> <span class="n">nely</span><span class="o">=</span><span class="n">nely</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">map_voxeltoel</span><span class="p">(</span><span class="n">quant</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">nelx</span><span class="o">=</span><span class="n">nelx</span><span class="p">,</span> <span class="n">nely</span><span class="o">=</span><span class="n">nely</span><span class="p">,</span> <span class="n">nelz</span><span class="o">=</span><span class="n">nelz</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">x</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Stefan Hiemer.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
