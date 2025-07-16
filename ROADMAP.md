@@ -40,5 +40,7 @@ documentation
 - [ ] add the shape commentaries which now are being ignored.
 - [ ] short usage example in README.md
 - [ ] long usage example in README.md
-- [ ] document MMA.
+- [ ] document MMA and GCMMA.
 - [ ] document general constraints.
+- [ ] How to use
+- [ ] add FAQ

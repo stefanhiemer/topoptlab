@@ -48,6 +48,20 @@ pytest -m slow
 
 See [ROADMAP.md](./ROADMAP.md) for a list of upcoming features.
 
+# make documentation
+
+The documentation can be build via Sphinx 
+
+```
+cd docs/
+sphinx-apidoc -o source/ ../topoptlab/ ../topoptlab/legacy --force --no-toc --separate
+make html
+```
+and displayed in your browser by drag and drop or if you are on Linux
+```
+xdg-open build/html/index.html
+```
+
 # Getting Report Bugs, and Suggest Enhancements
 
 If you found a bug or you want to suggest a new feature/enhancement, submit it on the [issue tracker](https://github.com/stefanhiemer/topoptlab/).

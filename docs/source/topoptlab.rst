@@ -8,7 +8,6 @@ Submodules
    :maxdepth: 4
 
    topoptlab.accelerators
-   topoptlab.compliance_minimization
    topoptlab.composite_bounds_2d
    topoptlab.design_analysis
    topoptlab.draw_functions
@@ -28,6 +27,7 @@ Submodules
    topoptlab.stiffness_tensors
    topoptlab.symfem_utils
    topoptlab.timestepper
+   topoptlab.topology_optimization
    topoptlab.utils
 
 Module contents
