@@ -12,4 +12,3 @@ old_cholmod.py
 !images/*.png
 *.log
 applications/fdm/runs
-docs/build/
