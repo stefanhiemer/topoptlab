@@ -1,8 +1,6 @@
 import numpy as np
 
 import matplotlib.pyplot as plt
-# map element data to img/voxel
-
 from topoptlab.utils import even_spaced_ternary
 
 from topoptlab.bounds.hashin_shtrikman_3d import conductivity_binary_low, conductivity_binary_upp

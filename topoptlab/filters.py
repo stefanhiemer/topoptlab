@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.sparse import csc_array,coo_array,coo_matrix
-from scipy.optimize import minimize, root_scalar
+from scipy.optimize import root_scalar
 from scipy.ndimage import convolve
 
 from topoptlab.fem import create_matrixinds
@@ -250,7 +250,8 @@ def find_eta(eta0, xTilde, beta, volfrac,
     Find volume preserving eta for the relaxed Haeviside projection similar to
     what has been done in
 
-    Xu S, Cai Y, Cheng G (2010) Volume preserving nonlinear density filter based on Heaviside functions. Struct Multidiscip Optim 41:495–505
+    Xu S, Cai Y, Cheng G (2010) Volume preserving nonlinear density filter 
+    based on Heaviside functions. Struct Multidiscip Optim 41:495–505
 
     Parameters
     ----------
@@ -462,3 +463,40 @@ def AMfilter(x, baseplate='S', sensitivities=None):
         #print("gradient before backrotation")
         #print(dfx)
         return np.rot90(dfx, -nRot)
+
+import matplotlib.pyplot as plt
+from topoptlab.geometries import circ
+
+def visualise_filter(n, 
+                     apply_filter,filter_params,
+                     ax=None,fig_kws=None):
+    """
+    
+
+    Parameters
+    ----------
+    apply_filter : TYPE
+        DESCRIPTION.
+    filter_params : TYPE
+        DESCRIPTION.
+    ax : TYPE, optional
+        DESCRIPTION. The default is None.
+
+    Returns
+    -------
+    None.
+
+    """
+    raise NotImplementedError()
+    #
+    dimensions = None
+    for i in range(len(n)):
+        
+    #
+    if ax is None:
+        if fig_kws is None:
+            fig_kws = {"figsize": (8,8)}
+        fig,ax = plt.subplots(1,1,**fig_kws)  
+    #
+    ax.imshow()
+    return
