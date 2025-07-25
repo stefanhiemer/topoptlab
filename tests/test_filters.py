@@ -44,7 +44,7 @@ def test_normalization(nelx,nely,nelz,rmin,filter_mode):
         H,Hs = assemble_matrix_filter(nelx=nelx,nely=nely,nelz=nelz,
                                       rmin=rmin,ndim=ndim)
         if isinstance(H,spmatrix):
-            actual = asarray(H*x[None].T/Hs)[:, 0]
+            actual = asarray(H*x/Hs)
         elif isinstance(H,sparray):
             actual = H @ x / Hs
     elif filter_mode == "convolution":
@@ -96,7 +96,7 @@ def test_consistency(nelx,nely,nelz,rmin):
                                   rmin=rmin,ndim=ndim)
 
     if isinstance(H,spmatrix):
-        desired = asarray(H*x[None].T/Hs)[:, 0]
+        desired = asarray(H*x/Hs)
     elif isinstance(H,sparray):
         desired = H @ x / Hs
     # convolution filter

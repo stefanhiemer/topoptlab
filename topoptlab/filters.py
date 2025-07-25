@@ -465,11 +465,12 @@ def AMfilter(x, baseplate='S', sensitivities=None):
         return np.rot90(dfx, -nRot)
 
 import matplotlib.pyplot as plt
-from topoptlab.geometries import circ
+from topoptlab.geometries import diracdelta
+from topoptlab.utils import map_eltoimg,map_eltovoxel
 
 def visualise_filter(n, 
-                     apply_filter,filter_params,
-                     ax=None,fig_kws=None):
+                     apply_filter,
+                     fig_kws=None):
     """
     
 
@@ -487,16 +488,33 @@ def visualise_filter(n,
     None.
 
     """
-    raise NotImplementedError()
     #
-    dimensions = None
-    for i in range(len(n)):
-        
+    ndim = len(n)
+    nelx,nely,nelz = n[:ndim] + (None,None,None)[ndim:]
     #
-    if ax is None:
-        if fig_kws is None:
-            fig_kws = {"figsize": (8,8)}
-        fig,ax = plt.subplots(1,1,**fig_kws)  
+    dirac = diracdelta(nelx=nelx ,nely=nely, nelz=nelz,
+                       location=None )[:,None]
     #
-    ax.imshow()
+    if fig_kws is None:
+        fig_kws = {"figsize": (8,8)}
+    fig,axs = plt.subplots(1,2,**fig_kws)  
+    #
+    if ndim == 2: 
+        axs[0].imshow(1-map_eltoimg(quant=dirac, 
+                                    nelx=nelx, nely=nely),
+                      cmap="grey")
+        filtered = map_eltoimg(quant=apply_filter(dirac), 
+                                    nelx=nelx, nely=nely)
+        axs[1].imshow(1-filtered,
+                      cmap="grey")
+    print(dirac.sum(),filtered.sum())
+    for i in range(2):
+        axs[i].tick_params(axis='both',
+                           which='both',
+                           bottom=False,
+                           left=False,
+                           labelbottom=False,
+                           labelleft=False)
+        axs[i].axis("off")
+    plt.show()
     return

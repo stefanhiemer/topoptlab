@@ -1,11 +1,7 @@
-from multiprocessing import Pool
-
 import numpy as np
 import matplotlib.pyplot as plt
 
-from topoptlab.fdm import laplacian_2d,laplacian_3d
-
-def cahn_hilliard_fdm(ndim=2, grid_size=128,
+def cahn_hilliard_fft(ndim=2, grid_size=128,
                       dx=1.0, dt=0.01,
                       gamma=1.0, M=1.0,
                       n_steps=1000,
@@ -13,8 +9,8 @@ def cahn_hilliard_fdm(ndim=2, grid_size=128,
                       seed=0,
                       dtype=np.float32):
     """
-    Solves the Cahn-Hilliard equation using finite differences via operator 
-    split and explicit time integration.
+    Solves the Cahn-Hilliard equation using a pseudo spectrail method via 
+    operator split and explicit time integration.
 
     Parameters
     ----------
@@ -39,11 +35,6 @@ def cahn_hilliard_fdm(ndim=2, grid_size=128,
         final concentration.
 
     """
-    # fetch laplacian operator
-    if ndim == 2:
-        laplacian = laplacian_2d
-    elif ndim == 2:
-        laplacian = laplacian_3d
     # set random seed
     np.random.seed(seed)
     # grid and initial condition
@@ -54,13 +45,25 @@ def cahn_hilliard_fdm(ndim=2, grid_size=128,
     else:
         raise ValueError("Only 2D and 3D cases are supported.")
     c = (c - c.mean()).astype(dtype)
-    # time-stepping loop
+
+    # wave number grid for FFT
+    kx = np.fft.fftfreq(grid_size, d=dx) * 2 * np.pi
+    if ndim == 2:
+        ky = np.fft.rfftfreq(grid_size, d=dx) * 2 * np.pi
+        kx, ky = np.meshgrid(kx, ky, indexing='ij')
+        k2 = kx**2 + ky**2
+    elif ndim == 3:
+        ky = kx.copy()
+        kz = np.fft.rfftfreq(grid_size, d=dx) * 2 * np.pi
+        kx, ky, kz = np.meshgrid(kx, ky, kz, indexing='ij')
+        k2 = kx**2 + ky**2 + kz**2
+    #
     mu = np.zeros(c.shape,dtype=dtype)
-    for step in np.arange(n_steps):
-        # compute chemical potential
-        mu[:] =  c**3 - c - gamma * laplacian(f=c,dx=dx)
+    for step in range(n_steps):
+        # # compute chemical potential
+        mu[:] = c**3 - c - gamma * np.fft.irfftn(-k2 * np.fft.rfftn(a=c))
         # update concentration
-        c[:] += dt * M * laplacian(f=mu,dx=dx)
+        c[:] += dt * M * np.fft.irfftn(-k2 * np.fft.rfftn(mu))
         # plot concentration field for 2D
         if ndim == 2 and step % (n_steps // 100) == 0 and display:
             plt.imshow(c, cmap='RdBu', origin='lower')
@@ -80,53 +83,18 @@ def cahn_hilliard_fdm(ndim=2, grid_size=128,
         plt.colorbar(label='Concentration')
         plt.title("Final Step")
         plt.show()
-    elif ndim == 3:
-        print("Simulation complete. Use 3D visualization tools to analyze results.")
 
     return c
-
-def run_simulation(seed, gamma=0.5):
-    c = cahn_hilliard_fdm(
-                         ndim=ndim,
-                         grid_size=n,
-                         dx=1.0,
-                         dt=0.04 * 0.5/gamma,
-                         gamma=gamma,
-                         M=1.0,
-                         n_steps=int(1e5),
-                         display=False,
-                         seed=seed,
-                         dtype=np.float32)
-    #
-    np.savetxt(f"runs/cahn-hilliard-gamma-{gamma}_{seed}.csv", c,
-               header=f'# gamma {gamma}')
-    return 
-
+        
 if __name__ == "__main__":
-    #
-    ndim = 2
-    n = 128
-    display=False
-    #
-    import sys
-    if len(sys.argv)>1:
-        ndim = int(sys.argv[1])
-    if len(sys.argv)>2:
-        n = int(sys.argv[2])
-    if len(sys.argv)>3:
-        display = bool(int(sys.argv[3]))
-    # 
-    cahn_hilliard_fdm(ndim=ndim, grid_size=n,
-                     dx=1.0, dt=0.04,
-                     gamma=0.5, M=1.0,
-                     n_steps=int(1e5),
-                     display=display)
-    
-    #
-    #from functools import partial
-    #seeds = range(960)
-    #for gamma in [0.5,1.,2.,3.,4.]:
-    #    
-    #    simul = partial(run_simulation,gamma=gamma)
-    #    with Pool(24) as pool:
-    #        pool.map(simul, seeds)
+    cahn_hilliard_fft(
+        ndim=2,
+        grid_size=128,
+        dx=1.0,
+        dt=0.009,
+        gamma=0.5,
+        M=1.0,
+        n_steps=int(1e4),
+        seed=0,
+        display=True
+    )

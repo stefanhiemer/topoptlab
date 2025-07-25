@@ -28,7 +28,7 @@ from topoptlab.solve_linsystem import solve_lin
 from topoptlab.material_interpolation import simp, simp_dx
 # constrained optimizers
 from topoptlab.optimizer.optimality_criterion import oc_top88,oc_mechanism,oc_generalized
-from topoptlab.optimizer.mma_utils import update_mma,mma_defaultkws,gcmma_defaultkws
+from topoptlab.optimizer.mma_utils import mma_defaultkws,gcmma_defaultkws
 from topoptlab.objectives import compliance
 # output final design to a Paraview readable format
 from topoptlab.output_designs import export_vtk
@@ -613,9 +613,9 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             #xPhys[:] = H @ x / Hs
         elif ft == 1 and filter_mode == "convolution":
             xPhys[:] = invmapping(convolve(mapping(x),
-                                  h,
-                                  mode="constant",
-                                  cval=0)) / hs
+                                           weights=h,
+                                           mode="constant",
+                                           cval=0)) / hs
         elif ft == 1 and filter_mode == "helmholtz":
             xPhys[:] = TF.T @ lu_solve(TF@x)
         elif ft == -1:
