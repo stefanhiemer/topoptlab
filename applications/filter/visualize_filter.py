@@ -4,12 +4,28 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.ndimage import convolve
 
-from topoptlab.filters import assemble_convolution_filter,assemble_matrix_filter 
+from topoptlab.filters import assemble_convolution_filter,assemble_matrix_filter
 from topoptlab.filters import visualise_filter
-from topoptlab.utils import map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel 
+from topoptlab.utils import map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel
 
 
-def prepare_filter(nelx,nely,nelz,rmin):
+def prepare_matrix_filter(nelx,nely,nelz,rmin):
+    if nelz is None:
+        ndim = 2
+    else:
+        ndim = 3
+    #
+    H,Hs = assemble_matrix_filter(nelx=nelx,nely=nely,nelz=nelz,
+                                  rmin=rmin,ndim=ndim)
+    return partial(apply_matrix_filter,
+                   H=H,Hs=Hs)
+
+def apply_matrix_filter(x,H,Hs):
+    #x_filtered = np.asarray( H*x )
+    #print(x_filtered)
+    return np.asarray(H*x/Hs)
+
+def prepare_convol_filter(nelx,nely,nelz,rmin):
     #
     if nelz is None:
         ndim = 2
@@ -34,23 +50,31 @@ def prepare_filter(nelx,nely,nelz,rmin):
     return partial(apply_convolution_filter,
                    h=h,hs=hs,
                    invmapping=invmapping,
-                   mapping=mapping)
+                   mapping=mapping,
+                   ndim=ndim)
 
-def apply_convolution_filter(x,h,hs,invmapping,mapping):
-    
-    return invmapping(convolve(mapping(x),
-                          weights=h,
-                          mode="constant",
-                          cval=0)) / hs
+def apply_convolution_filter(x,h,hs,invmapping,mapping,ndim):
+    x_img = mapping(x)
+    filtered_img = np.zeros(x_img.shape)
+    convolve(x_img,
+             weights=h, axes=(0,1,2)[:ndim],
+             output=filtered_img,
+             mode="constant",
+             cval=0.0)
+    return invmapping(filtered_img)/hs
 
 if __name__ == "__main__":
     #
     rmin = 1.5
-    nelx=30
-    nely = 10
-    nelz = None 
-    ax = visualise_filter(n=(nelx,nely), 
-                          apply_filter=prepare_filter(nelx,nely,nelz,rmin))
+    nelx = 6
+    nely = 6
+    nelz = None
+    #
+    if nelz is None:
+        ndim = 2
+    else:
+        ndim = 3
+    ax = visualise_filter(n=(nelx,nely,nelz)[:ndim],
+                          apply_filter=prepare_matrix_filter(nelx,nely,nelz,rmin))
     #
     plt.show()
-    

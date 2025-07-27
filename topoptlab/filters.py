@@ -157,10 +157,10 @@ def assemble_convolution_filter(nelx,nely,rmin,
         kernel = np.maximum(0.0,rmin - np.sqrt(x**2 + y**2 + z**2))
     # normalization constants
     hs = invmapping(convolve(mapping(np.ones(n ,dtype=np.float64)),
-                    kernel,
-                    mode="constant",
-                    cval=0))
-    return kernel[:,:,None],hs[:,None]
+                             kernel,
+                             mode="constant",
+                             cval=0))
+    return kernel,hs[:,None]
 
 def assemble_helmholtz_filter(nelx,nely,rmin,nelz=None,l=np.array([1.,1.]),
                               n1=None,n2=None,n3=None,n4=None,
@@ -250,7 +250,7 @@ def find_eta(eta0, xTilde, beta, volfrac,
     Find volume preserving eta for the relaxed Haeviside projection similar to
     what has been done in
 
-    Xu S, Cai Y, Cheng G (2010) Volume preserving nonlinear density filter 
+    Xu S, Cai Y, Cheng G (2010) Volume preserving nonlinear density filter
     based on Heaviside functions. Struct Multidiscip Optim 41:495–505
 
     Parameters
@@ -468,11 +468,11 @@ import matplotlib.pyplot as plt
 from topoptlab.geometries import diracdelta
 from topoptlab.utils import map_eltoimg,map_eltovoxel
 
-def visualise_filter(n, 
+def visualise_filter(n,
                      apply_filter,
                      fig_kws=None):
     """
-    
+
 
     Parameters
     ----------
@@ -495,26 +495,38 @@ def visualise_filter(n,
     dirac = diracdelta(nelx=nelx ,nely=nely, nelz=nelz,
                        location=None )[:,None]
     #
-    if fig_kws is None:
-        fig_kws = {"figsize": (8,8)}
-    fig,axs = plt.subplots(1,2,**fig_kws)  
-    #
-    if ndim == 2: 
-        axs[0].imshow(1-map_eltoimg(quant=dirac, 
+    if ndim == 2:
+        # default plot settings 2d
+        if fig_kws is None:
+            fig_kws = {"figsize": (8,8)}
+        #
+        fig,axs = plt.subplots(1,2,**fig_kws)
+        #
+        axs[0].imshow(1-map_eltoimg(quant=dirac,
                                     nelx=nelx, nely=nely),
                       cmap="grey")
-        filtered = map_eltoimg(quant=apply_filter(dirac), 
+        filtered = map_eltoimg(quant=apply_filter(dirac),
                                     nelx=nelx, nely=nely)
         axs[1].imshow(1-filtered,
                       cmap="grey")
+        for i in range(2):
+            axs[i].tick_params(axis='both',
+                               which='both',
+                               bottom=False,
+                               left=False,
+                               labelbottom=False,
+                               labelleft=False)
+            axs[i].axis("off")
+    elif ndim == 3:
+        #
+        fig = plt.figure(figsize=plt.figaspect(2.))
+        #
+        ax = fig.add_subplot(2, 1, 1, projection='3d')
+        #
+        filtered = map_eltovoxel(quant=apply_filter(dirac),
+                                 nelx=nelx, nely=nely, nelz=nelz)
+        #
     print(dirac.sum(),filtered.sum())
-    for i in range(2):
-        axs[i].tick_params(axis='both',
-                           which='both',
-                           bottom=False,
-                           left=False,
-                           labelbottom=False,
-                           labelleft=False)
-        axs[i].axis("off")
+
     plt.show()
     return

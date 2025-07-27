@@ -41,7 +41,7 @@ from mmapy import mmasub
 
 # MAIN DRIVER
 def main(nelx, nely, volfrac, penal, rmin, ft,
-         simulation_kw = {"grid": "regular", 
+         simulation_kw = {"grid": "regular",
                           "element order": 1,
                           "meshfile": None},
          nelz=None,
@@ -198,7 +198,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     # initialize constraints
     n_constr = 0
     if volfrac is not None:
-        n_constr += 1 
+        n_constr += 1
     constrs = np.zeros( (n_constr, 1) )
     dconstrs = np.zeros( (n, n_constr) )
     # initialize solver
@@ -366,7 +366,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                            interpolation='none', norm=Normalize(vmin=-1, vmax=0))
             plotfunc = im.set_array
         elif ndim == 3:
-            raise NotImplementedError("Plotting in 3D not yet implemented.")
+            raise NotImplementedError("Plotting in 3D not implemented.")
             # marching cubes to find contour line
             verts, faces, normals, values = marching_cubes(mapping(-xPhys),
                                                           level=volfrac)
@@ -580,7 +580,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                                                                  fval=constrs,
                                                                  dfdx=dconstrs.T,
                                                                  **optimizer_kw)
-            
+
             # update asymptotes
             optimizer_kw["low"] = low
             optimizer_kw["upp"] = upp
