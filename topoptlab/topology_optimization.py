@@ -404,7 +404,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
            loop==0:
             # update physical properties of the elements and thus the entries
             # of the elements
-            scale = simp(xPhys=xPhys,penal=penal,eps=1e-9)#(Emin+(xPhys)**penal * (E-Emin))
+            scale = simp(xPhys=xPhys,penal=penal,eps=1e-9)
             Kes = KE[None,:,:]*scale[:,:,None]
             if assembly_mode == "full":
                 # this here is more memory efficient than Kes.flatten() as it
@@ -412,10 +412,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                 sK = Kes.reshape(np.prod(Kes.shape))
             elif assembly_mode == "lower":
                 sK = Kes[:,assm_indcs[:,0],assm_indcs[:,1]].reshape( n*int(KE.shape[-1]/2*(KE.shape[-1]+1)))
-                #sK = Kes[:,assm_indcs[:,0]]
-                #sK = Kes[:,:,assm_indcs[:,1]].reshape( n*int(ndof/2*(ndof+1)) )
-            # Setup and solve FE problem
-            # To Do: loop over boundary conditions if incompatible
+            ### Setup and solve FE problem
             # assemble system matrix
             K = assemble_matrix(sK=sK,iK=iK,jK=jK,
                                 ndof=ndof,solver=lin_solver,
@@ -445,7 +442,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             u[free, :], fact, precond = solve_lin(K=K, rhs=rhs[free],
                                                   solver=lin_solver,
                                                   preconditioner=preconditioner)
-            # Objective and objective gradient
+            # objective and sensitivities with regards to object
             obj = 0
             dobj[:] = 0.
             for i in np.arange(f.shape[1]):
@@ -513,10 +510,10 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                                  Hs) / np.maximum(0.001, x)
             #dobj[:] = H @ (dc*x) / Hs / np.maximum(0.001, x)
         elif ft == 0 and filter_mode == "convolution":
-            dobj[:] = invmapping(convolve(mapping(dobj/hs),
-                                 h,
-                                 mode="constant",
-                                 cval=0)) / np.maximum(0.001, x)
+            dobj[:] = invmapping( convolve(mapping(dobj),
+                                           weights=h, axes=(0,1,2)[:ndim],
+                                           mode="constant", 
+                                           cval=0.0)) / hs / np.maximum(0.001, x)
         elif ft == 0 and filter_mode == "helmholtz":
             dobj[:] = TF.T @ lu_solve(TF@(dobj*xPhys))/np.maximum(0.001, x)
         elif ft == 1 and filter_mode == "matrix":

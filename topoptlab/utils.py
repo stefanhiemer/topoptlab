@@ -295,8 +295,12 @@ def elid_to_coords(el,nelx,nely,nelz=None,**kwargs):
 
     Returns
     -------
-    img : np.ndarray shape (nely,nelx)
-        quantity mapped to image.
+    x : np.ndarray shape (n)
+        x coordinates.
+    y : np.ndarray shape (n)
+        y coordinates.
+    z : np.ndarray shape (n), optional
+        z coordinates only if nelz is not None.
 
     """
     # find coordinates of each element/density

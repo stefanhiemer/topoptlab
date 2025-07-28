@@ -54,8 +54,8 @@ def test_normalization(nelx,nely,nelz,rmin,filter_mode):
                                            invmapping=invmapping)
         actual = invmapping(convolve(mapping(x),
                                      h,
-                                     mode="constant",
-                                     cval=0)) /hs
+                                     mode="constant",axes=(0,1,2)[:ndim],
+                                     cval=0)) / hs
     actual = actual.sum()
     #
     assert_almost_equal(actual, desired)
@@ -106,8 +106,8 @@ def test_consistency(nelx,nely,nelz,rmin):
                                        invmapping=invmapping)
     actual = invmapping(convolve(mapping(x),
                                  h,
-                                 mode="constant",
-                                 cval=0))/hs
+                                 mode="constant",axes=(0,1,2)[:ndim],
+                                 cval=0)) / hs
     #
     assert_almost_equal(actual, desired)
     return

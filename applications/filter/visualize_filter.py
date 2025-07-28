@@ -9,7 +9,7 @@ from topoptlab.filters import visualise_filter
 from topoptlab.utils import map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel
 
 
-def prepare_matrix_filter(nelx,nely,nelz,rmin):
+def initialize_matrix_filter(nelx,nely,nelz,rmin):
     if nelz is None:
         ndim = 2
     else:
@@ -21,11 +21,9 @@ def prepare_matrix_filter(nelx,nely,nelz,rmin):
                    H=H,Hs=Hs)
 
 def apply_matrix_filter(x,H,Hs):
-    #x_filtered = np.asarray( H*x )
-    #print(x_filtered)
     return np.asarray(H*x/Hs)
 
-def prepare_convol_filter(nelx,nely,nelz,rmin):
+def initialize_convol_filter(nelx,nely,nelz,rmin):
     #
     if nelz is None:
         ndim = 2
@@ -68,13 +66,15 @@ if __name__ == "__main__":
     rmin = 1.5
     nelx = 6
     nely = 6
-    nelz = None
+    nelz = 6
     #
     if nelz is None:
         ndim = 2
     else:
         ndim = 3
+    #
     ax = visualise_filter(n=(nelx,nely,nelz)[:ndim],
-                          apply_filter=prepare_matrix_filter(nelx,nely,nelz,rmin))
+                          apply_filter=initialize_matrix_filter(nelx,nely,nelz,
+                                                                rmin))
     #
     plt.show()

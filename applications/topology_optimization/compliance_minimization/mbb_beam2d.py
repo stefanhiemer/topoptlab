@@ -3,7 +3,6 @@ from topoptlab.example_bc.lin_elast import mbb_2d
 from topoptlab.accelerators import anderson
 import numpy as np
 
-# The real main driver
 if __name__ == "__main__":
     # Default input parameters
     nelx = 60
@@ -40,8 +39,8 @@ if __name__ == "__main__":
         export = bool(int(sys.argv[8]))
     #
     x,obj = main(nelx=nelx, nely=nely, volfrac=volfrac, penal=penal,
-                 rmin=rmin, ft=ft, filter_mode="convolution",
-                 optimizer="mma", #lin_solver="scipy-direct",
+                 rmin=rmin, ft=ft, filter_mode="matrix",
+                 optimizer="mma",
                  assembly_mode="full",
                  nouteriter=1000,file="mbb_2d",
                  bcs=mbb_2d, 

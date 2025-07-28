@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.sparse import csc_array,coo_array,coo_matrix
+from scipy.sparse import csc_array,coo_matrix
 from scipy.optimize import root_scalar
 from scipy.ndimage import convolve
 
@@ -8,6 +8,10 @@ from topoptlab.elements.screenedpoisson_2d import lk_screened_poisson_2d
 from topoptlab.elements.screenedpoisson_3d import lk_screened_poisson_3d
 from topoptlab.elements.bilinear_quadrilateral import create_edofMat as create_edofMat2d
 from topoptlab.elements.trilinear_hexahedron import create_edofMat as create_edofMat3d
+from topoptlab.geometries import diracdelta
+from topoptlab.utils import map_eltoimg,map_eltovoxel
+
+from matplotlib.pyplot import subplots,figure,figaspect,show
 
 
 def assemble_matrix_filter(nelx,nely,rmin,nelz=None,
@@ -460,28 +464,28 @@ def AMfilter(x, baseplate='S', sensitivities=None):
         return np.rot90(xi, -nRot)
     else:
         # Rotate sensitivities back to original orientation if rotated
-        #print("gradient before backrotation")
-        #print(dfx)
         return np.rot90(dfx, -nRot)
-
-import matplotlib.pyplot as plt
-from topoptlab.geometries import diracdelta
-from topoptlab.utils import map_eltoimg,map_eltovoxel
 
 def visualise_filter(n,
                      apply_filter,
+                     geo=None,
                      fig_kws=None):
     """
-
+    Apply filter to a given geometry and display the original geometry next to
+    the filtered one in order to understand the effect of a filter on a given
+    geometry of design densities.
 
     Parameters
     ----------
-    apply_filter : TYPE
-        DESCRIPTION.
-    filter_params : TYPE
-        DESCRIPTION.
-    ax : TYPE, optional
-        DESCRIPTION. The default is None.
+    n : tuple
+        contains number of elements in x,y and z direction depending on number 
+        of dimensions.
+    apply_filter : callable
+        function that applies filter.
+    geo : callable or np.ndarray of shape(np.prod(n)) or None
+        geometry of design densities on which to apply filter. 
+    fig_kws : dict or None, optional
+        keywords for figure.
 
     Returns
     -------
@@ -490,22 +494,30 @@ def visualise_filter(n,
     """
     #
     ndim = len(n)
+    #
     nelx,nely,nelz = n[:ndim] + (None,None,None)[ndim:]
     #
-    dirac = diracdelta(nelx=nelx ,nely=nely, nelz=nelz,
-                       location=None )[:,None]
+    if geo is None:
+        geo = diracdelta(nelx=nelx ,nely=nely, nelz=nelz,
+                         location=None )[:,None]
+    elif callable(geo):
+        geo = diracdelta(nelx=nelx ,nely=nely, nelz=nelz,
+                         location=None )
+    elif isinstance(geo, np.ndarray):
+        geo.shape[0] = int(np.prod(n))
     #
     if ndim == 2:
         # default plot settings 2d
         if fig_kws is None:
             fig_kws = {"figsize": (8,8)}
         #
-        fig,axs = plt.subplots(1,2,**fig_kws)
+        fig,axs = subplots(1,2,**fig_kws)
         #
-        axs[0].imshow(1-map_eltoimg(quant=dirac,
+        axs[0].imshow(1-map_eltoimg(quant=geo,
                                     nelx=nelx, nely=nely),
                       cmap="grey")
-        filtered = map_eltoimg(quant=apply_filter(dirac),
+        #
+        filtered = map_eltoimg(quant=apply_filter(geo),
                                     nelx=nelx, nely=nely)
         axs[1].imshow(1-filtered,
                       cmap="grey")
@@ -518,15 +530,47 @@ def visualise_filter(n,
                                labelleft=False)
             axs[i].axis("off")
     elif ndim == 3:
+        # default plot settings 3d
+        if fig_kws is None:
+            fig_kws = {"figsize": figaspect(2.)}
         #
-        fig = plt.figure(figsize=plt.figaspect(2.))
+        fig = figure(**fig_kws)
+        # unfiltered
+        axs = []
+        axs.append(fig.add_subplot(2, 1, 1, projection='3d'))
+        axs.append(fig.add_subplot(2, 1, 2, projection='3d'))
         #
-        ax = fig.add_subplot(2, 1, 1, projection='3d')
+        dirac_voxel = map_eltovoxel(geo,
+                                    nelx=nelx, nely=nely, nelz=nelz)
         #
-        filtered = map_eltovoxel(quant=apply_filter(dirac),
-                                 nelx=nelx, nely=nely, nelz=nelz)
+        facecolors = np.ones(dirac_voxel.shape[:-1] + (4,))
+        facecolors[:,:,:,:-1] = 1 - dirac_voxel
+        facecolors[:,:,:,-1] = dirac_voxel[:,:,:,0]
         #
-    print(dirac.sum(),filtered.sum())
+        axs[0].voxels(filled = ~np.isclose(dirac_voxel[:,:,:,0], 0),
+                      facecolors=facecolors)
+        # filtered
+        filtered_voxel = map_eltovoxel(quant=apply_filter(geo),
+                                       nelx=nelx, nely=nely, nelz=nelz)
+        #
+        facecolors = np.ones(filtered_voxel.shape[:-1] + (4,))
+        facecolors[:,:,:,:-1] = 1 - filtered_voxel
+        facecolors[:,:,:,-1] = filtered_voxel[:,:,:,0]
+        #
+        axs[1].voxels(filled = ~np.isclose(filtered_voxel[:,:,:,0], 0),
+                      facecolors=facecolors)
+        #
+        for i in range(2):
+            # limits
+            for j,nel in enumerate(n):
+                axs[i].set_xlim(0,nel)
+            #    
+            axs[i].set_xlabel( "z" )
+            axs[i].set_ylabel( "y" )
+            axs[i].set_zlabel( "x" )
+        #
+    print("mass before filter operation: ", geo.sum(),"\n",
+          "mass after filter operation: ", filtered_voxel.sum())
 
-    plt.show()
+    show()
     return

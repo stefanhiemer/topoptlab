@@ -87,14 +87,27 @@ def cahn_hilliard_fft(ndim=2, grid_size=128,
     return c
         
 if __name__ == "__main__":
+    #
+    ndim = 2
+    n = 128
+    display=True
+    #
+    import sys
+    if len(sys.argv)>1:
+        ndim = int(sys.argv[1])
+    if len(sys.argv)>2:
+        n = int(sys.argv[2])
+    if len(sys.argv)>3:
+        display = bool(int(sys.argv[3]))
+        
     cahn_hilliard_fft(
-        ndim=2,
-        grid_size=128,
+        ndim=ndim,
+        grid_size=n,
         dx=1.0,
         dt=0.009,
         gamma=0.5,
         M=1.0,
         n_steps=int(1e4),
         seed=0,
-        display=True
+        display=display
     )

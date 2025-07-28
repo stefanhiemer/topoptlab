@@ -156,7 +156,7 @@ def bounding_rectangle(nelx,nely,faces=["b","t","r","l"]):
     el_flags[indices] = 2
     return el_flags
 
-def slab(nelx,nely,center,widths=None, fill_value=1):
+def slab(nelx,nely,center, widths=None, fill_value=1):
     """
     Create element flags for a slab located at the specified center with the
     specified width in each dimension.
@@ -169,8 +169,9 @@ def slab(nelx,nely,center,widths=None, fill_value=1):
         number of elements in y direction.
     center : list or tuple or np.ndarray
         coordinates of slab center.
-    widths : iterable of float and None
-        width in x and y direction.
+    widths : iterable of floats and None
+        width in x and y direction. If one entry is None or it is width is None,
+        then nelx/nely is taken as width in this direction.
     fill_value: int
         value that is prescribed to elements within sphere.
 
