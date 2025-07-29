@@ -276,10 +276,6 @@ def oc_generalized(x: np.ndarray, volfrac: float,
         updated parameter for the heuristic updating scheme..
 
     """
-    l1 = 0
-    l2 = 1e9
-    move = 0.1
-    damp = 0.3
     # reshape to perform vector operations
     xnew = np.zeros(x.shape)
     while (l2-l1)/(l1+l2) > 1e-4 and l2 > 1e-40:
