@@ -5,12 +5,12 @@ import numpy as np
 from topoptlab.geometries import diracdelta
 from topoptlab.utils import map_eltoimg,map_eltovoxel
 
-from matplotlib.pyplot import subplots,figure,figaspect,show 
+from matplotlib.pyplot import subplots,figure,figaspect,show
 
 def visualise_filter(n: int,
                      apply_filter: Callable,
-                     geo: Union([None,np.ndarray,Callable]) = None,
-                     fig_kws: Union([None,Dict]) = None)->None:
+                     geo: Union[None,np.ndarray,Callable] = None,
+                     fig_kws: Union[None,Dict] = None)->None:
     """
     Apply filter to a given geometry and display the original geometry next to
     the filtered one in order to understand the effect of a filter on a given
@@ -19,12 +19,12 @@ def visualise_filter(n: int,
     Parameters
     ----------
     n : tuple
-        contains number of elements in x,y and z direction depending on number 
+        contains number of elements in x,y and z direction depending on number
         of dimensions.
     apply_filter : callable
         function that applies filter.
     geo : callable or np.ndarray of shape(np.prod(n)) or None
-        geometry of design densities on which to apply filter. 
+        geometry of design densities on which to apply filter.
     fig_kws : dict or None, optional
         keywords for figure.
 
@@ -105,7 +105,7 @@ def visualise_filter(n: int,
             # limits
             for j,nel in enumerate(n):
                 axs[i].set_xlim(0,nel)
-            #    
+            #
             axs[i].set_xlabel( "z" )
             axs[i].set_ylabel( "y" )
             axs[i].set_zlabel( "x" )

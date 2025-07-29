@@ -4,8 +4,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.ndimage import convolve
 
-from topoptlab.filters import assemble_convolution_filter,assemble_matrix_filter
-from topoptlab.filters import visualise_filter
+from topoptlab.filter.convolution_filter import assemble_convolution_filter
+from topoptlab.filter.matrix_filter import assemble_matrix_filter
+from topoptlab.filter.utils import visualise_filter
 from topoptlab.utils import map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel
 
 

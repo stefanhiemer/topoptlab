@@ -514,24 +514,22 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         elif ft == 0 and filter_mode == "convolution":
             dobj[:] = invmapping( convolve(mapping(dobj),
                                            weights=h, axes=(0,1,2)[:ndim],
-                                           mode="constant", 
+                                           mode="constant",
                                            cval=0.0)) / hs / np.maximum(0.001, x)
         elif ft == 0 and filter_mode == "helmholtz":
             dobj[:] = TF.T @ lu_solve(TF@(dobj*xPhys))/np.maximum(0.001, x)
         elif ft == 1 and filter_mode == "matrix":
             dobj[:] = np.asarray(H*(dobj/Hs))
             dconstrs[:] = np.asarray(H*(dconstrs/Hs))
-            #dobj[:] = H @ (dobj/Hs)
-            #dv[:] = H @ (dv/Hs)
         elif ft == 1 and filter_mode == "convolution":
-            dobj[:] = invmapping(convolve(mapping(dobj/hs),
-                                          h,
-                                          mode="constant",
-                                          cval=0))
-            dconstrs[:] = invmapping(convolve(mapping(dconstrs/hs),
-                                        h,
-                                        mode="constant",
-                                        cval=0))
+            dobj[:] = invmapping( convolve(mapping(dobj),
+                                           weights=h, axes=(0,1,2)[:ndim],
+                                           mode="constant",
+                                           cval=0.0)) / hs
+            dconstrs[:] = invmapping( convolve(mapping(dconstrs),
+                                           weights=h, axes=(0,1,2)[:ndim],
+                                           mode="constant",
+                                           cval=0.0)) / hs
         elif ft == 1 and filter_mode == "helmholtz":
             dobj[:] = TF.T @ lu_solve(TF@dobj)
             dconstrs[:] = TF.T @ lu_solve(TF@dconstrs)
@@ -558,16 +556,6 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                                        el_flags=el_flags)
         # method of moving asymptotes
         elif optimizer=="mma":
-            #xmma,ymma,zmma,lam,xsi,eta,mu,zet,s,low,upp = update_mma(x=x,
-            #                                                    xold1=xhist[-2][:,None],
-            #                                                    xold2=xhist[-3][:,None],
-            #                                                    xPhys=xPhys,
-            #                                                    obj=obj,
-            #                                                    dobj=dobj,
-            #                                                    constrs=volconstr,
-            #                                                    dconstr=dv,
-            #                                                    iteration=loop,
-            #                                                    **optimizer_kw)
             xmma,ymma,zmma,lam,xsi,eta_mma,mu,zet,s,low,upp = mmasub(m=optimizer_kw["nconstr"],
                                                                  n=x.shape[0],
                                                                  iter=i,
@@ -609,12 +597,11 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             xPhys[:] = x
         elif ft == 1 and filter_mode == "matrix":
             xPhys[:] = np.asarray(H*x/Hs)
-            #xPhys[:] = H @ x / Hs
         elif ft == 1 and filter_mode == "convolution":
-            xPhys[:] = invmapping(convolve(mapping(x),
-                                           weights=h,
+            xPhys[:] = invmapping( convolve(mapping(x),
+                                           weights=h, axes=(0,1,2)[:ndim],
                                            mode="constant",
-                                           cval=0)) / hs
+                                           cval=0.0)) / hs
         elif ft == 1 and filter_mode == "helmholtz":
             xPhys[:] = TF.T @ lu_solve(TF@x)
         elif ft == -1:
