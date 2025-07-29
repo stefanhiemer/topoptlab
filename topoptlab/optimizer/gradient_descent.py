@@ -1,10 +1,13 @@
+from typing import Union,Any
+
 import numpy as np
 
-def gradient_descent(x, dobj, 
-                     xmin, xmax, 
-                     stepsize=1e-4,
-                     move=0.1,
-                     **kwargs):
+def gradient_descent(x: np.ndarray, dobj: np.ndarray, 
+                     xmin: Union[float,np.ndarray], 
+                     xmax: Union[float,np.ndarray], 
+                     stepsize: float = 1e-4,
+                     move: int = 0.1,
+                     **kwargs: Any) -> np.ndarray:
     """
     Standard gradient descent. Just for demonstration, teaching and testing 
     purposes. Do not use in series research endeavours.
@@ -15,9 +18,9 @@ def gradient_descent(x, dobj,
         design variablesof the current iteration.
     dobj : np.array, shape (nel)
         gradient of objective function with respect to design variables.
-    xmin : np.ndarray, shape (nel)
+    xmin : float or np.ndarray, shape (nel)
         minimum value of design variables.
-    xmax : np.ndarray, shape (nel)
+    xmax : float or np.ndarray, shape (nel)
         maximum value of design variables.
     stepsize : float
         step size 
@@ -39,12 +42,14 @@ def gradient_descent(x, dobj,
                                                           x-stepsize*dobj))))
     return xnew
 
-def barzilai_borwein(x, dobj, 
-                     xold, dobjold,
-                     xmin, xmax, 
-                     el_flags, 
-                     step_mode="long",
-                     move=0.1):
+def barzilai_borwein(x: np.ndarray, dobj: np.ndarray, 
+                     xold: np.ndarray, dobjold: np.ndarray,
+                     xmin: Union[float,np.ndarray], 
+                     xmax: Union[float,np.ndarray], 
+                     el_flags: Union[None,np.ndarray], 
+                     step_mode: str = "long",
+                     move: int = 0.1,
+                     **kwargs: Any) -> np.ndarray:
     """
     Barzilai-Borwain gradient descent that respects lower and upper bounds for 
     the design variables. It offers the standard step size methods from the 

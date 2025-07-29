@@ -1,8 +1,10 @@
+from typing import Dict
+
 import numpy as np
 
 from mmapy import mmasub
 
-def mma_defaultkws(n,ft,n_constr):
+def mma_defaultkws(n: int, ft: int, n_constr: int) -> Dict:
     """
     Default arguments for the method of moving asymptotes (MMA).
     
@@ -55,7 +57,7 @@ def mma_defaultkws(n,ft,n_constr):
     optimizer_kw["albefa"] = 0.1
     return optimizer_kw
 
-def gcmma_defaultkws(n,ft,n_constr):
+def gcmma_defaultkws(n: int, ft: int, n_constr: int) -> Dict:
     """
     Default arguments for the globally convergent method of moving asymptotes 
     (GCMMA).

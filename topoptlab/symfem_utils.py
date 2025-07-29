@@ -8,7 +8,8 @@ from sympy import symbols, Symbol
 from symfem import create_element, create_reference
 from symfem.functions import VectorFunction, MatrixFunction
 
-def convert_to_code(matrix,matrices=[],vectors=[],
+def convert_to_code(matrix,
+                    matrices=[],vectors=[],
                     np_functions=["cos","sin","tan"],
                     npndarray=True,
                     max_line_length=200):

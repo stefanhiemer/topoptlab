@@ -1,6 +1,9 @@
+from typing import Any,Tuple
 import numpy as np
 
-def heatplate_2d(nelx,nely,ndof,**kwargs):
+def heatplate_2d(nelx: int, nely: int,
+                 ndof: int, **kwargs: Any
+                 ) -> Tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,None]:
     """
     Heat conduction problem with an evenly heated plate attached to a heat 
     sink at the negative x side. Example case taken from the standard TO 
@@ -41,7 +44,9 @@ def heatplate_2d(nelx,nely,ndof,**kwargs):
     f[:, 0] = -1 # constant source
     return u,f,fixed,np.setdiff1d(dofs,fixed),None
 
-def rectangle_2d(nelx,nely,ndof,**kwargs):
+def rectangle_2d(nelx: int, nely: int,
+                 ndof: int, **kwargs: Any
+                 ) -> Tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,None]:
     """
     Heat conduction through rectangular beam with heat source located at 
     left side and heat sink at right side.

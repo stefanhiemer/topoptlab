@@ -1,6 +1,6 @@
 import numpy as np
 
-def laplacian_2d(f,dx):
+def laplacian_2d(f: np.ndarray,dx: float) -> np.ndarray:
     """
     Laplacian operator in 2D on rectangular even spaced grid with periodic 
     boundary conditions.
@@ -9,6 +9,8 @@ def laplacian_2d(f,dx):
     ----------
     f : np.ndarray shape (ngrid_x,ngrid_y)
         function values.
+    dx : float 
+        lattice spacing
 
     Returns
     -------
@@ -19,7 +21,7 @@ def laplacian_2d(f,dx):
             np.roll(f, 1, axis=1) + np.roll(f, -1, axis=1) - 4 * f) / dx**2
         
     
-def laplacian_3d(f,dx):
+def laplacian_3d(f: np.ndarray,dx: float) -> np.ndarray:
     """
     Laplacian operator in 3D on rectangular even spaced grid with periodic 
     boundary conditions.
@@ -28,6 +30,8 @@ def laplacian_3d(f,dx):
     ----------
     f : np.ndarray shape (ngrid_x,ngrid_y,ngrid_z)
         function values.
+    dx : float 
+        lattice spacing
 
     Returns
     -------

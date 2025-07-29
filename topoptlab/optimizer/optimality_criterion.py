@@ -1,12 +1,16 @@
-import numpy as np
+from typing import Union, Tuple
 
-from topoptlab.filters import AMfilter
+import numpy as np
 
 projections = [2,3,4,5]
 filters = [0,1]
 
-def oc_top88(x, volfrac, dc, dv, g, el_flags,
-             move=0.2, l1=0.,l2=1e9):
+def oc_top88(x: np.ndarray, volfrac: float, 
+             dc: np.ndarray, dv: np.ndarray, 
+             g: float,
+             el_flags: Union[None,np.ndarray],
+             move: int = 0.2, 
+             l1: float = 0.,l2: float = 1e9) -> Tuple[np.ndarray,float]:
     """
     Optimality criteria method (section 2.2 in top88 paper) for maximum/minimum 
     stiffness/compliance. Heuristic updating scheme for the element densities 
@@ -176,7 +180,12 @@ def oc_haevi(x, volfrac, dc, dv, g, pass_el,
     else:
         return (xnew, xTilde, xPhys, gt)
     
-def oc_mechanism(x, volfrac, dc, dv, g, el_flags):
+def oc_mechanism(x: np.ndarray, volfrac: float, 
+                 dc: np.ndarray, dv: np.ndarray, 
+                 g: float,
+                 el_flags: Union[None,np.ndarray],
+                 move: int = 0.1, damp: float = 0.3,
+                 l1: float = 0.,l2: float = 1e9) -> Tuple[np.ndarray,float]:
     """
     Optimality criteria method for compliant mechnanism according to the 
     standard textbook by Bendsoe and Sigmund. In general: can handle objective 
@@ -210,10 +219,6 @@ def oc_mechanism(x, volfrac, dc, dv, g, el_flags):
         updated parameter for the heuristic updating scheme..
 
     """
-    l1 = 0
-    l2 = 1e9
-    move = 0.1
-    damp = 0.3
     # reshape to perform vector operations
     xnew = np.zeros(x.shape)
     while (l2-l1)/(l1+l2) > 1e-4 and l2 > 1e-40:
@@ -234,7 +239,12 @@ def oc_mechanism(x, volfrac, dc, dv, g, el_flags):
         
     return (xnew, gt)
 
-def oc_generalized(x, volfrac, dc, dv, g, el_flags):
+def oc_generalized(x: np.ndarray, volfrac: float, 
+                   dc: np.ndarray, dv: np.ndarray, 
+                   g: float,
+                   el_flags: Union[None,np.ndarray],
+                   move: int = 0.1, damp: float = 0.3,
+                   l1: float = 0.,l2: float = 1e9) -> Tuple[np.ndarray,float]:
     """
     This is a function where I try around various generalizations. At the 
     moment identical to oc_mechanism.

@@ -1,6 +1,10 @@
+from typing import Any,Tuple,Union,List
+
 import numpy as np
 
-def mbb_2d(nelx,nely,ndof,**kwargs):
+def mbb_2d(nelx: int, nely: int,
+           ndof: int, **kwargs: Any
+           ) -> Tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,None]:
     """
     This is the standard case from the 88 line code paper.
 
@@ -24,6 +28,8 @@ def mbb_2d(nelx,nely,ndof,**kwargs):
         indices of fixed dofs (nfixed).
     free : np.ndarray
         indices of free dofs (ndofs - nfixed).
+    springs : None
+        example has no springs.
 
     """
     #
@@ -38,7 +44,9 @@ def mbb_2d(nelx,nely,ndof,**kwargs):
     f[1, 0] = -1
     return u,f,fixed,np.setdiff1d(dofs,fixed),None
 
-def mbb_3d(nelx,nely,nelz,ndof,**kwargs):
+def mbb_3d(nelx: int, nely: int, nelz: int,
+           ndof: int, **kwargs: Any
+           ) -> Tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,None]:
     """
     This is an equivalent to the standard case from the 88 line code paper.
 
@@ -64,7 +72,8 @@ def mbb_3d(nelx,nely,nelz,ndof,**kwargs):
         indices of fixed dofs (nfixed).
     free : np.ndarray
         indices of free dofs (ndofs - nfixed).
-
+    springs : None
+        example has no springs.
     """
     #
     dofs = np.arange(ndof)
@@ -87,7 +96,9 @@ def mbb_3d(nelx,nely,nelz,ndof,**kwargs):
     f[np.arange(1,(nelx+1)*(nely+1)*(nelz+1)*3,(nelx+1)*(nely+1)*3), 0] = -1
     return u,f,fixed,np.setdiff1d(dofs,fixed),None
 
-def cantilever_2d(nelx,nely,ndof,**kwargs):
+def cantilever_2d(nelx: int, nely: int,
+                  ndof: int, **kwargs: Any
+                  ) -> Tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,None]:
     """
     This is the corrected example 5.1 from the 88 line code paper.
 
@@ -112,6 +123,7 @@ def cantilever_2d(nelx,nely,ndof,**kwargs):
     free : np.ndarray
         indices of free dofs (ndofs - nfixed).
     springs : None
+        example has no springs.
 
     """
     #
@@ -125,7 +137,10 @@ def cantilever_2d(nelx,nely,ndof,**kwargs):
     f[-1,0] = -1
     return u,f,fixed,np.setdiff1d(dofs,fixed),None
 
-def cantilever_2d_twoloads(nelx,nely,ndof,**kwargs):
+def cantilever_2d_twoloads(nelx: int, nely: int,
+                           ndof: int, **kwargs: Any
+                           ) -> Tuple[np.ndarray,np.ndarray,
+                                      np.ndarray,np.ndarray,None]:
     """
     This is the corrected example 5.2 from the 88 line code paper.
 
@@ -150,6 +165,7 @@ def cantilever_2d_twoloads(nelx,nely,ndof,**kwargs):
     free : np.ndarray
         indices of free dofs (ndofs - nfixed).
     springs : None
+        example has no springs.
     """
     #
     dofs = np.arange(ndof)
@@ -164,7 +180,10 @@ def cantilever_2d_twoloads(nelx,nely,ndof,**kwargs):
     f[2*nelx*(nely+1)+1,1] = 1
     return u,f,fixed,np.setdiff1d(dofs,fixed),None
 
-def cantilever_2d_twoloads_wrong(nelx,nely,ndof,**kwargs):
+def cantilever_2d_twoloads_wrong(nelx: int, nely: int,
+                                 ndof: int, **kwargs: Any
+                                 ) -> Tuple[np.ndarray,np.ndarray,
+                                            np.ndarray,np.ndarray,None]:
     """
     This is the example 5.2 from the 88 line code paper. It is actually wrong
     as it misses out on fixing the last dof in y direction on the left wall. It
@@ -191,6 +210,7 @@ def cantilever_2d_twoloads_wrong(nelx,nely,ndof,**kwargs):
     free : np.ndarray
         indices of free dofs (ndofs - nfixed).
     springs : None
+        example has no springs.
 
     """
     #
@@ -206,7 +226,10 @@ def cantilever_2d_twoloads_wrong(nelx,nely,ndof,**kwargs):
     f[2*nelx*(nely+1)+1,1] = 1
     return u,f,fixed,np.setdiff1d(dofs,fixed),None
 
-def cantilever_2d_wrong(nelx,nely,ndof,**kwargs):
+def cantilever_2d_wrong(nelx: int, nely: int,
+                        ndof: int, **kwargs: Any
+                        ) -> Tuple[np.ndarray,np.ndarray,
+                                   np.ndarray,np.ndarray,None]:
     """
     This is the example 5.1 from the 88 line code paper. It is actually wrong
     as it misses out on fixing the last dof in y direction on the left wall. It
@@ -220,7 +243,6 @@ def cantilever_2d_wrong(nelx,nely,ndof,**kwargs):
         number of elements in y direction.
     ndof : int
         number of degrees of freedom.
-    springs : None
 
     Returns
     -------
@@ -234,6 +256,7 @@ def cantilever_2d_wrong(nelx,nely,ndof,**kwargs):
     free : np.ndarray
         indices of free dofs (ndofs - nfixed).
     springs : None
+        example has no springs.
     """
 
     #
@@ -247,7 +270,10 @@ def cantilever_2d_wrong(nelx,nely,ndof,**kwargs):
     f[-1,0] = -1
     return u,f,fixed,np.setdiff1d(dofs,fixed),None
 
-def forceinverter_2d(nelx,nely,ndof,**kwargs):
+def forceinverter_2d(nelx: int, nely: int,
+                     ndof: int, **kwargs: Any
+                     ) -> Tuple[np.ndarray,np.ndarray,
+                                np.ndarray,np.ndarray,None]:
     """
     Heat conduction problem with an evenly heated plate attached to a heat
     sink at the negative x side. Example case taken from the standard TO
@@ -293,7 +319,10 @@ def forceinverter_2d(nelx,nely,ndof,**kwargs):
     springs = [np.array([0,2*nelx*(nely+1)]),np.array([0.1,0.1])]
     return u,f,fixed,np.setdiff1d(dofs,fixed),springs
 
-def threepointbending_2d(nelx,nely,ndof,**kwargs):
+def threepointbending_2d(nelx: int, nely: int,
+                         ndof: int, **kwargs: Any
+                         ) -> Tuple[np.ndarray,np.ndarray,
+                                    np.ndarray,np.ndarray,None]:
     """
     both displacement fixed at bottom left and bottom right and force pushes
     down on the middle top.
@@ -318,10 +347,8 @@ def threepointbending_2d(nelx,nely,ndof,**kwargs):
         indices of fixed dofs (nfixed).
     free : np.ndarray
         indices of free dofs (ndofs - nfixed).
-    springs : list
-        contains two 1D np.ndarrays of equal length. first is of integer type
-        and contains the indices of dofs attached to a spring. second contains
-        the spring constants.
+    springs : None
+        example has no springs.
 
     """
     # BC's
@@ -336,7 +363,10 @@ def threepointbending_2d(nelx,nely,ndof,**kwargs):
     f[nelx*(nely+1) + 1,0] = -1
     return u,f,fixed,np.setdiff1d(dofs,fixed),None
 
-def xcenteredbeam_2d(nelx,nely,ndof,**kwargs):
+def xcenteredbeam_2d(nelx: int, nely: int,
+                     ndof: int, **kwargs: Any
+                     ) -> Tuple[np.ndarray,np.ndarray,
+                                np.ndarray,np.ndarray,None]:
     """
     Both displacements fixed at the middle of the left and right boundary. No
     forces. This test case is mainly for cases where a force source due to
@@ -362,10 +392,8 @@ def xcenteredbeam_2d(nelx,nely,ndof,**kwargs):
         indices of fixed dofs (nfixed).
     free : np.ndarray
         indices of free dofs (ndofs - nfixed).
-    springs : list
-        contains two 1D np.ndarrays of equal length. first is of integer type
-        and contains the indices of dofs attached to a spring. second contains
-        the spring constants.
+    springs : None
+        example has no springs.
 
     """
     if nely%2 !=0:
@@ -381,9 +409,10 @@ def xcenteredbeam_2d(nelx,nely,ndof,**kwargs):
                        [2*nelx*(nely+1) + nely+1])) # bottom right
     return u,f,fixed,np.setdiff1d(dofs,fixed),None
 
-def tensiletest_2d(nelx,nely,ndof,
-                   ymirror=True,
-                   **kwargs):
+def tensiletest_2d(nelx: int, nely: int,
+                   ndof: int, ymirror: bool = True, 
+                   **kwargs: Any
+                   ) -> Tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,None]:
     """
     Tensile test with force applied in x direction with -x side fixed in terms
     of x dofs. BC details depend on options.
@@ -411,10 +440,8 @@ def tensiletest_2d(nelx,nely,ndof,
         indices of fixed dofs (nfixed).
     free : np.ndarray
         indices of free dofs (ndofs - nfixed).
-    springs : list
-        contains two 1D np.ndarrays of equal length. first is of integer type
-        and contains the indices of dofs attached to a spring. second contains
-        the spring constants.
+    springs : None
+        example has no springs.
 
     """
     if nely%2 !=0:
@@ -438,8 +465,9 @@ def tensiletest_2d(nelx,nely,ndof,
     #
     return u,f,fixed,np.setdiff1d(dofs,fixed),None
 
-def tensiletest_3d(nelx,nely,nelz,ndof,
-                   **kwargs):
+def tensiletest_3d(nelx: int, nely: int, nelz: int,
+                   ndof: int, **kwargs: Any
+                   ) -> Tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,None]:
     """
     x displacements fixed at left side and uniform force applied at right hand
     side. One y dof is fixed in the middle of the left side.
@@ -466,7 +494,8 @@ def tensiletest_3d(nelx,nely,nelz,ndof,
         indices of fixed dofs (nfixed).
     free : np.ndarray
         indices of free dofs (ndofs - nfixed).
-
+    springs : None
+        example has no springs.
     """
     #
     dofs = np.arange(ndof)
@@ -493,7 +522,11 @@ def tensiletest_3d(nelx,nely,nelz,ndof,
     f[tension,0] = 1.
     return u,f,fixed,np.setdiff1d(dofs,fixed),None
 
-def selffolding_2d(nelx,nely,ndof,**kwargs):
+def selffolding_2d(nelx: int, nely: int,
+                   ndof: int, **kwargs: Any
+                   ) -> Tuple[np.ndarray,np.ndarray,
+                              np.ndarray,np.ndarray,
+                              Tuple[np.ndarray,np.ndarray]]:
     """
     Symmetry axis on left side (x dofs fixed) and bottom node on left side has
     fixed y displacement as well. No forces applied as this is thought to be
@@ -520,7 +553,7 @@ def selffolding_2d(nelx,nely,ndof,**kwargs):
         indices of fixed dofs (nfixed).
     free : np.ndarray
         indices of free dofs (ndofs - nfixed).
-    springs : None
+    springs : tuple
         contains two 1D np.ndarrays of equal length. first is of integer type
         and contains the indices of dofs attached to a spring. second contains
         the spring constants.
@@ -536,11 +569,13 @@ def selffolding_2d(nelx,nely,ndof,**kwargs):
     f = np.zeros((ndof, 1))
     u = np.zeros((ndof, 1))
     #
-    springs = [np.array([2*nelx*(nely+1)+1]),
-               np.array([5e-4])]
+    springs = (np.array([2*nelx*(nely+1)+1]),
+               np.array([5e-4]))
     return u,f,fixed,np.setdiff1d(dofs,fixed),springs
 
-def selffolding_3d(nelx,nely,nelz,ndof,**kwargs):
+def selffolding_3d(nelx: int, nely: int, nelz: int,
+                   ndof: int, **kwargs: Any
+                   ) -> Tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,None]:
     """
     Symmetry axis on left side (x dofs fixed) and bottom node on left side has
     fixed y displacement as well. No forces applied as this is thought to be
@@ -568,11 +603,9 @@ def selffolding_3d(nelx,nely,nelz,ndof,**kwargs):
     fixed : np.ndarray
         indices of fixed dofs (nfixed).
     free : np.ndarray
-        indices of free dofs (ndofs - nfixed).
+        indices of free dofs shape (ndofs - nfixed).
     springs : None
-        contains two 1D np.ndarrays of equal length. first is of integer type
-        and contains the indices of dofs attached to a spring. second contains
-        the spring constants.
+        example has no springs.
 
     """
     #
@@ -594,8 +627,10 @@ def selffolding_3d(nelx,nely,nelz,ndof,**kwargs):
                        fixation+1)) # z fixation
     return u,f,fixed,np.setdiff1d(dofs,fixed),None
 
-def singlenode(nelx,nely,ndof,nelz=None,
-               **kwargs):
+def singlenode(nelx: int, nely: int,
+               ndof: int, nelz: Union[None,int], 
+               **kwargs: Any
+               ) -> Tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,None]:
     """
     Fix all dofs of first node. Typically used for homogenization or similar
     applications where the forces arise by another source (e. g. heat or via
@@ -622,7 +657,9 @@ def singlenode(nelx,nely,ndof,nelz=None,
     fixed : np.ndarray
         indices of fixed dofs (nfixed).
     free : np.ndarray
-        indices of free dofs (ndofs - nfixed).
+        indices of free dofs shape (ndofs - nfixed).
+    springs : None
+        example has no springs.
 
     """
     if nelz is None:
