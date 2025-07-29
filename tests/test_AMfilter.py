@@ -3,7 +3,7 @@ from numpy.testing import assert_almost_equal
 
 import pytest
 
-from topoptlab.filters import AMfilter
+from topoptlab.filter.amfilter_langelaar import AMfilter
 
 @pytest.mark.parametrize('bplate',
                          [('N'),('E'),('S'),('W')])

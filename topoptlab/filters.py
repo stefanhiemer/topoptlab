@@ -1,252 +1,11 @@
 import numpy as np
-from scipy.sparse import csc_array,coo_matrix
+from scipy.sparse import coo_matrix
 from scipy.optimize import root_scalar
-from scipy.ndimage import convolve
 
-from topoptlab.fem import create_matrixinds
-from topoptlab.elements.screenedpoisson_2d import lk_screened_poisson_2d
-from topoptlab.elements.screenedpoisson_3d import lk_screened_poisson_3d
-from topoptlab.elements.bilinear_quadrilateral import create_edofMat as create_edofMat2d
-from topoptlab.elements.trilinear_hexahedron import create_edofMat as create_edofMat3d
 from topoptlab.geometries import diracdelta
 from topoptlab.utils import map_eltoimg,map_eltovoxel
 
-from matplotlib.pyplot import subplots,figure,figaspect,show
-
-
-def assemble_matrix_filter(nelx,nely,rmin,nelz=None,
-                           ndim=2,
-                           **kwargs):
-    """
-    Assemble distance based filters as sparse matrix that is applied on to
-    densities/sensitivities by standard multiplication.
-
-    Parameters
-    ----------
-    nelx : int
-        number of elements in x direction.
-    nely : int
-        number of elements in y direction.
-    rmin : float
-        cutoff radius for the filter. Only elements within the element-center
-        to element center distance are used for filtering.
-    nelz : int or None
-        number of elements in z direction. Ignored if ndim < 3.
-    ndim : int
-        number of dimensions
-
-    Returns
-    -------
-    H : csc matrix
-        unnormalized filter.
-    Hs : np matrix
-        normalization factor.
-
-    """
-    # number of elements/densities
-    if ndim == 2:
-        n = nelx*nely
-    elif ndim == 3:
-        n = nelx*nely*nelz
-    # index array of densities/elements
-    el = np.arange(n)
-    # filter size
-    nfilter = int(n*((2*(np.ceil(rmin)-1)+1)**ndim))
-    # create empty arrays for indices and values of final filter
-    iH = np.zeros(nfilter)
-    jH = np.zeros(nfilter)
-    sH = np.zeros(nfilter)
-    # find coordinates of each element/density
-    if ndim == 2:
-        x,y = np.divmod(el,nely) # same as np.floor(el/nely),el%nely
-    elif ndim == 3:
-        z,rest = np.divmod(el,nelx*nely)
-        x,y = np.divmod(rest,nely)
-    # find coordinates of neighbours for each element
-    kk1 = np.maximum(x-(np.ceil(rmin)-1), 0).astype(int)
-    kk2 = np.minimum(x+np.ceil(rmin), nelx).astype(int)
-    ll1 = np.maximum(y-(np.ceil(rmin)-1), 0).astype(int)
-    ll2 = np.minimum(y+np.ceil(rmin), nely).astype(int)
-    if ndim == 3:
-        mm1 = np.maximum(z-(np.ceil(rmin)-1), 0).astype(int)
-        mm2 = np.minimum(z+np.ceil(rmin), nelz).astype(int)
-    n_neigh = (kk2-kk1)*(ll2-ll1)
-    if ndim ==3:
-        n_neigh = n_neigh * (mm2-mm1)
-    el = np.repeat(el, n_neigh)
-    x = np.repeat(x, n_neigh)
-    y = np.repeat(y, n_neigh)
-    if ndim == 3:
-        z = np.repeat(z, n_neigh)
-    cc = np.arange(el.shape[0])
-    if ndim == 2:
-        k,l = np.hstack([np.stack([a.flatten() for a in \
-                         np.meshgrid(np.arange(k1,k2),np.arange(l1,l2))]) \
-                         for k1,k2,l1,l2 in zip(kk1,kk2,ll1,ll2)])
-        # hat function
-        fac = rmin-np.sqrt((x-k)**2+(y-l)**2)
-    elif ndim == 3:
-        k,l,m = np.hstack([np.stack([a.flatten() for a in \
-                           np.meshgrid(np.arange(k1,k2),
-                                       np.arange(l1,l2),
-                                       np.arange(m1,m2))]) \
-                           for k1,k2,l1,l2,m1,m2 in \
-                           zip(kk1,kk2,ll1,ll2,mm1,mm2)])
-        # hat function
-        fac = rmin-np.sqrt((x-k)**2+(y-l)**2+(z-m)**2)
-    iH[cc] = el # row
-    if ndim == 2:
-        jH[cc] = nely*k+l #column
-    elif ndim == 3:
-        jH[cc] = (m*nelx + k)*nely + l
-    sH[cc] = np.maximum(0.0, fac)
-    # Finalize assembly and convert to csc format
-    H = coo_matrix((sH, (iH, jH)), shape=(n, n)).tocsc()
-    # normalization constants
-    Hs = H.sum(1)
-    return H,Hs
-
-def assemble_convolution_filter(nelx,nely,rmin,
-                                mapping,invmapping,
-                                nelz=None,
-                                **kwargs):
-    """
-    Assemble distance based filter as image/voxel convolution filter. Returns
-    the kernel and the normalization constants
-
-    Parameters
-    ----------
-    nelx : int
-        number of elements in x direction.
-    nely : int
-        number of elements in y direction.
-    rmin : float
-        cutoff radius for the filter. Only elements within the element-center
-        to element center distance are used for filtering.
-    mapping : callable,
-        converts property from 1D np.ndarray to image/voxel.
-    invmapping : callable,
-        converts property from image/voxel to 1D np.ndarray in correct order.
-    nelz : int or None
-        number of elements in z direction.
-
-    Returns
-    -------
-    h : np.ndarray, shape (nfilter,nfilter) or (nfilter,nfilter,nfilter)
-        convolution kernel.
-    hs : np.ndarray, shape (n)
-        normalization constants.
-
-    """
-    # filter radius in number of elements
-    nfilter = int(2*np.floor(rmin)+1)
-    #
-    x = np.arange(-np.floor(rmin),np.floor(rmin)+1)
-    if nelz is None:
-        #
-        n = nelx*nely
-        #
-        x = np.tile(x,(nfilter,1))
-        y = np.rot90(x)
-        # hat function
-        kernel = np.maximum(0.0,rmin - np.sqrt(x**2 + y**2))
-    else:
-        #
-        n = nelx*nely*nelz
-        #
-        x = np.tile(x,(nfilter,nfilter,1))
-        y = x.transpose((0,2,1))
-        z = x.transpose((2,1,0))
-        # hat function
-        kernel = np.maximum(0.0,rmin - np.sqrt(x**2 + y**2 + z**2))
-    # normalization constants
-    hs = invmapping(convolve(mapping(np.ones(n ,dtype=np.float64)),
-                             kernel,
-                             mode="constant",
-                             cval=0))
-    return kernel,hs[:,None]
-
-def assemble_helmholtz_filter(nelx,nely,rmin,nelz=None,l=np.array([1.,1.]),
-                              n1=None,n2=None,n3=None,n4=None,
-                              **kwargs):
-    """
-    Assemble Helmholtz PDE based filter from "Efficient topology optimization
-    in MATLAB using 88 lines of code".
-
-    This filter works by mappinging the element densities to nodes via the
-    operator TF, then performing the actual filter operation by solving a
-    Helmholtz / screened Poisson PDE in the standard FEM style with subsequent
-    back-mapping of the nodal (filtered) densities to the elements.
-
-    Parameters
-    ----------
-    nelx : int
-        number of elements in x direction.
-    nely : int
-        number of elements in y direction.
-    volfrac : float
-        volume fraction.
-    rmin : float
-        cutoff radius for the filter.
-    nelz : int or None
-        number of elements in z direction.
-    n1 : np.ndarray or None
-        index array to help constructing the stiffness matrix.
-    n2 : np.ndarray or None
-        index array to help constructing the stiffness matrix.
-    n3 : np.ndarray or None
-        index array to help constructing the stiffness matrix.
-    n4 : np.ndarray or None
-        index array to help constructing the stiffness matrix.
-
-    Returns
-    -------
-    KF : csc matrix
-        stiffness matrix.
-    TF : csc matrix
-        mapping (or in this special case averaging) operator that maps element
-        densities to nodes and its inverse maps nodal densities back to the
-        elements.
-
-    """
-    if nelz is None:
-        ndim = 2
-        element = lk_screened_poisson_2d
-        create_edofMat = create_edofMat2d
-    else:
-        ndim = 3
-        raise NotImplementedError("3D not yet completely implemented.")
-        element = lk_screened_poisson_3d
-        create_edofMat = create_edofMat3d
-    # element indices
-    nel = np.prod([nelx,nely,nelz][:ndim])
-    el = np.arange(nel)
-    #
-    if n1 is None:
-        elx,ely = np.arange(nelx)[:,None], np.arange(nely)[None,:]
-        n1 = ((nely+1)*elx+ely).flatten()
-        n2 = ((nely+1)*(elx+1)+ely).flatten()
-    # conversion of filter radius via Green's function
-    Rmin = rmin/(2*np.sqrt(3))
-    #
-    # collect element stiffness matrix
-    KE = element(k=Rmin**2, l=l)
-    # total number of degrees of freedom
-    ndof = np.prod(np.array([nelx,nely,nelz])[:ndim]+1)
-    # element degree of freedom matrix
-    edofMat, n1, n2, n3, n4 = create_edofMat(nelx=nelx,nely=nely,nelz=nelz,
-                                               nnode_dof=1)
-    #iKF = np.kron(edofMatF, np.ones((4, 1))).flatten()
-    #jKF = np.kron(edofMatF, np.ones((1, 4))).flatten()
-    iM,jM = create_matrixinds(edofMat,mode="full")
-    sM = np.tile(KE.flatten(),nelx*nely)
-    KF = coo_matrix((sM, (iM, jM)), shape=(ndof, ndof)).tocsc()
-    # operator that maps element densities to nodes
-    iTF = edofMat.flatten(order='F')
-    jTF = np.tile(el, 4)
-    sTF = np.full(4*nelx*nely,1/4)
-    TF = coo_matrix((sTF, (iTF, jTF)), shape=(ndof,nelx*nely)).tocsc()
-    return KF,TF
+from matplotlib.pyplot import subplots,figure,figaspect,show 
 
 def find_eta(eta0, xTilde, beta, volfrac,
              **kwargs):
@@ -389,40 +148,33 @@ def AMfilter(x, baseplate='S', sensitivities=None):
     """
     # number of supporting elements
     Ns = 3
-    # Constants for smooth max/min functions
+    # constants for smooth max/min functions
     P,ep,xi_0 = 40,1e-4,.5
     Q = P + np.log(Ns) / np.log(xi_0)
     SHIFT = 100 * np.finfo(float).tiny**(1 / P)
     BACKSHIFT = 0.95 * Ns**(1 / Q) * SHIFT**(P / Q)
-    # Check for bypass option
+    # check for bypass option
     if baseplate == 'X':
         return x, sensitivities  # Return as-is
-    # Determine rotation based on baseplate orientation
+    # determine rotation based on baseplate orientation
     nRot = 'SWNE'.find(baseplate.upper())
     x = np.rot90(x, nRot).copy()
-    # Initialize xi
+    # initialize xi
     xi = np.zeros_like(x)
     nely, nelx = x.shape
     # loop for applying AM filter from top moving layer-wise downwards
-    xi[-1, :] = x[-1,:].copy()  # Copy base row as-is
+    xi[-1, :] = x[-1,:].copy()
     Xi, keep,sq = [np.zeros_like(x) for i in np.arange(3)]
-    #cbr = np.pad(xi[-1:0:-1,:],
-    #             pad_width=((0,0),(1, 1)),
-    #             mode='constant',
-    #             constant_values=0) + SHIFT
-    #print("cbr:\n",cbr)
-    #print()
     for i in np.arange(nely-2,-1,-1):
         cbr = np.pad(xi[i+1,:] + SHIFT,
                      (1, 1),
                      'constant',
                      constant_values=SHIFT)
-        #print(cbr)
         keep[i,:] = (cbr[:-2]**P + cbr[1:-1]**P + cbr[2:]**P)
         Xi[i,:] = keep[i,:]**(1 / Q) - BACKSHIFT
         sq[i,:] = np.sqrt((x[i,:] - Xi[i,:])**2 + ep)
         xi[i,:] = 0.5 * ((x[i,:] + Xi[i,:]) - sq[i,:] + np.sqrt(ep))
-    # Process sensitivities if provided.
+    # process sensitivities if provided.
     if sensitivities is not None:
         #
         nSens = sensitivities.shape[-1]
@@ -449,21 +201,21 @@ def AMfilter(x, baseplate='S', sensitivities=None):
             dmx = np.zeros((nelx,Ns))
             for j in np.arange(Ns):
                 dmx[:,j] = (P/Q) * keep[i, :]**((1/Q) - 1) * cbr[np.arange(nelx)+j]**(P - 1)
-            # Rearrange data for quick multiplication
+            # rearrange data for quick multiplication
             qs = dmx.flatten()
             dsmaxdxi = csc_array((qs[1:-1],(qi[1:-1], qj[1:-1])),
                                    shape=(nelx, nelx))
-            # Update sensitivities
+            # update sensitivities
             for k in np.arange(nSens):
                 dfx[i,:,k] = dsmindx * (dfxi[i,:,k] + lambda_vals[:,k])
                 lambda_vals[:,k] = ((dfxi[i,:,k] + lambda_vals[:,k]) * dsmindXi) @ dsmaxdxi
         # base layer
         dfx[-1,:,:] = dfxi[-1,:,:]+lambda_vals[:,:]
     if sensitivities is None:
-        # Rotate xi back to original orientation if rotated
+        # rotate xi back to original orientation if rotated
         return np.rot90(xi, -nRot)
     else:
-        # Rotate sensitivities back to original orientation if rotated
+        # rotate sensitivities back to original orientation if rotated
         return np.rot90(dfx, -nRot)
 
 def visualise_filter(n,

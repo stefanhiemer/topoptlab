@@ -10,7 +10,9 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 #
 from skimage.measure import marching_cubes
 # functions to create filters
-from topoptlab.filters import assemble_matrix_filter,assemble_convolution_filter,assemble_helmholtz_filter
+from topoptlab.filter.convolution_filter import assemble_convolution_filter
+from topoptlab.filter.helmholtz_filter import assemble_helmholtz_filter
+from topoptlab.filter.matrix_filter import assemble_matrix_filter
 # default application case that provides boundary conditions, etc.
 from topoptlab.example_bc.lin_elast import mbb_2d
 # set up finite element problem

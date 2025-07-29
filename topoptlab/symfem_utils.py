@@ -500,7 +500,7 @@ def scale_cell(vertices):
     # affine transformation matrix
     return vertices@(R@S).transpose()
 
-def isoparametric_map(basis,vertices,ndim):
+def isoparametric_map(basis,vertices):
     """
     Create the basic cell, location of vertices, the node indices, the
     reference cell and the basis functions.

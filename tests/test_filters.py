@@ -7,7 +7,8 @@ from scipy.sparse import spmatrix,sparray
 
 import pytest
 
-from topoptlab.filters import assemble_convolution_filter,assemble_matrix_filter
+from topoptlab.filter.convolution_filter import assemble_convolution_filter 
+from topoptlab.filter.matrix_filter import assemble_matrix_filter
 from topoptlab.utils import map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel
 
 
@@ -112,7 +113,7 @@ def test_consistency(nelx,nely,nelz,rmin):
     assert_almost_equal(actual, desired)
     return
 
-from topoptlab.filters import find_eta, eta_projection
+from topoptlab.filter.haeviside_projection import find_eta, eta_projection
 
 @pytest.mark.parametrize('n, beta, volfrac',
                          [(10,10,0.3),
