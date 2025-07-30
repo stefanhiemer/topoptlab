@@ -1,14 +1,16 @@
+from typing import Any
+
 import numpy as np
 
 from topoptlab.elements.bilinear_quadrilateral import shape_functions,jacobian
 from topoptlab.fem import get_integrpoints
 
-def _lf_bodyforce_2d(xe,
-                     b=np.array([0,-1.]),
-                     t=np.array([1.]),
-                     quadr_method="gauss-legendre",
-                     nquad=1,
-                     **kwargs):
+def _lf_bodyforce_2d(xe: np.ndarray,
+                     b: np.ndarray = np.array([0,-1.]),
+                     t: np.ndarray = np.array([1.]),
+                     quadr_method: str = "gauss-legendre",
+                     nquad: int = 1,
+                     **kwargs: Any) -> np.ndarray:
     """
     Compute nodal forces on bilinear quadrilateral elements (1st order) due to
     bodyforce (e. g. gravity).
@@ -29,6 +31,7 @@ def _lf_bodyforce_2d(xe,
         available options.
     nquad : int
         number of quadrature points
+        
     Returns
     -------
     fe : np.ndarray, shape (nels,8,1)
@@ -63,10 +66,10 @@ def _lf_bodyforce_2d(xe,
     #
     return t[:,None,None] * fe
 
-def lf_bodyforce_2d(b=np.array([0,-1]),
-                    l=np.array([1.,1.]),
-                    t=1.,
-                    **kwargs):
+def lf_bodyforce_2d(b: np.ndarray = np.array([0,-1]),
+                    l: np.ndarray = np.array([1.,1.]),
+                    t: float = 1.,
+                    **kwargs: Any) -> np.ndarray:
     """
     Compute nodal forces on bilinear quadrilateral Lagrangian element
     (1st order) due to bodyforce (e. g. gravity) via analytical integration.

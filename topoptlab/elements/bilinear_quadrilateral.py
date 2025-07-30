@@ -1,8 +1,11 @@
+from typing import Tuple,Any,Union,List
 from warnings import warn
 
 import numpy as np
 
-def create_edofMat(nelx,nely,nnode_dof,dtype=np.int32,**kwargs):
+def create_edofMat(nelx: int, nely: int, nnode_dof: int, 
+                   dtype: type = np.int32, **kwargs: Any
+                   ) -> Tuple[np.ndarray,np.ndarray,np.ndarray,None,None]:
     """
     Create element degree of freedom matrix for bilinear Lagrangian elements in 
     a regular mesh.
@@ -40,8 +43,10 @@ def create_edofMat(nelx,nely,nnode_dof,dtype=np.int32,**kwargs):
     edofMat = edofMat + np.tile(np.arange(nnode_dof),4)[None,:]
     return edofMat, n1, n2, None, None
 
-def apply_pbc(edofMat,pbc,nelx,nely,nnode_dof,
-              dtype=np.int32,**kwargs):
+def apply_pbc(edofMat: np.ndarray, pbc: Union[List,np.ndarray],
+              nelx: int, nely: int, nnode_dof: int, 
+              dtype: type = np.int32, **kwargs: Any
+              ) -> np.ndarray:
     """
     Convert a given element-degree-of-freedom matrix (edofMat) of a regular 
     mesh of first order Lagrangian quadrilateral elements with free 
@@ -96,7 +101,10 @@ def apply_pbc(edofMat,pbc,nelx,nely,nnode_dof,
         edofMat[pbc_y,nnode_dof:2*nnode_dof] = edofMat[org,2*nnode_dof:3*nnode_dof]
     return edofMat
 
-def check_inputs(xi,eta,xe=None,all_elems=False,**kwargs):
+def check_inputs(xi: Union[float,np.ndarray], eta: Union[float,np.ndarray], 
+                 xe: Union[None,np.ndarray] = None, 
+                 all_elems: bool = False,
+                 **kwargs: Any):
     """
     Check coordinates and provided element node information to be consistent. 
     If necessary transform inputs to make them consistent.
@@ -168,7 +176,8 @@ def check_inputs(xi,eta,xe=None,all_elems=False,**kwargs):
     else:
         return ncoords
 
-def shape_functions(xi,eta,**kwargs):
+def shape_functions(xi: np.ndarray,eta: np.ndarray, 
+                    **kwargs: Any) -> np.ndarray:
     """
     Shape functions for bilinear quadrilateral Lagrangian element in reference 
     domain. Coordinates bounded in [-1,1].
@@ -192,7 +201,8 @@ def shape_functions(xi,eta,**kwargs):
                                   (1+xi)*(1+eta),
                                   (1-xi)*(1+eta)))
 
-def shape_functions_dxi(xi,eta,**kwargs):
+def shape_functions_dxi(xi: np.ndarray,eta: np.ndarray, 
+                        **kwargs: Any) -> np.ndarray:
     """
     Gradient of shape functions for bilinear quadrilateral Lagrangian element. 
     The derivative is taken with regards to the reference coordinates, not the 
@@ -218,7 +228,8 @@ def shape_functions_dxi(xi,eta,**kwargs):
                                 -1-eta, 1-xi))
     return dx.reshape(int(np.prod(dx.shape)/8),4,2)
 
-def jacobian(xi,eta,xe,all_elems=False):
+def jacobian(xi: np.ndarray, eta: np.ndarray, xe: np.ndarray,
+             all_elems: bool = False) -> np.ndarray:
     """
     Jacobian for quadratic bilinear Lagrangian element. 
     
@@ -249,8 +260,9 @@ def jacobian(xi,eta,xe,all_elems=False):
     xe,xi,eta,_ = check_inputs(xi=xi,eta=eta,xe=xe,all_elems=all_elems) 
     return shape_functions_dxi(xi=xi,eta=eta).transpose([0,2,1]) @ xe 
 
-def invjacobian(xi,eta,xe,
-                all_elems=False,return_det=False):
+def invjacobian(xi: np.ndarray, eta: np.ndarray, xe: np.ndarray,
+                all_elems: bool = False, return_det: bool = False
+                ) -> np.ndarray:
     """
     Inverse Jacobian for bilinear quadrilateral Lagrangian element. 
     
@@ -300,7 +312,7 @@ def invjacobian(xi,eta,xe,
     else:
         return adj/detJ[:,None,None], detJ
 
-def jacobian_rectangle(a,b):
+def jacobian_rectangle(a: float, b: float) -> np.ndarray:
     """
     Jacobian for rectangular quadratic bilinear Lagrangian element. 
     
@@ -319,7 +331,7 @@ def jacobian_rectangle(a,b):
     """
     return 1/2 * np.array([[a,0],[0,b]])
 
-def invjacobian_rectangle(a,b):
+def invjacobian_rectangle(a: float, b: float) -> np.ndarray:
     """
     Inverse Jacobian for rectangular quadratic bilinear Lagrangian element. 
     
@@ -338,8 +350,9 @@ def invjacobian_rectangle(a,b):
     """ 
     return 2 * np.array([[1/a,0],[0,1/b]])
 
-def bmatrix(xi,eta,xe,
-            all_elems=False, return_detJ=False):
+def bmatrix(xi: np.ndarray, eta: np.ndarray, xe: np.ndarray,
+            all_elems: bool = False, return_detJ: bool = False
+            ) -> np.ndarray:
     """
     B matrix for bilinear quadrilateral Lagrangian element to calculate
     to calculate strains, stresses etc. from nodal values
@@ -394,7 +407,8 @@ def bmatrix(xi,eta,xe,
     else:
         return B, detJ
 
-def bmatrix_rectangle(xi,eta,a,b):
+def bmatrix_rectangle(xi: np.ndarray, eta: np.ndarray, 
+                      a: float, b: float) -> np.ndarray:
     """
     B matrix for bilinear quadrilateral Lagrangian element to calculate
     to calculate strains, stresses etc. from nodal values

@@ -1,13 +1,15 @@
+from typing import Any
+
 import numpy as np
 
 from topoptlab.elements.bilinear_quadrilateral import bmatrix
 from topoptlab.fem import get_integrpoints
 
-def _lk_linear_elast_2d(xe,c,
-                        quadr_method="gauss-legendre",
-                        t=np.array([1.]),
-                        nquad=2,
-                        **kwargs):
+def _lk_linear_elast_2d(xe: np.ndarray, c: np.ndarray,
+                        quadr_method: str = "gauss-legendre",
+                        t: np.ndarray = np.array([1.]),
+                        nquad: int = 2,
+                        **kwargs: Any) -> np.ndarray:
     """
     Create element stiffness matrix for 2D linear elasticity with
     bilinear quadrilateral Lagrangian elements.
@@ -63,11 +65,12 @@ def _lk_linear_elast_2d(xe,c,
     # multiply thickness
     return t[:,None,None] * Ke
 
-def lk_linear_elast_2d(E=1,nu=0.3,
-                       plane_stress=True,
-                       l=np.array([1.,1.]), g = np.array([0.]),
-                       t=1.,
-                       **kwargs):
+def lk_linear_elast_2d(E: float = 1, nu: float = 0.3,
+                       plane_stress: bool = True,
+                       l: np.ndarray = np.array([1.,1.]), 
+                       g: np.ndarray = np.array([0.]),
+                       t: float = 1.,
+                       **kwargs: Any) -> np.ndarray:
     """
     Create element stiffness matrix for 2D isotropic linear elasticity with
     bilinear quadrilateral Lagrangian elements in plane stress.
@@ -224,10 +227,11 @@ def lk_linear_elast_2d(E=1,nu=0.3,
            E*(3*l[0] + 4*l[1]*np.tan(g[0]))/(24*l[0]*(2*nu - 1)),
            E*(2*l[0]**2*nu - 2*l[0]**2 + 3*l[0]*l[1]*nu*np.tan(g[0]) - 3*l[0]*l[1]*np.tan(g[0]) - l[1]**2*nu + 2*l[1]**2*nu/np.cos(g[0])**2 + l[1]**2 - 2*l[1]**2/np.cos(g[0])**2)/(6*l[0]*l[1]*(2*nu**2 + nu - 1))]])
 
-def lk_linear_elast_aniso_2d(c,
-                             l=np.array([1.,1.]), g = np.array([0.]),
-                             t=1.,
-                             **kwargs):
+def lk_linear_elast_aniso_2d(c: np.ndarray,
+                             l: np.ndarray = np.array([1.,1.]), 
+                             g: np.ndarray = np.array([0.]),
+                             t: float = 1.,
+                             **kwargs: Any) -> np.ndarray:
     """
     Create element stiffness matrix for 2D anisotropic linear elasticity with
     bilinear quadrilateral elements.
@@ -314,11 +318,11 @@ def lk_linear_elast_aniso_2d(c,
        -c[1,0]/4 - c[1,0]*l[1]*np.tan(g[0])/(3*l[0]) + c[1,2]*l[0]/(3*l[1]) + c[1,2]*np.tan(g[0])/2 + c[1,2]*l[1]*np.tan(g[0])**2/(3*l[0]) + c[2,0]*l[1]/(3*l[0]) - c[2,2]/4 - c[2,2]*l[1]*np.tan(g[0])/(3*l[0]),
        c[1,1]*l[0]/(3*l[1]) + c[1,1]*np.tan(g[0])/2 + c[1,1]*l[1]*np.tan(g[0])**2/(3*l[0]) - c[1,2]/4 - c[1,2]*l[1]*np.tan(g[0])/(3*l[0]) - c[2,1]/4 - c[2,1]*l[1]*np.tan(g[0])/(3*l[0]) + c[2,2]*l[1]/(3*l[0])]])
 
-def _lf_strain_2d(xe,eps,c,
-                  quadr_method="gauss-legendre",
-                  t=np.array([1.]),
-                  nquad=2,
-                  **kwargs):
+def _lf_strain_2d(xe: np.ndarray, eps: np.ndarray, c: np.ndarray,
+                  quadr_method: str = "gauss-legendre",
+                  t: np.ndarray = np.array([1.]),
+                  nquad: int = 2,
+                  **kwargs: Any) -> np.ndarray:
     """
     Compute nodal forces on bilinear quadrilateral Lagrangian element
     (1st order) due to a uniform strain via numerical integration.
@@ -433,10 +437,11 @@ def lf_strain_2d(eps, E=1,nu=0.3,
           [E*(-2*eps[0]*l[0]*nu - 2*eps[0]*l[1]*nu*np.tan(g[0]) + 2*eps[1]*l[0]*nu - 2*eps[1]*l[0] + 2*eps[1]*l[1]*nu*np.tan(g[0]) - 2*eps[1]*l[1]*np.tan(g[0]) - eps[2]*l[1]*nu + eps[2]*l[1])/(4*(2*nu**2 + nu - 1))]])
 
 
-def lf_strain_aniso_2d(eps, c,
-                       l=np.array([1.,1.]), g = np.array([0.]),
-                       t=1.,
-                       **kwargs):
+def lf_strain_aniso_2d(eps: np.ndarray, c: np.ndarray,
+                       l: np.ndarray = np.array([1.,1.]), 
+                       g: np.ndarray = np.array([0.]),
+                       t: float = 1.,
+                       **kwargs: Any) -> np.ndarray:
     """
     Compute nodal forces on bilinear quadrilateral Lagrangian element
     (1st order) due to a uniform strain via analytical integration.

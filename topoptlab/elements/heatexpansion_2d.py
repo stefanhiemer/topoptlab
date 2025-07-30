@@ -1,14 +1,16 @@
+from typing import Any,Union
+
 import numpy as np
 
 from topoptlab.elements.bilinear_quadrilateral import shape_functions,bmatrix
 from topoptlab.fem import get_integrpoints
 
-def _fk_heatexp_2d(xe,c,
-                   a,DeltaT=None,
-                   t = np.array([1.]),
-                   quadr_method="gauss-legendre",
-                   nquad = 2,
-                   **kwargs):
+def _fk_heatexp_2d(xe: np.ndarray, c: np.ndarray,
+                   a: np.ndarray, DeltaT: Union[None,np.ndarray] = None,
+                   t: np.ndarray = np.array([1.]),
+                   quadr_method: str = "gauss-legendre",
+                   nquad: int = 2,
+                   **kwargs: Any) -> np.ndarray:
     """
     Create force vector for 2D heat expansion with
     bilinear quadrilateral Lagrangian elements. This amounts to
@@ -21,9 +23,9 @@ def _fk_heatexp_2d(xe,c,
         coordinates of element nodes. Please look at the
         definition/function of the shape function, then the node ordering is
         clear.
-    c : np.ndarray, shape (nels,3,3) or
+    c : np.ndarray, shape (nels,3,3) or (3,3)
         stiffness tensor.
-    a : np.ndarray, shape (nels,2,2) or
+    a : np.ndarray, shape (nels,2,2) or (2,2)
         linear heat expansion tensor.
     DeltaT : np.ndarray shape (nels,4) or None
         difference of nodal temperatures with respect to reference temperature.
@@ -66,7 +68,7 @@ def _fk_heatexp_2d(xe,c,
     #
     xi,eta = [_x[:,0] for _x in np.split(x, 2,axis=1)]
     # shape functions at integration points
-    N = shape_functions(xi,eta)[None,:,:,None]
+    N = shape_functions(xi=xi,eta=eta)[None,:,:,None]
     #
     B,detJ = bmatrix(xi=xi, eta=eta, xe=xe,
                      all_elems=True,
@@ -84,11 +86,12 @@ def _fk_heatexp_2d(xe,c,
         # this is basically a matrix product
         return np.sum(t[:,None,None] * fe * DeltaT[:,None,:],axis=2)
 
-def fk_heatexp_2d(E,nu,
-                  a,DeltaT=None,
-                  l=np.array([1.,1.]), g = [0.],
+def fk_heatexp_2d(E: float, nu: float,
+                  a: float, DeltaT: Union[None,np.ndarray] = None,
+                  l: np.ndarray = np.array([1.,1.]), 
+                  g: np.ndarray = np.array([0.]),
                   t = np.array([1.]),
-                  **kwargs):
+                  **kwargs: Any) -> np.ndarray:
     """
     Create force vector for 2D heat expansion with
     bilinear quadrilateral Lagrangian elements with plane stress. This amounts to
@@ -132,11 +135,13 @@ def fk_heatexp_2d(E,nu,
     else:
         return t*fe@DeltaT
 
-def fk_heatexp_aniso_2d(c,
-                        a, DeltaT=None,
-                        l=np.array([1.,1.]), g = [0.],
+def fk_heatexp_aniso_2d(c: np.ndarray,
+                        a: np.ndarray, 
+                        DeltaT: Union[None,np.ndarray] = None,
+                        l: np.ndarray = np.array([1.,1.]), 
+                        g: np.ndarray = np.array([0.]),
                         t = np.array([1.]),
-                        **kwargs):
+                        **kwargs: Any) -> np.ndarray:
     """
     Create force vector for 2D heat expansion with
     bilinear quadrilateral Lagrangian elements. This amounts to
@@ -152,6 +157,8 @@ def fk_heatexp_aniso_2d(c,
         [[a,0],[0,a]]
     DeltaT : np.ndarray shape (4) or None
         difference of nodal temperatures with respect to reference temperature.
+    g : np.ndarray (1)
+        angle of parallelogram.
     t : np.ndarray of shape (nels) or (1)
         thickness of element
 

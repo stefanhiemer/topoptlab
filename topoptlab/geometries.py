@@ -1,6 +1,10 @@
+from typing import Union,List
+
 import numpy as np
 
-def sphere(nelx, nely, center, radius, fill_value=1):
+def sphere(nelx: int, nely: int, center: np.ndarray, 
+           radius: float, 
+           fill_value: int =1) -> np.ndarray:
     """
     Create element flags for a sphere located at the specified center with the
     specified radius.
@@ -11,7 +15,7 @@ def sphere(nelx, nely, center, radius, fill_value=1):
         number of elements in x direction.
     nely : int
         number of elements in y direction.
-    center : list or tuple or np.ndarray
+    center : np.ndarray
         coordinates of sphere center.
     radius : float
         sphere radius.
@@ -33,7 +37,9 @@ def sphere(nelx, nely, center, radius, fill_value=1):
     el_flags[mask] = fill_value
     return el_flags
 
-def ball(nelx, nely, nelz, center, radius, fill_value=1):
+def ball(nelx: int, nely: int, nelz: int, 
+         center: np.ndarray, radius: float, 
+         fill_value: int = 1) -> np.ndarray:
     """
     Create element flags for a ball located at the specified center with the
     specified radius.
@@ -69,7 +75,8 @@ def ball(nelx, nely, nelz, center, radius, fill_value=1):
     el_flags[mask] = fill_value
     return el_flags
 
-def diracdelta(nelx,nely,nelz=None,location=None):
+def diracdelta(nelx: int, nely: int, nelz: Union[None,int] = None,
+               location: Union[None,int] = None) -> np.ndarray:
     """
     Create element flags for a Dirac delta located at the specified location.
     Depending on the location and the number of elements in each direction this
@@ -108,7 +115,8 @@ def diracdelta(nelx,nely,nelz=None,location=None):
                  radius=1,fill_value=1.)
     return x
 
-def bounding_rectangle(nelx,nely,faces=["b","t","r","l"]):
+def bounding_rectangle(nelx: int, nely: int, 
+                       faces: List = ["b","t","r","l"]) -> np.ndarray:
     """
     Create element flags for a bounding box of one element thickness. It is
     possible to draw only specified faces of the bounding box.
@@ -156,7 +164,8 @@ def bounding_rectangle(nelx,nely,faces=["b","t","r","l"]):
     el_flags[indices] = 2
     return el_flags
 
-def slab(nelx,nely,center, widths=None, fill_value=1):
+def slab(nelx: int, nely: int, center: np.ndarray, 
+         widths: Union[None,List] = None, fill_value: int = 1) -> np.ndarray:
     """
     Create element flags for a slab located at the specified center with the
     specified width in each dimension.

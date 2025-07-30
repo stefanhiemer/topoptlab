@@ -1,12 +1,15 @@
+from typing import Any,Union
+
 import numpy as np
 
 from topoptlab.elements.trilinear_hexahedron import shape_functions,bmatrix
 from topoptlab.fem import get_integrpoints
 
-def _fk_heatexp_3d(xe,c,
-                   a,DeltaT=None,
-                   quadr_method="gauss-legendre",
-                   nquad = 2):
+def _fk_heatexp_3d(xe: np.ndarray, c: np.ndarray,
+                   a: np.ndarray, DeltaT: Union[None,np.ndarray] = None,
+                   quadr_method: str = "gauss-legendre",
+                   nquad: int = 2,
+                   **kwargs: Any) -> np.ndarray:
     """
     Create force vector for 3D heat expansion with
     trilinear hexahedral Lagrangian elements. This amounts to
@@ -59,7 +62,7 @@ def _fk_heatexp_3d(xe,c,
     #
     xi,eta,zeta = [_x[:,0] for _x in np.split(x, 3,axis=1)]
     # shape functions at integration points
-    N = shape_functions(xi,eta,zeta)[None,:,:,None]
+    N = shape_functions(xi=xi,eta=eta,zeta=zeta)[None,:,:,None]
     #
     B,detJ = bmatrix(xi=xi, eta=eta, zeta=zeta,
                      xe=xe, all_elems=True,
@@ -77,9 +80,10 @@ def _fk_heatexp_3d(xe,c,
         # this is basically a matrix product
         return np.sum(fe*DeltaT[:,None,:],axis=2)
 
-def fk_heatexp_3d(E,nu,
-                  a,DeltaT=None,
-                  l=np.array([1.,1.,1.]), g = [0.,0.]):
+def fk_heatexp_3d(E: float, nu: float,
+                  a: float, DeltaT: Union[None,np.ndarray] = None,
+                  l: np.ndarray = np.array([1.,1.,1.]), 
+                  g: np.ndarray = np.array([0.,0.])) -> np.ndarray:
     """
     Create force vector for 3D heat expansion with
     trilinear hexahedral Lagrangian elements. This amounts to
@@ -99,7 +103,7 @@ def fk_heatexp_3d(E,nu,
     l : np.ndarray (3)
         side length of element
     g : np.ndarray (2)
-        angles of parallelogram.
+        angles of parallelepiped.
 
     Returns
     -------
@@ -306,9 +310,10 @@ def fk_heatexp_3d(E,nu,
     else:
         return fe@DeltaT
 
-def fk_heatexp_aniso_3d(c,
-                        a,DeltaT=None,
-                        l=np.array([1.,1.,1.]), g = [0.,0.]):
+def fk_heatexp_aniso_3d(c: np.ndarray,
+                        a: np.ndarray, DeltaT: Union[None,np.ndarray] = None,
+                        l: np.ndarray = np.array([1.,1.,1.]), 
+                        g: np.ndarray = np.array([0.,0.])) -> np.ndarray:
     """
     Create force vector for 3D heat expansion with
     trilinear hexahedral Lagrangian elements. This amounts to
@@ -327,7 +332,7 @@ def fk_heatexp_aniso_3d(c,
     l : np.ndarray (3)
         side length of element
     g : np.ndarray (2)
-        angles of parallelogram.
+        angles of parallelepiped.
 
     Returns
     -------

@@ -1,10 +1,12 @@
+from typing import Union
+
 import numpy as np
 from scipy.ndimage import grey_opening, grey_closing
 
 from topoptlab.geometries import sphere, ball
 from topoptlab.utils import map_eltoimg, map_eltovoxel
 
-def gray_indicator(x):
+def gray_indicator(x: np.ndarray) -> np.ndarray:
     """
     Gray level indicator to measure discreteness of the designs as in Eq. 41 
     in 
@@ -29,7 +31,10 @@ def gray_indicator(x):
     """
     return 4*(x*(1-x)).mean(axis=0)
 
-def lengthscale_violations(x,r,nelx,nely,nelz=None):
+def lengthscale_violations(x: np.ndarray,
+                           r: float,
+                           nelx: int, nely: int,
+                           nelz: Union[None,int] = None) -> np.ndarray:
     """
     Visualize length scale violations as suggested in chapter 2.6 of 
     

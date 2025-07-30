@@ -1,6 +1,7 @@
 import numpy as np
 
-def poiss_nary_upp(x,Ks,Gs):
+def poiss_nary_upp(x: np.ndarray, 
+                   Ks: np.ndarray, Gs: np.ndarray) -> np.ndarray:
     """
     Return the upper Hashin Shtrikman bound for the Poisson's ratio 
     of a composite consisting of m isotropic materials with well ordered 
@@ -29,7 +30,8 @@ def poiss_nary_upp(x,Ks,Gs):
     Gl = shearmod_nary_low(x=x, Ks=Ks, Gs=Gs)
     return (3*Ku-2*Gl) / (6*Ku + 2*Gl)
 
-def poiss_nary_upp_dx(x,Ks,Gs):
+def poiss_nary_upp_dx(x: np.ndarray, 
+                      Ks: np.ndarray, Gs: np.ndarray) -> np.ndarray:
     """
     Return the derivative of the upper Hashin Shtrikman bound for the Poisson's 
     ratio of a composite consisting of m isotropic materials with well ordered 
@@ -58,7 +60,8 @@ def poiss_nary_upp_dx(x,Ks,Gs):
     return 1/(6*Ku + 2*Gl) *\
            ( 3*Kudx-2*Gldx - (3*Ku-2*Gl)*(6*Kudx + 2*Gldx)/(6*Ku + 2*Gl) )
 
-def poiss_nary_low(x,Ks,Gs):
+def poiss_nary_low(x: np.ndarray, 
+                   Ks: np.ndarray, Gs: np.ndarray) -> np.ndarray:
     """
     Return the lower Hashin Shtrikman bound for the Poisson's ratio 
     of a composite consisting of m isotropic materials with well ordered 
@@ -87,7 +90,8 @@ def poiss_nary_low(x,Ks,Gs):
     Gu = shearmod_nary_upp(x=x, Ks=Ks, Gs=Gs)
     return (3*Kl-2*Gu) / (6*Kl + 2*Gu)
 
-def poiss_nary_low_dx(x,Ks,Gs):
+def poiss_nary_low_dx(x: np.ndarray, 
+                      Ks: np.ndarray, Gs: np.ndarray) -> np.ndarray:
     """
     Return the derivative of the lower Hashin Shtrikman bound for the Poisson's 
     ratio of a composite consisting of m isotropic materials with well ordered 
@@ -116,7 +120,8 @@ def poiss_nary_low_dx(x,Ks,Gs):
     return 1/(6*Kl + 2*Gu)*\
            (3*Kldx-2*Gudx - (3*Kl-2*Gu)*(6*Kldx + 2*Gudx) / (6*Kl + 2*Gu) )
 
-def emod_nary_upp(x,Ks,Gs):
+def emod_nary_upp(x: np.ndarray, 
+                  Ks: np.ndarray, Gs: np.ndarray) -> np.ndarray:
     """
     Return the upper Hashin Shtrikman bound for the Young's modulus 
     of a composite consisting of two isotropic materials with well ordered 
@@ -142,7 +147,8 @@ def emod_nary_upp(x,Ks,Gs):
     Gu = shearmod_nary_upp(x=x, Ks=Ks, Gs=Gs)
     return 9*Ku*Gu / (3*Ku + Gu)
 
-def emod_nary_upp_dx(x,Ks,Gs):
+def emod_nary_upp_dx(x: np.ndarray, 
+                     Ks: np.ndarray, Gs: np.ndarray) -> np.ndarray:
     """
     Return derivative of the upper Hashin Shtrikman bound for the Young's 
     modulus of a composite consisting of two isotropic materials with well 
@@ -170,7 +176,8 @@ def emod_nary_upp_dx(x,Ks,Gs):
     Gudx = shearmod_nary_upp_dx(x=x, Ks=Ks, Gs=Gs)
     return 9/(3*Ku+Gu) * (Kudx*Gu + Ku*Gudx - Ku*Gu*(3*Kudx + Gudx)/(3*Ku+Gu) )
 
-def emod_nary_low(x,Ks,Gs):
+def emod_nary_low(x: np.ndarray, 
+                  Ks: np.ndarray, Gs: np.ndarray) -> np.ndarray:
     """
     Return the lower Hashin Shtrikman bound for the Young's modulus 
     of a composite consisting of two isotropic materials with well ordered 
@@ -196,7 +203,8 @@ def emod_nary_low(x,Ks,Gs):
     Gl = shearmod_nary_low(x=x, Ks=Ks, Gs=Gs)
     return 9*Kl*Gl / (3*Kl + Gl)
 
-def emod_nary_low_dx(x,Ks,Gs):
+def emod_nary_low_dx(x: np.ndarray, 
+                     Ks: np.ndarray, Gs: np.ndarray) -> np.ndarray:
     """
     Return the derivative of the lower Hashin Shtrikman bound for the Young's 
     modulus of a composite consisting of two isotropic materials with well 
@@ -224,9 +232,9 @@ def emod_nary_low_dx(x,Ks,Gs):
     Gldx = shearmod_nary_low_dx(x=x, Ks=Ks, Gs=Gs)
     return 9/(3*Kl+Gl) * (Kldx*Gl + Kl*Gldx - Kl*Gl*(3*Kldx + Gldx)/(3*Kl+Gl) )
 
-def poiss_binary_upp(x,
-                     Kmin,Kmax,
-                     Gmin,Gmax):
+def poiss_binary_upp(x: np.ndarray,
+                     Kmin: float, Kmax: float,
+                     Gmin: float, Gmax: float) -> np.ndarray:
     """
     Return the upper Hashin Shtrikman bound for the Poisson's ratio 
     of a composite consisting of two isotropic materials with well ordered 
@@ -258,9 +266,9 @@ def poiss_binary_upp(x,
     Gl = shearmod_binary_low(x=x, Kmin=Kmin, Kmax=Kmax, Gmin=Gmin, Gmax=Gmax)
     return (3*Ku-2*Gl) / (6*Ku + 2*Gl)
 
-def poiss_binary_upp_dx(x,
-                        Kmin,Kmax,
-                        Gmin,Gmax):
+def poiss_binary_upp_dx(x: np.ndarray,
+                        Kmin: float, Kmax: float,
+                        Gmin: float, Gmax: float) -> np.ndarray:
     """
     Return thederivative of the upper Hashin Shtrikman bound for the Poisson's 
     ratio of a composite consisting of two isotropic materials with well 
@@ -294,9 +302,9 @@ def poiss_binary_upp_dx(x,
     return 1/(6*Ku + 2*Gl) *\
            ( 3*Kudx-2*Gldx - (3*Ku-2*Gl)*(6*Kudx + 2*Gldx)/(6*Ku + 2*Gl) )
 
-def poiss_binary_low(x,
-                     Kmin,Kmax,
-                     Gmin,Gmax):
+def poiss_binary_low(x: np.ndarray,
+                     Kmin: float, Kmax: float,
+                     Gmin: float, Gmax: float) -> np.ndarray:
     """
     Return the lower Hashin Shtrikman bound for the Poisson's ratio 
     of a composite consisting of two isotropic materials with well ordered 
@@ -328,9 +336,9 @@ def poiss_binary_low(x,
     Gu = shearmod_binary_upp(x=x, Kmin=Kmin, Kmax=Kmax, Gmin=Gmin, Gmax=Gmax)
     return (3*Kl-2*Gu) / (6*Kl + 2*Gu)
 
-def poiss_binary_low_dx(x,
-                        Kmin,Kmax,
-                        Gmin,Gmax):
+def poiss_binary_low_dx(x: np.ndarray,
+                        Kmin: float, Kmax: float,
+                        Gmin: float, Gmax: float) -> np.ndarray:
     """
     Return the deriviative of the lower Hashin Shtrikman bound for the 
     Poisson's ratio of a composite consisting of two isotropic materials with 
@@ -364,7 +372,9 @@ def poiss_binary_low_dx(x,
     return 1/(6*Kl + 2*Gu)*\
            (3*Kldx-2*Gudx - (3*Kl-2*Gu)*(6*Kldx + 2*Gudx) / (6*Kl + 2*Gu) )
 
-def emod_binary_upp(x,Kmin,Kmax,Gmin,Gmax):
+def emod_binary_upp(x: np.ndarray,
+                    Kmin: float, Kmax: float,
+                    Gmin: float, Gmax: float) -> np.ndarray:
     """
     Return the upper Hashin Shtrikman bound for the Young's modulus 
     of a composite consisting of two isotropic materials with well ordered 
@@ -393,9 +403,9 @@ def emod_binary_upp(x,Kmin,Kmax,Gmin,Gmax):
     Gu = shearmod_binary_upp(x=x, Kmin=Kmin, Kmax=Kmax, Gmin=Gmin, Gmax=Gmax)
     return 9*Ku*Gu / (3*Ku + Gu)
 
-def emod_binary_upp_dx(x,
-                       Kmin,Kmax,
-                       Gmin,Gmax):
+def emod_binary_upp_dx(x: np.ndarray,
+                       Kmin: float, Kmax: float,
+                       Gmin: float, Gmax: float) -> np.ndarray:
     """
     Return the derivative of the upper Hashin Shtrikman bound for the 
     Young's modulus of a composite consisting of two isotropic materials with 
@@ -428,9 +438,9 @@ def emod_binary_upp_dx(x,
                                   Gmin=Gmin, Gmax=Gmax)
     return  9/(3*Ku+Gu) * (Kudx*Gu + Ku*Gudx - Ku*Gu*(3*Kudx + Gudx)/(3*Ku+Gu) )
 
-def emod_binary_low(x,
-                    Kmin,Kmax,
-                    Gmin,Gmax):
+def emod_binary_low(x: np.ndarray,
+                    Kmin: float, Kmax: float,
+                    Gmin: float, Gmax: float) -> np.ndarray:
     """
     Return the lower Hashin Shtrikman bound for the Young's modulus 
     of a composite consisting of two isotropic materials with well ordered 
@@ -459,9 +469,9 @@ def emod_binary_low(x,
     Gl = shearmod_binary_low(x=x, Kmin=Kmin, Kmax=Kmax, Gmin=Gmin, Gmax=Gmax)
     return 9*Kl*Gl / (3*Kl + Gl)
 
-def emod_binary_low_dx(x,
-                       Kmin,Kmax,
-                       Gmin,Gmax):
+def emod_binary_low_dx(x: np.ndarray,
+                       Kmin: float, Kmax: float,
+                       Gmin: float, Gmax: float) -> np.ndarray:
     """
     Return the derivative of the lower Hashin Shtrikman bound for the Young's 
     modulus of a composite consisting of two isotropic materials with well 
@@ -493,8 +503,8 @@ def emod_binary_low_dx(x,
     Gldx = shearmod_binary_low_dx(x=x, Kmin=Kmin, Kmax=Kmax, Gmin=Gmin, Gmax=Gmax)
     return 9/(3*Kl+Gl) * (Kldx*Gl + Kl*Gldx - Kl*Gl*(3*Kldx + Gldx)/(3*Kl+Gl) )
 
-def shearmod_nary_upp(x,
-                     Ks,Gs):
+def shearmod_nary_upp(x: np.ndarray,
+                      Ks: np.ndarray, Gs: np.ndarray) -> np.ndarray:
     """
     Return the upper Hashin Shtrikman bound for the shear modulus 
     of a composite consisting of m isotropic materials. At the moment I am 
@@ -510,9 +520,9 @@ def shearmod_nary_upp(x,
     x : np.ndarray, shape (n,m-1)
         volume fraction of first m-1 phases. The volume fraction of the mth 
         phase can then be inferred via 1-x.sum(axis=1)
-    Ks : np.ndarray, shape(m)
+    Ks : np.ndarray, shape (m)
         bulk moduli
-    Gs : np.ndarray, shape(m)
+    Gs : np.ndarray, shape (m)
         shear moduli
 
     Returns
@@ -546,8 +556,8 @@ def shearmod_nary_upp(x,
     #
     return Gmax + (Bn / (1 + (betan*Bn) ))/2
 
-def shearmod_nary_upp_dx(x,
-                         Ks,Gs):
+def shearmod_nary_upp_dx(x: np.ndarray,
+                         Ks: np.ndarray, Gs: np.ndarray) -> np.ndarray:
     """
     Return the derivative of the upper Hashin Shtrikman bound for the shear 
     modulus of a composite consisting of m isotropic materials.
@@ -602,8 +612,8 @@ def shearmod_nary_upp_dx(x,
     return Bndx/(1 + (betan*Bn[:,None]) ) * \
             ( 1 - (Bn[:,None]*betan) / (1 + (betan*Bn[:,None]) ) )/2
 
-def shearmod_nary_low(x,
-                      Ks,Gs):
+def shearmod_nary_low(x: np.ndarray,
+                      Ks: np.ndarray, Gs: np.ndarray) -> np.ndarray:
     """
     Return the lower Hashin Shtrikman bound for the shear modulus 
     of a composite consisting of m isotropic materials. At the moment I am 
@@ -655,8 +665,8 @@ def shearmod_nary_low(x,
     #
     return Gmin + (B1 / (1 + (beta1*B1) ))/2
 
-def shearmod_nary_low_dx(x,
-                         Ks,Gs):
+def shearmod_nary_low_dx(x: np.ndarray,
+                         Ks: np.ndarray, Gs: np.ndarray) -> np.ndarray:
     """
     Return the derivative of the lower Hashin Shtrikman bound for the shear 
     modulus of a composite consisting of m isotropic materials.
@@ -711,8 +721,8 @@ def shearmod_nary_low_dx(x,
     return B1dx/(1 + (beta1*B1[:,None]) ) * \
             ( 1 - (B1[:,None]*beta1) / (1 + (beta1*B1[:,None]) ) )/2
 
-def bulkmod_nary_upp(x,
-                     Ks,Gs):
+def bulkmod_nary_upp(x: np.ndarray,
+                     Ks: np.ndarray, Gs: np.ndarray) -> np.ndarray:
     """
     Return the upper Hashin Shtrikman bound for the bulk modulus 
     of a composite consisting of m isotropic materials. At the moment I am 
@@ -764,8 +774,8 @@ def bulkmod_nary_upp(x,
     #
     return Kmax + (An / (1 + (alphan*An) ))
 
-def bulkmod_nary_upp_dx(x,
-                        Ks,Gs):
+def bulkmod_nary_upp_dx(x: np.ndarray,
+                        Ks: np.ndarray, Gs: np.ndarray) -> np.ndarray:
     """
     Return the derivative of the upper Hashin Shtrikman bound for the bulk 
     modulus of a composite consisting of m isotropic materials.
@@ -819,8 +829,8 @@ def bulkmod_nary_upp_dx(x,
     return Andx/(1 + (alphan*An[:,None]) ) * \
             ( 1 - (An[:,None]*alphan) / (1 + (alphan*An[:,None]) ) )
 
-def bulkmod_nary_low(x,
-                     Ks,Gs):
+def bulkmod_nary_low(x: np.ndarray,
+                     Ks: np.ndarray, Gs: np.ndarray) -> np.ndarray:
     """
     Return the lower Hashin Shtrikman bound for the bulk modulus 
     of a composite consisting of m isotropic materials. At the moment I am 
@@ -872,8 +882,8 @@ def bulkmod_nary_low(x,
     #
     return Kmin + (A1 / (1 + (alpha1*A1) ))
 
-def bulkmod_nary_low_dx(x,
-                        Ks,Gs):
+def bulkmod_nary_low_dx(x: np.ndarray,
+                        Ks: np.ndarray, Gs: np.ndarray) -> np.ndarray:
     """
     Return the derivative of the lower Hashin Shtrikman bound for the  
     bulk modulus of a composite consisting of m isotropic materials.
@@ -928,9 +938,9 @@ def bulkmod_nary_low_dx(x,
     return A1dx/(1 + (alpha1*A1[:,None]) ) * \
             ( 1 - (A1[:,None]*alpha1) / (1 + (alpha1*A1[:,None]) ) )
 
-def shearmod_binary_upp(x,
-                        Kmin,Kmax,
-                        Gmin,Gmax):
+def shearmod_binary_upp(x: np.ndarray,
+                        Kmin: float, Kmax: float,
+                        Gmin: float, Gmax: float) -> np.ndarray:
     """
     Return the upper Hashin Shtrikman bound for the shear modulus 
     of a composite consisting of two isotropic materials with well ordered 
@@ -962,9 +972,9 @@ def shearmod_binary_upp(x,
     return Gmax + (1-x) / ( 1 / (Gmin - Gmax)  + \
             ( 6/5 * ((Kmax +  2*Gmax)*x) / ( (3*Kmax + 4*Gmax)*Gmax) ) )
 
-def shearmod_binary_upp_dx(x,
-                           Kmin,Kmax,
-                           Gmin,Gmax):
+def shearmod_binary_upp_dx(x: np.ndarray,
+                           Kmin: float, Kmax: float,
+                           Gmin: float, Gmax: float) -> np.ndarray:
     """
     Return the derivative of the upper Hashin Shtrikman bound for the shear 
     modulus of two isotropic materials with well ordered moduli (Gmin and Kmin 
@@ -995,9 +1005,9 @@ def shearmod_binary_upp_dx(x,
                   ( 6/5 * ((Kmax +  2*Gmax)*x) / ( (3*Kmax + 4*Gmax)*Gmax) ) )**2 * \
             ( 6/5 * ((Kmax +  2*Gmax)) / ( (3*Kmax + 4*Gmax)*Gmax) ) 
 
-def shearmod_binary_low(x,
-                        Kmin,Kmax,
-                        Gmin,Gmax):
+def shearmod_binary_low(x: np.ndarray,
+                        Kmin: float, Kmax: float,
+                        Gmin: float, Gmax: float) -> np.ndarray:
     """
     Return the lower Hashin Shtrikman bound for the shear modulus 
     of a composite consisting of two isotropic materials with well ordered 
@@ -1029,9 +1039,9 @@ def shearmod_binary_low(x,
     return Gmin + x / ( 1 / (Gmax - Gmin) + \
             ( 6/5 * ((Kmin +  2*Gmin)*(1-x)) / ( (3*Kmin + 4*Gmin)*Gmin) ) )
 
-def shearmod_binary_low_dx(x,
-                           Kmin,Kmax,
-                           Gmin,Gmax):
+def shearmod_binary_low_dx(x: np.ndarray,
+                           Kmin: float, Kmax: float,
+                           Gmin: float, Gmax: float) -> np.ndarray:
     """
     Return the derivative of the lower Hashin Shtrikman bound for the shear 
     modulus of two isotropic materials with well ordered moduli (Gmin and Kmin 
@@ -1062,9 +1072,9 @@ def shearmod_binary_low_dx(x,
                       ( 6/5 * ((Kmin +  2*Gmin)*(1-x)) / ( (3*Kmin + 4*Gmin)*Gmin) ) )**2 *\
             ( 6/5 * ((Kmin +  2*Gmin)) / ( (3*Kmin + 4*Gmin)*Gmin) ) 
 
-def bulkmod_binary_upp(x,
-                       Kmin,Kmax,
-                       Gmin,Gmax):
+def bulkmod_binary_upp(x: np.ndarray,
+                       Kmin: float, Kmax: float,
+                       Gmin: float, Gmax: float) -> np.ndarray:
     """
     Return the upper Hashin Shtrikman bound for the bulk modulus 
     of a composite consisting of two isotropic materials with well ordered 
@@ -1095,9 +1105,9 @@ def bulkmod_binary_upp(x,
     """
     return Kmax + (1-x) / ( 1 / (Kmin - Kmax)  + (3*x / (3 * Kmax + 4*Gmax)) )
 
-def bulkmod_binary_upp_dx(x,
-                          Kmin,Kmax,
-                          Gmin,Gmax):
+def bulkmod_binary_upp_dx(x: np.ndarray,
+                          Kmin: float, Kmax: float,
+                          Gmin: float, Gmax: float) -> np.ndarray:
     """
     Return the derivative of the lower Hashin Shtrikman bound for the bulk 
     modulus of two isotropic materials with well ordered moduli (Gmin and Kmin 
@@ -1126,9 +1136,9 @@ def bulkmod_binary_upp_dx(x,
            (1-x) / ( 1 / (Kmin - Kmax)  + (3*x / (3 * Kmax + 4*Gmax)) )**2 *\
            3 / (3 * Kmax + 4*Gmax)
 
-def bulkmod_binary_low(x,
-                       Kmin,Kmax,
-                       Gmin,Gmax):
+def bulkmod_binary_low(x: np.ndarray,
+                       Kmin: float, Kmax: float,
+                       Gmin: float, Gmax: float) -> np.ndarray:
     """
     Return the lower Hashin Shtrikman bound for the bulk modulus 
     of a composite consisting of two isotropic materials with well ordered 
@@ -1159,9 +1169,9 @@ def bulkmod_binary_low(x,
     """
     return Kmin + x / ( 1 / (Kmax - Kmin)  + (3*(1-x) / (3 * Kmin + 4*Gmin)) )
 
-def bulkmod_binary_low_dx(x,
-                          Kmin,Kmax,
-                          Gmin,Gmax):
+def bulkmod_binary_low_dx(x: np.ndarray,
+                          Kmin: float, Kmax: float,
+                          Gmin: float, Gmax: float) -> np.ndarray:
     """
     Return the derivative of the lower Hashin Shtrikman bound for the bulk 
     modulus. 
@@ -1189,7 +1199,7 @@ def bulkmod_binary_low_dx(x,
            x / ( 1 / (Kmax - Kmin)  + (3*(1-x) / (3 * Kmin + 4*Gmin)) )**2 *\
            3 / (3 * Kmin + 4*Gmin)
 
-def conductivity_nary_upp(x,ks):
+def conductivity_nary_upp(x: np.ndarray, ks: np.ndarray) -> np.ndarray:
     """
     Return the upper Hashin Shtrikman bound for the  conductvity 
     of a composite consisting of m isotropic materials. Also applies to 
@@ -1240,7 +1250,7 @@ def conductivity_nary_upp(x,ks):
     # 
     return kmax + Am / (1 - (alpham*Am) ) 
 
-def conductivity_nary_upp_dx(x,ks):
+def conductivity_nary_upp_dx(x: np.ndarray, ks: np.ndarray) -> np.ndarray:
     """
     Return the derivative of the upper Hashin Shtrikman bound for the  
     conductvity of a composite consisting of m isotropic materials.
@@ -1293,7 +1303,7 @@ def conductivity_nary_upp_dx(x,ks):
     return Amdx / (1 - (alpham*Am[:,None])) * \
            (1 + ((Am[:,None] * alpham)/(1 - (alpham*Am[:,None])) ))
 
-def conductivity_nary_low(x,ks):
+def conductivity_nary_low(x: np.ndarray, ks: np.ndarray) -> np.ndarray:
     """
     Return the lower Hashin Shtrikman bound for the  conductvity 
     of a composite consisting of m isotropic materials. Also applies to 
@@ -1342,7 +1352,7 @@ def conductivity_nary_low(x,ks):
     #
     return kmin + (A1 / (1 - (alpha1*A1) ))
 
-def conductivity_nary_low_dx(x,ks):
+def conductivity_nary_low_dx(x: np.ndarray, ks: np.ndarray) -> np.ndarray:
     """
     Return the derivative of the lower Hashin Shtrikman bound for the  
     conductvity of a composite consisting of m isotropic materials. 
@@ -1395,7 +1405,8 @@ def conductivity_nary_low_dx(x,ks):
     return A1dx / (1 - (alpha1*A1[:,None])) * \
            (1 + ((A1[:,None] * alpha1)/(1 - (alpha1*A1[:,None])) ))
 
-def conductivity_binary_upp(x,kmin,kmax):
+def conductivity_binary_upp(x: np.ndarray, 
+                            kmin: float, kmax: float) -> np.ndarray:
     """
     Return the upper Hashin Shtrikman bound for the  conductvity 
     of a composite consisting of two isotropic materials. Also applies to 
@@ -1424,7 +1435,8 @@ def conductivity_binary_upp(x,kmin,kmax):
     """
     return kmax + (1-x) / ( 1 / (kmin - kmax)  + (x / (3 * kmax)) )
 
-def conductivity_binary_upp_dx(x,kmin,kmax):
+def conductivity_binary_upp_dx(x: np.ndarray, 
+                               kmin: float, kmax: float) -> np.ndarray:
     """
     Return the derivative of the upper Hashin Shtrikman bound for the  
     conductvity of a composite consisting of two isotropic materials. 
@@ -1448,7 +1460,8 @@ def conductivity_binary_upp_dx(x,kmin,kmax):
     return -1 / ( 1 / (kmin - kmax)  + (x / (3 * kmax)) ) - \
            (1-x) / ( 1 / (kmin - kmax)  + (x / (3 * kmax)) )**2 * 1/(3*kmax) 
 
-def conductivity_binary_low(x,kmin,kmax):
+def conductivity_binary_low(x: np.ndarray, 
+                            kmin: float, kmax: float) -> np.ndarray:
     """
     Return the lower Hashin Shtrikman bound for the conductvity 
     of a composite consisting of two isotropic materials. Also applies to 
@@ -1476,7 +1489,8 @@ def conductivity_binary_low(x,kmin,kmax):
     """
     return kmin + x / ( 1 / (kmax - kmin)  + ((1-x) / (3 * kmin)) )
 
-def conductivity_binary_low_dx(x,kmin,kmax):
+def conductivity_binary_low_dx(x: np.ndarray, 
+                               kmin: float, kmax: float) -> np.ndarray:
     """
     Return the derivative of the lower Hashin Shtrikman bound for the  
     conductvity of a composite consisting of two isotropic materials. 

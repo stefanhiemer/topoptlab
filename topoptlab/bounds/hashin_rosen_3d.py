@@ -1,7 +1,9 @@
-def heatexp_binary_upp_dx(x,
-                       Kmin,Kmax,
-                       Gmin,Gmax,
-                       amin,amax):
+import numpy as np
+
+def heatexp_binary_upp_dx(x : np.ndarray,
+                          Kmin: float, Kmax: float,
+                          Gmin: float, Gmax: float,
+                          amin: float, amax: float) -> np.ndarray:
     """
     Derivative for  the upper Hashin Rosen bound for the heat expansion 
     coefficient of a composite consisting of two isotropic materials.
@@ -35,10 +37,10 @@ def heatexp_binary_upp_dx(x,
             (1-x)*x / ( (3*Kmin*Kmax) + (4*Gmax*( (1-x)*Kmin + x*Kmax)) ) *\
             (4*Gmax*( Kmax - Kmin )) )
 
-def heatexp_binary_upp(x,
-                       Kmin,Kmax,
-                       Gmin,Gmax,
-                       amin,amax):
+def heatexp_binary_upp(x : np.ndarray,
+                       Kmin: float, Kmax: float,
+                       Gmin: float, Gmax: float,
+                       amin: float, amax: float) -> np.ndarray:
     """
     Return the upper Hashin Rosen bound for the heat expansion coefficient 
     of a composite consisting of two isotropic materials with well ordered 
@@ -74,10 +76,10 @@ def heatexp_binary_upp(x,
     return x*amax + (1-x)*amin + 4*(1-x)*x*Gmax*(Kmin-Kmax)*(amin-amax) / \
            ( (3*Kmin*Kmax) + (4*Gmax*( (1-x)*Kmin + x*Kmax))  )
 
-def heatexp_binary_low_dx(x,
-                          Kmin,Kmax,
-                          Gmin,Gmax,
-                          amin,amax):
+def heatexp_binary_low_dx(x : np.ndarray,
+                          Kmin: float, Kmax: float,
+                          Gmin: float, Gmax: float,
+                          amin: float, amax: float) -> np.ndarray:
     """
     Derivative for  the lower Hashin Rosen bound for the heat expansion 
     coefficient of a composite consisting of two isotropic materials.
@@ -110,10 +112,10 @@ def heatexp_binary_low_dx(x,
          *(1 - 2*x  - 4*Gmin*(Kmax - Kmin)*x*(1-x) \
            / ( (3*Kmin*Kmax) + (4*Gmin*( (1-x)*Kmin + x*Kmax))  ) )
 
-def heatexp_binary_low(x,
-                       Kmin,Kmax,
-                       Gmin,Gmax,
-                       amin,amax):
+def heatexp_binary_low(x : np.ndarray,
+                       Kmin: float, Kmax: float,
+                       Gmin: float, Gmax: float,
+                       amin: float, amax: float) -> np.ndarray:
     """
     Return the lower Hashin Rosen bound for the heat expansion coefficient 
     of a composite consisting of two isotropic materials with well ordered 

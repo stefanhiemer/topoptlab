@@ -1,14 +1,16 @@
+from typing import Any
+
 import numpy as np
 
 from topoptlab.fem import get_integrpoints
 from topoptlab.elements.bilinear_quadrilateral import shape_functions, jacobian
 
-def _lm_monomial_2d(xe, u, n,
-                    p=np.array([1.]),
-                    t=np.array([1.]),
-                    quadr_method="gauss-legendre",
-                    nquad=3,
-                    **kwargs):
+def _lm_monomial_2d(xe: np.ndarray, u: np.ndarray, n: int,
+                    p: np.ndarray = np.array([1.]),
+                    t: np.ndarray = np.array([1.]),
+                    quadr_method: str = "gauss-legendre",
+                    nquad: int = 3,
+                    **kwargs: Any) -> np.ndarray:
     """
     Create element matrix for a monomial of a scalar field in 2D with bilinear
     quadrilateral elements. The special case for polynomial of order 1 is the
@@ -34,6 +36,7 @@ def _lm_monomial_2d(xe, u, n,
         available options.
     nquad : int
         number of quadrature points
+        
     Returns
     -------
     Ke : np.ndarray, shape (nels,4,4)
@@ -73,11 +76,11 @@ def _lm_monomial_2d(xe, u, n,
     #
     return t[:,None,None] * p[:,None,None] * Ke
 
-def lm_cubic_2d(u,
-                p=1.,
-                l=np.array([1.,1.]),
-                t=1.,
-                **kwargs):
+def lm_cubic_2d(u: np.ndarray,
+                p: float = 1.,
+                l: np.ndarray = np.array([1.,1.]),
+                t: float = 1.,
+                **kwargs: Any) -> np.ndarray:
     """
     Create element matrix for a cubic monomial for scalar field in 2D with
     bilinear quadrilateral Lagrangian elements.

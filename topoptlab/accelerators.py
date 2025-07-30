@@ -1,10 +1,13 @@
+from typing import Any,List,Union
 from warnings import warn
 
 import numpy as np
 from scipy.linalg import lstsq
 
-def anderson(x,xhist,max_history,
-             damp=0.9,**kws):
+def anderson(x: np.ndarray, 
+             xhist: List, max_history: int,
+             damp: float = 0.9,
+             **kwargs: Any) -> np.ndarray:
     """
     Anderson acceleration to achieve convergence acceleration. It assumes 
     that the numerical process resembles a fixed point iteration
@@ -72,10 +75,11 @@ def anderson(x,xhist,max_history,
     x = xhist[-1]*(1-damp) + x*damp - (dX+damp*dR)@gamma
     return x
 
-def diis(x, xhist, 
-         max_history,
-         r=None, rhist=None,
-         damp=0.9):
+def diis(x: np.ndarray, xhist: List, 
+         max_history: int,
+         r: Union[None,np.ndarray] = None, 
+         rhist: Union[None,List] = None,
+         damp: float = 0.9) -> np.ndarray:
     """
     Direct inversion in the iterative subspace (DIIS) or also known as Pulay 
     mixing for convergence acceleration. Two use cases have to be 

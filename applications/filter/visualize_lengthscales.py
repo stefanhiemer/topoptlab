@@ -3,13 +3,11 @@ from functools import partial
 import numpy as np
 from numpy import ones,asarray
 from numpy.random import seed,rand
-from scipy.ndimage import grey_dilation,grey_erosion,gaussian_filter
+from scipy.ndimage import grey_dilation,gaussian_filter
 import matplotlib.pyplot as plt
-from matplotlib.colors import Normalize
 
-from topoptlab.filters import assemble_convolution_filter,assemble_matrix_filter
-from topoptlab.utils import map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel
-from topoptlab.geometries import sphere, diracdelta
+from topoptlab.utils import map_eltoimg
+from topoptlab.geometries import sphere
 from topoptlab.output_designs import threshold
 from topoptlab.design_analysis import lengthscale_violations
 

@@ -1,11 +1,14 @@
+from typing import Any
+
 import numpy as np
 
 from topoptlab.elements.poisson_3d import lk_poisson_3d,lk_poisson_aniso_3d
 from topoptlab.elements.mass_scalar_3d import lm_mass_3d 
 
-def lk_screened_poisson_3d(k=1,
-                           l=np.array([1.,1.,1.]), g = [0.,0.],
-                           **kwargs):
+def lk_screened_poisson_3d(k: int = 1,
+                           l: np.ndarray = np.array([1.,1.,1.]), 
+                           g: np.ndarray = np.array([0.,0.]),
+                           **kwargs: Any) -> np.ndarray:
     """
     Create matrix for 3D screened Poisson equation with trilinear hexahedral 
     elements.
@@ -24,9 +27,10 @@ def lk_screened_poisson_3d(k=1,
     """
     return lk_poisson_3d(k=k, l=l, g=g) + lm_mass_3d(p=1., l=l)
 
-def lk_screened_poisson_aniso_3d(k,
-                                 l=np.array([1.,1.,1.]), g = [0.,0.],
-                                 **kwargs):
+def lk_screened_poisson_aniso_3d(k: np.ndarray,
+                                 l: np.ndarray = np.array([1.,1.,1.]), 
+                                 g: np.ndarray = np.array([0.,0.]),
+                                 **kwargs: Any) -> np.ndarray:
     """
     Create element stiffness matrix for anisotropic 3D screened Poisson with 
     trilinear hexahedral elements. 

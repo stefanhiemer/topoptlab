@@ -2,14 +2,14 @@ from warnings import warn
 
 import gmsh
 
-def parse_cad_and_mesh(file, 
-                       mesh_dim=3, 
-                       mesh_file="output.msh",
-                       transfinite_transform=True,
-                       npoints = 10, 
-                       check_rect=True,
-                       check_hex=True,
-                       show_gui=False):
+def parse_cad_and_mesh(file: str, 
+                       mesh_dim: int = 3, 
+                       mesh_file: str = "output.msh",
+                       transfinite_transform: bool = True,
+                       npoints: int = 10, 
+                       check_rect: bool = True,
+                       check_hex: bool = True,
+                       show_gui: bool = False) -> None:
     """
     Take a CAD file (so far only STEP tested) and mesh it with GMSH with 
     quadrilateral or hexahedral elements.

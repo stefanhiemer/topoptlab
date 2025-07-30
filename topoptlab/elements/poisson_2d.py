@@ -1,13 +1,15 @@
+from typing import Any
+
 import numpy as np
 
 from topoptlab.fem import get_integrpoints
 from topoptlab.elements.bilinear_quadrilateral import invjacobian,shape_functions_dxi
 
-def _lk_poisson_2d(xe,k,
-                   quadr_method="gauss-legendre",
-                   t=np.array([1.]),
-                   nquad=2,
-                   **kwargs):
+def _lk_poisson_2d(xe: np.ndarray, k: np.ndarray,
+                   quadr_method: str ="gauss-legendre",
+                   t: np.ndarray = np.array([1.]),
+                   nquad: int = 2,
+                   **kwargs: Any) -> np.ndarray:
     """
     Create element stiffness matrix for 2D Laplacian operator with bilinear
     quadrilateral elements.
@@ -62,9 +64,10 @@ def _lk_poisson_2d(xe,k,
     #
     return t[:,None,None] * Ke
 
-def lk_poisson_2d(k=1.,
-                  l=np.array([1.,1.]), g = [0.],
-                  t=1.):
+def lk_poisson_2d(k: float = 1.,
+                  l: np.ndarray = np.array([1.,1.]), 
+                  g: np.ndarray = np.array([0.]),
+                  t: float = 1.) -> np.ndarray:
     """
     Create element stiffness matrix for 2D Poisson with bilinear
     quadrilateral elements.
@@ -91,9 +94,10 @@ def lk_poisson_2d(k=1.,
                          [-l[0]/(6*l[1]) + np.tan(g[0])/2 - l[1]/(6*l[0]*np.cos(g[0])**2), -l[0]/(3*l[1]) + l[1]/(6*l[0]*np.cos(g[0])**2), l[0]/(3*l[1]) - np.tan(g[0])/2 + l[1]/(3*l[0]*np.cos(g[0])**2), l[0]/(6*l[1]) - l[1]/(3*l[0]*np.cos(g[0])**2)],
                          [-l[0]/(3*l[1]) + l[1]/(6*l[0]*np.cos(g[0])**2), -l[0]/(6*l[1]) - np.tan(g[0])/2 - l[1]/(6*l[0]*np.cos(g[0])**2), l[0]/(6*l[1]) - l[1]/(3*l[0]*np.cos(g[0])**2), l[0]/(3*l[1]) + np.tan(g[0])/2 + l[1]/(3*l[0]*np.cos(g[0])**2)]])
 
-def lk_poisson_aniso_2d(k,
-                        l=np.array([1.,1.]), g = [0.],
-                        t=1.):
+def lk_poisson_aniso_2d(k: np.ndarray,
+                        l: np.ndarray = np.array([1.,1.]), 
+                        g: np.ndarray = np.array([0.]),
+                        t: float = 1.) -> np.ndarray:
     """
     Create element stiffness matrix for anisotropic 2D Poisson with bilinear
     quadrilateral elements.

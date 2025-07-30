@@ -1,14 +1,16 @@
+from typing import Any
+
 import numpy as np
 
 from topoptlab.fem import get_integrpoints
 from topoptlab.elements.bilinear_quadrilateral import shape_functions, jacobian
 
-def _lm_mass_2d(xe,
-                p=np.array([1.]),
-                t=np.array([1.]),
-                quadr_method="gauss-legendre",
-                nquad=2,
-                **kwargs):
+def _lm_mass_2d(xe: np.ndarray,
+                p: np.ndarray = np.array([1.]),
+                t: np.ndarray = np.array([1.]),
+                quadr_method: str = "gauss-legendre",
+                nquad: int = 2,
+                **kwargs: Any) -> np.ndarray:
     """
     Create element mass matrix for vector field in 2D with bilinear
     quadrilateral elements.
@@ -62,10 +64,10 @@ def _lm_mass_2d(xe,
     #
     return t[:,None,None] * p[:,None,None] * Ke
 
-def lm_mass_2d(p=1.,
-               l=np.array([1.,1.]),
-               t=1.,
-               **kwargs):
+def lm_mass_2d(p: float = 1.,
+               l: np.ndarray = np.array([1.,1.]),
+               t: float = 1.,
+               **kwargs: Any) -> np.ndarray:
     """
     Create mass matrix for vector field in 2D with bilinear quadrilateral
     Lagrangian elements.

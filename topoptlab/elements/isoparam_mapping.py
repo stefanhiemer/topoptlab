@@ -1,8 +1,13 @@
+from typing import Any,Union
 from warnings import warn
 
 import numpy as np
 
-def check_inputs(xi,eta,zeta=None,xe=None,all_elems=False,**kwargs):
+def check_inputs(xi: np.ndarray, eta: np.ndarray, 
+                 zeta: Union[None,np.ndarray] = None,
+                 xe: Union[None,np.ndarray] = None,
+                 all_elems: bool = False,
+                 **kwargs: Any):
     """
     Check coordinates and provided element node information to be consistent. 
     If necessary transform inputs to make them consistent.

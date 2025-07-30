@@ -1,12 +1,14 @@
+from typing import Any
+
 import numpy as np
 
 from topoptlab.fem import get_integrpoints
 from topoptlab.elements.trilinear_hexahedron import invjacobian,shape_functions_dxi
 
-def _lk_poisson_3d(xe,k,
-                   quadr_method="gauss-legendre",
-                   nquad=2,
-                   **kwargs):
+def _lk_poisson_3d(xe: np.ndarray, k: np.ndarray,
+                   quadr_method: str = "gauss-legendre",
+                   nquad: int = 2,
+                   **kwargs: Any) -> np.ndarray:
     """
     Create element stiffness matrix for 3D Laplacian operator with bilinear
     quadrilateral elements. 
@@ -56,8 +58,9 @@ def _lk_poisson_3d(xe,k,
     # multiply by determinant and quadrature
     return (w[None,:,None,None]*integral*detJ[:,:,None,None]).sum(axis=1)
 
-def lk_poisson_3d(k=1,
-                  l=np.array([1.,1.,1.]), g = [0.,0.]):
+def lk_poisson_3d(k: float = 1.,
+                  l: np.ndarray= np.array([1.,1.,1.]), 
+                  g: np.ndarray = np.array([0.,0.]) ) -> np.ndarray:
     """
     Create element stiffness matrix for 3D Poisson with trilinear
     hexahedral elements. 
@@ -142,8 +145,9 @@ def lk_poisson_3d(k=1,
            l[0]*l[1]/(18*l[2]) + l[0]*l[2]/(18*l[1]) - l[1]*l[2]*np.tan(g[0])**2/(9*l[0]) - l[1]*l[2]*np.tan(g[1])**2/(9*l[0]) - l[1]*l[2]/(9*l[0]),
            l[0]*l[1]/(9*l[2]) + l[0]*l[2]/(9*l[1]) + l[1]*np.tan(g[1])/6 + l[2]*np.tan(g[0])/6 + l[1]*l[2]*np.tan(g[0])**2/(9*l[0]) + l[1]*l[2]*np.tan(g[1])**2/(9*l[0]) + l[1]*l[2]/(9*l[0])]])
 
-def lk_poisson_aniso_3d(k,
-                        l=np.array([1.,1.,1.]), g = [0.,0.]):
+def lk_poisson_aniso_3d(k: np.ndarray,
+                        l: np.ndarray = np.array([1.,1.,1.]), 
+                        g: np.ndarray = np.array([0.,0.])) -> np.ndarray:
     """
     Create element stiffness matrix for anisotropic 3D Poisson with trilinear
     hexahedral elements. 

@@ -1,12 +1,16 @@
+from typing import Tuple
+
 import numpy as np
 from scipy.signal import sawtooth
-from matplotlib.patches import Polygon,Circle,Ellipse
+from matplotlib.patches import Polygon,Ellipse
+from matplotlib.figure import Figure 
+from matplotlib.axes import Axes
 
-def spring(x0,y0,
-           num_coils=3,
-           coil_width=0.02,
-           coil_length=0.4,
-           points_per_coil = 9):
+def spring(x0: float, y0: float,
+           num_coils: int = 3,
+           coil_width: float = 0.02,
+           coil_length: float = 0.4,
+           points_per_coil: int = 9) -> Tuple[np.ndarray,np.ndarray]:
     """
     Draw a spring for a sketch.
 
@@ -40,10 +44,10 @@ def spring(x0,y0,
     y = np.linspace(0, coil_length, t.shape[0])
     return x0+x,y0+y
 
-def hinged_support(x0,y0,
-                   ax, fig,
-                   triangle_width=1.,
-                   radius=0.08):
+def hinged_support(x0: float, y0: float,
+                   ax: Axes, fig: Figure,
+                   triangle_width: float = 1.,
+                   radius: float = 0.08) -> None:
     """
     Draw a hinged support for a sketch.
 
@@ -78,8 +82,6 @@ def hinged_support(x0,y0,
                        linewidth=2.) 
     ax.add_patch(triangle)
     # circle
-    #circle = Circle((x0, y0), radius, 
-    #                fill=False, edgecolor='gray', linewidth=2.)
     circle = Ellipse( xy=(x0,y0), width=radius/ratio, height=radius*ratio,
                      fill=True, edgecolor='gray', facecolor="white",
                      linewidth=2.)

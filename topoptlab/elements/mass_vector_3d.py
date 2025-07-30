@@ -1,12 +1,14 @@
+from typing import Any 
+
 import numpy as np
 
 from topoptlab.fem import get_integrpoints
 from topoptlab.elements.trilinear_hexahedron import jacobian,shape_functions
 
-def _lm_mass_3d(xe,p=np.array([1.]),
-                quadr_method="gauss-legendre",
-                nquad=2,
-                **kwargs):
+def _lm_mass_3d(xe: np.ndarray ,p: np.ndarray = np.array([1.]),
+                quadr_method: str = "gauss-legendre",
+                nquad: int = 2,
+                **kwargs: Any) -> np.ndarray:
     """
     Create element mass matrix for vector field in 3D with trilinear hexahedral
     elements.
@@ -58,8 +60,8 @@ def _lm_mass_3d(xe,p=np.array([1.]),
     #
     return p[:,None,None] * Ke
 
-def lm_mass_3d(p=1.0,
-               l=np.array([1.,1.,1.])):
+def lm_mass_3d(p: float = 1.0,
+               l: np.ndarray = np.array([1.,1.,1.])):
     """
     Create element mass matrix for vector field in 3D with trilinear hexahedral
     elements.

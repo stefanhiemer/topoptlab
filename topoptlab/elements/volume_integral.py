@@ -1,13 +1,15 @@
+from typing import Any
+
 import numpy as np
 
 from topoptlab.fem import get_integrpoints
 from topoptlab.elements.bilinear_quadrilateral import shape_functions, jacobian
 
-def vol_integral(xe,
-                 t=np.array([1.]),
-                 quadr_method="gauss-legendre",
-                 nquad=2,
-                 **kwargs):
+def vol_integral(xe: np.ndarray,
+                 t: np.ndarray = np.array([1.]),
+                 quadr_method: str = "gauss-legendre",
+                 nquad: int = 2,
+                 **kwargs: Any) -> np.ndarray:
     """
     Calculate volume integral over some nodal variable.
 
@@ -49,10 +51,14 @@ def vol_integral(xe,
     #
     N = shape_functions(xi=xi,eta=eta,zeta=zeta)
     # calculate determinant of jacobian
-    J = jacobian(xi=xi,eta=eta,xe=xe,all_elems=True)
-    detJ = ((J[:,0,0]*J[:,1,1]) - (J[:,1,0]*J[:,0,1])).reshape(nel,nq)
+    J = jacobian(xi=xi,eta=eta,zeta=zeta,xe=xe,all_elems=True)
     # multiply by determinant and quadrature
     if ndim == 2:
-        return t[:,None,None] * (w[None,:,None,None]*N[None,:,:,None]*detJ[:,:,None,None]).sum(axis=1)
+        detJ = ((J[:,0,0]*J[:,1,1]) - (J[:,1,0]*J[:,0,1])).reshape(nel,nq)
+        return t[:,None,None] * (w[None,:,None,None]*N[None,:,:,None]*\
+                                 detJ[:,:,None,None]).sum(axis=1)
     elif ndim == 3:
+        detJ = (J[:,0,0]*(J[:,1,1]*J[:,2,2] - J[:,1,2]*J[:,2,1])-
+                J[:,0,1]*(J[:,1,0]*J[:,2,2] - J[:,1,2]*J[:,2,0])+
+                J[:,0,2]*(J[:,1,0]*J[:,2,1] - J[:,1,1]*J[:,2,0])).reshape(nel,nq)
         return (w[None,:,None,None]*N[None,:,:,None]*detJ[:,:,None,None]).sum(axis=1)

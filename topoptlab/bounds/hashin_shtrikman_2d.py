@@ -1,6 +1,8 @@
-def bulkmodulus_hashin_shtrikman_upp(x, 
-                                     bulkm_min,bulkm_max,
-                                     shearm_min,shearm_max):
+import numpy as np
+
+def bulkmodulus_hashin_shtrikman_upp(x: np.ndarray,
+                                     Kmin: float, Kmax: float,
+                                     Gmin: float, Gmax: float) -> np.ndarray:
     """
     Return the upper Hashin Shtrikman bound in 2D for the bulkmodulus of 
     a composite consisting of two isotropic substances.
@@ -9,13 +11,13 @@ def bulkmodulus_hashin_shtrikman_upp(x,
     ----------
     x : np.ndarray, shape (n)
         relative density
-    bulkm_min : float
+    Kmin : float
         smaller bulk modulus
-    bulkm_max : float
+    Kmax : float
         larger bulk modulus
-    shearm_min : float
+    Gmin : float
         smaller shear modulus
-    shearm_max : float
+    Gmax : float
         larger shear modulus
 
     Returns
@@ -24,13 +26,13 @@ def bulkmodulus_hashin_shtrikman_upp(x,
         upper bound of composite bulk modulus
 
     """
-    return (1-x) * bulkm_min + x * bulkm_max - \
-           (1-x) * x * (bulkm_max-bulkm_min)**2\
-           /((1-x)*bulkm_max + x*bulkm_min + shearm_max)
+    return (1-x) * Kmin + x * Kmax - \
+           (1-x) * x * (Kmax-Kmin)**2\
+           /((1-x)*Kmax + x*Kmin + Gmax)
            
-def bulkmodulus_hashin_shtrikman_low(x, 
-                                     bulkm_min,bulkm_max,
-                                     shearm_min,shearm_max):
+def bulkmodulus_hashin_shtrikman_low(x: np.ndarray,
+                                     Kmin: float, Kmax: float,
+                                     Gmin: float, Gmax: float) -> np.ndarray:
     """
     Return the lower Hashin Shtrikman bound in 2D for the bulkmodulus of 
     a composite consisting of two isotropic substances.
@@ -54,13 +56,13 @@ def bulkmodulus_hashin_shtrikman_low(x,
         lower bound of composite bulk modulus
 
     """
-    return (1-x) * bulkm_min + x * bulkm_max - \
-           (1-x) * x * (bulkm_max-bulkm_min)**2\
-           /((1-x)*bulkm_max + x*bulkm_min + shearm_min)
+    return (1-x) * Kmin + x * Kmax - \
+           (1-x) * x * (Kmax-Kmin)**2\
+           /((1-x)*Kmax + x*Kmin + Gmin)
 
-def shearmodulus_hashin_shtrikman_upp(x, 
-                                     bulkm_min,bulkm_max,
-                                     shearm_min,shearm_max):
+def shearmodulus_hashin_shtrikman_upp(x: np.ndarray,
+                                      Kmin: float, Kmax: float,
+                                      Gmin: float, Gmax: float) -> np.ndarray:
     """
     Return the upper Hashin Shtrikman bound in 2D for the shearmodulus of 
     a composite consisting of two isotropic substances.
@@ -84,14 +86,12 @@ def shearmodulus_hashin_shtrikman_upp(x,
         upper bound of composite shear modulus
 
     """
-    return (1-x) * shearm_min + x * shearm_max - \
-           (1-x) * x * (shearm_max-shearm_min)**2\
-           /((1-x)*shearm_max + x*shearm_min + \
-             shearm_max * bulkm_max / (shearm_max + 2*bulkm_max))
+    return (1-x) * Gmin + x * Gmax - (1-x) * x * (Gmax-Gmin)**2\
+           /((1-x)*Gmax + x*Gmin + Gmax * Kmax / (Gmax + 2*Kmax))
                
-def shearmodulus_hashin_shtrikman_low(x, 
-                                     bulkm_min,bulkm_max,
-                                     shearm_min,shearm_max):
+def shearmodulus_hashin_shtrikman_low(x: np.ndarray,
+                                      Kmin: float, Kmax: float,
+                                      Gmin: float, Gmax: float) -> np.ndarray:
     """
     Return the lower Hashin Shtrikman bound in 2D for the shearmodulus of 
     a composite consisting of two isotropic substances.
@@ -115,13 +115,11 @@ def shearmodulus_hashin_shtrikman_low(x,
         lower bound of composite shear modulus
 
     """
-    return (1-x)*shearm_min + x * shearm_max - \
-           (1-x)*x* (shearm_max - shearm_min)**2\
-           /((1-x)*shearm_max + x*shearm_min + \
-             shearm_min*bulkm_min / (shearm_min + 2*bulkm_min)) 
+    return (1-x)*Gmin + x * Gmax - (1-x)*x* (Gmax - Gmin)**2\
+           /((1-x)*Gmax + x*Gmin + Gmin*Kmin / (Gmin + 2*Kmin)) 
 
-def _conductivity_hashin_shtrikman_upp(x, 
-                                      k_min,k_max):
+def _conductivity_hashin_shtrikman_upp(x: np.ndarray, 
+                                       kmin: float, kmax: float) -> np.ndarray:
     """
     Return the upper Hashin Shtrikman bound in 2D for the thermal conductvity 
     of a composite consisting of two isotropic substances. Also applies to 
@@ -131,9 +129,9 @@ def _conductivity_hashin_shtrikman_upp(x,
     ----------
     x : np.ndarray, shape (n)
         relative density
-    k_min : float
+    kmin : float
         smaller conductivity
-    k_max : float
+    kmax : float
         larger conductivity
 
     Returns
@@ -142,12 +140,12 @@ def _conductivity_hashin_shtrikman_upp(x,
         upper bound of composite shear modulus
 
     """
-    return (1-x)*k_min + x*k_max - \
-           (1-x) * x * (k_max-k_min)**2\
-           /((1-x)*k_max + x*k_min + k_max) 
+    return (1-x)*kmin + x*kmax - \
+           (1-x) * x * (kmax-kmin)**2\
+           /((1-x)*kmax + x*kmin + kmax) 
 
-def _conductivity_hashin_shtrikman_low(x, 
-                                      k_min,k_max):
+def _conductivity_hashin_shtrikman_low(x: np.ndarray, 
+                                       kmin: float, kmax: float) -> np.ndarray:
     """
     Return the lower Hashin Shtrikman bound in 2D for the thermal conductvity 
     of a composite consisting of two isotropic substances. Also applies to 
@@ -157,9 +155,9 @@ def _conductivity_hashin_shtrikman_low(x,
     ----------
     x : np.ndarray, shape (n)
         relative density
-    k_min : float
+    kmin : float
         smaller conductivity
-    k_max : float
+    kmax : float
         larger conductivity
 
     Returns
@@ -168,6 +166,5 @@ def _conductivity_hashin_shtrikman_low(x,
         lower bound of composite shear modulus
 
     """
-    return (1-x)*k_min + x*k_max - \
-           (1-x) * x * (k_max-k_min)**2\
-           /((1-x)*k_max + x*k_min + k_min)
+    return (1-x)*kmin + x*kmax - (1-x) * x * (kmax-kmin)**2\
+           /((1-x)*kmax + x*kmin + kmin)
