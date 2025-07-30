@@ -1,11 +1,15 @@
+from typing import Any,Union,Tuple
+
 import numpy as np
-from scipy.sparse import issparse,diags,triu,tril
+from scipy.sparse import issparse,diags,triu,tril,csc_array
 from scipy.sparse.linalg import spsolve_triangular
 
-def gauss_seidel(A, b, x0=None, 
-                 tol=1e-8, max_iter=1000,
-                 L=None, U=None,
-                 **kwargs):
+def gauss_seidel(A: csc_array, b: np.ndarray,
+                 x0: Union[None,np.ndarray] = None, 
+                 tol: float = 1e-8, max_iter: int = 1000,
+                 L: Union[None,csc_array] = None, 
+                 U: Union[None,csc_array] = None,
+                 **kwargs: Any) -> Tuple[np.ndarray,int]:
     """
     Gauss-Seidel solver for Ax = b. We rewrite 
     
@@ -66,9 +70,11 @@ def gauss_seidel(A, b, x0=None,
             break
     return x, i
 
-def smoothed_jacobi(A, b, x0=None, omega=0.67, 
-                    tol=1e-8, max_iter=1000,
-                    **kwargs):
+def smoothed_jacobi(A: csc_array, b: np.ndarray, 
+                    x0: Union[None,np.ndarray] = None, 
+                    omega: float = 0.67, 
+                    tol: float = 1e-8, max_iter: int = 1000,
+                    **kwargs: Any):
     """
     Smoothed Jacobi iterative solver for Ax = b.
 
@@ -120,9 +126,11 @@ def smoothed_jacobi(A, b, x0=None, omega=0.67,
             break
     return x, i
 
-def modified_richardson(A, b, x0=None, omega=0.1, 
-                        tol=1e-8, max_iter=1000,
-                        **kwargs):
+def modified_richardson(A: csc_array, b: np.ndarray, 
+                        x0: Union[None,np.ndarray] = None, 
+                        omega: float = 0.1, 
+                        tol: float = 1e-8, max_iter: int = 1000,
+                        **kwargs: Any) -> Tuple[np.ndarray,int]:
     """
     Modified Richardson iterative solver for Ax = b.
 
@@ -172,10 +180,14 @@ def modified_richardson(A, b, x0=None, omega=0.1,
             break
     return x, i
 
-def successive_overrelaxation(A, b, x0=None, 
-                              omega=0.5, tol=1e-8, max_iter=1000,
-                              D = None, A_u = None, A_l = None,
-                              **kwargs):
+def successive_overrelaxation(A: csc_array, b: np.ndarray, 
+                              x0: Union[None,np.ndarray] = None, 
+                              omega: float = 0.5, 
+                              tol: float = 1e-8, max_iter: int = 1000,
+                              D: Union[None,csc_array] = None, 
+                              A_u: Union[None,csc_array] = None, 
+                              A_l: Union[None,csc_array] = None,
+                              **kwargs: Any) -> Tuple[np.ndarray,int]:
     """
     Successive over-relaxation (SRO) solver for Ax = b. We rewrite 
     
