@@ -37,7 +37,7 @@ from topoptlab.elements.heatexpansion_2d import _fk_heatexp_2d
 from topoptlab.elements.heatexpansion_3d import _fk_heatexp_3d
 from topoptlab.material_interpolation import simp,simp_dx,ramp,ramp_dx
 # generic functions for solving phys. problem
-from topoptlab.fem import assemble_matrix,assemble_rhs,apply_bc
+from topoptlab.fem import assemble_matrix,apply_bc
 from topoptlab.solve_linsystem import solve_lin
 # constrained optimizers
 from topoptlab.optimizer.optimality_criterion import oc_top88,oc_mechanism,oc_generalized
@@ -486,7 +486,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                               edofMat,
                               fes)
             # assemble right hand side
-            rhs = assemble_rhs(f0=f+fT+f_body,solver=lin_solver)
+            rhs = f+fT+f_body
             # apply boundary conditions to matrix
             K = apply_bc(K=K,solver=lin_solver,
                          free=free,fixed=fixed)

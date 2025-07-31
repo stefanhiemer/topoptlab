@@ -11,7 +11,7 @@ from topoptlab.elements.trilinear_hexahedron import apply_pbc as apply_pbc3d
 from topoptlab.elements.linear_elasticity_2d import lk_linear_elast_2d,lf_strain_2d
 from topoptlab.elements.linear_elasticity_3d import lk_linear_elast_3d, lf_strain_3d
 # generic functions for solving phys. problem
-from topoptlab.fem import assemble_matrix,assemble_rhs,apply_bc
+from topoptlab.fem import assemble_matrix,apply_bc
 from topoptlab.solve_linsystem import solve_lin
 # boundary condition
 from topoptlab.example_bc.lin_elast import singlenode
@@ -168,8 +168,7 @@ def fem_homogenization(nelx, nely, nelz=None,
               edofMat,
               fes)
     # assemble completely
-    rhs = assemble_rhs(f0=f,
-                       solver=lin_solver)
+    rhs = f
     if debug:
         print("--- fixed ---")
         print(fixed)

@@ -1,24 +1,32 @@
-from numpy import array,sqrt
+from typing import Tuple,Union
 
-def compute_elastic_properties_3d(E=None, nu=None, G=None, 
-                                  K=None, lam=None, M=None):
+import numpy as np
+
+def compute_elastic_properties_3d(E: Union[None,float] = None, 
+                                  nu: Union[None,float] = None,  
+                                  G: Union[None,float] = None,  
+                                  K: Union[None,float] = None,  
+                                  lam: Union[None,float] = None,
+                                  M: Union[None,float] = None
+                                  ) -> Tuple[float,float,float,
+                                             float,float,float]:
     """
     Compute all 3D isotropic elastic properties from any 2 given elast. 
     properties. 
     
     Parameters
     ----------
-    E : float
+    E : None or float
         Young's modulus.
-    nu : float
+    nu : None or float
         Poisson's ratio.
-    G : float
+    G : None or float
         shear modulus.
-    K : float
+    K : None or float
         bulk modulus.
-    lam : float
+    lam : None or float
         Lamé's first parameter.
-    M : float
+    M : None or float
         P-wave modulus.
     
     Returns
@@ -72,7 +80,7 @@ def compute_elastic_properties_3d(E=None, nu=None, G=None,
         nu = (3*K - M) / (3*K+M)
         return E,nu,G,K,lam,M
     elif E is not None and lam is not None:
-        R = sqrt(E**2 + 9*lam**2+2*E*lam)
+        R = np.sqrt(E**2 + 9*lam**2+2*E*lam)
         K = (E + 3*lam + R) / 6
         G = (E - 3*lam + R) / 4
         nu = 2 * lam / (E+lam+R)
@@ -91,7 +99,7 @@ def compute_elastic_properties_3d(E=None, nu=None, G=None,
         M = E*(1-nu) / ( (1+nu)*(1-2*nu) )
         return E,nu,G,K,lam,M
     elif E is not None and M is not None:
-        S = sqrt(E**2 + 9*M**2 - (10*E*M))
+        S = np.sqrt(E**2 + 9*M**2 - (10*E*M))
         G = (3*M+E-S) / 8
         K = (3*M - E + S) / 6
         lam = (M - E + S) / 4
@@ -136,7 +144,9 @@ def compute_elastic_properties_3d(E=None, nu=None, G=None,
     else:
         raise ValueError("Unsupported or insufficient input combination.")
 
-def isotropic_2d(E=1., nu=0.3, plane_stress=True):
+def isotropic_2d(E: float = 1., 
+                 nu: float = 0.3, 
+                 plane_stress: bool = True) -> np.ndarray:
     """
     2D stiffness tensor for isotropic material. 
     
@@ -156,18 +166,20 @@ def isotropic_2d(E=1., nu=0.3, plane_stress=True):
         stiffness tensor.
     """
     if plane_stress:
-        return E/(1-nu**2)*array([[1,nu,0],
-                                  [nu,1,0],
-                                  [0,0,(1-nu)/2]])
+        return E/(1-nu**2)*np.array([[1,nu,0],
+                                     [nu,1,0],
+                                     [0,0,(1-nu)/2]])
     else:
-        return E/((1+nu)*(1-2*nu))*array([[1-nu,nu,0],
-                                          [nu,1-nu,0],
-                                          [0,0,(1-nu)/2]])
+        return E/((1+nu)*(1-2*nu))*np.array([[1-nu,nu,0],
+                                             [nu,1-nu,0],
+                                             [0,0,(1-nu)/2]])
 
-def orthotropic_2d(Ex, Ey, 
-                   nu_xy, G_xy,
-                   Ez=None, nu_xz=None, nu_yz=None,
-                   plane_stress=True):
+def orthotropic_2d(Ex: float, Ey: float, 
+                   nu_xy: float, G_xy: float,
+                   Ez: Union[None,float] = None, 
+                   nu_xz: Union[None,float] = None, 
+                   nu_yz: Union[None,float] = None,
+                   plane_stress: bool = True) -> np.ndarray:
     """
     2D stiffness tensor for orthotropic material. The indices of the Poisson 
     ratios nu_ij are defined as the direction with the applied strain (i) and 
@@ -183,12 +195,14 @@ def orthotropic_2d(Ex, Ey,
         shear modulus in xy plane.
     nu_xy : float
         Poisson's ratio for tension in x and contraction/expansion y direction.
-    Ez : float
-        Young's modulus in z direction.
+    Ez : float or None
+        Young's modulus in z direction. Only needed for plain strain.
     nu_xz : float or None
         Poisson's ratio for tension in x and contraction/expansion z direction.
+        Only needed for plain strain.
     nu_yz : float or None
         Poisson's ratio for tension in y and contraction/expansion z direction.
+        Only needed for plain strain.
     
     Returns
     -------
@@ -199,20 +213,20 @@ def orthotropic_2d(Ex, Ey,
     nu_yx = nu_xy * (Ey / Ex)
     #
     if plane_stress:
-        return array([[Ex / (1-nu_xy*nu_yx), Ex*nu_yx / (1-nu_xy*nu_yx) ,0], 
-                      [Ey*nu_xy / (1-nu_xy*nu_yx), Ey / (1-nu_xy*nu_yx), 0],
-                      [0, 0, G_xy]])
+        return np.array([[Ex / (1-nu_xy*nu_yx), Ex*nu_yx / (1-nu_xy*nu_yx) ,0], 
+                         [Ey*nu_xy / (1-nu_xy*nu_yx), Ey / (1-nu_xy*nu_yx), 0],
+                         [0, 0, G_xy]])
     else:
         nu_zy = nu_yz * (Ez / Ey)
         nu_zx = nu_xz * (Ez / Ex)
         D = 1 - nu_xy*nu_yx - nu_xz*nu_zx - nu_yz*nu_zy - 2*nu_xy*nu_yz*nu_zx
-        return array([[Ex*(1-nu_yz*nu_zy)/D,Ex*(nu_yx + nu_yz*nu_zx)/D,0], 
-                      [Ey*(nu_xy + nu_xz*nu_zy)/D, Ey*(1 - nu_xz*nu_zx)/D, 0],
-                      [0, 0, G_xy]])
+        return np.array([[Ex*(1-nu_yz*nu_zy)/D,Ex*(nu_yx + nu_yz*nu_zx)/D,0], 
+                         [Ey*(nu_xy + nu_xz*nu_zy)/D, Ey*(1 - nu_xz*nu_zx)/D, 0],
+                         [0, 0, G_xy]])
 
-def orthotropic_3d(Ex, Ey, Ez, 
-                   nu_xy, nu_xz, nu_yz,
-                   G_xy, G_xz, G_yz):
+def orthotropic_3d(Ex: float, Ey: float, Ez: float, 
+                   nu_xy: float, nu_xz: float, nu_yz: float,
+                   G_xy: float, G_xz: float, G_yz: float) -> np.ndarray:
     """
     3D stiffness tensor for orthotropic material. The indices of the Poisson 
     ratios nu_ij are defined as the direction with the applied strain (i) and 
@@ -228,9 +242,9 @@ def orthotropic_3d(Ex, Ey, Ez,
         Young's modulus in z direction.
     nu_xy : float
         Poisson's ratio for tension in x and contraction/expansion y direction.
-    nu_xz : float or None
+    nu_xz : float
         Poisson's ratio for tension in x and contraction/expansion z direction.
-    nu_yz : float or None
+    nu_yz : float
         Poisson's ratio for tension in y and contraction/expansion z direction.
     G_xy : float
         shear modulus in xy plane.
@@ -250,23 +264,23 @@ def orthotropic_3d(Ex, Ey, Ez,
     nu_yx = nu_xy * (Ey / Ex)
     #
     D = 1 - nu_xy*nu_yx - nu_xz*nu_zx - nu_yz*nu_zy - 2*nu_xy*nu_yz*nu_zx
-    return array([[Ex*(1-nu_yz*nu_zy)/D,
-                   Ex*(nu_yx + nu_yz*nu_zx)/D, 
-                   Ex*(nu_zx + nu_zy*nu_yx)/D, 
-                   0, 0, 0], 
-                  [Ey*(nu_xy + nu_xz*nu_zy)/D, 
-                   Ey*(1 - nu_xz*nu_zx)/D,
-                   Ey*(nu_zy + nu_zx*nu_xy)/D, 
-                   0, 0, 0], 
-                  [Ez*(nu_xz + nu_xy*nu_yz)/D, 
-                   Ez*(nu_yz + nu_yx*nu_xz)/D, 
-                   Ez*(1-nu_xy*nu_yx)/D, 
-                   0, 0, 0], 
-                  [0, 0, 0, G_yz, 0, 0], 
-                  [0, 0, 0, 0, G_xz, 0], 
-                  [0, 0, 0, 0, 0, G_xy]])
+    return np.array([[Ex*(1-nu_yz*nu_zy)/D,
+                      Ex*(nu_yx + nu_yz*nu_zx)/D, 
+                      Ex*(nu_zx + nu_zy*nu_yx)/D, 
+                      0, 0, 0], 
+                     [Ey*(nu_xy + nu_xz*nu_zy)/D, 
+                      Ey*(1 - nu_xz*nu_zx)/D,
+                      Ey*(nu_zy + nu_zx*nu_xy)/D, 
+                      0, 0, 0], 
+                     [Ez*(nu_xz + nu_xy*nu_yz)/D, 
+                      Ez*(nu_yz + nu_yx*nu_xz)/D, 
+                      Ez*(1-nu_xy*nu_yx)/D, 
+                      0, 0, 0], 
+                     [0, 0, 0, G_yz, 0, 0], 
+                     [0, 0, 0, 0, G_xz, 0], 
+                     [0, 0, 0, 0, 0, G_xy]])
 
-def isotropic_3d(E=1.,nu=0.3):
+def isotropic_3d(E:float = 1., nu:float = 0.3) -> np.ndarray:
     """
     3D stiffness tensor for isotropic material. 
     
@@ -282,14 +296,14 @@ def isotropic_3d(E=1.,nu=0.3):
     c : np.ndarray, shape (6,6)
         stiffness tensor.
     """
-    return E/((1+nu)*(1-2*nu))*array([[1-nu,nu,nu,0,0,0],
-                                      [nu,1-nu,nu,0,0,0],
-                                      [nu,nu,1-nu,0,0,0],
-                                      [0,0,0,(1-nu)/2,0,0],
-                                      [0,0,0,0,(1-nu)/2,0],
-                                      [0,0,0,0,0,(1-nu)/2]])
+    return E/((1+nu)*(1-2*nu))*np.array([[1-nu,nu,nu,0,0,0],
+                                         [nu,1-nu,nu,0,0,0],
+                                         [nu,nu,1-nu,0,0,0],
+                                         [0,0,0,(1-nu)/2,0,0],
+                                         [0,0,0,0,(1-nu)/2,0],
+                                         [0,0,0,0,0,(1-nu)/2]])
 
-def octet_trusslattice(E,rho):
+def octet_trusslattice(E:float, rho:float) -> np.ndarray:
     """
     Octet truss structure from 
     
@@ -309,17 +323,20 @@ def octet_trusslattice(E,rho):
     c : np.ndarray, shape (6,6)
         stiffness tensor.
     """
-    return E*rho/3 * array([[1/2,1/4,1/4,0,0,0],
-                            [1/4,1/4,1/2,0,0,0],
-                            [1/4,1/4,1/2,0,0,0],
-                            [0,0,0,1/4,0,0],
-                            [0,0,0,0,1/4,0],
-                            [0,0,0,0,0,1/4]])
+    return E*rho/3 * np.array([[1/2,1/4,1/4,0,0,0],
+                               [1/4,1/4,1/2,0,0,0],
+                               [1/4,1/4,1/2,0,0,0],
+                               [0,0,0,1/4,0,0],
+                               [0,0,0,0,1/4,0],
+                               [0,0,0,0,0,1/4]])
 
-def rank2_2d(mu1,mu2,nu,E):
+def rank2_2d(mu1: float, mu2: float, nu: float, E: float) -> np.ndarray:
     """
     Stiffness tensor for rank2 laminate in 2D taken from 
-    "Wu, Jun, Ole Sigmund, and Jeroen P. Groen. "Topology optimization of multi-scale structures: a review." Structural and Multidisciplinary Optimization 63 (2021): 1455-1480.".
+    
+    "Wu, Jun, Ole Sigmund, and Jeroen P. Groen. "Topology optimization of 
+    multi-scale structures: a review." Structural and Multidisciplinary 
+    Optimization 63 (2021): 1455-1480.".
     
     Parameters
     ----------
@@ -338,6 +355,6 @@ def rank2_2d(mu1,mu2,nu,E):
         stiffness tensor.
     """
     factor = E/(1-mu2+mu1*mu2*(1-nu))
-    return factor * array([[mu1,mu1*mu2*nu,0],
-                           [mu1*mu2*nu,mu2*(1-mu2+mu1*mu2),0],
-                           [0,0,0]])
+    return factor * np.array([[mu1,mu1*mu2*nu,0],
+                              [mu1*mu2*nu,mu2*(1-mu2+mu1*mu2),0],
+                              [0,0,0]])

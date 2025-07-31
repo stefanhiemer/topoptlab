@@ -1,7 +1,6 @@
 #
 import numpy as np
-from scipy.linalg import solve
-from scipy.sparse.linalg import factorized, eigsh
+from scipy.sparse.linalg import factorized
 import matplotlib.pyplot as plt
 # set up finite element problem
 from topoptlab.fem import create_matrixinds
@@ -12,16 +11,12 @@ from topoptlab.elements.trilinear_hexahedron import apply_pbc as apply_pbc3d
 # different elements/physics
 from topoptlab.elements.mass_scalar_2d import lm_mass_2d
 from topoptlab.elements.poisson_2d import lk_poisson_2d
-from topoptlab.elements.monomial_scalar_2d import _lm_monomial_2d, lm_cubic_2d
-from topoptlab.elements.linear_elasticity_3d import lk_linear_elast_3d, lf_strain_3d
+from topoptlab.elements.monomial_scalar_2d import _lm_monomial_2d
 # generic functions for solving phys. problem
-from topoptlab.fem import assemble_matrix,assemble_rhs,apply_bc
-from topoptlab.solve_linsystem import solve_lin
+from topoptlab.fem import assemble_matrix,apply_bc
 # boundary condition
-from topoptlab.example_bc.lin_elast import singlenode
 # output final design to a Paraview readable format
 from topoptlab.utils import map_eltoimg
-from topoptlab.output_designs import export_vtk
 
 # MAIN DRIVER
 def fem_cahn(nelx, nely, nelz=None, n_steps=10000,

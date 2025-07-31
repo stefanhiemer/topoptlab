@@ -1,12 +1,19 @@
+from typing import Callable,Tuple,Union
+
 import numpy as np
+from scipy.sparse import csc_array
 from scipy.sparse.linalg import spsolve,cg, spilu, LinearOperator, factorized
 
-from cvxopt import matrix
-from cvxopt.cholmod import linsolve,solve,symbolic,numeric
+from cvxopt import matrix,spmatrix
+from cvxopt.cholmod import solve,symbolic,numeric
 
-def solve_lin(K,rhs,solver,
-              preconditioner=None,
-              P=None):
+def solve_lin(K: Union[csc_array,spmatrix], rhs: Union[np.ndarray,matrix],
+              solver: str,
+              preconditioner: Union[None,str] = None,
+              P: Union[None,Callable,spmatrix,csc_array] = None
+              ) -> Tuple[np.ndarray, 
+                         Union[None,Callable],
+                         Union[None,Callable,spmatrix,csc_array]]:
     """
     Solve linear system Ku=rhs for a generic matrix K with preconditioner P.
     rhs might contain multiple sets of boundary conditions that are solved
@@ -14,7 +21,7 @@ def solve_lin(K,rhs,solver,
 
     Parameters
     ----------
-    K : scipy.sparse.csc_matrix or cvxopt.base.spmatrix (ndof_free,ndof_free)
+    K : scipy.sparse.csc_arrayor cvxopt.base.spmatrix (ndof_free,ndof_free)
         element degree of freedom matrix.
     rhs : np.ndarray or cvxopt.base.matrix (ndof_free,ndof_free,nbc)
         rows to delete.

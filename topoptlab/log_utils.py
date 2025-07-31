@@ -1,11 +1,12 @@
+from typing import Callable
 from os.path import isfile
 from os import remove
 import logging
 from sys import platform
 
-def init_logging(logfile):
+def init_logging(logfile: str) -> Callable:
     """
-    Initialize the logging and returns a function for the specified logging
+    Initialize the logging and returns a function for the specified logging.
 
     Parameters
     ----------
@@ -50,7 +51,7 @@ class WindowsLogging:
     to my experience nobody does this but runs it in some IDE.
     """
     
-    def __init__(self,file):
+    def __init__(self,file: str) -> None:
         """
         Initiate logging by creating the logfile.
 
@@ -71,7 +72,7 @@ class WindowsLogging:
             pass
         return
     
-    def __call__(self, msg):
+    def __call__(self, msg: str) -> None:
         """
         Append message to logfile.
 

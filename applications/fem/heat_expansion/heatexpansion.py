@@ -18,7 +18,7 @@ from topoptlab.elements.poisson_2d import lk_poisson_2d
 from topoptlab.elements.poisson_3d import lk_poisson_3d
 from topoptlab.elements.heatexpansion_2d import _fk_heatexp_2d
 # generic functions for solving phys. problem
-from topoptlab.fem import assemble_matrix,assemble_rhs,apply_bc
+from topoptlab.fem import assemble_matrix,apply_bc
 from topoptlab.solve_linsystem import solve_lin
 # output final design to a Paraview readable format
 from topoptlab.output_designs import export_vtk
@@ -147,7 +147,7 @@ def fem_heat_expansion(nelx, nely, nelz=None,
                          ndof=nTdof,solver=lin_solver,
                          springs=None)
     # assemble right hand side
-    rhsT = assemble_rhs(f0=q,solver=lin_solver)
+    rhsT = q
     # apply boundary conditions to matrix
     KT = apply_bc(K=KT,solver=lin_solver,
                  free=freeT,fixed=fixedT)
@@ -179,8 +179,7 @@ def fem_heat_expansion(nelx, nely, nelz=None,
               EedofMat.flatten(),
               fTe.flatten())
     # assemble completely
-    rhsE = assemble_rhs(f0=f+fT,
-                        solver=lin_solver)
+    rhsE = f+fT
     # apply boundary conditions to matrix
     KE = apply_bc(K=KE,solver=lin_solver,
                  free=freeE,fixed=fixedE)

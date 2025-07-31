@@ -1,13 +1,17 @@
+from typing import Callable,List,Tuple,Union
+
 from itertools import product
 
 import numpy as np
-from scipy.sparse import coo_array
+from scipy.sparse import coo_array,csc_array
 
 from cvxopt import spmatrix
 
 from topoptlab.elements.bilinear_quadrilateral import shape_functions
 
-def assemble_matrix(sK,iK,jK,ndof,solver,springs):
+def assemble_matrix(sK: np.ndarray, iK: np.ndarray, jK: np.ndarray,
+                    ndof: int, solver: str, springs: Union[None,List]
+                    ) -> np.ndarray:
     """
     Assemble matrix from indices.
 
@@ -44,26 +48,25 @@ def assemble_matrix(sK,iK,jK,ndof,solver,springs):
             M[i,i] += k
     return M
 
-def assemble_rhs(f0,solver):
-    return f0
-
-def deleterowcol(A, delrow, delcol):
+def deleterowcol(A: csc_array, 
+                 delrow: np.ndarray, 
+                 delcol: np.ndarray) -> coo_array:
     """
     Stolen from the topopt_cholmod.py code by Niels Aage and Villads Egede.
 
     Parameters
     ----------
-    A : scipy.sparse.csc_matrix (nodf,ndof)
-        element degree of freedom matrix.
+    A : scipy.sparse.csc_array shape (nodf,ndof)
+        matrix.
     delrow : np.ndarray
         rows to delete .
+    delcol : np.ndarray
+        columns to delete .
 
     Returns
     -------
-    iM : np.ndarray shape (N)
-        row indices for matrix construction.
-    jM : np.ndarray shape (N)
-        column indices for matrix construction.
+    A : coo_array shape (ndof_new,ndof_new)
+        new matrix with rows and columns deleted.
     """
     # Assumes that matrix is in symmetric csc form
     m = A.shape[0]
@@ -73,19 +76,22 @@ def deleterowcol(A, delrow, delcol):
     A = A[:, keep]
     return A.tocoo()
 
-def apply_bc(K,solver,free=None,fixed=None):
+def apply_bc(K: csc_array, solver: str,
+             free: Union[None,np.ndarray] = None,
+             fixed: Union[None,np.ndarray] = None) -> coo_array:
+    
     if "scipy" in solver:
         #
         K = K[free, :][:, free]
     if "cvxopt" in solver:
-        # Remove constrained dofs from matrix and convert to coo
+        # remove constrained dofs from matrix and convert to coo
         K = deleterowcol(K,fixed,fixed).tocoo()
-        #
-        # Solve system
+        # solve system
         K = spmatrix(K.data,K.row,K.col)
     return K
 
-def create_matrixinds(edofMat,mode="full"):
+def create_matrixinds(edofMat: np.ndarray,
+                      mode: str = "full") -> Tuple[np.ndarray,np.ndarray]:
     """
     Create matrix indices to set up FE linear system / matrix.
 
@@ -102,7 +108,6 @@ def create_matrixinds(edofMat,mode="full"):
         row indices for matrix construction.
     jM : np.ndarray shape (N)
         column indices for matrix construction.
-
     """
 
     #
@@ -113,16 +118,16 @@ def create_matrixinds(edofMat,mode="full"):
         #
         iM = [edofMat[:,i:] for i in np.arange(edofMat.shape[1])]
         iM = np.column_stack(iM)
-        #print(iM)
         #
         jM = np.repeat(edofMat,np.arange(edofMat.shape[1],0,-1),axis=1)
-        #print(jM)
         # sort
         mask = iM < jM
         iM[mask],jM[mask] = jM[mask],iM[mask]
     return iM.reshape(np.prod(iM.shape)),jM.reshape(np.prod(iM.shape))
 
-def update_indices(indices,fixed,mask):
+def update_indices(indices: np.ndarray,
+                   fixed: np.ndarray, 
+                   mask: np.ndarray) -> np.ndarray:
     """
     Update the indices for the stiffness matrix construction by kicking out
     the fixed degrees of freedom and renumbering the indices. This is useful
@@ -150,8 +155,9 @@ def update_indices(indices,fixed,mask):
 
     return val[ind][mask]
 
-def interpolate(ue,xi,eta,zeta=None,
-                shape_functions=shape_functions):
+def interpolate(ue: np.ndarray, xi: np.ndarray, eta: np.ndarray,
+                zeta: Union[None,np.ndarray] = None,
+                shape_functions: Callable = shape_functions) -> np.ndarray:
     """
     Interpolate node values in each element. Coordinates are assumed to be
     in the reference domain.
@@ -189,7 +195,8 @@ def interpolate(ue,xi,eta,zeta=None,
     u = u.dot(np.tile(np.eye(nnodedof),(nshapef,1)))
     return u
 
-def get_integrpoints(ndim,nq,method):
+def get_integrpoints(ndim: int, nq: int, 
+                     method: str) -> Tuple[np.ndarray,np.ndarray]:
     """
     Get integration points and weights for numerical quadrature of integrals in
     interval [-1,1].

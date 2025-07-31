@@ -16,7 +16,7 @@ from topoptlab.filter.matrix_filter import assemble_matrix_filter
 # default application case that provides boundary conditions, etc.
 from topoptlab.example_bc.lin_elast import mbb_2d
 # set up finite element problem
-from topoptlab.fem import create_matrixinds,assemble_matrix,assemble_rhs,apply_bc
+from topoptlab.fem import create_matrixinds,assemble_matrix,apply_bc
 from topoptlab.elements.bilinear_quadrilateral import create_edofMat as create_edofMat2d
 from topoptlab.elements.trilinear_hexahedron import create_edofMat as create_edofMat3d
 # different elements/physics
@@ -435,8 +435,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                               edofMat,
                               fes)
             # assemble right hand side
-            rhs = assemble_rhs(f0=f+f_body,
-                               solver=lin_solver)
+            rhs = f+f_body
             # apply boundary conditions to matrix
             K = apply_bc(K=K,solver=lin_solver,
                          free=free,fixed=fixed)

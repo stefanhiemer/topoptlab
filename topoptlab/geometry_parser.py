@@ -12,7 +12,8 @@ def parse_cad_and_mesh(file: str,
                        show_gui: bool = False) -> None:
     """
     Take a CAD file (so far only STEP tested) and mesh it with GMSH with 
-    quadrilateral or hexahedral elements.
+    quadrilateral or hexahedral elements. The mesh is then written to the 
+    mesh file.
 
     Parameters
     ----------

@@ -10,7 +10,7 @@ from topoptlab.example_bc.lin_elast import tensiletest_2d,tensiletest_3d
 from topoptlab.elements.linear_elasticity_2d import lk_linear_elast_2d
 from topoptlab.elements.linear_elasticity_3d import lk_linear_elast_3d
 # generic functions for solving phys. problem
-from topoptlab.fem import assemble_matrix,assemble_rhs,apply_bc
+from topoptlab.fem import assemble_matrix,apply_bc
 from topoptlab.solve_linsystem import solve_lin
 # output final design to a Paraview readable format
 from topoptlab.output_designs import export_vtk
@@ -121,8 +121,7 @@ def fem_tensiletest(nelx, nely, nelz=None,
                          ndof=ndof,solver=lin_solver,
                          springs=None)
     # assemble completely
-    rhs = assemble_rhs(f0=f,
-                       solver=lin_solver)
+    rhs = f
     # apply boundary conditions to matrix
     KE = apply_bc(K=KE,solver=lin_solver,
                  free=free,fixed=fixed)

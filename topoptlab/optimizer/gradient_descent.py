@@ -15,7 +15,7 @@ def gradient_descent(x: np.ndarray, dobj: np.ndarray,
     Parameters
     ----------
     x : np.ndarray, shape (nel)
-        design variablesof the current iteration.
+        design variables of the current iteration.
     dobj : np.array, shape (nel)
         gradient of objective function with respect to design variables.
     xmin : float or np.ndarray, shape (nel)
