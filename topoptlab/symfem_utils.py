@@ -1,3 +1,4 @@
+from typing import List, Tuple
 from itertools import product
 from io import StringIO
 import sys
@@ -6,13 +7,14 @@ import math
 
 from sympy import symbols, Symbol
 from symfem import create_element, create_reference
+from symfem.references import Reference
 from symfem.functions import VectorFunction, MatrixFunction
 
-def convert_to_code(matrix,
-                    matrices=[],vectors=[],
-                    np_functions=["cos","sin","tan"],
-                    npndarray=True,
-                    max_line_length=200):
+def convert_to_code(matrix: MatrixFunction,
+                    matrices: List = [], vectors: List = [],
+                    np_functions: List = ["cos","sin","tan"],
+                    npndarray: bool = True,
+                    max_line_length: int =200) -> str:
     """
     Convert the printed expression by symfem to strings that can be
     converted to code.
@@ -99,11 +101,12 @@ def convert_to_code(matrix,
                     lines)
     return lines
 
-def generate_constMatrix(ncol,nrow,name,
-                         symmetric=False, 
-                         return_symbols=False):
+def generate_constMatrix(ncol: int, nrow: int, name: str,
+                         symmetric: bool = False,
+                         return_symbols: bool = False
+                         ) -> Tuple[MatrixFunction, List]:
     """
-    Generate matrix full of symbolic constants as a list of lists
+    Generate matrix full of symbolic constants as a list of lists.
 
     Parameters
     ----------
@@ -116,7 +119,7 @@ def generate_constMatrix(ncol,nrow,name,
     symmetric : bool
         if True, matrix generated in symmetric fashion
     return_symbols : bool
-        if True, returns the list of symbols of the entries. May be needed if 
+        if True, returns the list of symbols of the entries. May be needed if
         you want to apply assumptions on them in a Sympy assumptions context.
 
     Returns
@@ -133,13 +136,13 @@ def generate_constMatrix(ncol,nrow,name,
     if return_symbols:
         symbol_list = []
     for i in range(1,nrow+1):
-        # create the matrix as list of lists 
+        # create the matrix as list of lists
         if nrow != 1 and ncol !=1:
             variables = " ".join([name+str(i)+str(j) for j in range(1,ncol+1)])
-        # create row vector as list 
+        # create row vector as list
         elif nrow == 1:
             variables = " ".join([name+str(j) for j in range(1,ncol+1)])
-        # create column vector as list 
+        # create column vector as list
         elif ncol == 1:
             variables = " ".join([name+str(i) for j in range(1,ncol+1)])
         # create symbols
@@ -167,7 +170,7 @@ def generate_constMatrix(ncol,nrow,name,
     else:
         return MatrixFunction(M), symbol_list
 
-def stifftens_isotropic(ndim,plane_stress=True):
+def stifftens_isotropic(ndim: int, plane_stress: bool = True) -> MatrixFunction:
     """
     stiffness tensor for isotropic material expressed in Terms of Young's
     modulus E and Poisson's ratio v.
@@ -205,7 +208,7 @@ def stifftens_isotropic(ndim,plane_stress=True):
                                                    [0,0,0,0,(1-nu)/2,0],
                                                    [0,0,0,0,0,(1-nu)/2]])
 
-def simplify_matrix(M):
+def simplify_matrix(M: Union[List,MatrixFunction]) -> MatrixFunction:
     """
     simplify element-wise the given MatrixFunction.
 
@@ -228,9 +231,9 @@ def simplify_matrix(M):
         M_new[i][j] = M[i,j].as_sympy().simplify()
     return MatrixFunction(M_new)
 
-def base_cell(ndim,
-              element_type="Lagrange",
-              order=1):
+def base_cell(ndim: int,
+              element_type: str = "Lagrange",
+              order: int = 1) -> Tuple[Tuple,List,Reference,List]:
     """
     Create the basic cell, location of vertices, the node indices, the
     reference cell and the basis functions.
@@ -297,34 +300,34 @@ def base_cell(ndim,
         elif ndim == 2:
             # Define the vertived and triangles of the mesh
             vertices = ((-1, -1), (1, -1), (1, 1), (-1, 1),
-                        (0, -1), (1, 0), (0, 1), (-1, 0), 
+                        (0, -1), (1, 0), (0, 1), (-1, 0),
                         (0, 0) )
             # node indices in reference cell of symfem. Check the git to see
             # how the numbering is done.
             nd_inds = [0, 1, 3, 2,
-                       4, 6, 7, 5, 
+                       4, 6, 7, 5,
                        8]
         elif ndim == 3:
             # Define the vertived and triangles of the mesh
             vertices = ((-1, -1, -1), (1, -1, -1), (1, 1, -1), (-1, 1, -1),
-                        (-1, -1, 1), (1, -1, 1), (1, 1, 1), (-1, 1, 1), 
+                        (-1, -1, 1), (1, -1, 1), (1, 1, 1), (-1, 1, 1),
                         (0, -1, -1), (1, 0, -1), (0, 1, -1), (-1, 0, -1),
-                        (0, 0, -1), 
+                        (0, 0, -1),
                         (-1, -1, 0), (1, -1, 0), (1, 1, 0), (-1, 1, 0),
                         (0, -1, 0), (1, 0, 0), (0, 1, 0), (-1, 0, 0),
-                        (0, 0, 0), 
-                        (0, -1, 1), (1, 0, 1), (0, 1, 1), (-1, 0, 1), 
+                        (0, 0, 0),
+                        (0, -1, 1), (1, 0, 1), (0, 1, 1), (-1, 0, 1),
                         (0, 0, 1))
             # node indices in reference cell of symfem. Check the git to see
             # how the numbering is done.
-            nd_inds = [0, 1, 3, 2, 
-                       4, 5, 7, 6, 
-                       8, 11, 13, 9, 
-                       20, 
-                       10, 12, 15, 14, 
-                       21, 23, 24, 22, 
-                       26, 
-                       16, 18, 19, 17, 
+            nd_inds = [0, 1, 3, 2,
+                       4, 5, 7, 6,
+                       8, 11, 13, 9,
+                       20,
+                       10, 12, 15, 14,
+                       21, 23, 24, 22,
+                       26,
+                       16, 18, 19, 17,
                        25]
     elif order == 3 and element_type=="Lagrange":
         if ndim == 1:
@@ -346,13 +349,15 @@ def base_cell(ndim,
     basis = [basis[i] for i in nd_inds]
     return vertices, nd_inds, reference, basis
 
-def determine_nodeinds(vertices, basis_funcs, ndim):
+def determine_nodeinds(vertices: Tuple,
+                       basis_funcs: Union[List, ScalarFunction],
+                       ndim: int) -> List:
     """
     Find index of each vertex by finding the basis function that amounts to 1.
-    
+
     For a set of vertex coordinates, determine to which basis function each
-    vertex corresponds. Keep in mind that the current default unit cell used 
-    by symfem is in the interval [0,1] whereas mine is typically in the 
+    vertex corresponds. Keep in mind that the current default unit cell used
+    by symfem is in the interval [0,1] whereas mine is typically in the
     interval [-1,1].
 
     Parameters
@@ -381,8 +386,8 @@ def determine_nodeinds(vertices, basis_funcs, ndim):
         inds = inds + ind
     return inds
 
-def shape_function_matrix(basis,nedof,
-                          mode="col"):
+def shape_function_matrix(basis: List, nedof: int,
+                          mode: str = "col") -> MatrixFunction:
     """
     Generate the shape function matrix for scalar or vector fields.
 
@@ -419,7 +424,9 @@ def shape_function_matrix(basis,nedof,
     else:
         return MatrixFunction(shpfc_matr)
 
-def small_strain_matrix(ndim,nd_inds,basis,isoparam_kws):
+def small_strain_matrix(ndim: int, nd_inds: list,
+                        basis: List,
+                        isoparam_kws: Dict) -> MatrixFunction:
     """
     Create the small strain matrix commonly referred to as B matrix.
 
@@ -427,12 +434,12 @@ def small_strain_matrix(ndim,nd_inds,basis,isoparam_kws):
     ----------
     ndim : int
         number of spatial dimensions.
-    element_type : str
-        type of element.
-    order : int
-        order of element.
+    nd_inds : list
+        node indices.
     basis : list
-        list of basis functions as generated by base_cell
+        list of basis functions as generated by base_cell.
+    isoparam_kws : dictionary
+        keywords for the isoparametric mapping.
 
     Returns
     -------
@@ -462,7 +469,7 @@ def small_strain_matrix(ndim,nd_inds,basis,isoparam_kws):
         i,j = (i+1)%ndim , (j+1)%ndim
     return MatrixFunction(bmatrix)
 
-def scale_cell(vertices):
+def scale_cell(vertices: Tuple) -> MatrixFunction:
     """
     Scale/rotate the vertices/nodes basic cell by lengths l and angles g.
 
@@ -501,7 +508,7 @@ def scale_cell(vertices):
     # affine transformation matrix
     return vertices@(R@S).transpose()
 
-def isoparametric_map(basis,vertices):
+def isoparametric_map(basis: List, vertices: Tuple) -> MatrixFunction:
     """
     Create the basic cell, location of vertices, the node indices, the
     reference cell and the basis functions.
@@ -531,13 +538,13 @@ def isoparametric_map(basis,vertices):
             raise ValueError("If basis is provided as MatrixFunction, must have shape (n_nodes,1)")
     return vertices.tranpose()@basis
 
-def jacobian(ndim,
-             element_type="Lagrange",
-             order=1,
-             return_J=True,
-             return_inv=True,
-             return_det=True,
-             debug=False):
+def jacobian(ndim: int,
+             element_type: str = "Lagrange",
+             order: int = 1,
+             return_J: bool = True,
+             return_inv: bool = True,
+             return_det: bool = True,
+             debug: bool = False):
     """
     Symbolically compute the Jacobian of the isoparametric mapping.
 
@@ -624,7 +631,8 @@ def jacobian(ndim,
     else:
         raise ValueError("At least on of the return options must be True.")
 
-def rotation_matrix(ndim,mode=None):
+def rotation_matrix(ndim: int, mode: Union[None,str] = None
+                    ) -> MatrixFunction:
     """
     rotation matrix around y and z axis with angles phi (y axis) and theta
     (z axis).
@@ -716,7 +724,8 @@ def rotation_matrix(ndim,mode=None):
                                  0]])
         return R
 
-def rotation_matrix_dangle(ndim,mode=None):
+def rotation_matrix_dangle(ndim: int, mode: Union[None,str] = None
+                           ) -> Tuple[MatrixFunction,MatrixFunction]:
     """
     1st derivative of rotation matrix around y and z axis with angles phi
     (y axis) and theta (z axis).
@@ -851,7 +860,7 @@ def rotation_matrix_dangle(ndim,mode=None):
             return dRdtheta,dRdphi
         return R
 
-def convert_to_voigt(A):
+def convert_to_voigt(A: MatrixFunction) -> MatrixFunction:
     """
     Convert 2nd rank tensor into its Voigt representation.
 
@@ -877,7 +886,7 @@ def convert_to_voigt(A):
     A_v += [[A[0][i]] for i in range(ndim-1,0,-1)]
     return MatrixFunction(A_v)
 
-def convert_from_voigt(A_v):
+def convert_from_voigt(A_v: MatrixFunction) -> MatrixFunction:
     """
     Convert 2nd rank tensor into from its Voigt representation to the standard
     matrix represenation.
