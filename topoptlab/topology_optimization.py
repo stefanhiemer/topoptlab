@@ -1,3 +1,4 @@
+from typing import Any, Callable, Dict, List, Union
 from functools import partial
 #
 import numpy as np
@@ -42,32 +43,40 @@ from topoptlab.log_utils import init_logging
 from mmapy import mmasub
 
 # MAIN DRIVER
-def main(nelx, nely, volfrac, penal, rmin, ft,
-         simulation_kw = {"grid": "regular",
-                          "element order": 1,
-                          "meshfile": None},
-         nelz=None,
-         filter_mode="matrix",
-         lin_solver="scipy-direct", preconditioner=None,
-         assembly_mode="full",
-         materials_kw={"E": 1.}, body_forces_kw={},
-         bcs=mbb_2d, lk=None, l=1.,
-         obj_func=compliance, obj_kw={},
-         el_flags=None,
-         optimizer="oc", optimizer_kw = None,
-         mix=None,
-         accelerator_kw={"accel_freq": 4,
-                         "accel_start": 20,
-                         "max_history": 0,
-                         "accelerator": None},
-         nouteriter=2000, ninneriter=15,
-         file="topopt",
-         display=True,export=True,write_log=True,
-         debug=0):
+def main(nelx: int, nely: int, 
+         volfrac: float, penal: float, rmin: float, ft: int,
+         simulation_kw: Dict = {"grid": "regular",
+                                "element order": 1,
+                                "meshfile": None},
+         nelz: Union[None,int] = None,
+         filter_mode: str = "matrix",
+         lin_solver: str = "scipy-direct", 
+         preconditioner: Union[None,Callable,str] = None,
+         assembly_mode: str = "full",
+         materials_kw: Dict = {"E": 1.}, 
+         body_forces_kw: Dict = {},
+         bcs: Callable = mbb_2d, 
+         lk: Union[None,Callable] = None, 
+         l: Union[float,List,np.ndarray] = 1.,
+         obj_func: Callable = compliance, 
+         obj_kw: Dict = {},
+         el_flags: Union[None,np.ndarray] = None,
+         optimizer: str = "oc", 
+         optimizer_kw: Union[None,Dict] = None,
+         mix: Union[None,float] = None,
+         accelerator_kw: Dict = {"accel_freq": 4,
+                                 "accel_start": 20,
+                                 "max_history": 0,
+                                 "accelerator": None},
+         nouteriter: int = 2000, ninneriter: int = 15,
+         file: str = "topopt",
+         display: bool = True, 
+         export: bool = True,
+         write_log: bool = True,
+         debug: int = 0):
     """
-    Topology optimization workflow with the SIMP method based on
-    the default direct solver of scipy sparse. Can treat single physics
-    problems.
+    Topology optimization workflow with the material interpolation method. 
+    Can treat single physics stationary problems.
 
     Parameters
     ----------

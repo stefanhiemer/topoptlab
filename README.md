@@ -1,4 +1,4 @@
-# toptoptlab 
+# topoptlab 
 
 This project is a collection of topology optimization techniques many of which
 are already published in Matlab. This project is there to make these techniques

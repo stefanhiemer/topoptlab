@@ -1,7 +1,6 @@
 import numpy as np
-from scipy.ndimage import zoom
 
-def bdf_coefficients(k):
+def bdf_coefficients(k: int) -> np.ndarray:
     """
     Get coefficients for backward differentiation formula BDF. Shamelessly 
     copied from Elmer Solver manual.´and also check the formula there to understand

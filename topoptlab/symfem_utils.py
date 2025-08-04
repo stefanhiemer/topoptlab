@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import Dict, List, Tuple, Union
 from itertools import product
 from io import StringIO
 import sys

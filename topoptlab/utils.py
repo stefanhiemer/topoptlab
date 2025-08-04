@@ -1,7 +1,9 @@
+from typing import Any,Dict,Tuple,Union
+
 import numpy as np
 from scipy.ndimage import zoom
 
-def check_simulation_params(simulation_kw):
+def check_simulation_params(simulation_kw: Dict) -> None:
     """
     Check that general simulation parameters are sensible or implemented.
 
@@ -27,7 +29,7 @@ def check_simulation_params(simulation_kw):
     return
 
 
-def even_spaced_ternary(npoints):
+def even_spaced_ternary(npoints: int) -> np.ndarray:
     """
     Create even spaced points for a ternary phase system.
 
@@ -48,7 +50,7 @@ def even_spaced_ternary(npoints):
             fracs.append([a,b,1-a-b])
     return np.array(fracs)
 
-def parse_logfile_old(file):
+def parse_logfile_old(file: str) -> Tuple[Dict,np.ndarray]:
     """
     Parse log file of the folding mechanism TO workflow. This is legacy and 
     will be deprecated soon.
@@ -98,7 +100,7 @@ def parse_logfile_old(file):
                       skiprows=0, usecols = [1,4,6,8]) 
     return params,data,final
 
-def parse_logfile(file):
+def parse_logfile(file: str) -> Tuple[Dict,np.ndarray]:
     """
     Parse log file of the compliance minimization TO workflow.
 
@@ -152,7 +154,10 @@ def parse_logfile(file):
                       skiprows=0, usecols = [1,3,5,7]) 
     return params,data
 
-def unique_sort(iM,jM,combine=False):
+def unique_sort(iM: np.ndarray, jM: np.ndarray, 
+                combine: bool = False) -> Tuple[np.ndarray,
+                                                np.ndarray,
+                                                np.ndarray]:
     """
     Sort first according to iM, then sort values of equal value iM according 
     to jM.
@@ -183,7 +188,9 @@ def unique_sort(iM,jM,combine=False):
     else:
         return iM[inds],jM[inds]
 
-def map_eltoimg(quant,nelx,nely,**kwargs):
+def map_eltoimg(quant: np.ndarray, 
+                nelx: int, nely: int, 
+                **kwargs: Any) -> np.ndarray:
     """
     Map quantity located on elements on the usual regular grid to an image.
 
@@ -206,7 +213,9 @@ def map_eltoimg(quant,nelx,nely,**kwargs):
     shape = (nely,nelx)+quant.shape[1:]
     return quant.reshape(shape,order="F")
 
-def map_imgtoel(img,nelx,nely,**kwargs):
+def map_imgtoel(img: np.ndarray, 
+                nelx: int, nely: int, 
+                **kwargs: Any) -> np.ndarray:
     """
     Map image of quantity back to 1D np.ndarray with correct (!) ordering.
 
@@ -228,7 +237,9 @@ def map_imgtoel(img,nelx,nely,**kwargs):
     shape = tuple([nelx*nely])+img.shape[2:]
     return img.reshape(shape,order="F")
 
-def map_eltovoxel(quant,nelx,nely,nelz,**kwargs):
+def map_eltovoxel(quant: np.ndarray, 
+                  nelx: int, nely: int, nelz: int,
+                  **kwargs: Any) -> np.ndarray:
     """
     Map quantity located on elements on the usual regular grid to a voxels.
 
@@ -253,7 +264,9 @@ def map_eltovoxel(quant,nelx,nely,nelz,**kwargs):
     shape = (nelz,nelx,nely)+quant.shape[1:]
     return quant.reshape(shape).transpose((0,2,1)+tuple(range(3,len(shape))))
 
-def map_voxeltoel(voxel,nelx,nely,nelz,**kwargs):
+def map_voxeltoel(voxel: np.ndarray, 
+                  nelx: int, nely: int, nelz: int,
+                  **kwargs: Any) -> np.ndarray:
     """
     Map voxels of quantity back to on elements on the usual regular grid.
 
@@ -278,7 +291,9 @@ def map_voxeltoel(voxel,nelx,nely,nelz,**kwargs):
     voxel = voxel.transpose((0,2,1)+tuple(range(3,len(voxel.shape))))
     return voxel.reshape(shape)
 
-def elid_to_coords(el,nelx,nely,nelz=None,**kwargs):
+def elid_to_coords(el: np.ndarray, 
+                   nelx: int, nely: int, nelz: Union[None,int] = None,
+                   **kwargs: Any):
     """
     Map element ids to cartesian coordinates in the usual regular grid.
 
@@ -312,9 +327,9 @@ def elid_to_coords(el,nelx,nely,nelz=None,**kwargs):
         x,y = np.divmod(rest,nely)
         return x,y,z
 
-def upsampling(x, magnification,
-               nelx,nely,nelz=None,
-               return_flat=True, order=0):
+def upsampling(x: np.ndarray, magnification: float,
+               nelx: int, nely: int, nelz: Union[None,int] = None,
+               return_flat: bool = True, order: int = 0) -> np.ndarray:
     """
     Upsample current design variables defined on the standard regular grid to 
     a larger design by interpolation. With order 0 the design is replicated on
