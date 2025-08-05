@@ -1,6 +1,6 @@
 from symfem import create_element
 
-from topoptlab.symfem_utils import determine_nodeinds
+from topoptlab.symbolic.cell import determine_nodeinds
 
 if __name__ == "__main__":
     vertices = ((-1, -1, -1), (1, -1, -1), (1, 1, -1), (-1, 1, -1),

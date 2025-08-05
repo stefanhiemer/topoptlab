@@ -2,7 +2,6 @@ from typing import Any, Callable, Dict, List, Tuple, Union
 
 import numpy as np
 from scipy.sparse import csc_array
-from scipy.sparse.linalg import spsolve
 
 def create_amg(A: csc_array,
                interpol: Callable,

@@ -1,11 +1,5 @@
-import math 
-
-from symfem.functions import MatrixFunction
-from symfem.symbols import x
-
-from topoptlab.symfem_utils import rotation_matrix, generate_constMatrix
-from topoptlab.symfem_utils import simplify_matrix,convert_to_code
-from topoptlab.symfem_utils import convert_to_voigt,rotation_matrix_dangle
+from topoptlab.symbolic.rotation import rotation_matrix, rotation_matrix_dangle
+from topoptlab.symbolic.matrix_utils import simplify_matrix, generate_constMatrix
 
 if __name__ == "__main__":
     #

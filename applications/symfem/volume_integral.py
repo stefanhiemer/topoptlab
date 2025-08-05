@@ -1,9 +1,9 @@
-from symfem.functions import MatrixFunction
 from symfem.symbols import x
-from sympy import symbols
 
-from topoptlab.symfem_utils import base_cell,shape_function_matrix,generate_constMatrix
-from topoptlab.symfem_utils import convert_to_code, jacobian
+from topoptlab.symbolic.cell import base_cell 
+from topoptlab.symbolic.shapefunction_matrix import shape_function_matrix
+from topoptlab.symbolic.code_conversion import convert_to_code 
+from topoptlab.symbolic.parametric_map import jacobian
 
 def volume_integral(ndim,
                     element_type="Lagrange",

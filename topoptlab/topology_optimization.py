@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict, List, Union
+from typing import Callable, Dict, List, Tuple, Union
 from functools import partial
 #
 import numpy as np
@@ -73,7 +73,7 @@ def main(nelx: int, nely: int,
          display: bool = True, 
          export: bool = True,
          write_log: bool = True,
-         debug: int = 0):
+         debug: int = 0) -> Tuple[np.ndarray,float]:
     """
     Topology optimization workflow with the material interpolation method. 
     Can treat single physics stationary problems.

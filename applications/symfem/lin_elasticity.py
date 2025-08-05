@@ -1,8 +1,10 @@
 from symfem.symbols import x
 
-from topoptlab.symfem_utils import base_cell, generate_constMatrix
-from topoptlab.symfem_utils import small_strain_matrix,stifftens_isotropic
-from topoptlab.symfem_utils import convert_to_code, jacobian, simplify_matrix
+from topoptlab.symbolic.cell import base_cell
+from topoptlab.symbolic.parametric_map import jacobian
+from topoptlab.symbolic.matrix_utils import simplify_matrix, generate_constMatrix
+from topoptlab.symbolic.lin_elastic import stifftens_isotropic, small_strain_matrix
+from topoptlab.symbolic.code_conversion import convert_to_code
 
 def linelast(iso, plane_stress,
              ndim,

@@ -1,8 +1,11 @@
 from symfem.functions import MatrixFunction
 from symfem.symbols import x
 
-from topoptlab.symfem_utils import base_cell, shape_function_matrix
-from topoptlab.symfem_utils import convert_to_code, jacobian, simplify_matrix
+from topoptlab.symbolic.cell import base_cell
+from topoptlab.symbolic.cell import shape_function_matrix
+from topoptlab.symbolic.code_conversion import convert_to_code
+from topoptlab.symbolic.parametric_map import jacobian 
+from topoptlab.symbolic.matrix_utils import simplify_matrix
 
 def mass(scalarfield,
          ndim,

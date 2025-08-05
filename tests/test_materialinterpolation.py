@@ -1,7 +1,7 @@
-from numpy import array, linspace, zeros
+from numpy import linspace
 from numpy.testing import assert_almost_equal
 
-from scipy.differentiate import derivative, jacobian
+from scipy.differentiate import derivative
 
 import pytest
 
@@ -44,7 +44,6 @@ def test_simpdx(npoints, eps, penal):
                         derivative(simp,x,args=(eps,penal)).df)
     return
 
-from topoptlab.bounds.hashin_shtrikman_3d import bulkmod_binary_low,bulkmod_binary_upp
 from topoptlab.bounds.hashin_shtrikman_3d import bulkmod_binary_low_dx,bulkmod_binary_upp_dx
 from topoptlab.material_interpolation import heatexpcoeff_binary_iso,heatexpcoeff_binary_iso_dx
 

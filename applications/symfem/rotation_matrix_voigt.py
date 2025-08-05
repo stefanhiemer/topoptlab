@@ -2,9 +2,10 @@ import pickle
 
 from symfem.functions import MatrixFunction
 
-from topoptlab.symfem_utils import rotation_matrix, generate_constMatrix
-from topoptlab.symfem_utils import simplify_matrix,convert_to_code
-from topoptlab.symfem_utils import convert_to_voigt
+from topoptlab.symbolic.rotation import rotation_matrix 
+from topoptlab.symbolic.matrix_utils import generate_constMatrix, simplify_matrix
+from topoptlab.symbolic.code_conversion import convert_to_code
+from topoptlab.symbolic.voigt import convert_to_voigt
 
 if __name__ == "__main__":
     #

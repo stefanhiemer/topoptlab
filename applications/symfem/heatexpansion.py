@@ -1,9 +1,13 @@
 from symfem.functions import MatrixFunction
 from symfem.symbols import x
 from sympy import symbols
-from topoptlab.symfem_utils import base_cell, small_strain_matrix, generate_constMatrix
-from topoptlab.symfem_utils import convert_to_code,stifftens_isotropic
-from topoptlab.symfem_utils import simplify_matrix, jacobian
+
+from topoptlab.symbolic.cell import base_cell
+from topoptlab.symbolic.code_conversion import convert_to_code
+from topoptlab.symbolic.matrix_utils import simplify_matrix, generate_constMatrix
+from topoptlab.symbolic.parametric_map import jacobian
+from topoptlab.symbolic.lin_elastic import stifftens_isotropic, small_strain_matrix
+
 
 def heatexp_iso(ndim,
                 element_type="Lagrange",

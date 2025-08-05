@@ -1,4 +1,4 @@
-from topoptlab.symfem_utils import jacobian
+from topoptlab.symbolic.parametric_map import jacobian
 
 if __name__ == "__main__":
 

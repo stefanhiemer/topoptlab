@@ -1,10 +1,10 @@
 from symfem.symbols import x
 from symfem.functions import MatrixFunction
 
-from topoptlab.symfem_utils import generate_constMatrix, convert_from_voigt
-from topoptlab.symfem_utils import convert_to_code, jacobian, simplify_matrix
-
-
+from topoptlab.symbolic.matrix_utils import generate_constMatrix, simplify_matrix
+from topoptlab.symbolic.voigt import convert_from_voigt
+from topoptlab.symbolic.code_conversion import convert_to_code 
+from topoptlab.symbolic.parametric_map import jacobian
 
 if __name__ == "__main__":
     #

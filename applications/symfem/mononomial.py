@@ -1,10 +1,11 @@
-from symfem.functions import MatrixFunction, ScalarFunction
+from symfem.functions import MatrixFunction
 from symfem.symbols import x
-from sympy import Symbol, Q, Ne, Piecewise
 
-from topoptlab.symfem_utils import base_cell, shape_function_matrix
-from topoptlab.symfem_utils import convert_to_code, jacobian, simplify_matrix
-from topoptlab.symfem_utils import generate_constMatrix
+from topoptlab.symbolic.cell import base_cell 
+from topoptlab.symbolic.shapefunction_matrix import shape_function_matrix
+from topoptlab.symbolic.code_conversion import convert_to_code
+from topoptlab.symbolic.parametric_map import jacobian
+from topoptlab.symbolic.matrix_utils import generate_constMatrix, simplify_matrix
 
 def monomial(mononomial_order,
              scalarfield,
@@ -61,8 +62,8 @@ def monomial(mononomial_order,
 
 if __name__ == "__main__":
     #
-    for dim in range(2,3):
+    for dim in range(3,4):
         print(str(dim)+"D")
-        print(convert_to_code(monomial(mononomial_order=2,
+        print(convert_to_code(monomial(mononomial_order=3,
                                        scalarfield=True,
                                        ndim = dim),vectors=["l","u"]),"\n")

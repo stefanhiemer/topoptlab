@@ -1,9 +1,10 @@
-from symfem.functions import ScalarFunction,VectorFunction
+from symfem.functions import VectorFunction
 from symfem.symbols import x
-from sympy import symbols
 
-from topoptlab.symfem_utils import base_cell ,generate_constMatrix
-from topoptlab.symfem_utils import convert_to_code, jacobian, simplify_matrix
+from topoptlab.symbolic.cell import base_cell 
+from topoptlab.symbolic.matrix_utils import  generate_constMatrix,simplify_matrix
+from topoptlab.symbolic.code_conversion import convert_to_code
+from topoptlab.symbolic.parametric_map import jacobian
 
 def iso_laplacian(ndim,
                   element_type="Lagrange",
