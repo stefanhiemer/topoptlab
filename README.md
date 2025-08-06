@@ -8,7 +8,7 @@ optimized for tasks like topology optimization while Python is a general
 purpose language, so you will likely see slower performance here than in 
 equivalent Matlab scripts.
 
-# how to use 
+# How to use 
 
 Topoptlab can be used either as a black box function that returns an optimal 
 design to you once provided with a set of boundary conditions and parameter or 
@@ -18,12 +18,13 @@ as a general purpose topology optimization and finite element library.
 # Monolithic codes
 
 In the monolithic_code directory, you can find codes that are self contained 
-and do not use the topoptlab module written here (at the moment not true). 
+and do not use the topoptlab module written here. 
 These codes are purely there to either test new frameworks (e. g. JAX or PETSC)
 or for teaching/demonstration purposes. If you are completely new to topology 
-optimization, this is where you start and I suggest to start with the topopt.py.
+optimization, this is where you start and I suggest to start with the 
+topopt88.py.
 
-# installation
+# Installation
 Basic installation and run tests by executing
 ```
 pip install .[tests]
@@ -34,7 +35,7 @@ something in the code)
 pip install -e .[tests]
 ```
 
-# run tests
+# Run tests
 Run fast tests (finish in under one minute)
 ```
 pytest
@@ -48,7 +49,7 @@ pytest -m slow
 
 See [ROADMAP.md](./ROADMAP.md) for a list of upcoming features.
 
-# make documentation
+# Make documentation
 
 The documentation can be build via Sphinx 
 
@@ -62,11 +63,11 @@ and displayed in your browser by drag and drop or if you are on Linux
 xdg-open build/html/index.html
 ```
 
-# getting report bugs, and suggest enhancements
+# Getting report bugs, and suggest enhancements
 
 If you found a bug or you want to suggest a new feature/enhancement, submit it on the [issue tracker](https://github.com/stefanhiemer/topoptlab/).
 
-# wow to contribute
+# How to contribute
 
 If you want to contribute, fork the repository and open a pull request. However before doing that
 I suggest to contact the maintainers via an enhancement suggestion in the issue tracker (see above).

@@ -64,16 +64,29 @@ def create_amg(A: csc_array,
         pass
     return prolongators
 
-def rubestuebgen_coupling(row: np.ndarray, val: np.ndarray, max_row: np.ndarray,
+def rubestueben_coupling(row: np.ndarray, val: np.ndarray, max_row: np.ndarray,
                           c_neg: float = 0.2, c_pos: Union[None,float] = 0.5,
-                          **kwargs: Any) -> Union[np.ndarray,np.ndarray]:
+                          **kwargs: Any) -> np.ndarray:
     """
     Ruge-Stüben method to determine strong/weak coupling between variables in
     sparse array/matrix A. Works on the row index and the value of an entry of A
     to determine its coupling strength according to Eqs. 115 and  119 in
 
-    Stuben, Klaus. "Algebraic multigrid (AMG): an introduction with
+    Stuebgen, Klaus. "Algebraic multigrid (AMG): an introduction with
     applications." GMD report (1999).
+    
+    We have slightly modified the expressions (their meaning stays the same): 
+    variable i is strongly negatively coupled to variable j if for the entry
+    a_{ij} of matrix A and the the off-diagonal entries of the i-th row A_{i} 
+    of matrix A the following is true:
+    
+    a_{ij} <= (-c_neg) *max(A_{i}) with a_{ij}<0
+    
+    variable i is strongly negatively coupled to variable j if for the entry
+    a_{ij} of matrix A and the the off-diagonal entries of the i-th row A_{i} 
+    of matrix A the following is true:
+        
+    a_{ij} >= c_pos *max(A_{i}) with a_{ij}>0
 
     Parameters
     ----------
@@ -93,8 +106,6 @@ def rubestuebgen_coupling(row: np.ndarray, val: np.ndarray, max_row: np.ndarray,
     mask_strong : np.ndarray
         True if the variable of val is strongly linked to the variable in the
         respective row.
-    mask_neg : int
-        True if val is negative.
 
     """
     # find negative entries for positive/negative coupling
@@ -107,14 +118,29 @@ def rubestuebgen_coupling(row: np.ndarray, val: np.ndarray, max_row: np.ndarray,
     mask_strong[mask_neg] = val[mask_neg] <= (-c_neg)*max_row[mask_neg]
     if c_pos:
         mask_strong[~mask_neg] = val[~mask_neg] >= c_pos*max_row[~mask_neg]
-    return mask_strong, mask_neg
+    return mask_strong
+
+def standard_coarsening(A,
+                        coupling_fnc=rubestueben_coupling,
+                        coupling_kw: Dict = {"c_neg": 0.2, "c_pos": 0.5} ):
+    """
+    """
+    #
+    mask_strong = rubestueben_coupling
+    #
+    mask_coarse = np.zeros(mask_strong.shape, dtype=bool)
+    #
+    importance = 1
+    # number of undecided variables
+    n_u = 0
+    while n_u > 0:
+        pass
+    return mask_coarse
 
 def direct_interpolation():
     return
 
-def standard_coarsening():
 
-    return
 
 def weight_trunctation():
     return
