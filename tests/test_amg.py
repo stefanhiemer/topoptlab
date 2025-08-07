@@ -4,7 +4,7 @@ from numpy import array
 from numpy.testing import assert_equal
 from scipy.sparse import csc_array
 
-from topoptlab.amg import rubestuebgen_coupling
+from topoptlab.amg import rubestueben_coupling
 
 import pytest
 
@@ -28,7 +28,7 @@ def test_rubestuebgen_coupling():
     # extract indices and values
     i,j = test.nonzero()
     val = test[ i,j ]
-    mask_strong, _ = rubestuebgen_coupling(row=i,val=val,max_row=max_row)
+    _,_,mask_strong = rubestueben_coupling(A=test)
     #
     assert_equal(solution, mask_strong)
     return

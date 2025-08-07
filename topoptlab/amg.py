@@ -40,15 +40,6 @@ def create_amg(A: csc_array,
         hierarchy of prolongators.
 
     """
-    # extract and eleminate diagonal
-    diagonal = A.diagonal()
-    A.setdiag(0)
-    A.eliminate_zeros()
-    # off diagonal maximum in each row
-    max_row = A.power(2).sqrt().max(axis=1).todense()
-    # extract indices and values
-    i,j = A.nonzero()
-    val = A[ i,j ]
     #
     prolongators = []
     # create first prolongator from A
@@ -64,9 +55,10 @@ def create_amg(A: csc_array,
         pass
     return prolongators
 
-def rubestueben_coupling(row: np.ndarray, val: np.ndarray, max_row: np.ndarray,
-                          c_neg: float = 0.2, c_pos: Union[None,float] = 0.5,
-                          **kwargs: Any) -> np.ndarray:
+def rubestueben_coupling(A: csc_array,
+                         c_neg: float = 0.2, c_pos: Union[None,float] = 0.5,
+                         **kwargs: Any
+                         ) -> Tuple[np.ndarray,np.ndarray,np.ndarray]:
     """
     Ruge-Stüben method to determine strong/weak coupling between variables in
     sparse array/matrix A. Works on the row index and the value of an entry of A
@@ -90,12 +82,8 @@ def rubestueben_coupling(row: np.ndarray, val: np.ndarray, max_row: np.ndarray,
 
     Parameters
     ----------
-    row : np.ndarray
+    A : np.ndarray
         row index of entry
-    val : np.ndarray
-        value of entry.
-    max_row : np.ndarray
-        maximum for each row.
     c_neg : float
         constant to determine strong coupling for negative variables.
     c_pos : float or None
@@ -103,11 +91,24 @@ def rubestueben_coupling(row: np.ndarray, val: np.ndarray, max_row: np.ndarray,
 
     Returns
     -------
+    row : np.ndarray
+        row index
+    col : np.ndarray
+        column_index
     mask_strong : np.ndarray
         True if the variable of val is strongly linked to the variable in the
         respective row.
 
     """
+    # extract and eliminate diagonal
+    diagonal = A.diagonal()
+    A.setdiag(0)
+    A.eliminate_zeros()
+    # off diagonal maximum in each row
+    max_row = A.power(2).sqrt().max(axis=1).todense()
+    # extract indices and values
+    row,col = A.nonzero()
+    val = A[ row,col ]
     # find negative entries for positive/negative coupling
     mask_neg = val < 0
     #
@@ -118,21 +119,35 @@ def rubestueben_coupling(row: np.ndarray, val: np.ndarray, max_row: np.ndarray,
     mask_strong[mask_neg] = val[mask_neg] <= (-c_neg)*max_row[mask_neg]
     if c_pos:
         mask_strong[~mask_neg] = val[~mask_neg] >= c_pos*max_row[~mask_neg]
-    return mask_strong
+    # 
+    A.setdiag(diagonal)
+    return row, col, mask_strong
 
 def standard_coarsening(A,
                         coupling_fnc=rubestueben_coupling,
-                        coupling_kw: Dict = {"c_neg": 0.2, "c_pos": 0.5} ):
+                        coupling_kw: Dict = {"c_neg": 0.2, "c_pos": 0.5},
+                        seed=0):
     """
+    
+    
     """
+    # get strong couplings
+    row, col, mask_strong = coupling_fnc(A, **coupling_kw)
     #
-    mask_strong = rubestueben_coupling
-    #
-    mask_coarse = np.zeros(mask_strong.shape, dtype=bool)
-    #
-    importance = 1
+    mask_coarse = np.zeros(mask_strong.shape[0], dtype=bool)
+    undecided = np.ones(mask_strong.shape[0], dtype=bool)
+    # calculate importance first time (no fine variables here, all variables 
+    # are undecided)
+    importance = np.zeros(A.shape[0])
+    np.add.at( a=importance, indices = col, b=mask_strong )
+    # as starting point choose random variable from the variables with highest 
+    # importance
+    np.random.seed(seed)
+    ind = np.random.randint(0,A.shape[0])
+    mask_coarse[ind] = True
+    undecided[ind] = False
     # number of undecided variables
-    n_u = 0
+    n_u = A.shape[0] -1
     while n_u > 0:
         pass
     return mask_coarse
