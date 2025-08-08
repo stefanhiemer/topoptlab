@@ -1,5 +1,5 @@
 from typing import Any, Callable, Dict, List, Tuple, Union
-
+from itertools import chain
 import numpy as np
 from scipy.sparse import csc_array
 
@@ -75,7 +75,7 @@ def rubestueben_coupling(A: csc_array,
     a_{ij} <= (-c_neg) *max(A_{i}) with a_{ij}<0
     
     variable i is strongly negatively coupled to variable j if for the entry
-    a_{ij} of matrix A and the the off-diagonal entries of the i-th row A_{i} 
+    a_{ij} of matrix A and the negative off-diagonal entries of the i-th row A_{i} 
     of matrix A the following is true:
         
     a_{ij} >= c_pos *max(A_{i}) with a_{ij}>0
@@ -100,28 +100,54 @@ def rubestueben_coupling(A: csc_array,
         respective row.
 
     """
+    # variables indices
+    nvars = A.shape[0]
+    var_inds = np.arange(nvars)
     # extract and eliminate diagonal
     diagonal = A.diagonal()
     A.setdiag(0)
     A.eliminate_zeros()
-    # off diagonal maximum in each row
-    max_row = A.power(2).sqrt().max(axis=1).todense()
+    # off diagonal minimum in each row (this is identical to the largest 
+    # negative element by norm)
+    min_row = A.min(axis=1).todense()
+    if c_pos:
+        max_row = A.power(2).sqrt().max(axis=1).todense()
     # extract indices and values
     row,col = A.nonzero()
     val = A[ row,col ]
     # find negative entries for positive/negative coupling
     mask_neg = val < 0
-    #
-    row_nr, count = np.unique(row,return_counts=True)
+    # convert max/min for element-wise comparison
+    row_nr, count = np.unique(row, return_counts=True)
+    count = np.insert(arr=count,
+                      obj=var_inds[~np.isin(var_inds,row_nr)],
+                      values=0 )
+    min_row = np.repeat(a=min_row, repeats=count)
     max_row = np.repeat(a=max_row, repeats=count)
     # find strong couplings
     mask_strong = np.zeros(mask_neg.shape,dtype=bool)
-    mask_strong[mask_neg] = val[mask_neg] <= (-c_neg)*max_row[mask_neg]
+    mask_strong[mask_neg] = val[mask_neg] <= c_neg*min_row[mask_neg]
     if c_pos:
         mask_strong[~mask_neg] = val[~mask_neg] >= c_pos*max_row[~mask_neg]
-    # 
+    # set of strong couplings
+    row_nr, inds = np.unique(row[mask_strong], return_index=True)
+    s = np.split(col[mask_strong],inds[1:])
+    # insert empty lists for isolated variables that are not strongly coupled 
+    # to any other variable
+    iso = [0] + var_inds[~np.isin(var_inds,row_nr) ].tolist() + [nvars]
+    s = [s[i:j]+[] for i,j in zip(iso[:-1],iso[1:])]
+    # set of transpose couplings
+    inds = np.argsort(col)
+    col_nr, split_inds = np.unique(col[inds][mask_strong[inds]], 
+                                   return_index=True)
+    s_t = np.split(row[inds][mask_strong[inds]], split_inds[1:] )
+    # insert empty lists for isolated variables that are not strongly transpose 
+    # coupled to any other variable
+    iso = [0] + var_inds[~np.isin(var_inds,col_nr) ].tolist() + [nvars]
+    s_t = chain.from_iterable([s_t[i:j]+[[]] for i,j in zip(iso[:-1],iso[1:])])
+    # re-insert diagonal
     A.setdiag(diagonal)
-    return row, col, mask_strong
+    return row, col, mask_strong, s, list(s_t)
 
 def standard_coarsening(A,
                         coupling_fnc=rubestueben_coupling,
@@ -132,7 +158,7 @@ def standard_coarsening(A,
     
     """
     # get strong couplings
-    row, col, mask_strong = coupling_fnc(A, **coupling_kw)
+    row, col, mask_strong, s, s_t = coupling_fnc(A, **coupling_kw)
     #
     mask_coarse = np.zeros(mask_strong.shape[0], dtype=bool)
     undecided = np.ones(mask_strong.shape[0], dtype=bool)
@@ -140,10 +166,9 @@ def standard_coarsening(A,
     # are undecided)
     importance = np.zeros(A.shape[0])
     np.add.at( a=importance, indices = col, b=mask_strong )
-    # as starting point choose random variable from the variables with highest 
+    # as starting point choose variable from the variables with highest 
     # importance
-    np.random.seed(seed)
-    ind = np.random.randint(0,A.shape[0])
+    ind = np.argmax(importance)
     mask_coarse[ind] = True
     undecided[ind] = False
     # number of undecided variables
@@ -155,7 +180,36 @@ def standard_coarsening(A,
 def direct_interpolation():
     return
 
-
-
 def weight_trunctation():
     return
+
+if __name__ == "__main__":
+    
+    test = np.array([[1., -0.25, -1., 0.55, 0.1, 0.],
+                     [-0.25, 1., 0., 0., 0., 0.],
+                     [-1., 0., 2., -1.2, -0.1, 0.],
+                     [0.55, 0., -1.2, 5, -2.2, 0.],
+                     [0.1, 0., -0.1, -2.2, 1., 0], 
+                     [0., 0., 0., 0., 0., 1.]])
+    #
+    solution = np.array([True, True, True, False, 
+                         True, 
+                         True, True, False, 
+                         False, True, True, 
+                         False, False, True])
+    #[ True  True  True 
+    # False  
+    # True  True  True  True 
+    # False  
+    # True  True 
+    # False
+    # True  True]
+    #
+    test = csc_array(test)
+    r,c,mask_strong,s,s_t = rubestueben_coupling(A=test, 
+                                                 c_neg = 0.2, 
+                                                 c_pos = 0.5)
+    print(r,c)
+    print(mask_strong)
+    print("s",s)
+    print("s_t",s_t)
