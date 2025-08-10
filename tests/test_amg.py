@@ -6,41 +6,91 @@ from topoptlab.amg import rubestueben_coupling
 
 import pytest
 
-def test_rubestuebgen_coupling():
+@pytest.mark.parametrize('test, solution_mask, solution_s, solution_s_t',
+                         [(array([[1., -0.25, -1., 0.55, 0.1, 0.],
+                                  [-0.25, 1., 0., 0., 0., 0.],
+                                  [-1., 0., 2., -1.2, -0.1, 0.],
+                                  [0.55, 0., -1.2, 5, -2.2, 0.],
+                                  [0.1, 0., -0.1, -2.2, 1., 0], 
+                                  [0., 0., 0., 0., 0., 1.]]), 
+                           array([True, True, True, False, 
+                                  True, 
+                                  True, True, False, 
+                                  False, True, True, 
+                                  False, False, True]), 
+                           [[1,2,3],
+                            [0],
+                            [0,3],
+                            [2,4],
+                            [3],
+                            []], 
+                           [[1,2],
+                            [0],
+                            [0,3],
+                            [0,2,4],
+                            [3], 
+                            []]),
+                          (array([[1., 0., -0.25, -1., 0.55, 0.1],
+                                  [0., 1., 0., 0., 0., 0.],
+                                  [-0.25, 0., 1., 0., 0., 0.],
+                                  [-1., 0., 0., 2., -1.2, -0.1],
+                                  [0.55, 0., 0., -1.2, 5, -2.2],
+                                  [0.1, 0., 0., -0.1, -2.2, 1.]]), 
+                            array([True, True, True, False, 
+                                   True, 
+                                   True, True, False, 
+                                   False, True, True, 
+                                   False, False, True]), 
+                            [[2,3,4],
+                             [],
+                             [0],
+                             [0,4],
+                             [3,5],
+                             [4]], 
+                            [[2,3],
+                             [],
+                             [0],
+                             [0,4],
+                             [0,3,5],
+                             [4]]),
+                          (array([[1., 0., -0.25, -1., 0.55, 0.1, 0.],
+                                  [0., 1., 0., 0., 0., 0., 0.],
+                                  [-0.25, 0., 1., 0., 0., 0., 0.],
+                                  [-1., 0., 0., 2., -1.2, -0.1, 0.],
+                                  [0.55, 0., 0., -1.2, 5, -2.2, 0.],
+                                  [0.1, 0., 0., -0.1, -2.2, 1., 0.], 
+                                  [0., 0., 0., 0., 0., 0., 1.]] ), 
+                            array([True, True, True, False, 
+                                   True, 
+                                   True, True, False, 
+                                   False, True, True, 
+                                   False, False, True]), 
+                            [[2,3,4],
+                             [],
+                             [0],
+                             [0,4],
+                             [3,5],
+                             [4],
+                             []], 
+                            [[2,3],
+                             [],
+                             [0],
+                             [0,4],
+                             [0,3,5],
+                             [4], 
+                             []])])
 
-    test = array([[1., -0.25, -1., 0.55, 0.1, 0.],
-                  [-0.25, 1., 0., 0., 0., 0.],
-                  [-1., 0., 2., -1.2, -0.1, 0.],
-                  [0.55, 0., -1.2, 5, -2.2, 0.],
-                  [0.1, 0., -0.1, -2.2, 1., 0], 
-                  [0., 0., 0., 0., 0., 1.]])
-    #
-    solution_mask = array([True, True, True, False, 
-                           True, 
-                           True, True, False, 
-                           False, True, True, 
-                           False, False, True])
+def test_rubestuebgen_coupling(test, 
+                               solution_mask, solution_s, solution_s_t):
     
-    solution_s = [[1,2,3],
-                  [0],
-                  [0,3],
-                  [2,4],
-                  [3],
-                  []]
-    solution_s_t = [[1,2],
-                    [0],
-                    [0,3],
-                    [2,4],
-                    [3], 
-                    []]
     #
     test = csc_array(test)
     _,_,mask_strong,s,s_t = rubestueben_coupling(A=test, 
                                                  c_neg = 0.2, 
                                                  c_pos = 0.5)
     # for testing sort it
-    s = [sorted(entry.tolist()) for entry in s]
-    s_t = [sorted(entry.tolist()) for entry in s_t]
+    s = [sorted(entry) for entry in s]
+    s_t = [sorted(entry) for entry in s_t]
     
     #
     assert_equal(solution_mask, mask_strong)

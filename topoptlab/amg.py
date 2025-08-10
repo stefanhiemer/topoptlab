@@ -119,8 +119,10 @@ def rubestueben_coupling(A: csc_array,
     mask_neg = val < 0
     # convert max/min for element-wise comparison
     row_nr, count = np.unique(row, return_counts=True)
+    inds = var_inds[~np.isin(var_inds,row_nr)]
+    inds[inds>count.shape[0]] = count.shape[0]
     count = np.insert(arr=count,
-                      obj=var_inds[~np.isin(var_inds,row_nr)],
+                      obj=inds,
                       values=0 )
     min_row = np.repeat(a=min_row, repeats=count)
     max_row = np.repeat(a=max_row, repeats=count)
@@ -135,7 +137,8 @@ def rubestueben_coupling(A: csc_array,
     # insert empty lists for isolated variables that are not strongly coupled 
     # to any other variable
     iso = [0] + var_inds[~np.isin(var_inds,row_nr) ].tolist() + [nvars]
-    s = [s[i:j]+[] for i,j in zip(iso[:-1],iso[1:])]
+    s = chain.from_iterable([s[i:j]+[[]] for i,j in zip(iso[:-1],iso[1:])])
+    s = list(s)[:-1]
     # set of transpose couplings
     inds = np.argsort(col)
     col_nr, split_inds = np.unique(col[inds][mask_strong[inds]], 
@@ -145,36 +148,67 @@ def rubestueben_coupling(A: csc_array,
     # coupled to any other variable
     iso = [0] + var_inds[~np.isin(var_inds,col_nr) ].tolist() + [nvars]
     s_t = chain.from_iterable([s_t[i:j]+[[]] for i,j in zip(iso[:-1],iso[1:])])
+    s_t = list(s_t)[:-1]
     # re-insert diagonal
     A.setdiag(diagonal)
-    return row, col, mask_strong, s, list(s_t)
+    return row, col, mask_strong, s, s_t
 
 def standard_coarsening(A,
-                        coupling_fnc=rubestueben_coupling,
-                        coupling_kw: Dict = {"c_neg": 0.2, "c_pos": 0.5},
-                        seed=0):
+                        coupling_fnc: Callable = rubestueben_coupling,
+                        coupling_kw: Dict = {"c_neg": 0.2, "c_pos": 0.5}):
     """
     
     
     """
+    # 
+    nvars = A.shape[0]
     # get strong couplings
     row, col, mask_strong, s, s_t = coupling_fnc(A, **coupling_kw)
     #
-    mask_coarse = np.zeros(mask_strong.shape[0], dtype=bool)
-    undecided = np.ones(mask_strong.shape[0], dtype=bool)
+    mask_coarse = np.zeros(nvars, dtype=bool)
+    mask_fine = np.zeros(nvars, dtype=bool)
+    undecided = np.ones(nvars, dtype=bool)
+    # convert isolated variables to fine
+    
     # calculate importance first time (no fine variables here, all variables 
     # are undecided)
     importance = np.zeros(A.shape[0])
-    np.add.at( a=importance, indices = col, b=mask_strong )
-    # as starting point choose variable from the variables with highest 
-    # importance
-    ind = np.argmax(importance)
-    mask_coarse[ind] = True
-    undecided[ind] = False
+    np.add.at( importance, col, mask_strong )
+    # as starting point 
     # number of undecided variables
-    n_u = A.shape[0] -1
+    n_u = A.shape[0]
     while n_u > 0:
-        pass
+        # choose variable from the undecided variables with highest importance
+        ind = np.argmax( importance )
+        print("index: ",ind)
+        print(importance)
+        # pick strongly coupled variables of new coarse variable that are still 
+        # undecided
+        _s = s[ind][undecided[s[ind]]]
+        # pick set of strong tranpose variables that are still undecided
+        _s_t = s_t[ind]
+        _s_t = _s_t[undecided[_s_t]]
+        print(_s,_s_t)
+        # change variable to coarse
+        mask_coarse[ind] = True
+        # change its transpose coupled variables to fine 
+        mask_fine[ _s_t ] = True # possibly improveable
+        # take it out of undecided variables
+        undecided[ind] = False
+        undecided[_s_t] = False
+        # reduce importance of other undecided variables due to new coarse 
+        # variable
+        importance[ _s ] = importance[_s] - 1
+        # increase importance of other variables due to new fine variables
+        #print(np.hstack( [s[var] for var in _s_t]))
+        np.add.at (importance, # array to add to
+                   np.hstack( [s[var] for var in _s_t]), # indices
+                   1.) #value added
+        # set importance to zero for new coarse and fine variables
+        importance[ind] = 0
+        importance[_s_t] = 0
+        # update number of undecided variables
+        n_u = n_u - 1 - _s_t.shape[0]
     return mask_coarse
 
 def direct_interpolation():
@@ -185,25 +219,13 @@ def weight_trunctation():
 
 if __name__ == "__main__":
     
-    test = np.array([[1., -0.25, -1., 0.55, 0.1, 0.],
-                     [-0.25, 1., 0., 0., 0., 0.],
-                     [-1., 0., 2., -1.2, -0.1, 0.],
-                     [0.55, 0., -1.2, 5, -2.2, 0.],
-                     [0.1, 0., -0.1, -2.2, 1., 0], 
-                     [0., 0., 0., 0., 0., 1.]])
-    #
-    solution = np.array([True, True, True, False, 
-                         True, 
-                         True, True, False, 
-                         False, True, True, 
-                         False, False, True])
-    #[ True  True  True 
-    # False  
-    # True  True  True  True 
-    # False  
-    # True  True 
-    # False
-    # True  True]
+    test = np.array([[1., 0., -0.25, -1., 0.55, 0.1, 0.],
+                     [0., 1., 0., 0., 0., 0., 0.],
+                     [-0.25, 0., 1., 0., 0., 0., 0.],
+                     [-1., 0., 0., 2., -1.2, -0.1, 0.],
+                     [0.55, 0., 0., -1.2, 5, -2.2, 0.],
+                     [0.1, 0., 0., -0.1, -2.2, 1., 0.], 
+                     [0., 0., 0., 0., 0., 0., 1.]] )
     #
     test = csc_array(test)
     r,c,mask_strong,s,s_t = rubestueben_coupling(A=test, 
@@ -213,3 +235,9 @@ if __name__ == "__main__":
     print(mask_strong)
     print("s",s)
     print("s_t",s_t)
+    
+    mask_coarse = standard_coarsening(test,
+                                      coupling_fnc=rubestueben_coupling,
+                                      coupling_kw = {"c_neg": 0.2, 
+                                                     "c_pos": 0.5})
+    print("mask coarse:", mask_coarse)
