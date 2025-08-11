@@ -19,7 +19,7 @@ def create_amg(A: csc_array,
 
     Parameters
     ----------
-    A : scipy.sparse.csc_array
+    A : scipy.sparse.sparse_array
         system matrix (e. g. stiffness matrix)
     interpol : callable
         interpolation method.
@@ -58,7 +58,8 @@ def create_amg(A: csc_array,
 def rubestueben_coupling(A: csc_array,
                          c_neg: float = 0.2, c_pos: Union[None,float] = 0.5,
                          **kwargs: Any
-                         ) -> Tuple[np.ndarray,np.ndarray,np.ndarray]:
+                         ) -> Tuple[np.ndarray,np.ndarray,np.ndarray,
+                                    np.ndarray,np.ndarray,np.ndarray]:
     """
     Ruge-Stüben method to determine strong/weak coupling between variables in
     sparse array/matrix A. Works on the row index and the value of an entry of A
@@ -82,8 +83,8 @@ def rubestueben_coupling(A: csc_array,
 
     Parameters
     ----------
-    A : np.ndarray
-        row index of entry
+    A : scipy.sparse.sparse_array
+        sparse matrix for which to find coupling of size (nvars,nvars)
     c_neg : float
         constant to determine strong coupling for negative variables.
     c_pos : float or None
@@ -98,6 +99,14 @@ def rubestueben_coupling(A: csc_array,
     mask_strong : np.ndarray
         True if the variable of val is strongly linked to the variable in the
         respective row.
+    s : list of len nvars
+        strong couplings for each variable. Each element contains array of 
+        indices.
+    s_t : list of len nvars
+        strong transpose couplings for each variable. Each element contains 
+        array of indices.
+    iso : np.ndarray
+        indices of isolated variables.
 
     """
     # variables indices
@@ -151,9 +160,9 @@ def rubestueben_coupling(A: csc_array,
     s_t = list(s_t)[:-1]
     # re-insert diagonal
     A.setdiag(diagonal)
-    return row, col, mask_strong, s, s_t
+    return row, col, mask_strong, s, s_t, iso[1:-1]
 
-def standard_coarsening(A,
+def standard_coarsening(A: csc_array,
                         coupling_fnc: Callable = rubestueben_coupling,
                         coupling_kw: Dict = {"c_neg": 0.2, "c_pos": 0.5}):
     """
@@ -163,32 +172,28 @@ def standard_coarsening(A,
     # 
     nvars = A.shape[0]
     # get strong couplings
-    row, col, mask_strong, s, s_t = coupling_fnc(A, **coupling_kw)
+    row, col, mask_strong, s, s_t, iso = coupling_fnc(A, **coupling_kw)
     #
     mask_coarse = np.zeros(nvars, dtype=bool)
     mask_fine = np.zeros(nvars, dtype=bool)
     undecided = np.ones(nvars, dtype=bool)
-    # convert isolated variables to fine
-    
     # calculate importance first time (no fine variables here, all variables 
     # are undecided)
     importance = np.zeros(A.shape[0])
     np.add.at( importance, col, mask_strong )
-    # as starting point 
+    # convert isolated variables to fine variables
+    mask_fine[iso] = True
     # number of undecided variables
-    n_u = A.shape[0]
+    n_u = A.shape[0] - len(iso)
     while n_u > 0:
         # choose variable from the undecided variables with highest importance
         ind = np.argmax( importance )
-        print("index: ",ind)
-        print(importance)
         # pick strongly coupled variables of new coarse variable that are still 
         # undecided
         _s = s[ind][undecided[s[ind]]]
         # pick set of strong tranpose variables that are still undecided
         _s_t = s_t[ind]
         _s_t = _s_t[undecided[_s_t]]
-        print(_s,_s_t)
         # change variable to coarse
         mask_coarse[ind] = True
         # change its transpose coupled variables to fine 
@@ -201,9 +206,10 @@ def standard_coarsening(A,
         importance[ _s ] = importance[_s] - 1
         # increase importance of other variables due to new fine variables
         #print(np.hstack( [s[var] for var in _s_t]))
-        np.add.at (importance, # array to add to
-                   np.hstack( [s[var] for var in _s_t]), # indices
-                   1.) #value added
+        if len(_s_t) != 0:
+            np.add.at (importance, # array to add to
+                       np.hstack( [s[var] for var in _s_t]), # indices
+                       1.) #value added
         # set importance to zero for new coarse and fine variables
         importance[ind] = 0
         importance[_s_t] = 0
@@ -211,8 +217,15 @@ def standard_coarsening(A,
         n_u = n_u - 1 - _s_t.shape[0]
     return mask_coarse
 
-def direct_interpolation():
-    return
+def direct_interpolation(A: csc_array, mask_coarse: np.ndarray) -> csc_array:
+    # extract indices and values
+    row,col = A.nonzero()
+    val = A[ row,col ]
+    # negative mask
+    mask_neg = val < 0
+    #
+    prolongator = csc_array()
+    return 1#prolongator
 
 def weight_trunctation():
     return
@@ -228,9 +241,9 @@ if __name__ == "__main__":
                      [0., 0., 0., 0., 0., 0., 1.]] )
     #
     test = csc_array(test)
-    r,c,mask_strong,s,s_t = rubestueben_coupling(A=test, 
-                                                 c_neg = 0.2, 
-                                                 c_pos = 0.5)
+    r,c,mask_strong,s,s_t,iso = rubestueben_coupling(A=test, 
+                                                     c_neg = 0.2, 
+                                                     c_pos = 0.5)
     print(r,c)
     print(mask_strong)
     print("s",s)
@@ -240,4 +253,5 @@ if __name__ == "__main__":
                                       coupling_fnc=rubestueben_coupling,
                                       coupling_kw = {"c_neg": 0.2, 
                                                      "c_pos": 0.5})
+    
     print("mask coarse:", mask_coarse)

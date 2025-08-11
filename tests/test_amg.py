@@ -6,7 +6,7 @@ from topoptlab.amg import rubestueben_coupling
 
 import pytest
 
-@pytest.mark.parametrize('test, solution_mask, solution_s, solution_s_t',
+@pytest.mark.parametrize('test, sol_mask, sol_s, sol_s_t, sol_iso',
                          [(array([[1., -0.25, -1., 0.55, 0.1, 0.],
                                   [-0.25, 1., 0., 0., 0., 0.],
                                   [-1., 0., 2., -1.2, -0.1, 0.],
@@ -29,7 +29,8 @@ import pytest
                             [0,3],
                             [0,2,4],
                             [3], 
-                            []]),
+                            []],
+                           [5]),
                           (array([[1., 0., -0.25, -1., 0.55, 0.1],
                                   [0., 1., 0., 0., 0., 0.],
                                   [-0.25, 0., 1., 0., 0., 0.],
@@ -52,7 +53,8 @@ import pytest
                              [0],
                              [0,4],
                              [0,3,5],
-                             [4]]),
+                             [4]],
+                            [1]),
                           (array([[1., 0., -0.25, -1., 0.55, 0.1, 0.],
                                   [0., 1., 0., 0., 0., 0., 0.],
                                   [-0.25, 0., 1., 0., 0., 0., 0.],
@@ -78,26 +80,52 @@ import pytest
                              [0,4],
                              [0,3,5],
                              [4], 
-                             []])])
+                             []],
+                            [1,6])])
 
 def test_rubestuebgen_coupling(test, 
-                               solution_mask, solution_s, solution_s_t):
+                               sol_mask, sol_s, sol_s_t, sol_iso):
     
     #
     test = csc_array(test)
-    _,_,mask_strong,s,s_t = rubestueben_coupling(A=test, 
-                                                 c_neg = 0.2, 
-                                                 c_pos = 0.5)
+    _,_,mask_strong,s,s_t,iso = rubestueben_coupling(A=test, 
+                                                     c_neg = 0.2, 
+                                                     c_pos = 0.5)
     # for testing sort it
     s = [sorted(entry) for entry in s]
     s_t = [sorted(entry) for entry in s_t]
-    
     #
-    assert_equal(solution_mask, mask_strong)
-    
+    assert_equal(sol_mask, mask_strong)
     #
-    for sol,actual in zip(solution_s,s):
+    for sol,actual in zip(sol_s,s):
         assert_equal(actual, sol)
     #
-    for sol,actual in zip(solution_s_t,s_t):
+    for sol,actual in zip(sol_s_t,s_t):
         assert_equal(actual, sol)
+    #
+    assert_equal(sol_iso, iso)
+    return
+
+from topoptlab.amg import standard_coarsening
+
+@pytest.mark.parametrize('test, sol_mask',
+                         [(array([[1., 0., -0.25, -1., 0.55, 0.1, 0.],
+                                  [0., 1., 0., 0., 0., 0., 0.],
+                                  [-0.25, 0., 1., 0., 0., 0., 0.],
+                                  [-1., 0., 0., 2., -1.2, -0.1, 0.],
+                                  [0.55, 0., 0., -1.2, 5, -2.2, 0.],
+                                  [0.1, 0., 0., -0.1, -2.2, 1., 0.], 
+                                  [0., 0., 0., 0., 0., 0., 1.]]), 
+                          array([False, False, True, False, True, False, False]))])
+
+def test_standard_coarsening(test, sol_mask):
+    #
+    test = csc_array(test)
+    #
+    mask_coarse = standard_coarsening(test,
+                                      coupling_fnc=rubestueben_coupling,
+                                      coupling_kw = {"c_neg": 0.2, 
+                                                     "c_pos": 0.5})
+    #
+    assert_equal(sol_mask, mask_coarse)
+    return
