@@ -106,7 +106,7 @@ if __name__ == "__main__":
     #
     ndim = 2
     n = 128
-    display=False
+    display=True
     #
     import sys
     if len(sys.argv)>1:
