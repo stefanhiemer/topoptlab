@@ -47,7 +47,7 @@ def assemble_matrix_filter(nelx: int, nely: int, rmin: float,
     iH = np.zeros(nfilter)
     jH = np.zeros(nfilter)
     sH = np.zeros(nfilter)
-    # find coordinates of each element/density
+    # find coordinates of each element
     if ndim == 2:
         x,y = np.divmod(el,nely) # same as np.floor(el/nely),el%nely
     elif ndim == 3:
@@ -71,25 +71,27 @@ def assemble_matrix_filter(nelx: int, nely: int, rmin: float,
         z = np.repeat(z, n_neigh)
     cc = np.arange(el.shape[0])
     if ndim == 2:
-        k,l = np.hstack([np.stack([a.flatten() for a in \
+        # coordinate of neighbor
+        xn,yn = np.hstack([np.stack([a.flatten() for a in \
                          np.meshgrid(np.arange(k1,k2),np.arange(l1,l2))]) \
                          for k1,k2,l1,l2 in zip(kk1,kk2,ll1,ll2)])
         # hat function
-        fac = rmin-np.sqrt((x-k)**2+(y-l)**2)
+        fac = rmin-np.sqrt((x-xn)**2+(y-yn)**2)
     elif ndim == 3:
-        k,l,m = np.hstack([np.stack([a.flatten() for a in \
-                           np.meshgrid(np.arange(k1,k2),
-                                       np.arange(l1,l2),
-                                       np.arange(m1,m2))]) \
+        # coordinate of neighbor
+        xn,yn,zn = np.hstack([np.stack([a.flatten() for a in \
+                              np.meshgrid(np.arange(k1,k2),
+                                          np.arange(l1,l2),
+                                          np.arange(m1,m2))]) \
                            for k1,k2,l1,l2,m1,m2 in \
                            zip(kk1,kk2,ll1,ll2,mm1,mm2)])
         # hat function
-        fac = rmin-np.sqrt((x-k)**2+(y-l)**2+(z-m)**2)
+        fac = rmin-np.sqrt((x-xn)**2+(y-yn)**2+(z-zn)**2)
     iH[cc] = el # row
     if ndim == 2:
-        jH[cc] = nely*k+l #column
+        jH[cc] = nely*xn+yn #column
     elif ndim == 3:
-        jH[cc] = (m*nelx + k)*nely + l
+        jH[cc] = (zn*nelx + xn)*nely + yn
     sH[cc] = np.maximum(0.0, fac)
     # Finalize assembly and convert to csc format
     H = coo_matrix((sH, (iH, jH)), shape=(n, n)).tocsc()
