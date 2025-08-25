@@ -34,7 +34,8 @@ def gray_indicator(x: np.ndarray) -> np.ndarray:
 def lengthscale_violations(x: np.ndarray,
                            r: float,
                            nelx: int, nely: int,
-                           nelz: Union[None,int] = None) -> np.ndarray:
+                           nelz: Union[None,int] = None
+                           ) -> [np.ndarray,np.ndarray]:
     """
     Visualize length scale violations as suggested in chapter 2.6 of 
     
@@ -67,8 +68,10 @@ def lengthscale_violations(x: np.ndarray,
 
     Returns
     -------
-    x_new : np.ndarray shape (n) or shape (nely,nelx) or shape (nelz,nely,nelx)
-        upsampled design variables.
+    solidviolation : np.ndarray, shape (nely,nelx) or shape (nelz,nely,nelx)
+        lengthscale violations in solid phase.
+    voidviolation : np.ndarray, shape (nely,nelx) or shape (nelz,nely,nelx)
+        lengthscale violations in void phase.
 
     """
     

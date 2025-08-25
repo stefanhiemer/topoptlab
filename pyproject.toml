@@ -25,6 +25,7 @@ dependencies = ["numpy",
                 "mmapy",
                 "meshio",
                 "symfem",
+                "coverage",
                 "scikit-image"]
 
 [project.optional-dependencies]

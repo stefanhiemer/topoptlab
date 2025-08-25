@@ -70,4 +70,4 @@ If you found a bug or you want to suggest a new feature/enhancement, submit it o
 # How to contribute
 
 If you want to contribute, fork the repository and open a pull request. However before doing that
-I suggest to contact the maintainers via an enhancement suggestion in the issue tracker (see above).
+I suggest to contact the maintainers via an enhancement suggestion in the [issue tracker](https://github.com/stefanhiemer/topoptlab/).

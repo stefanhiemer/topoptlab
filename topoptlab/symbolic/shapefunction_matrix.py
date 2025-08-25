@@ -5,7 +5,7 @@ from symfem.functions import VectorFunction, MatrixFunction
 def shape_function_matrix(basis: List, nedof: int,
                           mode: str = "col") -> MatrixFunction:
     """
-    Generate the shape function matrix for scalar or vector fields.
+    Generate the shape function matrix.
 
     Parameters
     ----------

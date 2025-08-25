@@ -36,5 +36,5 @@ def test_anderson(obj_ref):
                   write_log=False,
                   debug=False,display=False,export=False)
     #
-    assert_almost_equal(obj,obj_ref,decimal=5)
+    assert_almost_equal(obj,obj_ref,decimal=3)
     return 

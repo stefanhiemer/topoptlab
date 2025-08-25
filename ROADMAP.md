@@ -1,6 +1,5 @@
 features
 
-- [ ] include typing
 - [ ] add source for scalar field
 - [ ] get rid of manual determinant calculation in elements with quadrature
 - [ ] do the Kronecker product at end in elements which exist for vector/scalar field
