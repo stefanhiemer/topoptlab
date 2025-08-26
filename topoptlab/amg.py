@@ -218,11 +218,31 @@ def standard_coarsening(A: csc_array,
     return mask_coarse
 
 def direct_interpolation(A: csc_array, mask_coarse: np.ndarray) -> csc_array:
+    """
+    Implements page 70 of 
+    
+    Stuebgen, Klaus. "Algebraic multigrid (AMG): an introduction with
+    applications." GMD report (1999).
+    
+    """
     # extract indices and values
     row,col = A.nonzero()
     val = A[ row,col ]
     # negative mask
     mask_neg = val < 0
+    # rescaling to "conserve" energy
+    denominator, numerator = np.zeros(A.shape[0]), np.zeros(A.shape[0])
+    np.add.at(numerator,row[mask_neg ],val)
+    np.add.at(denominator,row[ mask_coarse[row] & mask_neg ],val)
+    # this is alpha on page 70 
+    neg_scale = numerator / denominator
+    #
+    if ( mask_coarse & ~mask_neg ).any():
+        # erase previous data
+        denominator[:], numerator[:] = 0.
+        np.add.at(numerator,row[~mask_neg ],val)
+        np.add.at(denominator,row[ mask_coarse[row] & ~mask_neg ],val)
+        pos_scale = numerator / denominator
     #
     prolongator = csc_array()
     return 1#prolongator
