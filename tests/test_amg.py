@@ -1,5 +1,5 @@
 from numpy import array
-from numpy.testing import assert_equal,assert_array_equal
+from numpy.testing import assert_equal
 from scipy.sparse import csc_array
 
 from topoptlab.amg import rubestueben_coupling
