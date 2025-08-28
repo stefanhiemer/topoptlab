@@ -14,3 +14,4 @@ old_cholmod.py
 applications/fdm/runs
 docs/build/
 .gitignore~
+.coverage

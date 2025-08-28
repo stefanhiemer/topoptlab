@@ -164,10 +164,27 @@ def rubestueben_coupling(A: csc_array,
 
 def standard_coarsening(A: csc_array,
                         coupling_fnc: Callable = rubestueben_coupling,
-                        coupling_kw: Dict = {"c_neg": 0.2, "c_pos": 0.5}):
+                        coupling_kw: Dict = {"c_neg": 0.2, "c_pos": 0.5},
+                        **kwargs: Any):
     """
+    Standard coarsening according to page 64 and following in 
     
+    Stuebgen, Klaus. "Algebraic multigrid (AMG): an introduction with
+    applications." GMD report (1999).
     
+    Parameters
+    ----------
+    A : scipy.sparse.sparse_array
+        sparse matrix for which to find coupling of size (nvars,nvars)
+    coupling_fnc : callable
+        function that determines strong coupling between variables.
+    coupling_kw : dictionary
+        dictionary containing arguments needed for the coupling function.
+
+    Returns
+    -------
+    mask_coarse : np.ndarray
+        mask for coarse variaables shape (nvars).
     """
     # 
     nvars = A.shape[0]
@@ -228,20 +245,32 @@ def direct_interpolation(A: csc_array, mask_coarse: np.ndarray) -> csc_array:
     # extract indices and values
     row,col = A.nonzero()
     val = A[ row,col ]
+    # filter out rows of coarse variables
+    val = val[~mask_coarse[row]]
+    col = col[~mask_coarse[row]]
+    row = row[~mask_coarse[row]]
     # negative mask
     mask_neg = val < 0
     # rescaling to "conserve" energy
     denominator, numerator = np.zeros(A.shape[0]), np.zeros(A.shape[0])
-    np.add.at(numerator,row[mask_neg ],val)
-    np.add.at(denominator,row[ mask_coarse[row] & mask_neg ],val)
+    np.add.at(numerator,
+              row[mask_neg], 
+              val[mask_neg])
+    np.add.at(denominator,
+              row[mask_neg & mask_coarse[col]], 
+              val[mask_neg & mask_coarse[col]])
     # this is alpha on page 70 
     neg_scale = numerator / denominator
     #
     if ( mask_coarse & ~mask_neg ).any():
         # erase previous data
         denominator[:], numerator[:] = 0.
-        np.add.at(numerator,row[~mask_neg ],val)
-        np.add.at(denominator,row[ mask_coarse[row] & ~mask_neg ],val)
+        np.add.at(numerator,
+                  row[~mask_neg], 
+                  val[~mask_neg])
+        np.add.at(denominator,
+                  row[~mask_neg & mask_coarse[col]], 
+                  val[~mask_neg & mask_coarse[col]])
         pos_scale = numerator / denominator
     #
     prolongator = csc_array()
