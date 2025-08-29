@@ -245,15 +245,13 @@ def direct_interpolation(A: csc_array, mask_coarse: np.ndarray) -> csc_array:
     ----------
     A : scipy.sparse.sparse_array
         sparse matrix for which to find coupling of size (nvars,nvars)
-    coupling_fnc : callable
-        function that determines strong coupling between variables.
-    coupling_kw : dictionary
-        dictionary containing arguments needed for the coupling function.
+    mask_coarse : np.ndarray
+        has nc True entries and is True for coarse degrees of freedom
 
     Returns
     -------
-    mask_coarse : np.ndarray
-        mask for coarse variaables shape (nvars).
+    prolongator : csc_array
+        sparse matrix used to interpolate fine scale degrees of freedom. shape 
     """
     # extract indices and values
     row,col = A.nonzero()
@@ -298,8 +296,10 @@ def direct_interpolation(A: csc_array, mask_coarse: np.ndarray) -> csc_array:
     # rescale 
     val[mask_neg] *= neg_scale[row[mask_neg]]
     val[~mask_neg] *= pos_scale[row[~mask_neg]]
-    #
-    prolongator = csc_array()
+    # off-diagonal entries
+    prolongator = csc_array((val, (row, col)), shape=A.shape)[:,mask_coarse]
+    # set diagonal
+    prolongator.setdiag()
     return 1#prolongator
 
 def weight_trunctation():
