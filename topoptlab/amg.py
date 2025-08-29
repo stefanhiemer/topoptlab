@@ -47,7 +47,7 @@ def create_amg(A: csc_array,
     # create subsequent prolongators by recurrence
     for level in np.arange(nlevels-1):
         # determine C/F split
-
+        
         # create prolongator via interpolation function
 
         #
@@ -241,10 +241,28 @@ def direct_interpolation(A: csc_array, mask_coarse: np.ndarray) -> csc_array:
     Stuebgen, Klaus. "Algebraic multigrid (AMG): an introduction with
     applications." GMD report (1999).
     
+    Parameters
+    ----------
+    A : scipy.sparse.sparse_array
+        sparse matrix for which to find coupling of size (nvars,nvars)
+    coupling_fnc : callable
+        function that determines strong coupling between variables.
+    coupling_kw : dictionary
+        dictionary containing arguments needed for the coupling function.
+
+    Returns
+    -------
+    mask_coarse : np.ndarray
+        mask for coarse variaables shape (nvars).
     """
     # extract indices and values
     row,col = A.nonzero()
     val = A[ row,col ]
+    #
+    diagonal = A.diagonal()
+    # get off-diagonal
+    offdiagonal = row!=col
+    row,col,val = row[offdiagonal], col[offdiagonal], val[offdiagonal]
     # filter out rows of coarse variables
     val = val[~mask_coarse[row]]
     col = col[~mask_coarse[row]]
@@ -260,7 +278,7 @@ def direct_interpolation(A: csc_array, mask_coarse: np.ndarray) -> csc_array:
               row[mask_neg & mask_coarse[col]], 
               val[mask_neg & mask_coarse[col]])
     # this is alpha on page 70 
-    neg_scale = numerator / denominator
+    neg_scale = diagonal * numerator / denominator
     #
     if ( mask_coarse & ~mask_neg ).any():
         # erase previous data
@@ -271,7 +289,15 @@ def direct_interpolation(A: csc_array, mask_coarse: np.ndarray) -> csc_array:
         np.add.at(denominator,
                   row[~mask_neg & mask_coarse[col]], 
                   val[~mask_neg & mask_coarse[col]])
-        pos_scale = numerator / denominator
+        pos_scale = diagonal * numerator / denominator
+    # filter out columns with fine scale variable
+    mask_neg = mask_neg[mask_coarse[col]]
+    val = val[mask_coarse[col]]
+    row = row[mask_coarse[col]]
+    col = col[mask_coarse[col]]
+    # rescale 
+    val[mask_neg] *= neg_scale[row[mask_neg]]
+    val[~mask_neg] *= pos_scale[row[~mask_neg]]
     #
     prolongator = csc_array()
     return 1#prolongator
