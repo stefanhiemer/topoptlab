@@ -1,4 +1,4 @@
-from typing import Any,Dict,Tuple,Union
+from typing import Any,Dict,List,Tuple,Union
 
 import numpy as np
 from scipy.ndimage import zoom
@@ -49,56 +49,6 @@ def even_spaced_ternary(npoints: int) -> np.ndarray:
         for b in np.linspace(0.0,1.0,npoints)[:(npoints-i)]:
             fracs.append([a,b,1-a-b])
     return np.array(fracs)
-
-def parse_logfile_old(file: str) -> Tuple[Dict,np.ndarray]:
-    """
-    Parse log file of the folding mechanism TO workflow. This is legacy and 
-    will be deprecated soon.
-
-    Parameters
-    ----------
-    file : str
-        filename of the logfile.
-
-    Returns
-    -------
-    params : dict
-        contains some of the parameters like system size and shape, 
-        optimizer etc..
-    data : np.ndarray
-        iteration history over objective function, volume constraint, change.
-
-    """
-    params = dict()
-    with open(file,"r") as f:
-        # 1st line
-        params["optimizer"] = f.readline().strip().split(" ")[-1]
-        # 2nd line
-        line = f.readline().strip().split(" ")
-        if len(line) == 4:
-            nelx,nely = line[1::2] 
-            params["nelx"] = int(nelx) 
-            params["nely"] = int(nely)
-        if len(line) == 6:
-            nelx,nely,nelz = line[1::2]
-            params["nelx"] = int(nelx) 
-            params["nely"] = int(nely)
-            params["nelz"] = int(nelz)
-        # 3rd line
-        line = f.readline().strip().split(" ")
-        params["volfrac"] = float(line[1][:-1])
-        params["rmin"] = float(line[3][:-1])
-        params["penal"] = float(line[-1])
-        # 4th line 
-        params["filter"] = f.readline().strip().split(" ",2)[2]
-        #
-        lines = [line.replace(",","") for line in f]
-        # last_line
-        final = [float(i) for i in lines[-1].strip().split(" ")[2::2]]
-        
-    data = np.loadtxt(lines[:-1], delimiter=" ",
-                      skiprows=0, usecols = [1,4,6,8]) 
-    return params,data,final
 
 def parse_logfile(file: str) -> Tuple[Dict,np.ndarray]:
     """
@@ -327,7 +277,7 @@ def elid_to_coords(el: np.ndarray,
         x,y = np.divmod(rest,nely)
         return x,y,z
 
-def upsampling(x: np.ndarray, magnification: float,
+def upsampling(x: np.ndarray, magnification: Union[float,int,List],
                nelx: int, nely: int, nelz: Union[None,int] = None,
                return_flat: bool = True, order: int = 0) -> np.ndarray:
     """
@@ -338,7 +288,7 @@ def upsampling(x: np.ndarray, magnification: float,
 
     Parameters
     ----------
-    x : np.ndarray shape (n)
+    x : np.ndarray shape (n,nchannel)
         design variables.
     magnification : float
         magnification factor.
@@ -360,18 +310,30 @@ def upsampling(x: np.ndarray, magnification: float,
         upsampled design variables.
 
     """
-    
+    if nelz is None:
+        ndim = 2
+    else:
+        ndim = 3
+    #
+    if isinstance(magnification, (float,int)):
+        magnification = ndim * [magnification] + [1]
+    #
     if nelz is None:
         x = map_eltoimg(quant=x, nelx=nelx, nely=nely)
     else:
         x = map_eltovoxel(quant=x, nelx=nelx, nely=nely, nelz=nelz)
     #
-    x = zoom(x,zoom=magnification,
-             order=order,mode="nearest",cval=0.)
+    x = zoom(x, zoom=magnification,
+             order=order, mode="nearest",
+             cval=0.)
+    #
+    
     #
     if return_flat:
         if nelz is None:
-            x = map_imgtoel(quant=x, nelx=nelx, nely=nely)
+            nely,nelx,nchannel = x.shape
+            x = map_imgtoel(img=x, nelx=nelx, nely=nely)
         else:
-            x = map_voxeltoel(quant=x, nelx=nelx, nely=nely, nelz=nelz)
+            nelz,nely,nelx,nchannel = x.shape
+            x = map_voxeltoel(voxel=x, nelx=nelx, nely=nely, nelz=nelz)
     return x

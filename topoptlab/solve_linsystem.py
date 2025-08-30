@@ -22,7 +22,7 @@ def solve_lin(K: Union[csc_array,spmatrix], rhs: Union[np.ndarray,matrix],
     Parameters
     ----------
     K : scipy.sparse.csc_arrayor cvxopt.base.spmatrix (ndof_free,ndof_free)
-        element degree of freedom matrix.
+        matrix to solve.
     rhs : np.ndarray or cvxopt.base.matrix (ndof_free,ndof_free,nbc)
         rows to delete.
     solver : str

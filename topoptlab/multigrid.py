@@ -123,7 +123,9 @@ def vcycle(A: csc_array,b: np.ndarray, x0: np.ndarray,
     if lvl == nlevels-1:
         xc = spsolve( interpolators[lvl].T@r )
     else:
-        xc,info_vcycle = vcycle(A=A, b=interpolators[lvl].T@r, x0=None,
+        xc,info_vcycle = vcycle(A=interpolators[lvl].T@A@interpolators[lvl], 
+                                b=interpolators[lvl].T@r, 
+                                x0=interpolators[lvl].T@x,
                                 lvl=lvl+1, interpolators=interpolators,
                                 smoother=smoother, smoother_kws=smoother_kws,
                                 nlevels=nlevels)
