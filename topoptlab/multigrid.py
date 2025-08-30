@@ -5,7 +5,7 @@ from scipy.sparse import csc_array
 from scipy.sparse.linalg import spsolve
 
 def multigrid_solver(A: csc_array, b: np.ndarray, x0: np.ndarray,
-                     prolongators: List,
+                     interpolators: List,
                      cycle: Callable, tol: float,
                      smoother: Callable,
                      smoother_kws: Dict,
@@ -26,7 +26,7 @@ def multigrid_solver(A: csc_array, b: np.ndarray, x0: np.ndarray,
         right hand side of full system.
     x0 : np.ndarray
         initial guess for solution.
-    prolongators : list
+    interpolators : list
         list of matrices P that interpolate from coarse to fine grid. Must be
         initialized before calling this function.
     cycle : callable
@@ -59,7 +59,7 @@ def multigrid_solver(A: csc_array, b: np.ndarray, x0: np.ndarray,
     for i in np.arange(max_cycles):
         # one
         x[:] = cycle(A=A,b=b,x0=x0,lvl=0,
-                     prolongators=prolongators,
+                     interpolators=interpolators,
                      smoother=smoother,
                      smoother_kws=smoother_kws,
                      nlevels=nlevels)
@@ -73,7 +73,7 @@ def multigrid_solver(A: csc_array, b: np.ndarray, x0: np.ndarray,
 
 def vcycle(A: csc_array,b: np.ndarray, x0: np.ndarray,
            lvl: int,
-           prolongators: List,
+           interpolators: List,
            smoother: Callable,
            smoother_kws: Dict,
            nlevels: int) -> Tuple[np.ndarray,int]:
@@ -94,7 +94,7 @@ def vcycle(A: csc_array,b: np.ndarray, x0: np.ndarray,
         initial guess for solution.
     lvl : int
         number of current level (maximum is nlevels-1).
-    prolongators : list
+    interpolators : list
         list of matrices P that interpolate from coarse to fine grid. Must be
         initialized before calling this function.
     smoother : callable
@@ -121,14 +121,14 @@ def vcycle(A: csc_array,b: np.ndarray, x0: np.ndarray,
     r = b - A@x
     # compute coarse grid correction
     if lvl == nlevels-1:
-        xc = spsolve( prolongators[lvl].T@r )
+        xc = spsolve( interpolators[lvl].T@r )
     else:
-        xc,info_vcycle = vcycle(A=A, b=prolongators[lvl].T@r, x0=None,
-                                lvl=lvl+1, prolongators=prolongators,
+        xc,info_vcycle = vcycle(A=A, b=interpolators[lvl].T@r, x0=None,
+                                lvl=lvl+1, interpolators=interpolators,
                                 smoother=smoother, smoother_kws=smoother_kws,
                                 nlevels=nlevels)
     # interpolate
-    x = x + prolongators@xc
+    x = x + interpolators[lvl]@xc
     # post-smooth
     x,info = smoother(A,b,x0=x,**smoother_kws)
     return x,info

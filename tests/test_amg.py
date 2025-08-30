@@ -1,5 +1,5 @@
 from numpy import array
-from numpy.testing import assert_equal
+from numpy.testing import assert_equal,assert_allclose
 from scipy.sparse import csc_array
 
 from topoptlab.amg import rubestueben_coupling
@@ -128,4 +128,38 @@ def test_standard_coarsening(test, sol_mask):
                                                      "c_pos": 0.5})
     #
     assert_equal(sol_mask, mask_coarse)
+    return
+
+from topoptlab.amg import direct_interpolation
+
+@pytest.mark.parametrize('test, solution',
+                         [(array([[1., 0., -0.25, -1., 0.55, 0.1, 0.],
+                                  [0., 1., 0., 0., 0., 0., 0.],
+                                  [-0.25, 0., 1., 0., 0., 0., 0.],
+                                  [-1., 0., 0., 2., -1.2, -0.1, 0.],
+                                  [0.55, 0., 0., -1.2, 5, -2.2, 0.],
+                                  [0.1, 0., 0., -0.1, -2.2, 1.7, 0.], 
+                                  [0., 0., 0., 0., 0., 0., 1.]] ), 
+                          array( [[-1.25, 0.65],
+                                  [0., 0.],
+                                  [1., 0.],
+                                  [0., -1.15],
+                                  [0., 1.],
+                                  [0., -1.35294118],
+                                  [0., 0.]]))])
+
+def test_direct_interpolation(test, solution):
+    
+    
+    #
+    test = csc_array(test)
+    #
+    mask_coarse = standard_coarsening(test,
+                                      coupling_fnc=rubestueben_coupling,
+                                      coupling_kw = {"c_neg": 0.2, 
+                                                     "c_pos": 0.5})
+    #
+    P = direct_interpolation(test, mask_coarse)
+    #
+    assert_allclose(solution, P.toarray())
     return
