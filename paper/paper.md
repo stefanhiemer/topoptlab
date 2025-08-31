@@ -44,13 +44,15 @@ where $k$ is a penalization factor ensuring densities close to 0/1 and $A_0$ the
 
 
 In TO, it has become longstanding practice to demonstrate new methods with short 
-Matlab scripts. While these codes have played an important role in the spread 
+Matlab scripts[@sigmund200199; @andreassen2011efficient; @ferrari2020new; @wang2021comprehensive]. 
+While these codes have played an important role in the spread 
 and development of ideas, they also come with notable limitations: First, Matlab 
 requires a commercial license, and is only partially compatible to its free 
 alternative, Octave. Second, extension and combination of state-of-the-art 
 methods demands puzzling together multiple independent scripts, some of 
 which are outdated or mutually incompatible. Third, while modern finite element 
-frameworks such as **FEniCS**, **deal.II**, and **ElmerFEM** provide powerful 
+frameworks such as **FEniCS**[@alnaes2014unified; @scroggs2022construction; @scroggs2022basix; @baratta2023dolfinx], 
+**deal.II** [@arndt2021deal], and **ElmerFEM**[@malinen2013elmer] provide powerful 
 high-performance environments, their abstraction layers tend to complicate 
 access to low-level implementation details which is necessary for research in 
 TO. Also common use cases in TO allow shortcuts such as regular meshes as 

@@ -1,8 +1,8 @@
 from typing import Callable,Tuple,Union
 
 import numpy as np
-from scipy.sparse import csc_array
-from scipy.sparse.linalg import spsolve,cg, spilu, LinearOperator, factorized
+from scipy.sparse import csc_array, csr_array
+from scipy.sparse.linalg import spsolve,cg, spilu, LinearOperator, factorized, LaplacianNd
 
 from cvxopt import matrix,spmatrix
 from cvxopt.cholmod import solve,symbolic,numeric
@@ -99,3 +99,37 @@ def solve_lin(K: Union[csc_array,spmatrix], rhs: Union[np.ndarray,matrix],
         return sol, None, P
     else:
         raise ValueError("Unknown solver: ",solver)
+
+def laplacian(grid: Tuple) -> Tuple[csr_array,np.ndarray]:
+    """
+    Construct Laplacian on a uniform rectangular grid in N dimensions and the right hand side
+    to the linear problem
+    
+    Lx=b
+    
+    where the first entry of b is 1 and the last is -1.
+    
+    
+    This is purely intended as a short test problem to check whether solvers actually work.
+    
+    Parameters
+    ----------
+    grid : tuple
+        number of grid points in each direction. len(grid) is n.
+
+    Returns
+    -------
+    L : csr_array
+        Laplacian
+    b : callable
+        callable that allows to re-apply the factorization of matrix K to
+        another right hand side.
+    """
+    #
+    L = LaplacianNd(grid_shape=grid,
+                    boundary_conditions = "neumann").tosparse()
+    #
+    b = np.zeros(L.shape[0])
+    b[0] = -1
+    b[-1] = 1
+    return L,b

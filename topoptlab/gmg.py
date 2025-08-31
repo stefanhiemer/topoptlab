@@ -8,13 +8,9 @@ from scipy.sparse import csc_array
 
 def create_gmg(A: csc_array,
                interpol: Callable,
-               strong_coupling: Callable,
-               cf_splitting: Callable,
-               weight_trunctation: Union[Callable,None],
-               symmetric: bool,
                nlevels: int) -> Tuple[np.ndarray,int]:
     """
-    Create a generic geometric multigrid (AMG) solver for the linear problem
+    Create a generic geometric multigrid (GMG) solver for the linear problem
     Ax=b. The key ingredients in are i) coarse/fine splitting ii) interpolation
     method. The first is typically based on some notion of the
     strength/importance of connections between two variables via the matrix
@@ -26,14 +22,6 @@ def create_gmg(A: csc_array,
         system matrix (e. g. stiffness matrix)
     interpol : callable
         interpolation method.
-    strong_coupling : callable
-        method to find strong couplings.
-    cf_splitting : callable
-        method for splitting into fine a coarse variables.
-    weight_trunctation : callable or None
-        .
-    symmetric : bool
-        wether A is symmetric.
     nlevels : int
         number of grid levels.
 

@@ -261,17 +261,17 @@ def direct_interpolation(A: csc_array, mask_coarse: np.ndarray) -> csc_array:
     val = np.append(val, np.ones(nc))
     return csc_array((val, (row, col)), shape=(A.shape[0],nc))
 
-def create_interpolators(A: csc_array,
-                         interpol_fnc: Callable,
-                         interpol_kw: Union[None,Dict],
-                         coupling_fnc: Callable,
-                         coupling_kw: [None,Dict] = {"c_neg": 0.2, 
-                                                     "c_pos": 0.5},
-                         cf_splitting_fnc: Callable = standard_coarsening,
-                         cf_splitting_kw: Union[None,Dict] = None,
-                         wght_trunc_fnc: Union[None,Callable] = None,
-                         wght_trunc_kw: Union[None,Dict] = None,
-                         nlevels: int = 2) -> Tuple[np.ndarray,int]:
+def create_interpolators_amg(A: csc_array,
+                             interpol_fnc: Callable = direct_interpolation,
+                             interpol_kw: Union[None,Dict] = None,
+                             coupling_fnc: Callable = rubestueben_coupling,
+                             coupling_kw: [None,Dict] = {"c_neg": 0.2, 
+                                                         "c_pos": 0.5},
+                             cf_splitting_fnc: Callable = standard_coarsening,
+                             cf_splitting_kw: Union[None,Dict] = None,
+                             wght_trunc_fnc: Union[None,Callable] = None,
+                             wght_trunc_kw: Union[None,Dict] = None,
+                             nlevels: int = 2) -> Tuple[np.ndarray,int]:
     """
     Create a generic algebraic multigrid (AMG) solver for the linear problem
     Ax=b. The key ingredients in are i) coarse/fine splitting ii) interpolation
