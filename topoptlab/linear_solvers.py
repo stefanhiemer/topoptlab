@@ -74,7 +74,7 @@ def smoothed_jacobi(A: csc_array, b: np.ndarray,
                     x0: Union[None,np.ndarray] = None, 
                     omega: float = 0.67, 
                     tol: float = 1e-8, max_iter: int = 1000,
-                    **kwargs: Any):
+                    **kwargs: Any) -> Tuple[np.ndarray,int]:
     """
     Smoothed Jacobi iterative solver for Ax = b.
 

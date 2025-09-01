@@ -17,6 +17,8 @@ def create_edofMat(nelx,nely,nelz,nnode_dof,dtype=np.int32):
         number of elements in z direction.
     nnode_dof : int
         number of node degrees of freedom.    
+    dtype : type
+        data type for edofMat
 
     Returns
     -------

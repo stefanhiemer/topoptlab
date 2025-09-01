@@ -95,7 +95,6 @@ def solve_lin(K: Union[csc_array,spmatrix], rhs: Union[np.ndarray,matrix],
                 if fail != 0:
                     raise RuntimeError("cg iteration did not converge for bc ",
                                        i)
-
         return sol, None, P
     else:
         raise ValueError("Unknown solver: ",solver)
@@ -129,7 +128,9 @@ def laplacian(grid: Tuple) -> Tuple[csr_array,np.ndarray]:
     L = LaplacianNd(grid_shape=grid,
                     boundary_conditions = "neumann").tosparse()
     #
-    b = np.zeros(L.shape[0])
-    b[0] = -1
-    b[-1] = 1
-    return L,b
+    b = np.zeros(L.shape[0]-1)
+    b[1] = -1.
+    b[-1] = 1.
+    #
+    L = L[1:,:][:,1:]
+    return L.astype(np.float64) * (-1), b

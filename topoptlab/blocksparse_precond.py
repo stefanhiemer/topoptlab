@@ -2,10 +2,10 @@ from typing import Any, Callable, List
 
 import numpy as np
 from functools import partial
-from scipy.sparse import csc_array
+from scipy.sparse import sparray
 from scipy.sparse.linalg import LinearOperator
 
-def _apply_blocks(x: np.ndarray, 
+def _apply_blocks(b: np.ndarray, 
                   block_inds: List[np.ndarray], 
                   solvers: List[Callable],
                   **kwargs: Any) -> np.ndarray:
@@ -16,7 +16,7 @@ def _apply_blocks(x: np.ndarray,
 
     Parameters
     ----------
-    x : np.ndarray
+    b : np.ndarray
         initial guess for solution
     block_inds : list
         list containing of indices for each block.
@@ -30,31 +30,29 @@ def _apply_blocks(x: np.ndarray,
 
     """
     #
-    for idx, solve in zip(block_inds, solvers):
-        x[idx] = solve(x[idx])
+    x = np.zeros(b.shape)
+    for idx, solver in zip(block_inds, solvers):
+        x[idx] = solver(b[idx])
     return x
 
-def make_block_preconditioner(A: csc_array,
+def make_block_preconditioner(A: sparray,
                               block_inds: List[np.ndarray],
                               solver_func: Callable,
-                              symmetric: bool = True,
                               **kwargs: Any) -> LinearOperator:
     """
     Create a block preconditioner where the matrix is split into a number of 
     independent blocks which are all solved independently typically via a 
     direct factorization or even an incomplete one. This is often used as 
-    preconditioner for iterative solver like conjugate gradient solvers
+    preconditioner for iterative solver like conjugate gradient solvers.
 
     Parameters
     ----------
-    A : csc_array
+    A : sparray
         matrix to be solved.
     block_inds : List[np.ndarray]
         list containing of indices for each block.
     solver_func : Callable
         function to solve/factorize each block.
-    symmetric : bool
-        assume A to be symmetric
 
     Returns
     -------
@@ -62,14 +60,80 @@ def make_block_preconditioner(A: csc_array,
         blocksparse preconditioner.
 
     """
-    # factorize each block
+    # create solver for each block
     solvers = []
     for k, idx in enumerate(block_inds):
-        solvers.append(solver_func(A[idx, :][:, idx], idx, k))
-    # 
-    matvec = partial(_apply_blocks, 
-                     block_inds=block_inds, solvers=solvers)
+        solvers.append(solver_func(A[idx, :][:, idx]))
+    #
+    if hasattr(solvers[0], "solve") and callable(getattr(solvers[0], "solve")):
+        solvers = [solver.solve for solver in solvers]
     #
     return LinearOperator(A.shape, 
-                          matvec=matvec, 
-                          rmatvec=matvec if symmetric else None, dtype=A.dtype)
+                          matvec=partial(_apply_blocks, 
+                                         block_inds=block_inds, 
+                                         solvers=solvers))
+
+def create_primitive_blocks(A: sparray, 
+                            nblocks: int,
+                            **kwargs) -> List[np.ndarray]:
+    """
+    Create block indices by just splitting the dofs in nblocks even-sized 
+    chunks.
+
+    Parameters
+    ----------
+    A : sparray
+        matrix to be solved.
+    nblocks : int
+        function to solve/factorize each block.
+
+    Returns
+    -------
+    block_inds : List[np.ndarray]
+        list containing of indices for each block.
+
+    """
+    return np.split(np.arange(A.shape[0]), 
+                    np.arange(0, A.shape[0],
+                              np.ceil(A.shape[0]/nblocks).astype(int))[1:])
+
+if __name__ == "__main__":
+    #
+    from scipy.sparse.linalg import splu, spsolve
+    #
+    from topoptlab.solve_linsystem import laplacian
+    #
+    L,b = laplacian( (200,800) )
+    #
+    L = L.tocsc()
+    indices = create_primitive_blocks(A=L, nblocks=3)
+    #
+    P = make_block_preconditioner(A=L,
+                                  block_inds = indices,
+                                  solver_func=splu)
+    #
+    from scipy.sparse.linalg import cg
+    import time
+    #
+    t0 = time.time()
+    #
+    cg(L,b,rtol=1e-7)
+    print(time.time()-t0)
+    #
+    t1 = time.time()
+    #
+    cg(L,b,M=P,rtol=1e-7)#-spsolve(L,b)
+    print(time.time()-t1)
+    # create solver for each block
+    solvers = []
+    for k, idx in enumerate(indices):
+        solvers.append(splu(L[idx, :][:, idx]))
+    #
+    if hasattr(solvers[0], "solve") and callable(getattr(solvers[0], "solve")):
+        solvers = [solver.solve for solver in solvers]
+    #
+    t2 = time.time()
+    #
+    x0 = _apply_blocks(b=b,block_inds=indices,solvers=solvers)
+    cg(L,b,rtol=1e-7,x0=x0)
+    print(time.time()-t2)

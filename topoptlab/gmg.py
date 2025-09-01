@@ -1,12 +1,9 @@
 from typing import Any, Callable, Dict, List, Tuple, Union
 from itertools import chain
 import numpy as np
-from scipy.sparse import csc_array
+from scipy.sparse import sparray, csc_array
 
-
-
-
-def create_gmg(A: csc_array,
+def create_gmg(A: sparray,
                interpol: Callable,
                nlevels: int) -> Tuple[np.ndarray,int]:
     """

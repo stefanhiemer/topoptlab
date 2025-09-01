@@ -1,10 +1,11 @@
 from typing import Any, Callable, Dict, List, Tuple, Union
 from itertools import chain
 import numpy as np
-from scipy.sparse import csc_array
+from scipy.sparse import csc_array, sparray
 
-def rubestueben_coupling(A: csc_array,
-                         c_neg: float = 0.2, c_pos: Union[None,float] = 0.5,
+def rubestueben_coupling(A: sparray,
+                         c_neg: float = 0.2, 
+                         c_pos: Union[None,float] = 0.5,
                          **kwargs: Any
                          ) -> Tuple[np.ndarray,np.ndarray,np.ndarray,
                                     np.ndarray,np.ndarray,np.ndarray]:
@@ -68,6 +69,7 @@ def rubestueben_coupling(A: csc_array,
     # negative element by norm)
     min_row = A.min(axis=1).todense()
     if c_pos:
+        # REFACTOR: this should later be replaced by a more efficient call
         max_row = A.power(2).sqrt().max(axis=1).todense()
     # extract indices and values
     row,col = A.nonzero()
@@ -110,10 +112,10 @@ def rubestueben_coupling(A: csc_array,
     A.setdiag(diagonal)
     return row, col, mask_strong, s, s_t, iso[1:-1]
 
-def standard_coarsening(A: csc_array,
+def standard_coarsening(A: sparray,
                         coupling_fnc: Callable = rubestueben_coupling,
                         coupling_kw: Dict = {"c_neg": 0.2, "c_pos": 0.5},
-                        **kwargs: Any):
+                        **kwargs: Any) -> np.ndarray:
     """
     Standard coarsening according to page 64 and following in 
     
@@ -182,7 +184,7 @@ def standard_coarsening(A: csc_array,
         n_u = n_u - 1 - _s_t.shape[0]
     return mask_coarse
 
-def direct_interpolation(A: csc_array, mask_coarse: np.ndarray) -> csc_array:
+def direct_interpolation(A: sparray, mask_coarse: np.ndarray) -> sparray:
     """
     Implements page 70 of 
     
@@ -198,7 +200,7 @@ def direct_interpolation(A: csc_array, mask_coarse: np.ndarray) -> csc_array:
 
     Returns
     -------
-    prolongator : csc_array
+    prolongator : scipy.sparse.csc_array
         sparse matrix used to interpolate fine scale degrees of freedom. 
         Interpolation is done by P u_c where P is the prolongator matrix of 
         shape (nvars,nc).
@@ -229,10 +231,16 @@ def direct_interpolation(A: csc_array, mask_coarse: np.ndarray) -> csc_array:
     np.add.at(denominator,
               row[mask_neg & mask_coarse[col]], 
               val[mask_neg & mask_coarse[col]])
-    # this is alpha on page 70 
-    print("numerator: ", numerator)
-    print("denominator: ", denominator)
-    neg_scale = numerator / denominator / diagonal
+    # 
+    neg_scale = np.zeros(A.shape[0])
+    neg_scale[mask_fine] = - numerator[mask_fine] / denominator[mask_fine] \
+                           / diagonal[mask_fine]
+    if np.isnan(neg_scale[mask_fine]).any():
+        print("val: ", val)
+        print("diagonal: ",diagonal)
+        print("numerator: ", numerator)
+        print("denominator: ",denominator)
+        raise ValueError()
     #
     if ( mask_coarse[col] & ~mask_neg ).any():
         # erase previous data
@@ -243,7 +251,12 @@ def direct_interpolation(A: csc_array, mask_coarse: np.ndarray) -> csc_array:
         np.add.at(denominator,
                   row[~mask_neg & mask_coarse[col]], 
                   val[~mask_neg & mask_coarse[col]])
-        pos_scale = numerator / denominator / diagonal
+        # 
+        pos_scale = np.zeros(A.shape[0])
+        pos_scale[mask_fine] = -numerator[mask_fine] / denominator[mask_fine] \
+                               / diagonal[mask_fine]
+    else:
+        pos_scale = None
     # filter out columns with fine scale variable
     mask_neg = mask_neg[mask_coarse[col]]
     val = val[mask_coarse[col]]
@@ -251,7 +264,8 @@ def direct_interpolation(A: csc_array, mask_coarse: np.ndarray) -> csc_array:
     col = col[mask_coarse[col]]
     # rescale 
     val[mask_neg] *= neg_scale[row[mask_neg]]
-    val[~mask_neg] *= pos_scale[row[~mask_neg]]
+    if pos_scale is not None:
+        val[~mask_neg] *= pos_scale[row[~mask_neg]]
     # re-index the columns as in the columns fine scale variables do not appear
     _,inv = np.unique(col,return_inverse=True)
     col = np.arange(nc)[inv]
@@ -261,17 +275,19 @@ def direct_interpolation(A: csc_array, mask_coarse: np.ndarray) -> csc_array:
     val = np.append(val, np.ones(nc))
     return csc_array((val, (row, col)), shape=(A.shape[0],nc))
 
-def create_interpolators_amg(A: csc_array,
+def create_interpolators_amg(A: sparray,
                              interpol_fnc: Callable = direct_interpolation,
-                             interpol_kw: Union[None,Dict] = None,
+                             interpol_kw: Dict = {},
                              coupling_fnc: Callable = rubestueben_coupling,
                              coupling_kw: [None,Dict] = {"c_neg": 0.2, 
                                                          "c_pos": 0.5},
                              cf_splitting_fnc: Callable = standard_coarsening,
-                             cf_splitting_kw: Union[None,Dict] = None,
+                             cf_splitting_kw: Dict = {},
                              wght_trunc_fnc: Union[None,Callable] = None,
-                             wght_trunc_kw: Union[None,Dict] = None,
-                             nlevels: int = 2) -> Tuple[np.ndarray,int]:
+                             wght_trunc_kw: Dict = {},
+                             nlevels: int = 2,
+                             _lvl: Union[None,int] = None,
+                             **kwargs: Any) -> List[sparray]:
     """
     Create a generic algebraic multigrid (AMG) solver for the linear problem
     Ax=b. The key ingredients in are i) coarse/fine splitting ii) interpolation
@@ -290,10 +306,10 @@ def create_interpolators_amg(A: csc_array,
         keywords for the interpolation function that ultimately constructs the 
         interpolator.
     coupling_fnc : callable
-        method to find (strong) couplings which are used to find coarse 
+        method to find (strong) couplings which may be used to find coarse 
         variables.
     coupling_kw : callable
-        keywords to find (strong) couplings which are used to find coarse 
+        keywords to find (strong) couplings which may be used to find coarse 
         variables.
     cf_splitting_fnc : callable
         function to find (strong) couplings which are used to find coarse 
@@ -308,18 +324,24 @@ def create_interpolators_amg(A: csc_array,
         keywords to truncate weights from the interpolator constructed from
         the interpolation function.
     nlevels : int
-        number of grid levels.
+        number of grid levels. Smallest number possible is 2 (one coarse and 
+        one fine grid).
+    _lvl : None or int
+        current level. Do not set when calling this function as it is used to 
+        construct the interpolators. 
 
     Returns
     -------
-    interpolators : list of sparse arrays
+    interpolators : list of scipy.sparse.csc_array
         hierarchy of interpolator.
 
     """
     #
     if nlevels < 2:
         raise ValueError("nlevels must be >= 2. nlevels: ",nlevels)
-    # create first interpolator from A
+    # 
+    if _lvl is None:
+        _lvl = 0
     # determine C/F split
     mask_coarse = cf_splitting_fnc(A,
                                    coupling_fnc = coupling_fnc,
@@ -333,50 +355,20 @@ def create_interpolators_amg(A: csc_array,
     if wght_trunc_fnc:
         interpolator = wght_trunc_fnc(A=interpolator,**wght_trunc_kw)
     #
-    interpolators = [interpolator]
-    # create subsequent prolongators by recurrence
-    for level in np.arange(nlevels-2):
-        # determine C/F split
-        mask_coarse = cf_splitting_fnc(A,
-                                       coupling_fnc = coupling_fnc,
-                                       coupling_kw = coupling_kw,
-                                       **cf_splitting_kw)
-        # create interpolatation matrix/array via interpolation function
-        interpolator = interpol_fnc(A=A, 
-                                    mask_coarse=mask_coarse,
-                                    **interpol_kw)
-        # truncate weights
-        if wght_trunc_fnc:
-            interpolator = wght_trunc_fnc(A=interpolator,**wght_trunc_kw)
-        #
-        interpolators.append(interpolator)
-    return interpolators
-
-if __name__ == "__main__":
+    if _lvl == nlevels - 2:
+        return [interpolator]
+    else:
+        interpolators = create_interpolators_amg(
+                                     A = interpolator.T@A@interpolator,
+                                     interpol_fnc=interpol_fnc,
+                                     interpol_kw = interpol_kw,
+                                     coupling_fnc = coupling_fnc,
+                                     coupling_kw = coupling_kw,
+                                     cf_splitting_fnc = cf_splitting_fnc,
+                                     cf_splitting_kw = cf_splitting_kw,
+                                     wght_trunc_fnc = wght_trunc_fnc,
+                                     wght_trunc_kw = wght_trunc_kw,
+                                     nlevels = nlevels,
+                                     _lvl = _lvl+1)
+        return [interpolator] + interpolators
     
-    test = np.array([[1., 0., -0.25, -1., 0.55, 0.1, 0.],
-                     [0., 1., 0., 0., 0., 0., 0.],
-                     [-0.25, 0., 1., 0., 0., 0., 0.],
-                     [-1., 0., 0., 2., -1.2, -0.1, 0.],
-                     [0.55, 0., 0., -1.2, 5, -2.2, 0.],
-                     [0.1, 0., 0., -0.1, -2.2, 1.7, 0.], 
-                     [0., 0., 0., 0., 0., 0., 1.]] )
-    #
-    test = csc_array(test)
-    r,c,mask_strong,s,s_t,iso = rubestueben_coupling(A=test, 
-                                                     c_neg = 0.2, 
-                                                     c_pos = 0.5)
-    print(r,c)
-    print(mask_strong)
-    print("s",s)
-    print("s_t",s_t)
-    
-    mask_coarse = standard_coarsening(test,
-                                      coupling_fnc=rubestueben_coupling,
-                                      coupling_kw = {"c_neg": 0.2, 
-                                                     "c_pos": 0.5})
-    
-    print("mask coarse:", mask_coarse)
-    
-    P = direct_interpolation(test, mask_coarse)
-    print(P.toarray())
