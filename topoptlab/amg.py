@@ -134,7 +134,7 @@ def standard_coarsening(A: sparray,
     Returns
     -------
     mask_coarse : np.ndarray
-        mask for coarse variaables shape (nvars).
+        mask for coarse variables shape (nvars).
     """
     # 
     nvars = A.shape[0]

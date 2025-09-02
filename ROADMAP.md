@@ -2,7 +2,6 @@ features
 
 - [ ] add source for scalar field
 - [ ] get rid of manual determinant calculation in elements with quadrature
-- [ ] do the Kronecker product at end in elements which exist for vector/scalar field
 - [ ] inverse homogenization
 - [ ] stress constraints
 - [ ] isotropic hyperelasticity
@@ -10,7 +9,7 @@ features
 - [ ] multimaterial optimization
 - [ ] anisotropic / orientation variable optimization
 - [ ] anisotropic hyperelasticity
-- [ ] include Globally Convergent Method of Moving symptotes (GCMMA)
+- [ ] include Globally Convergent Method of Moving symptotes (GCMMA) into TO main
 - [ ] geometric multigrid (GMG)
 - [ ] algebraic multigrid (AMG)
 - [ ] optimality criteria with analytical update

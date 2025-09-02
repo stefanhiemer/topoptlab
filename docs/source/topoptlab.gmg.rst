@@ -1,7 +1,7 @@
-topoptlab.fem module
+topoptlab.gmg module
 ====================
 
-.. automodule:: topoptlab.fem
+.. automodule:: topoptlab.gmg
    :members:
    :undoc-members:
    :show-inheritance:
