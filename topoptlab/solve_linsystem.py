@@ -1,7 +1,7 @@
 from typing import Callable,Tuple,Union
 
 import numpy as np
-from scipy.sparse import csc_array, csr_array
+from scipy.sparse import csc_array
 from scipy.sparse.linalg import spsolve,cg, spilu, LinearOperator, factorized, LaplacianNd
 
 from cvxopt import matrix,spmatrix
@@ -99,7 +99,7 @@ def solve_lin(K: Union[csc_array,spmatrix], rhs: Union[np.ndarray,matrix],
     else:
         raise ValueError("Unknown solver: ",solver)
 
-def laplacian(grid: Tuple) -> Tuple[csr_array,np.ndarray]:
+def laplacian(grid: Tuple) -> Tuple[csc_array,np.ndarray]:
     """
     Construct Laplacian on a uniform rectangular grid in N dimensions and the right hand side
     to the linear problem
@@ -118,7 +118,7 @@ def laplacian(grid: Tuple) -> Tuple[csr_array,np.ndarray]:
 
     Returns
     -------
-    L : csr_array
+    L : csc_array
         Laplacian
     b : callable
         callable that allows to re-apply the factorization of matrix K to
@@ -126,7 +126,7 @@ def laplacian(grid: Tuple) -> Tuple[csr_array,np.ndarray]:
     """
     #
     L = LaplacianNd(grid_shape=grid,
-                    boundary_conditions = "neumann").tosparse()
+                    boundary_conditions = "neumann").tosparse().tocsc()
     #
     b = np.zeros(L.shape[0]-1)
     b[1] = -1.

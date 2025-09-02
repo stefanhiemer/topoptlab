@@ -7,14 +7,14 @@ from scipy.sparse.linalg import spsolve, LinearOperator
 
 from topoptlab.linear_solvers import smoothed_jacobi
 
-def apply_multigrid(x0: np.ndarray,
-                    A: sparray, b: np.ndarray, 
-                    interpolators: List,
-                    cycle: Callable, tol: float,
-                    smoother_fnc: Callable,
-                    smoother_kws: Dict,
-                    max_cycles: int,
-                    nlevels: int) -> Tuple[np.ndarray,int]:
+def apply_multigrid(b : np.ndarray, 
+                    A : sparray, x0 : np.ndarray,
+                    interpolators : List,
+                    cycle : Callable, tol: float,
+                    smoother_fnc : Callable,
+                    smoother_kws : Dict,
+                    max_cycles : int = 1,
+                    nlevels : int = 2) -> Tuple[np.ndarray,int]:
     """
     Apply a generic multigrid solver for the linear problem Ax=b. In this
     function we assume that the interpolation from coarse to fine grid
@@ -24,12 +24,13 @@ def apply_multigrid(x0: np.ndarray,
 
     Parameters
     ----------
-    x0 : np.ndarray
-        initial guess for solution.
-    A : scipy.sparse.sparray
-        system matrix (e. g. stiffness matrix)
+    
     b : np.ndarray
         right hand side of full system.
+    A : scipy.sparse.sparray
+        system matrix (e. g. stiffness matrix)
+    x0 : None or np.ndarray
+        initial guess for solution. 
     interpolators : list
         list of matrices P that interpolate from coarse to fine grid. Must be
         initialized before calling this function.
@@ -77,12 +78,12 @@ def apply_multigrid(x0: np.ndarray,
             break
     return x#, i
 
-def vcycle(A: sparray,b: np.ndarray, x0: np.ndarray,
-           lvl: int,
-           interpolators: List,
-           smoother_fnc: Callable,
-           smoother_kws: Dict,
-           nlevels: int) -> Tuple[np.ndarray,int]:
+def vcycle(A : sparray, b : np.ndarray, x0 : np.ndarray,
+           lvl : int,
+           interpolators : List,
+           smoother_fnc : Callable,
+           smoother_kws : Dict,
+           nlevels : int) -> Tuple[np.ndarray,int]:
     """
     Generic, single recursive V-cycle iteration to solve the linear problem
     Ax=b. In the current implementation we assume that the interpolation from
@@ -201,7 +202,7 @@ def multigrid_preconditioner(A: sparray,
     #
     # 
     matvec = partial(apply_multigrid,
-                     A=A, b=b,
+                     A=A, x0=np.zeros(A.shape[0]),
                      interpolators=interpolators,
                      cycle=cycle, 
                      tol=tol,
@@ -213,42 +214,5 @@ def multigrid_preconditioner(A: sparray,
     return LinearOperator(A.shape, 
                           matvec=matvec,
                           dtype=A.dtype)
-
-if __name__ == "__main__":
-    from topoptlab.solve_linsystem import laplacian
-    from topoptlab.amg import create_interpolators_amg
-    #
-    L,b = laplacian( (100,100) )
-    
-    #
-    nlevels = 2
-    interpolators = create_interpolators_amg(A=L,nlevels=nlevels)
-    #
-    x = apply_multigrid(x0 = np.zeros(L.shape[0]) ,
-                        A = L, b = b, 
-                        interpolators= interpolators,
-                        cycle = vcycle, 
-                        tol=1e-8,
-                        smoother_fnc=smoothed_jacobi,
-                        smoother_kws={"max_iter": 1,"omega": 0.6},
-                        max_cycles=100,
-                        nlevels=nlevels)
-    
-    #for interp in interpolators:
-    #    print(interp.todense())
-    print(x-spsolve(L,b))
-    #
-    P = multigrid_preconditioner(A=L, 
-                                 b=b, 
-                                 x0=np.zeros(L.shape[0]),
-                                 create_interpolators=create_interpolators_amg, 
-                                 interpolator_kw={"nlevels": 2},
-                                 smoother_fnc=smoothed_jacobi,
-                                 smoother_kws={"max_iter": 1,"omega": 0.6})
-    #
-    from scipy.sparse.linalg import cg
-    #
-    print(cg(L,b,
-             M=P,rtol=1e-5))
     
     

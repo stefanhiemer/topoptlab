@@ -14,7 +14,7 @@ def test_fdm(tmp_path,example_directory,params):
     #
     test_path = os.path.abspath(os.path.dirname(__file__))
     path = os.path.join(test_path, '..', 
-                        'applications/fdm', 
+                        'examples/fdm', 
                         example_directory)
     applications = sorted([os.path.join(path, f) for f in os.listdir(path) if f.endswith('.py')])
     #
@@ -36,7 +36,7 @@ def test_fem(tmp_path,example_directory,params):
     #
     test_path = os.path.abspath(os.path.dirname(__file__))
     path = os.path.join(test_path, '..', 
-                        'applications/fem', 
+                        'examples/fem', 
                         example_directory)
     applications = sorted([os.path.join(path, f) for f in os.listdir(path) if f.endswith('.py')])
     #
@@ -57,7 +57,7 @@ def test_optimization(tmp_path,example_directory,params):
     #
     test_path = os.path.abspath(os.path.dirname(__file__))
     path = os.path.join(test_path, '..', 
-                        'applications/optimization', 
+                        'examples/optimization', 
                         example_directory)
     applications = sorted([os.path.join(path, f) for f in os.listdir(path) if f.endswith('.py')])
     #
@@ -79,7 +79,7 @@ def test_topology_optimization2d(tmp_path,example_directory,params):
     #
     test_path = os.path.abspath(os.path.dirname(__file__))
     path = os.path.join(test_path, '..', 
-                        'applications/topology_optimization', 
+                        'examples/topology_optimization', 
                         example_directory)
     applications = sorted([os.path.join(path, f) for f in os.listdir(path) if f.endswith('.py')])
     #
@@ -102,7 +102,7 @@ def test_topology_optimization3d(tmp_path,example_directory,params):
     #
     test_path = os.path.abspath(os.path.dirname(__file__))
     path = os.path.join(test_path, '..', 
-                        'applications/topology_optimization', 
+                        'examples/topology_optimization', 
                         example_directory)
     applications = sorted([os.path.join(path, f) for f in os.listdir(path) if f.endswith('.py')])
     #

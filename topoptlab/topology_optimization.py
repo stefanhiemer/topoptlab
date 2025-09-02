@@ -44,7 +44,7 @@ from mmapy import mmasub
 
 # MAIN DRIVER
 def main(nelx: int, nely: int, 
-         volfrac: float, penal: float, rmin: float, ft: int,
+         volfrac: float, penal: float, rmin: float, ft: int = 1,
          simulation_kw: Dict = {"grid": "regular",
                                 "element order": 1,
                                 "meshfile": None},
@@ -61,7 +61,7 @@ def main(nelx: int, nely: int,
          obj_func: Callable = compliance, 
          obj_kw: Dict = {},
          el_flags: Union[None,np.ndarray] = None,
-         optimizer: str = "oc", 
+         optimizer: str = "mma", 
          optimizer_kw: Union[None,Dict] = None,
          mix: Union[None,float] = None,
          accelerator_kw: Dict = {"accel_freq": 4,

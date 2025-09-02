@@ -12,15 +12,30 @@ equivalent Matlab scripts.
 
 Topoptlab can be used either as a black box function that returns an optimal 
 design to you once provided with a set of boundary conditions and parameter or 
-as a general purpose topology optimization and finite element library.
+as a general purpose topology optimization and finite element library. If the 
+boundary conditions are already available, then running an optimization can be 
+quite simple. E. g. if one wants to reproduce the famous MBB beam in 2D it 
+amounts to:
 
+```
+from topoptlab.topology_optimization import main
+from topoptlab.example_bc.lin_elast import mbb_2d
+
+main(nelx=60, nely=20, volfrac=0.5, penal=3.,
+     rmin=2.4, 
+     optimizer="oc",
+     file="mbb_2d",
+     bcs=mbb_2d,
+     display=True,
+     export=True)
+```
 
 # Monolithic codes
 
 In the monolithic_code directory, you can find codes that are self contained 
-and do not use the topoptlab module written here. 
-These codes are purely there to either test new frameworks (e. g. JAX or PETSC)
-or for teaching/demonstration purposes. If you are completely new to topology 
+and do not use the topoptlab module written here. These codes are purely there 
+to either test new frameworks (e. g. JAX or PETSC) or for 
+teaching/demonstration purposes. If you are completely new to topology 
 optimization, this is where you start and I suggest to start with the 
 topopt88.py.
 
@@ -65,9 +80,11 @@ xdg-open build/html/index.html
 
 # Getting report bugs, and suggest enhancements
 
-If you found a bug or you want to suggest a new feature/enhancement, submit it on the [issue tracker](https://github.com/stefanhiemer/topoptlab/).
+If you found a bug or you want to suggest a new feature/enhancement, submit it 
+on the [issue tracker](https://github.com/stefanhiemer/topoptlab/).
 
 # How to contribute
 
-If you want to contribute, fork the repository and open a pull request. However before doing that
-I suggest to contact the maintainers via an enhancement suggestion in the [issue tracker](https://github.com/stefanhiemer/topoptlab/).
+If you want to contribute, fork the repository and open a pull request. 
+However before doing that contact the maintainers via an enhancement suggestion 
+in the [issue tracker](https://github.com/stefanhiemer/topoptlab/).

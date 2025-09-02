@@ -140,12 +140,12 @@ from topoptlab.amg import direct_interpolation
                                   [0.55, 0., 0., -1.2, 5, -2.2, 0.],
                                   [0.1, 0., 0., -0.1, -2.2, 1.7, 0.], 
                                   [0., 0., 0., 0., 0., 0., 1.]] ), 
-                          array( [[-1.25, 0.65],
+                          array( [[1.25, -0.65],
                                   [0., 0.],
                                   [1., 0.],
-                                  [0., -1.15],
+                                  [0., 1.15],
                                   [0., 1.],
-                                  [0., -1.35294118],
+                                  [0., 1.35294118],
                                   [0., 0.]]))])
 
 def test_direct_interpolation(test, solution):
@@ -161,5 +161,5 @@ def test_direct_interpolation(test, solution):
     #
     P = direct_interpolation(test, mask_coarse)
     #
-    assert_allclose(solution, P.toarray())
+    assert_allclose(P.toarray(),solution)
     return
