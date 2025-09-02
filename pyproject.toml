@@ -24,9 +24,7 @@ dependencies = ["numpy",
                 "gmsh",
                 "mmapy",
                 "meshio",
-                "symfem",
-                "coverage",
-                "scikit-image"]
+                "symfem"]
 
 [project.optional-dependencies]
 tests = ['pytest']
