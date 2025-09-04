@@ -20,11 +20,3 @@ to update the design. We recover them via the chain rule
 ```{math}
 \frac{\partial C}{\partial x} = \frac{\partial C}{\partial x_p} \frac{\partial x_p}{\partial x_{n-1}}...\frac{\partial x_{1}}{\partial x}
 ```
-Therefor the general implementation for a sequence of $n$ filters in pseudo Python code is
-```
-# calculate sensitivities with respect to physical densities 
-dobj = solve_adjoint_prob_obj(state_variables)
-dconstrs = solve_adjoint_prob_constraints(state_variables)
-# apply chain rule for design variable sensitivities
-   
-```

@@ -23,7 +23,8 @@ extensions = ['myst_parser',
               'sphinx.ext.autodoc',
               'sphinx.ext.napoleon',
               'sphinx.ext.mathjax',
-              'sphinx.ext.viewcode',]
+              'sphinx.ext.viewcode',
+              'sphinxcontrib.bibtex']
 myst_enable_extensions = [
     "colon_fence",
     "dollarmath",
@@ -31,8 +32,11 @@ myst_enable_extensions = [
     "linkify",
     "attrs_inline"]
 
+#
 templates_path = ['_templates']
 
+# bib tex sources
+bibtex_bibfiles = ["references.bib"]
 
 
 
