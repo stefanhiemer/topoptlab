@@ -16,5 +16,5 @@ documentation for details.
    :caption: Contents:
    
    getting_started
-   intro_to
+   introduction
    topoptlab

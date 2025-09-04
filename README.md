@@ -88,3 +88,19 @@ on the [issue tracker](https://github.com/stefanhiemer/topoptlab/).
 If you want to contribute, fork the repository and open a pull request. 
 However before doing that contact the maintainers via an enhancement suggestion 
 in the [issue tracker](https://github.com/stefanhiemer/topoptlab/).
+
+# Acknowledgments
+
+We acknowledge the support by the Humboldt foundation through the Feodor-Lynen 
+fellowship. We acknowledge partial support from the ARCHIBIOFOAM project which 
+received funding from the European Union’s Horizon Europe research and 
+innovation programme under grant agreement No 101161052. Views and opinions 
+expressed are however those of the author(s) only and do not necessarily 
+reflect those of the European Union or European Innovation Council and SMEs 
+Executive Agency (EISMEA). Neither the European Union nor the granting 
+authority can be held responsible for them.
+
+Special thanks are extended to Christof Schulze for his valuable suggestions on 
+code improvements, to Stefano Zapperi for hosting at the University of Milan 
+and for his continuous support, and to Peter Råback for sharing his vast 
+knowledge on FEM related implementation details.

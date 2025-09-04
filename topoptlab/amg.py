@@ -235,12 +235,12 @@ def direct_interpolation(A: sparray, mask_coarse: np.ndarray) -> sparray:
     neg_scale = np.zeros(A.shape[0])
     neg_scale[mask_fine] = - numerator[mask_fine] / denominator[mask_fine] \
                            / diagonal[mask_fine]
-    if np.isnan(neg_scale[mask_fine]).any():
-        print("val: ", val)
-        print("diagonal: ",diagonal)
-        print("numerator: ", numerator)
-        print("denominator: ",denominator)
-        raise ValueError()
+    #if np.isnan(neg_scale[mask_fine]).any():
+    #    print("val: ", val)
+    #    print("diagonal: ",diagonal)
+    #    print("numerator: ", numerator)
+    #    print("denominator: ",denominator)
+    #    raise ValueError()
     #
     if ( mask_coarse[col] & ~mask_neg ).any():
         # erase previous data

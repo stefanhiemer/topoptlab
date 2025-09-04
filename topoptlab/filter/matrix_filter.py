@@ -1,12 +1,99 @@
-from typing import Union,Any,Tuple
+from typing import Any,Tuple,Union
 
 import numpy as np
 from scipy.sparse import coo_matrix,csc_matrix
 
+from topoptlab.filter.filter import TOFilter
+
+class MatrixFilter(TOFilter):
+    """
+    Implementation here is based on the implementation in 
+    
+    Andreassen, Erik, et al. "Efficient topology optimization in MATLAB using 
+    88 lines of code." Structural and Multidisciplinary Optimization 43.1 
+    (2011): 1-16.
+    
+    but extended to 3D.
+    """
+    
+    def __init__(self,
+                 nelx: int, 
+                 nely: int, 
+                 rmin: float,
+                 nelz: Union[int, None] = None, 
+                 **kwargs: Any) -> None:
+        """
+        Assemble matrix-based filter from "Efficient topology optimization in 
+        MATLAB using 88 lines of code".
+        
+        Parameters
+        ----------
+        nelx : int
+            number of elements in x direction.
+        nely : int
+            number of elements in y direction.
+        rmin : float
+            cutoff radius for the filter.
+        nelz : int or None
+            number of elements in z direction.
+        
+        Returns
+        -------
+        None
+
+        """
+        self.H, self.Hs = assemble_matrix_filter(nelx=nelx, 
+                                                 nely=nely, 
+                                                 nelz=nelz,
+                                                 rmin=rmin)
+        
+    def apply_filter(self, x: np.ndarray) -> np.ndarray:
+        """
+        Apply filter to the (intermediate) design variables x:
+            
+            x_filtered = np.asarray(H*(dobj/Hs))
+        
+        Parameters
+        ----------
+        x : np.ndarray
+            (intermediate) design variables.
+
+        Returns
+        -------
+        x_filtered : np.ndarray
+            filtered design variables.
+
+        """
+        return np.asarray(self.H*(x/self.Hs))
+        
+    def apply_filter_dx(self, dx_filtered: np.ndarray) -> np.ndarray:
+        """
+        Apply filter to the sensitivities with respect to filtered variables 
+        x_filtered using the chain rule assuming
+        
+        x_filtered = filter(x)
+        
+        to get the sensitivities with respect to the (unfiltered) design 
+        variables or in the case of many filters intermediate design variables:
+            
+            dx = H@dx_filtered / Hs
+        
+        Parameters
+        ----------
+        x_filtered : np.ndarray
+            filtered design variables.
+        dx_filtered : np.ndarray
+            sensitivities with respect to filtered design variables.
+            
+        Returns
+        -------
+        dx : np.ndarray
+            design sensitivities with respect to un-filtered design variables.
+        """
+        return np.asarray(self.H*(dx_filtered/self.Hs))
 
 def assemble_matrix_filter(nelx: int, nely: int, rmin: float,
                            nelz: Union[int, None] = None,
-                           ndim: int = 2,
                            **kwargs: Any) -> Tuple[csc_matrix,np.matrix]:
     """
     Assemble distance based filters as sparse matrix that is applied on to
@@ -22,9 +109,7 @@ def assemble_matrix_filter(nelx: int, nely: int, rmin: float,
         cutoff radius for the filter. Only elements within the element-center
         to element center distance are used for filtering.
     nelz : int or None
-        number of elements in z direction. Ignored if ndim < 3.
-    ndim : int
-        number of dimensions
+        number of elements in z direction.
 
     Returns
     -------
@@ -34,10 +119,12 @@ def assemble_matrix_filter(nelx: int, nely: int, rmin: float,
         normalization factor.
 
     """
-    # number of elements/densities
-    if ndim == 2:
+    # number of elements/design variables
+    if nelz is None:
+        ndim = 2
         n = nelx*nely
-    elif ndim == 3:
+    else:
+        ndim = 3
         n = nelx*nely*nelz
     # index array of densities/elements
     el = np.arange(n)

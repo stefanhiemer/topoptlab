@@ -1,6 +1,3 @@
-```rst
-.. _getting-started:
-
 Getting Started
 ===============
 

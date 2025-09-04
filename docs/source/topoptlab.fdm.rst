@@ -3,5 +3,5 @@ topoptlab.fdm module
 
 .. automodule:: topoptlab.fdm
    :members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:
