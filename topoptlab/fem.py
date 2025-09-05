@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 from typing import Callable,List,Tuple,Union
 
 from itertools import product
@@ -8,6 +9,72 @@ from scipy.sparse import coo_array,csc_array
 from cvxopt import spmatrix
 
 from topoptlab.elements.bilinear_quadrilateral import shape_functions
+
+class FEM_Phys(ABC):
+    """
+    Base class for different.
+    """
+    
+    @abstractmethod
+    def __init__(self) -> None:
+        """
+        Initialize the FEM problem.
+        
+        Returns
+        -------
+        None
+
+        """
+        ...
+        
+    @abstractmethod 
+    def assemble_system():
+        """
+        Assemble linear system for the global matrix.
+        
+        Returns
+        -------
+        None
+        
+        """
+        ...
+    
+    @abstractmethod
+    def bc():
+        """
+        Apply boundary conditions to linear system.
+        
+        Returns
+        -------
+        None
+        
+        """
+        ...
+    
+    @abstractmethod
+    def coupling(self):
+        ...
+    
+    @abstractmethod
+    def to_interpolation(self):
+        ...
+        
+    @abstractmethod
+    def linsolve(self):
+        ...
+    
+    @abstractmethod
+    def nonlin_solve(self):
+        ...
+    
+    @abstractmethod
+    def solve(self):
+        ...
+    
+    @abstractmethod
+    def sources(self):
+        ...
+    
 
 def assemble_matrix(sK: np.ndarray, iK: np.ndarray, jK: np.ndarray,
                     ndof: int, solver: str, springs: Union[None,List]
