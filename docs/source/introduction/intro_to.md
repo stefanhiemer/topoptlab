@@ -1,3 +1,4 @@
+(intro-TO)=
 # Introduction to Topology Optimization
 In this article we introduce the basic concepts behind topology optimization (TO). We will implicitly assume that the finite element method (FEM) is the underlying discretization technique, but TO is a general technique that is not  tied to any specific numerical technique. Loosely speaking in TO we set out to  find the optimal design parameters $\boldsymbol{x}$ for a given objective function $C(\boldsymbol{x})$, a set of equality as well as inequality  constraints on the design  $\boldsymbol{g}(\boldsymbol{x}),\boldsymbol{h}(\boldsymbol{x})$ and a set of discretized physical problems $\boldsymbol{K}(\boldsymbol{x}) \boldsymbol{u} = \boldsymbol{f}$ with associated boundary conditions:
 ```{math}
@@ -50,9 +51,9 @@ designs of discrete densities 0/1. If volume constraints have been applied, the
 thresholding must obviously take the constraint into account.
 
 We now proceed naively and try to find the classical result for the stiffness 
-maximization of the MBB beam: we calculate the gradients (in TO called 
+maximization of the MBB beam: we calculate the gradients (in TO typically called 
 sensitivities) necessary for the optimization $\nabla_{\boldsymbol{x}} C = 0$ 
-via adjoint analysis and use a constrained optimizer (e. g. MMA) which yields a 
+via adjoint analysis ({ref}`adjoint-analysis`) and use a constrained optimizer (e. g. MMA) which yields a 
 strange design with artifacts commonly known as checkerboard patterns. 
 
 ![checkerboard patterns in a 60x20 MBB beam](/_static/mbb_60x20_24_checkerboard.png)
@@ -80,13 +81,13 @@ function) and $\Omega$ the optimization domain. At this point we have to clearly
 distinguish between the design variables $\boldsymbol{x}$ and the filtered 
 variables $x_p$: $x_p$ are used in the material interpolation and thus are called
 "physical" densities as they directly manipulate the physical properties while 
-$\boldsymbol{x}$ describe the design. If we want to update the design, but 
-unfortunately adjoint analysis only returns $\frac{\partial C}{\partial \boldsymbol{x}}$ 
-In many cases, simple smoothing is not enough to get 
-rid of numerical artifacts and different filters or combinations thereof must 
-be used. Filtering can be also used to create near black and white design via
-smooth Haeviside filters or to guarantee a manufactureable design. With this in 
-mind, the preliminary TO workflow in pseudo Python code is:
+$\boldsymbol{x}$ describe the design. To update the design $\boldsymbol{x}$
+has to be changed, but adjoint analysis yields only $\frac{\partial C}{\partial x_{p}}$,
+so the chain rule has to be used to recover $\frac{\partial C}{\partial x}$:
+```{math}
+\frac{\partial C}{\partial x} = \frac{\partial C}{\partial x_{p}} \frac{\partial x_{p}}{\partial x}  
+```
+By now, a first preliminary TO workflow in pseudo Python code can be stated:
 ```
 # initialize design and simulation settings
 x = initialize_designdensities()
@@ -103,26 +104,41 @@ for i in range(max_designiterations):
     # solve phys. problem (here FEM)
     state_variables = solve_FE(props_scaled)
 
-    # calculate sensitivities with respect to 
+    # calculate sensitivities with respect to physical densities 
     dobj = solve_adjoint_prob_obj(state_variables)
     dconstrs = solve_adjoint_prob_constraints(state_variables)
 
-    # 
+    # recover sensitivities with respect to design variables
     dobj = filters_dx(dobj)
     dconstrs = filters_dx(dconstrs)
+    
     # apply optimzer to update design variables
     x = constrained_optimizer(x, dobj, dconstrs)
+    
     # filter design variables
     x_filtered = filters(x)
+    
     # check convergence criteria
     check_convergence()
+#
+export_final_design()
 ```
+A few closing remarks: i) in many cases, simple smoothing is not enough to get 
+rid of numerical artifacts and different filters or combinations thereof must 
+be used. Among many other things, filtering can be used to create near black 
+and white design via smooth Haeviside filters or to guarantee a manufactureable 
+design. ii) so far, only density-based TO with the modified SIMP interpolation 
+has been presented. Other interpolation schemes exist like RAMP and especially 
+for multimaterial oprimization are required. iii) besides TO, sizing 
+and shape optimization
 
-For further reading regarding TO I recommend a couple of texts: 
+For further reading regarding TO, the following references are recommended: 
 
 - review article from 2013 {cite}`sigmund2013topology`: one of the first places to start if one is new to the topic
 
-- the standard textbook by Sigmund and Bendsoe{cite}`bendsoe2003topology`: still the gold standard in my opinion, but in my opinion sometimes expects a lot of preliminary knowledge about finite elements and optimization 
+- an educational article with associated Matlab code {cite}`andreassen2011efficient`: read the paper and compare with the "translation" to Python in the monolithic_codes directory
+
+- the standard textbook by Sigmund and Bendsoe{cite}`bendsoe2003topology`: still the gold standard in my opinion, but sometimes expects considerable knowledge about finite elements and optimization. Preferably read the two previous articles before starting this book. 
 
 - more recent overview with special focus on TO for manufactureable designs {cite}`bayat2023holistic`: the first third is one of the most complete overview of TO in recent years, the latter two thirds do not deal with TO 
 
