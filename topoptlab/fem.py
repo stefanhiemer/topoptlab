@@ -28,7 +28,7 @@ class FEM_Phys(ABC):
         ...
         
     @abstractmethod 
-    def assemble_system():
+    def assemble_system(self):
         """
         Assemble linear system for the global matrix.
         
@@ -40,7 +40,7 @@ class FEM_Phys(ABC):
         ...
     
     @abstractmethod
-    def bc():
+    def bc(self):
         """
         Apply boundary conditions to linear system.
         
@@ -53,26 +53,74 @@ class FEM_Phys(ABC):
     
     @abstractmethod
     def coupling(self):
+        """
+        Apply boundary conditions to linear system.
+        
+        Returns
+        -------
+        None
+        
+        """
         ...
     
     @abstractmethod
     def to_interpolation(self):
+        """
+        Problem specific interpolation.
+        
+        Returns
+        -------
+        None
+        
+        """
         ...
         
     @abstractmethod
-    def linsolve(self):
+    def _linsolve(self):
+        """
+        Solve linear system.
+        
+        Returns
+        -------
+        None
+        
+        """
         ...
     
     @abstractmethod
-    def nonlin_solve(self):
+    def _nonlin_solve(self):
+        """
+        Solve nonlinear problem.
+        
+        Returns
+        -------
+        None
+        
+        """
         ...
     
     @abstractmethod
     def solve(self):
+        """
+        Solve generic problem.
+        
+        Returns
+        -------
+        None
+        
+        """
         ...
     
     @abstractmethod
     def sources(self):
+        """
+        Create physics problem specific sources (e. g. strain, gravity).
+        
+        Returns
+        -------
+        None
+        
+        """
         ...
     
 

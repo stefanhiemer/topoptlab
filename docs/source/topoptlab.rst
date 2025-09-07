@@ -35,5 +35,5 @@ Module contents
 
 .. automodule:: topoptlab
    :members:
-   :show-inheritance:
    :undoc-members:
+   :show-inheritance:

@@ -39,7 +39,7 @@ def create_interpolator(nelx: int, nely: int,nelz: Union[None,int] = None,
     else:
         n = (ndof, nelx+1, nely+1, nelz+1)
     n_dofs = np.prod(n)
-    n_nds = np.prod( n[1:] )
+    n_nds = np.prod(n[1:])
     # get shape functions
     if shape_fncts is None and nelz is None:
         from topoptlab.elements.bilinear_quadrilateral import shape_functions
@@ -49,9 +49,13 @@ def create_interpolator(nelx: int, nely: int,nelz: Union[None,int] = None,
         shape_fncts = shape_functions
     # 
     nd_id = np.repeat(np.arange( n_nds ),ndof)
-    # find coordinates of each node
     if nelz is None:
-        x,y = np.divmod(nd_id,nely+1) 
+        # find coordinates of each node
+        x,y = np.divmod(nd_id,nely+1)
+        # find column indices
+        n2 = ((y-y%stride) + (x-x%stride)*(nely+1))*ndof + np.arange(n_dofs)%ndof
+        n1 = n2 + ndof*(nely+1)*stride
+        
     else:
         z,rest = np.divmod(nd_id,(nelx+1)*(nely+1))
         x,y = np.divmod(rest,(nely+1))
