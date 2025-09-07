@@ -32,7 +32,39 @@ def create_gmg(A: sparray,
 
 def create_interpolator(nelx: int, nely: int,nelz: Union[None,int] = None,
                         ndof: int = 1, stride: int = 2,
-                        shape_fncts: Union[None,Callable] = None) -> csc_array:
+                        shape_fncts: Union[None,Callable] = None) -> sparray:
+    """
+    Construct the interpolation (prolongation) operator for geometric
+    multigrid (GMG).
+    
+    The interpolation maps values from coarse grid nodes to fine grid nodes
+    using shape functions. The stride determines the spacing between coarse
+    grid nodes in each coordinate direction. For example, a stride of 2 means
+    that every second fine grid node is designated as a coarse grid node.
+    
+    Parameters
+    ----------
+    nelx : int
+        Number of elements in the x direction.
+    nely : int
+        Number of elements in the y direction.
+    nelz : int
+        Number of elements in the z direction (for 3D problems).
+    ndof : int
+        Number of degrees of freedom per node. 
+    stride : int
+        Coarsening factor in each coordinate direction. Defines the "stride"
+        between coarse grid nodes.
+    shape_fncts : callable
+        Shape function evaluator. If None, bilinear quadrilateral (2D) or
+        trilinear hexahedron (3D) shape functions are used.
+    
+    Returns
+    -------
+    interpolator : scipy.sparse.sp_array
+        Interpolation operator mapping coarse grid values to fine grid values.
+    """
+
     # number of dofs
     if nelz is None:
         n = (ndof, nelx+1, nely+1)
@@ -72,8 +104,31 @@ def create_interpolator(nelx: int, nely: int,nelz: Union[None,int] = None,
     
     return
 
-def create_coarse_inds(nelx: int, nely: int,nelz: Union[None,int] = None,
+def create_coarse_inds(nelx: int, nely: int, nelz: Union[None,int] = None,
                        ndof: int = 1, stride: int = 2) -> np.ndarray:
+    """
+    Create degree of freedom indices for coarse degrees of freedom for a 
+    geometric multigrid (GMG) solver.
+
+    Parameters
+    ----------
+    nelx : int
+        number of elements in x direction.
+    nelx : int
+        number of elements in y direction.
+    nelx : int
+        number of elements in z direction.
+    ndof : int 
+        number of nodal degrees of freedom.
+    stride : int
+        Coarsening factor in each coordinate direction.
+
+    Returns
+    -------
+    indices : sparse arrays
+        degree of freedom indices of coarse dofs.
+
+    """
     
     #
     if nelz is None:
@@ -90,7 +145,29 @@ def create_coarse_inds(nelx: int, nely: int,nelz: Union[None,int] = None,
 
 def create_coarse_mask(nelx: int, nely: int,nelz: Union[None,int] = None,
                        ndof: int = 1, stride: int = 2) -> np.ndarray:
-    
+    """
+    Create a boolean mask identifying the coarse-grid degrees of freedom for a 
+    geometric multigrid (GMG) solver.
+
+    Parameters
+    ----------
+    nelx : int
+        number of elements in x direction.
+    nelx : int
+        number of elements in y direction.
+    nelx : int
+        number of elements in z direction.
+    ndof : int 
+        number of nodal degrees of freedom.
+    stride : int
+        Coarsening factor in each coordinate direction.
+
+    Returns
+    -------
+    mask : np.ndarray
+        mask for degree of freedom indices of coarse dofs.
+
+    """
     if nelz is None:
         n = np.prod( (ndof,nelx+1,nely+1))
     else:

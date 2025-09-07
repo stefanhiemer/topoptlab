@@ -103,11 +103,22 @@ for i in range(max_designiterations):
 
     # solve phys. problem (here FEM)
     state_variables = solve_FE(props_scaled)
-
+    
+    # compute objective function and return right hand side of adjoint problem
+    obj,adj_problem_rhs = compute_obj(state_variables,x,x_filtered,...)
+    
+    
     # calculate sensitivities with respect to physical densities 
-    dobj = solve_adjoint_prob_obj(state_variables)
-    dconstrs = solve_adjoint_prob_constraints(state_variables)
-
+    dobj = solve_adjoint_prob_obj(state_variables,adj_problem_rhs)
+    
+    # repeat the same for constraints
+    constrs = np.zeros(number_of_constraints)
+    constrs = np.zeros((x_filtered.shape[0],number_of_constraints))
+    i = 0
+    for constraint in constraints:
+        constr[i],adj_problem_rhs = constraint(state_variables,x,x_filtered,...)
+        dconstrs[:,i] = solve_adjoint_prob_constraints(state_variables,adj_problem_rhs)
+    
     # recover sensitivities with respect to design variables
     dobj = filters_dx(dobj)
     dconstrs = filters_dx(dconstrs)
@@ -119,7 +130,9 @@ for i in range(max_designiterations):
     x_filtered = filters(x)
     
     # check convergence criteria
-    check_convergence()
+    check = check_convergence()
+    if check:
+       break
 #
 export_final_design()
 ```
