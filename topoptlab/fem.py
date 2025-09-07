@@ -102,7 +102,8 @@ class FEM_Phys(ABC):
     @abstractmethod
     def solve(self):
         """
-        Solve generic problem.
+        Solve generic problem. This calls _solve or _nonlinsolve depending on 
+        the function arguments.
         
         Returns
         -------
@@ -110,6 +111,17 @@ class FEM_Phys(ABC):
         
         """
         ...
+    
+    @abstractmethod    
+    def time_evolve(self):
+        """
+        Make a single timestep.
+        
+        Returns
+        -------
+        None
+        
+        """
     
     @abstractmethod
     def sources(self):
