@@ -53,7 +53,7 @@ def create_interpolator(nelx: int, nely: int,nelz: Union[None,int] = None,
     ndof : int
         Number of degrees of freedom per node. 
     stride : int
-        Coarsening factor in each coordinate direction. Defines the "stride"
+        coarsening factor in each coordinate direction. Defines the "stride"
         between coarse grid nodes.
     shape_fncts : callable
         Shape function evaluator. If None, bilinear quadrilateral (2D) or
@@ -68,8 +68,10 @@ def create_interpolator(nelx: int, nely: int,nelz: Union[None,int] = None,
     # number of dofs
     if nelz is None:
         n = (ndof, nelx+1, nely+1)
+        ndim=2
     else:
         n = (ndof, nelx+1, nely+1, nelz+1)
+        ndim=3
     n_dofs = np.prod(n)
     n_nds = np.prod(n[1:])
     # get shape functions
@@ -79,6 +81,11 @@ def create_interpolator(nelx: int, nely: int,nelz: Union[None,int] = None,
     elif shape_fncts is None and nelz is not None:
         from topoptlab.elements.trilinear_hexahedron import shape_functions
         shape_fncts = shape_functions
+    #
+    dofs = np.arange(n_dofs)
+    n1 = dofs.reshape( ((nely+1)*ndof,nelx+1),order="F" )
+    print(n1)
+    row = np.repeat(dofs,2**ndim)
     # 
     nd_id = np.repeat(np.arange( n_nds ),ndof)
     if nelz is None:
@@ -121,7 +128,7 @@ def create_coarse_inds(nelx: int, nely: int, nelz: Union[None,int] = None,
     ndof : int 
         number of nodal degrees of freedom.
     stride : int
-        Coarsening factor in each coordinate direction.
+        coarsening factor in each coordinate direction.
 
     Returns
     -------
@@ -160,7 +167,7 @@ def create_coarse_mask(nelx: int, nely: int,nelz: Union[None,int] = None,
     ndof : int 
         number of nodal degrees of freedom.
     stride : int
-        Coarsening factor in each coordinate direction.
+        coarsening factor in each coordinate direction.
 
     Returns
     -------
@@ -177,3 +184,35 @@ def create_coarse_mask(nelx: int, nely: int,nelz: Union[None,int] = None,
     mask = np.zeros( n, dtype=bool )
     mask[inds] = True
     return mask
+
+def check_stride(nelx: int, nely: int, nelz: Union[None,int],
+                 stride: int) -> None:
+    """
+    .
+
+    Parameters
+    ----------
+    nelx : int
+        number of elements in x direction.
+    nelx : int
+        number of elements in y direction.
+    nelx : int
+        number of elements in z direction.
+    stride : int
+        coarsening factor in each coordinate direction.
+
+    Returns
+    -------
+    None
+
+    """
+    
+    if nelx%stride!=0 | nely%stride!=0 & nelz is None:
+        raise ValueError("stride incompatible with lattice dimensions.")
+    elif nelx%stride!=0 | nely%stride!=0 | nelz!=0:
+        raise ValueError("stride incompatible with lattice dimensions.")
+    return
+
+if __name__ == "__main__":
+    create_interpolator(nelx=5, nely=5, ndof=1)
+    pass

@@ -299,7 +299,7 @@ def interpolate(ue: np.ndarray, xi: np.ndarray, eta: np.ndarray,
     eta : np.ndarray
         y coordinate of shape (ncoords). Coordinates are assumed to be
         in the reference domain.
-    zeta : np.ndarray
+    zeta : np.ndarray or None
         z coordinate of shape (ncoords). Coordinates are assumed to be
         in the reference domain.
     shape_functions : callable
@@ -311,10 +311,7 @@ def interpolate(ue: np.ndarray, xi: np.ndarray, eta: np.ndarray,
 
     """
     # interpolate
-    if zeta is None:
-        interpolation = shape_functions(xi,eta)
-    else:
-        interpolation = shape_functions(xi,eta,zeta)
+    interpolation = shape_functions(xi=xi,eta=eta,zeta=zeta)
     # get parameters for reshaping to desired end shape
     nshapef = interpolation.shape[1]
     nnodedof = int(ue.shape[1]/nshapef)
