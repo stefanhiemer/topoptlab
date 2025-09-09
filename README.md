@@ -40,11 +40,17 @@ optimization, this is where you start and I suggest to start with the
 topopt88.py.
 
 # Installation
+## Installation with pip from PyPI
 Basic installation, bulding documentation and run tests by executing
 ```
 pip install topoptlab[tests,docs]
 ```
-Otherwise just clone the repository and execute
+## Installation with pip from the Github Repository
+Clone the repository 
+```
+git clone https://github.com/stefanhiemer/topoptlab
+```
+and execute
 ```
 pip install .[tests,docs]
 ```
