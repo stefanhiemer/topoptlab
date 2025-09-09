@@ -11,8 +11,6 @@ from scipy.ndimage import convolve
 from matplotlib.colors import Normalize
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-#
-from skimage.measure import marching_cubes
 # functions to create filters
 from topoptlab.filter.convolution_filter import assemble_convolution_filter
 from topoptlab.filter.helmholtz_filter import assemble_helmholtz_filter

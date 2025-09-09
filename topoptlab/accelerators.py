@@ -83,7 +83,7 @@ def diis(x: np.ndarray, xhist: List,
     """
     Direct inversion in the iterative subspace (DIIS) or also known as Pulay 
     mixing for convergence acceleration. Two use cases have to be 
-    distinguished: i) a residual is avaliable (e. g. we try to solve a linear 
+    distinguished: i) a residual is available (e. g. we try to solve a linear 
     system iteratively r = b - A@x) ii) no residual is available meaning we 
     perform a recursion (e. g. optimization or a fixed point iteration). 
     

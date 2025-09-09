@@ -40,14 +40,18 @@ optimization, this is where you start and I suggest to start with the
 topopt88.py.
 
 # Installation
-Basic installation and run tests by executing
+Basic installation, bulding documentation and run tests by executing
 ```
-pip install .[tests]
+pip install topoptlab[tests,docs]
+```
+Otherwise just clone the repository and execute
+```
+pip install .[tests,docs]
 ```
 in top directory. Editable installation (recommended if you want to edit 
 something in the code) 
 ```
-pip install -e .[tests]
+pip install -e .[tests,docs]
 ```
 
 # Run tests
@@ -58,6 +62,29 @@ pytest
 Run slow tests (take a few minutes)
 ```
 pytest -m slow
+```
+
+## Build package and release on PyPI (only for maintainers and developers)
+
+Make sure the necessary packages have been installed
+```
+pip install -e .[pypi]
+```
+Build the package
+```
+python build
+```
+and release via twine
+```
+python -m twine upload --repository testpypi dist/*
+```
+For testing reasons it may be smarter to first release on TestPyPI 
+```
+python -m twine upload --repository testpypi dist/*
+```
+install the package via 
+```
+pip install   --index-url https://test.pypi.org/simple/   --extra-index-url https://pypi.org/simple \ topoptlab
 ```
 
 # Roadmap

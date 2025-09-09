@@ -11,8 +11,7 @@ authors = [
 ]
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
-    "Programming Language :: Python",
-    "Private :: Do Not Upload",
+    "Programming Language :: Python"
 ]
 
 requires-python = ">=3.12.4"
@@ -31,12 +30,14 @@ tests = ['pytest']
 docs = [
     "sphinx>=7.0",
     "sphinx-rtd-theme>=1.3",
-    "myst-parser>=2.0",            # Optional, only if you're using Markdown
-    "sphinx-autodoc-typehints",   # Optional: better type hint rendering
+    "myst-parser>=2.0",            # for Markdown files
+    "sphinx-autodoc-typehints",   # better type hint rendering
+    "sphinxcontrib.bibtex",        # citations
+    "linkify-it-py"
 ]
+pypi = ["build","twine"]
 
 [tool.pytest.ini_options]
 addopts = "-v -m 'not slow'"
 testpaths = ["tests"]
-markers = [
-    "slow: marks tests as slow (deselect with '-m \"not slow\"')"]
+markers = ["slow: marks tests as slow (deselect with '-m \"not slow\"')"]

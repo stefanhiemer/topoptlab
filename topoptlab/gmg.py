@@ -154,9 +154,9 @@ def create_coarse_inds(nelx: int, nely: int, nelz: Union[None,int] = None,
     ----------
     nelx : int
         number of elements in x direction.
-    nelx : int
+    nely : int
         number of elements in y direction.
-    nelx : int
+    nelz : int
         number of elements in z direction.
     ndof : int 
         number of nodal degrees of freedom.
@@ -197,9 +197,9 @@ def create_coarse_mask(nelx: int, nely: int,nelz: Union[None,int] = None,
     ----------
     nelx : int
         number of elements in x direction.
-    nelx : int
+    nely : int
         number of elements in y direction.
-    nelx : int
+    nelz : int
         number of elements in z direction.
     ndof : int 
         number of nodal degrees of freedom.

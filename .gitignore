@@ -13,5 +13,6 @@ old_cholmod.py
 *.log
 examples/fdm/runs
 docs/build/
+dist/
 .gitignore~
 .coverage
