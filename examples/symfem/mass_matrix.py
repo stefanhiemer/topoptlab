@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 from symfem.functions import MatrixFunction
 from symfem.symbols import x
 

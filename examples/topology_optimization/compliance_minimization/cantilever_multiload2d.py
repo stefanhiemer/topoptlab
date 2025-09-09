@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 from topoptlab.topology_optimization import main
 from topoptlab.example_bc.lin_elast import cantilever_2d_twoloads_wrong,cantilever_2d_twoloads
 from topoptlab.objectives import compliance,compliance_squarederror

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 from topoptlab.symbolic.parametric_map import jacobian
 
 if __name__ == "__main__":

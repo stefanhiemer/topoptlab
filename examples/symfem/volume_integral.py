@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 from symfem.symbols import x
 
 from topoptlab.symbolic.cell import base_cell 

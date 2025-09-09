@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 import numpy as np
 
 def compliance(xPhys, u, KE, edofMat, i,

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 from os.path import isfile
 from os import remove
 import logging

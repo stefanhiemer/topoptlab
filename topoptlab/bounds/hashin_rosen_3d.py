@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 import numpy as np
 
 def heatexp_binary_upp_dx(x : np.ndarray,

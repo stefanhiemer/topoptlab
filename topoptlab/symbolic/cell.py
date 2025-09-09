@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 from typing import List, Tuple, Union
 
 from symfem import create_element, create_reference

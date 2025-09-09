@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 from typing import Union,Callable,Dict
 
 import numpy as np

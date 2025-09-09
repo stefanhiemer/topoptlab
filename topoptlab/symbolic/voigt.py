@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 import math
 
 from symfem.functions import MatrixFunction

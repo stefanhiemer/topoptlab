@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 from numpy import zeros,arange
 
 #from topoptlab.compliant_mechanisms import main

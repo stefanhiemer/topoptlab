@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 import numpy as np
 
 def laplacian_2d(f: np.ndarray,dx: float) -> np.ndarray:

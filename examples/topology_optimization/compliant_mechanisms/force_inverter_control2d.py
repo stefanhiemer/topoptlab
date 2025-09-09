@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 from numpy import zeros
 
 from topoptlab.topology_optimization import main

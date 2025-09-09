@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 from topoptlab.symbolic.rotation import rotation_matrix, rotation_matrix_dangle
 from topoptlab.symbolic.matrix_utils import simplify_matrix, generate_constMatrix
 

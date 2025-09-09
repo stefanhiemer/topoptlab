@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 from symfem import create_element
 
 from topoptlab.symbolic.cell import determine_nodeinds

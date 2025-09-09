@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 import numpy as np
 # different elements/physics
 from topoptlab.stiffness_tensors import isotropic_2d, isotropic_3d

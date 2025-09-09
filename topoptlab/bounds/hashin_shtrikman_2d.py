@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 import numpy as np
 
 def bulkmodulus_hashin_shtrikman_upp(x: np.ndarray,

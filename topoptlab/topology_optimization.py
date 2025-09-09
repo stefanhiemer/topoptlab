@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 from typing import Callable, Dict, List, Tuple, Union
 from functools import partial
 #

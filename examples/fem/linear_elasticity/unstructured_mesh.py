@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 from topoptlab.geometry_parser import parse_cad_and_mesh,boxunion_meshing
 
 if __name__ == "__main__":
