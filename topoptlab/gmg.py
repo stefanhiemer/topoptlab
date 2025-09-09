@@ -31,7 +31,8 @@ def create_gmg(A: sparray,
     return
 
 def create_interpolator(nelx: int, nely: int,nelz: Union[None,int] = None,
-                        ndof: int = 1, stride: int = 2,
+                        ndof: int = 1, stride: Union[int,Tuple] = 2, 
+                        pbc: Union[Tuple,bool] = False,
                         shape_fncts: Union[None,Callable] = None) -> sparray:
     """
     Construct the interpolation (prolongation) operator for geometric
@@ -55,6 +56,8 @@ def create_interpolator(nelx: int, nely: int,nelz: Union[None,int] = None,
     stride : int
         coarsening factor in each coordinate direction. Defines the "stride"
         between coarse grid nodes.
+    pbc : bool or tuple
+        flags for periodic boundary conditions.
     shape_fncts : callable
         Shape function evaluator. If None, bilinear quadrilateral (2D) or
         trilinear hexahedron (3D) shape functions are used.
@@ -64,16 +67,17 @@ def create_interpolator(nelx: int, nely: int,nelz: Union[None,int] = None,
     interpolator : scipy.sparse.sp_array
         Interpolation operator mapping coarse grid values to fine grid values.
     """
-
-    # number of dofs
+    #
     if nelz is None:
-        n = (ndof, nelx+1, nely+1)
-        ndim=2
+        ndim = 2
     else:
-        n = (ndof, nelx+1, nely+1, nelz+1)
-        ndim=3
-    n_dofs = np.prod(n)
-    n_nds = np.prod(n[1:])
+        ndim = 3
+    # convert pbc to tuple
+    if isinstance(pbc, bool):
+        pbc = (pbc,pbc,pbc)[:ndim]
+    # convert stride to tuple
+    if isinstance(stride,int):
+        stride = (stride,stride,stride)[:ndim]
     # get shape functions
     if shape_fncts is None and nelz is None:
         from topoptlab.elements.bilinear_quadrilateral import shape_functions
@@ -81,35 +85,64 @@ def create_interpolator(nelx: int, nely: int,nelz: Union[None,int] = None,
     elif shape_fncts is None and nelz is not None:
         from topoptlab.elements.trilinear_hexahedron import shape_functions
         shape_fncts = shape_functions
-    #
-    dofs = np.arange(n_dofs)
-    n1 = dofs.reshape( ((nely+1)*ndof,nelx+1),order="F" )
-    print(n1)
-    row = np.repeat(dofs,2**ndim)
     # 
-    nd_id = np.repeat(np.arange( n_nds ),ndof)
+    offset = [int(not bc) for bc in pbc]
+    # number of dofs and coarse dofs
+    if nelz is None:
+        n = (ndof, 
+             nelx+offset[0], 
+             nely+offset[1])
+        nc = (ndof, 
+              int(nelx/stride[0] + offset[0]), 
+              int(nely/stride[1] + offset[1])) 
+    else:
+        n = (ndof, 
+             nelx+offset[0], 
+             nely+offset[1], 
+             nelz+offset[2])
+        nc = (ndof, 
+              int(nelx/stride[0] + offset[0]), 
+              int(nely/stride[1] + offset[1]),
+              int(nelz/stride[2] + offset[2])) 
+    # total and coarse number of dof
+    n_dofs = np.prod(n)
+    nc_dofs = np.prod(nc)
+    n_nds = np.prod(n[1:])
+    nc_nds = np.prod(nc[1:])
+    # 
+    row = np.repeat(np.arange(n_dofs), 2**ndim)
+    # 
+    col = ndof*np.arange(nc_nds).reshape(nc[-ndim::],order="F")
+    col = np.kron(col, np.ones(stride, dtype=int))
+    # delete excessive col entries
+    slices = [slice(None,size-o*(s-1)) for s,o,size in \
+              zip(stride,offset,col.shape)] 
+    col = col[tuple(slices)].flatten(order="F")
+    col = np.tile(col[:,None],(1,2**ndim))
+    col[:,:3] += ndof*np.array([[1,nc[2]+1,nc[2]]])
+    if ndim == 3:
+        col[:,4:] += ndof*np.array([ [nc[1]*nc[2]+1, (1+nc[1])*nc[2]+1,
+                                      (1+nc[1])*nc[2], nc[1]*nc[2]] ])
+    col = (col[:,None,:] + np.arange(ndof)[None,:,None]).flatten("C")
+    # calculate relative coordinates for interpolation
     if nelz is None:
         # find coordinates of each node
-        x,y = np.divmod(nd_id,nely+1)
-        # find column indices
-        n2 = ((y-y%stride) + (x-x%stride)*(nely+1))*ndof + np.arange(n_dofs)%ndof
-        n1 = n2 + ndof*(nely+1)*stride
-        
+        x,y = np.divmod(np.arange(n_nds),nely+1)
     else:
-        z,rest = np.divmod(nd_id,(nelx+1)*(nely+1))
+        z,rest = np.divmod(np.arange(n_nds),(nelx+1)*(nely+1))
         x,y = np.divmod(rest,(nely+1))
     # find relative coordinates within each coarse grid cell. 
     # The coarse cell is defined as reaching from -1 to 1 
-    x_rel = x%stride * 2/stride - 1
-    y_rel = y%stride * 2/stride - 1
+    x_rel = (x%stride[0] * 2/stride[0] - 1)
+    y_rel = (y%stride[1] * 2/stride[1] - 1) * (-1)
     if nelz is not None:
-        z_rel = z%stride * 2/stride - 1
+        z_rel = z%stride[2] * 2/stride[2] - 1
     else:
         z_rel=None
     # interpolation weights
-    w = shape_fncts(xi=x_rel, eta=y_rel, zeta=z_rel)
-    
-    return
+    val = shape_fncts(xi=x_rel, eta=y_rel, zeta=z_rel)
+    val = np.tile(val, (1,ndof)).flatten()
+    return csc_array((val, (row, col)), shape=(n_dofs,nc_dofs))
 
 def create_coarse_inds(nelx: int, nely: int, nelz: Union[None,int] = None,
                        ndof: int = 1, stride: int = 2) -> np.ndarray:
@@ -132,23 +165,27 @@ def create_coarse_inds(nelx: int, nely: int, nelz: Union[None,int] = None,
 
     Returns
     -------
-    indices : sparse arrays
+    indices : np.ndarray
         degree of freedom indices of coarse dofs.
 
     """
-    
     #
     if nelz is None:
         n = (ndof, nelx+1, nely+1)
+        ndim = 2
     else:
         n = (ndof, nelx+1, nely+1, nelz+1)
+        ndim = 3
+    # convert stride to tuple
+    if isinstance(stride,int):
+        stride = (stride,stride,stride)[:ndim]
     #
     idx = np.arange(np.prod(n)).reshape(n,order="F")
     #
     if nelz is None:
-        return idx[:,::stride,::stride].flatten(order="F")
+        return idx[:,::stride[0],::stride[1]].flatten(order="F")
     else:
-        return idx[:,::stride,::stride,::stride].flatten(order="F")
+        return idx[:,::stride[0],::stride[1],::stride[2]].flatten(order="F")
 
 def create_coarse_mask(nelx: int, nely: int,nelz: Union[None,int] = None,
                        ndof: int = 1, stride: int = 2) -> np.ndarray:
@@ -214,5 +251,8 @@ def check_stride(nelx: int, nely: int, nelz: Union[None,int],
     return
 
 if __name__ == "__main__":
-    create_interpolator(nelx=5, nely=5, ndof=1)
-    pass
+    create_interpolator(nelx=4, 
+                        nely=4,
+                        nelz=None,
+                        ndof=1,
+                        pbc=False)
