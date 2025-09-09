@@ -41,7 +41,7 @@ topopt88.py.
 
 # Installation
 ## Installation with pip from PyPI
-Basic installation, bulding documentation and run tests by executing
+Install everything needed for the basic installation, documentation and tests:
 ```
 pip install topoptlab[tests,docs]
 ```
@@ -72,7 +72,7 @@ pytest -m slow
 
 ## Build package and release on PyPI (only for maintainers and developers)
 
-Make sure the necessary packages have been installed
+Make sure the necessary packages have been installed:
 ```
 pip install -e .[pypi]
 ```
@@ -80,17 +80,17 @@ Build the package
 ```
 python build
 ```
-and release via twine
+and upload via twine
 ```
 python -m twine upload --repository testpypi dist/*
 ```
-For testing reasons it may be smarter to first release on TestPyPI 
+For testing reasons it may be smarter to first upload on TestPyPI 
 ```
 python -m twine upload --repository testpypi dist/*
 ```
-install the package via 
+and then install the package via 
 ```
-pip install   --index-url https://test.pypi.org/simple/   --extra-index-url https://pypi.org/simple \ topoptlab
+pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple \ topoptlab
 ```
 
 # Roadmap
