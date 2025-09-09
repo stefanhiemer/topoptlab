@@ -11,62 +11,49 @@ equivalent Matlab scripts.
 # Features
 Here is an (incomplete) list of features:
 
-Topology Optimization 
+- Topology Optimization
+  - Material interpolations
+    - Modified SIMP
+    - RAMP
+    - (Hashin–Shtrikman) bound-based
+  - Objectives
+    - Compliance / stiffness minimization / control
+    - Displacement maximization / control
+  - Filters
+    - Sensitivity
+    - Density
+    - Additive manufacturing filter (Langelaar, 2D)
+    - Projections
+      - Guest (2004)
+      - Sigmund (2007)
+      - Volume-conserving projection (Xu, 2010)
+  - Constrained optimizers
+    - MMA / GCMMA (Arjen Deetman)
+    - Optimality criteria method
+  - Unconstrained optimizers
+    - Gradient descent
+    - Barzilai–Borwein
+  - Design analysis
+    - Gray level indicator
+    - Lengthscale violations
 
-- material interpolations
+- FEM
+  - Linear elasticity
+  - Heat conduction
+  - Heat expansion
+  - Cahn–Hilliard
 
- - modified SIMP
- - RAMP
- - (Hashin-Shtrikman) bound-based
- 
-- objectives
+- Example cases
+  - MBB beam 2D / 3D
+  - Cantilever 2D
+  - Compliant mechanism 2D
+  - Heat plate cooling 2D (stationary and transient)
 
- - compliance/stiffness minimization/control
- - displacement maximization/control
- 
-- filters
-
- - sensitivity
- - density
- - additive manufacturing filter by Langelaar (2D)
- - projections
- 
-  - Guest 2004
-  - Sigmund 2007
-  - volume conserving projection (Xu 2010)
-  
-- constrained optimizers
-
- - MMA/GCMMA by Arjen Deetman
- - optimality criteria method
- 
-- unconstrained optimizers
-
- - gradient descent
- - Barzilai-Borwain
- 
-- design analysis
-
- - gray level indicator 
- - lengthscale_violations
-
-FEM
-- linear elasticity
-- heat conduction
-- heat expansion
-- cahn-hilliard
-
-Example Cases
-- MBB beam 2D/3D
-- cantilever 2D
-- compliant mechanism 2D
-- heat plate cooling 2D (stationary and transient)
-
-Solver/preconditioner for Linear Systems beyond scipy.sparse
-- sparse Cholesky decomposition of cholmod via cvxopt  
-- algebraic multigrid
-- geometric multigrid 
-- block-sparse preconditioner
+- Solver / preconditioner for linear systems (beyond `scipy.sparse`)
+  - Sparse Cholesky decomposition of CHOLMOD via CVXOPT
+  - Algebraic multigrid
+  - Geometric multigrid
+  - Block-sparse preconditioner
 
 # How to use 
 
