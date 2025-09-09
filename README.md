@@ -36,16 +36,19 @@ Topology Optimization
 - design analysis
  - gray level indicator 
  - lengthscale_violations
+
 FEM
 - linear elasticity
 - heat conduction
 - heat expansion
 - cahn-hilliard
+
 Example Cases
 - MBB beam 2D/3D
 - cantilever 2D
 - compliant mechanism 2D
 - heat plate cooling 2D (stationary and transient)
+
 Solver/preconditioner for Linear Systems beyond scipy.sparse
 - sparse Cholesky decomposition of cholmod via cvxopt  
 - algebraic multigrid
