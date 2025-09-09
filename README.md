@@ -13,12 +13,12 @@ Here is an (incomplete) list of features:
 
 Topology Optimization 
 - material interpolations
- - modified SIMP
- - RAMP
- - (Hashin-Shtrikman) bound-based
+ -- modified SIMP
+ -- RAMP
+ -- (Hashin-Shtrikman) bound-based
 - objectives
- - compliance/stiffness minimization/control
- - displacement maximization/control
+ -- compliance/stiffness minimization/control
+ -- displacement maximization/control
 - filters
  - sensitivity
  - density
