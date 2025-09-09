@@ -8,6 +8,50 @@ optimized for tasks like topology optimization while Python is a general
 purpose language, so you will likely see slower performance here than in 
 equivalent Matlab scripts.
 
+# Features
+Here is an (incomplete) list of features:
+
+Topology Optimization 
+- material interpolations
+ - modified SIMP
+ - RAMP
+ - (Hashin-Shtrikman) bound-based
+- objectives
+ - compliance/stiffness minimization/control
+ - displacement maximization/control
+- filters
+ - sensitivity
+ - density
+ - additive manufacturing filter by Langelaar (2D)
+ - projections
+  - Guest 2004
+  - Sigmund 2007
+  - volume conserving projection (Xu 2010)
+- constrained optimizers
+ - MMA/GCMMA by Arjen Deetman
+ - optimality criteria method
+- unconstrained optimizers
+ - gradient descent
+ - Barzilai-Borwain
+- design analysis
+ - gray level indicator 
+ - lengthscale_violations
+FEM
+- linear elasticity
+- heat conduction
+- heat expansion
+- cahn-hilliard
+Example Cases
+- MBB beam 2D/3D
+- cantilever 2D
+- compliant mechanism 2D
+- heat plate cooling 2D (stationary and transient)
+Solver/preconditioner for Linear Systems beyond scipy.sparse
+- sparse Cholesky decomposition of cholmod via cvxopt  
+- algebraic multigrid
+- geometric multigrid 
+- block-sparse preconditioner
+
 # How to use 
 
 Topoptlab can be used either as a black box function that returns an optimal 
