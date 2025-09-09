@@ -12,28 +12,41 @@ equivalent Matlab scripts.
 Here is an (incomplete) list of features:
 
 Topology Optimization 
+
 - material interpolations
- -- modified SIMP
- -- RAMP
- -- (Hashin-Shtrikman) bound-based
+
+ - modified SIMP
+ - RAMP
+ - (Hashin-Shtrikman) bound-based
+ 
 - objectives
- -- compliance/stiffness minimization/control
- -- displacement maximization/control
+
+ - compliance/stiffness minimization/control
+ - displacement maximization/control
+ 
 - filters
+
  - sensitivity
  - density
  - additive manufacturing filter by Langelaar (2D)
  - projections
+ 
   - Guest 2004
   - Sigmund 2007
   - volume conserving projection (Xu 2010)
+  
 - constrained optimizers
+
  - MMA/GCMMA by Arjen Deetman
  - optimality criteria method
+ 
 - unconstrained optimizers
+
  - gradient descent
  - Barzilai-Borwain
+ 
 - design analysis
+
  - gray level indicator 
  - lengthscale_violations
 
