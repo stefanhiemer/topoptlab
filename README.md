@@ -1,4 +1,5 @@
 # topoptlab 
+[![Documentation Status](https://readthedocs.org/projects/topoptlab/badge/?version=latest)](https://topoptlab.readthedocs.io/en/latest/?badge=latest)
 
 This project is a collection of topology optimization techniques many of which
 are already published in Matlab. This project is there to make these techniques
@@ -142,7 +143,7 @@ pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://
 
 # Roadmap
 
-See [ROADMAP.md](./ROADMAP.md) for a list of upcoming features.
+See [ROADMAP.md](https://github.com/stefanhiemer/topoptlab/ROADMAP.md) for a list of upcoming features.
 
 # Make documentation
 
@@ -161,13 +162,13 @@ xdg-open build/html/index.html
 # Getting report bugs, and suggest enhancements
 
 If you found a bug or you want to suggest a new feature/enhancement, submit it 
-on the [issue tracker](https://github.com/stefanhiemer/topoptlab/).
+on the [issue tracker](https://github.com/stefanhiemer/topoptlab/issues).
 
 # How to contribute
 
 If you want to contribute, fork the repository and open a pull request. 
 However before doing that contact the maintainers via an enhancement suggestion 
-in the [issue tracker](https://github.com/stefanhiemer/topoptlab/).
+in the [issue tracker](https://github.com/stefanhiemer/topoptlab/issues).
 
 # Acknowledgments
 
