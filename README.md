@@ -125,11 +125,11 @@ pip install -e .[pypi]
 ```
 Build the package
 ```
-python build
+python -m build
 ```
 and upload via twine
 ```
-python -m twine upload --repository testpypi dist/*
+python -m twine upload dist/*
 ```
 For testing reasons it may be smarter to first upload on TestPyPI 
 ```

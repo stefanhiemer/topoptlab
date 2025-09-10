@@ -1,4 +1,4 @@
-topoptlab package
+topoptlab API
 =================
 
 Submodules
