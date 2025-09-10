@@ -11,7 +11,7 @@ build:
       - sphinx-apidoc -o docs/source/ topoptlab topoptlab/legacy --force --no-toc --separate
 
 sphinx:
-  configuration: docs/conf.py
+  configuration: docs/source/conf.py
 
 # Install your package with the "docs" extra (your README suggests it exists)
 python:
