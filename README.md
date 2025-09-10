@@ -1,6 +1,7 @@
 # topoptlab 
 [![Documentation Status](https://readthedocs.org/projects/topoptlab/badge/?version=latest)](https://topoptlab.readthedocs.io/en/latest/?badge=latest)
 [![PyPI](https://img.shields.io/pypi/v/topoptlab?color=blue&label=PyPI&logo=pypi&logoColor=white)](https://pypi.org/project/topoptlab/)
+
 This project is a collection of topology optimization techniques many of which
 are already published in Matlab. This project is there to make these techniques
 available to people without Matlab licenses but also to offer a basis on which
