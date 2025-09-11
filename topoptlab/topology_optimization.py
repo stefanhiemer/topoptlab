@@ -491,7 +491,7 @@ def main(nelx: int, nely: int,
         if volfrac is not None:
             constrs[0,0] = xPhys.mean() - volfrac
             if optimizer in ["mma","gcmma"]:
-                dconstrs[:,0:1] = np.ones(x.shape) /(x.shape[0]*volfrac)
+                dconstrs[:,0:1] = np.full(x.shape,1/x.shape[0])
             elif optimizer in ["oc","ocm","ocg"]:
                 dconstrs[:,0] = np.ones(x.shape[0])
         if debug:

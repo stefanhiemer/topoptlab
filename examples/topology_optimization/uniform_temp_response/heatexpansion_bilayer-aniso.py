@@ -416,19 +416,6 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             plotfunc = im.set_array
         elif ndim == 3:
             raise NotImplementedError("Plotting in 3D not yet implemented.")
-            # marching cubes to find contour line
-            verts, faces, normals, values = marching_cubes(mapping(-xPhys),
-                                                          level=volfrac)
-            fig, ax = plt.subplots(1,1,subplot_kw={"projection": "3d"})
-            #
-            mesh = Poly3DCollection(verts[faces])
-            mesh.set_edgecolor('k')
-            ax.add_collection3d(mesh)
-            im = ax.voxels(mapping(np.ones(xPhys.shape,dtype=bool)),
-                           facecolors = -xPhys,
-                           cmap='gray', edgecolor=None,
-                           norm=Normalize(vmin=-1, vmax=0))
-            plotfunc = im[0].set_facecolors
         ax.tick_params(axis='both',
                        which='both',
                        bottom=False,
@@ -546,7 +533,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         if volfrac is not None:
             volconstr = np.array([xPhys.mean()-volfrac])
             if optimizer in ["mma","gcmma"]:
-                dv[:] = np.ones(x.shape[0]) /(x.shape[0]*volfrac)
+                dv[:] = np.ones(x.shape[0]) /(x.shape[0])
             elif optimizer in ["oc","ocm","ocg"]:
                 dv[:] = np.ones(x.shape[0])
         if debug:
@@ -726,7 +713,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                       edofMat,
                       fes)
     # assemble right hand side
-    rhs = assemble_rhs(f0=f+fT+f_body,solver=lin_solver)
+    rhs = f+fT+f_body
     # apply boundary conditions to matrix
     K = apply_bc(K=K,solver=lin_solver,
                  free=free,fixed=fixed)

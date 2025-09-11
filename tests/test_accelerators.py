@@ -7,13 +7,11 @@ from topoptlab.example_bc.lin_elast import mbb_2d
 from topoptlab.accelerators import anderson
 
 @pytest.mark.parametrize('obj_ref',
-                         [(233.65139640052945)])
+                         [(233.98922)])
 
 def test_anderson(obj_ref):
     """
-    Test the minimum compliance problem with different filter settings. 
-    Does exactly the same as function below. Just to allow to have fast and 
-    slow tests in same file.
+    Test anderson acceleration..
     """
     #
     # Default input parameters

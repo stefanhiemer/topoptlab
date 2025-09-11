@@ -41,9 +41,9 @@ if __name__ == "__main__":
     #
     x,obj = main(nelx=nelx, nely=nely, volfrac=volfrac, penal=penal,
                  rmin=rmin, ft=ft, filter_mode="matrix",
-                 optimizer="oc",
+                 optimizer="mma",
                  assembly_mode="full",
-                 nouteriter=1000,file="mbb_2d",
+                 nouteriter=2000,file="mbb_2d",
                  bcs=mbb_2d,
                  #body_forces_kw={"density_coupled": np.array([0,-0.01])},
                  #accelerator_kw=accelerator_kw,
