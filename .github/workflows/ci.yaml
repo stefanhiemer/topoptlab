@@ -27,4 +27,4 @@ jobs:
       - name: Pytest (exclude slow)
         env:
           TOPOPTLAB_SKIP_HEAVY: "1"
-        run: pytest -q -m "not slow" --maxfail=2 --disable-warnings
+        run: pytest -q -m "not slow" --maxfail=1 --disable-warnings
