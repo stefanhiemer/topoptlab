@@ -14,6 +14,6 @@ old_cholmod.py
 examples/fdm/runs
 docs/build/
 dist/
-.gitignore~
+*~
 .coverage
 !tests/test_files/box.step

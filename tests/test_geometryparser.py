@@ -2,8 +2,8 @@ from topoptlab.geometry_parser import parse_cad_and_mesh
 
 import pytest
 
-@pytest.mark.parametrize('',
-                         [()])
+#@pytest.mark.parametrize('',
+#                         [()])
 
 def test_parse_cad_and_mesh():
     
