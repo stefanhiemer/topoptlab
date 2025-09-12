@@ -2,8 +2,7 @@ from topoptlab.geometry_parser import parse_cad_and_mesh
 
 import pytest
 
-#@pytest.mark.parametrize('',
-#                         [()])
+@pytest.mark.skip(reason="gmsh dependency not available in CI")
 
 def test_parse_cad_and_mesh():
     
