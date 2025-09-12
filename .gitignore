@@ -16,4 +16,4 @@ docs/build/
 dist/
 .gitignore~
 .coverage
-!tests/testfiles/box.step
+!tests/test_files/box.step
