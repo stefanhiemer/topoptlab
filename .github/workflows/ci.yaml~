@@ -17,7 +17,13 @@ jobs:
           python-version: '3.12'
           cache: 'pip'
       - run: python -m pip install -U pip
-      - run: pip install .[tests]
+      - run: pip install .[tests] ruff mypy black
+      - name: Ruff (lint)
+        run: ruff check .
+      - name: Black (check)
+        run: black --check .
+      - name: Mypy (types)
+        run: mypy topoptlab
 
   tests:
     name: Tests (fast)
