@@ -77,7 +77,7 @@ Here is an (incomplete) list of features:
 
 
 For a list of upcoming features, look at the 
-[ROADMAP.md](https://github.com/stefanhiemer/topoptlab/main/ROADMAP.md).
+[ROADMAP.md](./ROADMAP.md).
 
 
 ## Monolithic codes
@@ -168,8 +168,8 @@ on the [issue tracker](https://github.com/stefanhiemer/topoptlab/issues).
 If you want to contribute, fork the repository and open a pull request. 
 Before doing that contact the maintainers via an enhancement suggestion 
 in the [issue tracker](https://github.com/stefanhiemer/topoptlab/issues) and 
-look at the [ROADMAP.md](https://github.com/stefanhiemer/topoptlab/main/ROADMAP.md) 
-for a list of upcoming features. For detailed instructions check out [CONTRIBUTING.md](https://github.com/stefanhiemer/topoptlab/main/CONTRIBUTING.md)
+look at the [ROADMAP.md](./ROADMAP.md) 
+for a list of upcoming features. For detailed instructions check out [CONTRIBUTING.md](./CONTRIBUTING.md)
 
 # Acknowledgments
 
