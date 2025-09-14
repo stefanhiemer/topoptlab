@@ -33,7 +33,7 @@ relaxation of the concept of solid/void by introducing artificial relative
 material densities $x_e \in [0, 1]$ for each element, allowing for a continuous 
 interpolation between a void state ($x = 0$) and a fully solid state 
 ($x = 1$). This enables the use of constrained optimizers like the Method of 
-Movin Asymptotes (MMA) {cite}`svanberg1987` and its globally convergent modification (GCMMA){cite}`svanberg2002class` which 
+Moving Asymptotes (MMA) {cite}`svanberg1987` and its globally convergent modification (GCMMA){cite}`svanberg2002class` which 
 are known to converge fast and reliably to optimal designs. A common 
 interpolation scheme is the modfied Solid Isotropic Material with Penalization (SIMP) {cite}`sigmund2007morphology`
 method in which the interpolation of material property $A(x_e)$ takes the form:
@@ -144,8 +144,7 @@ for i in range(max_designiterations):
 #
 export_final_design()
 ```
-This is also the workflow that runs under hood of the  `main` function in 
-`topoptlab.topology_optimization`.
+This is also the workflow that runs under hood of the [`topology_optimization.py`](https://github.com/stefanhiemer/topoptlab/blob/main/topoptlab/topology_optimization.py).
 
 ## Closing Remarks
 
