@@ -10,6 +10,7 @@ old_cholmod.py
 *.prof
 !images/*.pdf
 !images/*.png
+!docs/source/_static/*.png
 *.log
 examples/fdm/runs
 docs/build/
