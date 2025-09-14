@@ -64,7 +64,7 @@ sensitivities) necessary for the optimization $\nabla_{\boldsymbol{x}} C = 0$
 via adjoint analysis ({ref}`adjoint-analysis`) and use a constrained optimizer (e. g. MMA) which yields a 
 strange design with artifacts commonly known as checkerboard patterns. 
 
-![checkerboard patterns in a 60x20 MBB beam](/_static/mbb_60x20_24_checkerboard.png)
+![checkerboard patterns in a 60x20 MBB beam](https://github.com/stefanhiemer/topoptlab/blob/main/docs/source/_static/mbb_60x20_24_checkerboard.png)
 
 These patterns arise because the optimizer abuses short comings of low-order 
 elements to model the mechanical problem. An (expensive) solution would be to 

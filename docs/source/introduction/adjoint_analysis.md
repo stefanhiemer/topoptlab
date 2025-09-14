@@ -54,8 +54,9 @@ this becomes
 This solution is for all practical purposes is useless as $\boldsymbol{K}$ is a
 very large.
 
-## Adjoint Analysis
 (adjoint-analysis)=
+## Adjoint Analysis
+
 In adjoint analysis, one rewrites the objective function as 
 ```{math}
 \tilde{C} = C + \boldsymbol{\lambda}^T \left( \boldsymbol{K}\boldsymbol{u} - \boldsymbol{f} \right)
