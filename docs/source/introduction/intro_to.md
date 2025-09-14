@@ -1,6 +1,14 @@
 (intro-TO)=
 # Introduction to Topology Optimization
-In this article we introduce the basic concepts behind topology optimization (TO). We will implicitly assume that the finite element method (FEM) is the underlying discretization technique, but TO is a general technique that is not  tied to any specific numerical technique. Loosely speaking in TO we set out to  find the optimal design parameters $\boldsymbol{x}$ for a given objective function $C(\boldsymbol{x})$, a set of equality as well as inequality  constraints on the design  $\boldsymbol{g}(\boldsymbol{x}),\boldsymbol{h}(\boldsymbol{x})$ and a set of discretized physical problems $\boldsymbol{K}(\boldsymbol{x}) \boldsymbol{u} = \boldsymbol{f}$ with associated boundary conditions:
+In this article we introduce the basic concepts behind topology optimization (TO). 
+We will implicitly assume that the finite element method (FEM) is the underlying 
+discretization technique, but TO is a general technique that is not  tied to any 
+specific numerical technique. Loosely speaking in TO we set out to find the 
+optimal design parameters $\boldsymbol{x}$ for a given objective function 
+$C(\boldsymbol{x})$, a set of equality as well as inequality  constraints on 
+the design  $\boldsymbol{g}(\boldsymbol{x}),\boldsymbol{h}(\boldsymbol{x})$ and 
+a set of discretized physical problems $\boldsymbol{K}(\boldsymbol{x}) \boldsymbol{u} = \boldsymbol{f}$ 
+with associated boundary conditions:
 ```{math}
 \begin{aligned}
 & \min_{\boldsymbol{x}} \; C(\boldsymbol{x}) \\
@@ -136,18 +144,24 @@ for i in range(max_designiterations):
 #
 export_final_design()
 ```
-A few closing remarks: i) in many cases, simple smoothing is not enough to get 
-rid of numerical artifacts and different filters or combinations thereof must 
-be used. Among many other things, filtering can be used to create near black 
-and white design via smooth Haeviside filters or to guarantee a manufactureable 
-design. ii) so far, only density-based TO with the modified SIMP interpolation 
-has been presented. Other interpolation schemes exist like RAMP and especially 
-for multimaterial oprimization are required. iii) besides TO, sizing 
-and shape optimization
+This is also the workflow that runs under hood of the  `main` function in 
+`topoptlab.topology_optimization`.
+
+## Closing Remarks
+
+In many cases, simple smoothing is not enough to get rid of numerical artifacts 
+and different filters or combinations thereof must be used. Among many other 
+things, filtering can be used to create near black and white design via smooth 
+Haeviside filters or to guarantee a manufactureable design {cite}`langelaar2017additive`. 
+So far, only density-based TO with the modified SIMP interpolation has been 
+presented, but other interpolation schemes like RAMP exist and are required 
+e. g. for multimaterial oprimization. 
+
+## Recommended References
 
 For further reading regarding TO, the following references are recommended: 
 
-- review article from 2013 {cite}`sigmund2013topology`: one of the first places to start if one is new to the topic
+- review article from 2013 {cite}`sigmund2013topology`: one of the first places to start if one is new to the topic and gives a good overview over different approaches to TO
 
 - an educational article with associated Matlab code {cite}`andreassen2011efficient`: read the paper and compare with the "translation" to Python in the monolithic_codes directory
 
@@ -155,11 +169,11 @@ For further reading regarding TO, the following references are recommended:
 
 - more recent overview with special focus on TO for manufactureable designs {cite}`bayat2023holistic`: the first third is one of the most complete overview of TO in recent years, the latter two thirds do not deal with TO 
 
-For people unfamiliar with FEM or needed refreshments the following books and lectures have been useful to me:
+For people unfamiliar with FEM or in need of refreshing the following books and lectures have been useful to me:
 
 - classic textbook {cite}`fish2007first`: the first five chapters are in my opinion a must for people new to FEM
 
-- lecture material by Dennis Kochmann for his course "Introduction to Finite Element Analysis" https://mm.ethz.ch/education/lecture-notes.html : easy to understand and very useful when trying to understand the FE implementation in this code
+- lecture material by Dennis Kochmann for his course "Introduction to Finite Element Analysis" https://mm.ethz.ch/education/lecture-notes.html : excellently written, easy to understand and very useful when trying to understand the FE implementation in this code
 
 - advanced textbook by Peter Wriggers {cite}`wriggers2008nonlinear`: covers anything that the previous two have not covered and for me the first place to look for problems beyond the basics.
 

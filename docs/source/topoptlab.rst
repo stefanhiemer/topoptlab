@@ -1,4 +1,4 @@
-topoptlab API
+topoptlab package
 =================
 
 Submodules
@@ -35,5 +35,5 @@ Module contents
 
 .. automodule:: topoptlab
    :members:
-   :undoc-members:
    :show-inheritance:
+   :undoc-members:

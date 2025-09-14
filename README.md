@@ -12,7 +12,7 @@ broadly accessible in Python, in a style similar to the well-known
   Write your own scripts in the concise style of the 88 line MATLAB code.
 
 - **As a modular “black-box” routine**  
-  Use the main function in [`topology_optimization.py`](./topoptlab/topology_optimization.py) as a black box function that returns an optimal 
+  Use the main function in [`topology_optimization.py`](https://github.com/stefanhiemer/topoptlab/topology_optimization.py) as a black box function that returns an optimal 
   design once provided with a set of boundary conditions and parameters to run topology optimization directly. If the boundary conditions are already available, then running an optimization can be quite simple. 
   E. g. if one wants to reproduce the famous MBB beam in 2D it amounts to:
 ```
@@ -80,7 +80,7 @@ Here is an (incomplete) list of features:
 
 
 For a list of upcoming features, look at the 
-[ROADMAP.md](./ROADMAP.md).
+[ROADMAP.md](https://github.com/stefanhiemer/topoptlab/ROADMAP.md).
 
 
 ## Monolithic codes
@@ -170,9 +170,10 @@ on the [issue tracker](https://github.com/stefanhiemer/topoptlab/issues).
 
 Contact the maintainers via an enhancement suggestion in the 
 [issue tracker](https://github.com/stefanhiemer/topoptlab/issues) and 
-look at the [ROADMAP.md](./ROADMAP.md) for a list of upcoming features. 
-If you decide to contribute, fork the repository and open a pull request.  
-For detailed instructions check out [CONTRIBUTING.md](./CONTRIBUTING.md).
+look at the [ROADMAP.md](https://github.com/stefanhiemer/topoptlab/ROADMAP.md) 
+for a list of upcoming features. If you decide to contribute, fork the 
+repository and open a pull request. For detailed instructions check out 
+[CONTRIBUTING.md](https://github.com/stefanhiemer/topoptlab/CONTRIBUTING.md).
 
 # Acknowledgments
 
