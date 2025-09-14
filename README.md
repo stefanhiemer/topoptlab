@@ -27,6 +27,8 @@ main(nelx=60, nely=20, volfrac=0.5, penal=3.,
      display=True,
      export=True)
 ```
+For tutorials, explanations, and full documentation, see the 
+[online documentation](https://topoptlab.readthedocs.io/en/latest/).
 
 ## Features
 Here is an (incomplete) list of features:
@@ -48,7 +50,7 @@ Here is an (incomplete) list of features:
       - Sigmund (2007)
       - Volume-conserving projection (Xu, 2010)
   - Constrained optimizers
-    - MMA / GCMMA (Arjen Deetman)
+    - MMA / GCMMA via `mmapy` by Arjen Deetman
     - Optimality criteria method
   - Unconstrained optimizers
     - Gradient descent
@@ -62,6 +64,7 @@ Here is an (incomplete) list of features:
   - Heat conduction
   - Heat expansion
   - Cahn–Hilliard
+  - analytic element integration via `symfem` by Matthew Scroggs
 
 - Example cases
   - MBB beam 2D / 3D
@@ -165,11 +168,11 @@ on the [issue tracker](https://github.com/stefanhiemer/topoptlab/issues).
 
 # How to contribute
 
-If you want to contribute, fork the repository and open a pull request. 
-Before doing that contact the maintainers via an enhancement suggestion 
-in the [issue tracker](https://github.com/stefanhiemer/topoptlab/issues) and 
-look at the [ROADMAP.md](./ROADMAP.md) 
-for a list of upcoming features. For detailed instructions check out [CONTRIBUTING.md](./CONTRIBUTING.md)
+Contact the maintainers via an enhancement suggestion in the 
+[issue tracker](https://github.com/stefanhiemer/topoptlab/issues) and 
+look at the [ROADMAP.md](./ROADMAP.md) for a list of upcoming features. 
+If you decide to contribute, fork the repository and open a pull request.  
+For detailed instructions check out [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 # Acknowledgments
 
