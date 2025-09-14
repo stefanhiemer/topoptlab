@@ -8,11 +8,11 @@ which were originally published MATLAB scripts. The goal is to make these method
 broadly accessible in Python, in a style similar to the well-known 
 *88-line code* by Andreassen and Sigmund. The package can be used in two ways:
 
-- **As a library**  
+- **As a library: **  
   Write your own scripts in the concise style of the 88 line MATLAB code.
 
-- **As a modular “black-box” routine**  
-  Use the main function in [`topology_optimization.py`](https://github.com/stefanhiemer/topoptlab/topology_optimization.py) as a black box function that returns an optimal 
+- **As a modular “black-box” routine: **  
+  Use the main function in [`topology_optimization.py`](https://github.com/stefanhiemer/topoptlab/blob/main/topoptlab/topology_optimization.py) as a black box function that returns an optimal 
   design once provided with a set of boundary conditions and parameters to run topology optimization directly. If the boundary conditions are already available, then running an optimization can be quite simple. 
   E. g. if one wants to reproduce the famous MBB beam in 2D it amounts to:
 ```
@@ -80,7 +80,7 @@ Here is an (incomplete) list of features:
 
 
 For a list of upcoming features, look at the 
-[ROADMAP.md](https://github.com/stefanhiemer/topoptlab/ROADMAP.md).
+[ROADMAP.md](https://github.com/stefanhiemer/topoptlab/blob/main/ROADMAP.md).
 
 
 ## Monolithic codes
@@ -90,7 +90,7 @@ and do not use the topoptlab module written here. These codes are purely there
 to either test new frameworks (e. g. JAX or PETSC) or for 
 teaching/demonstration purposes. If you are completely new to topology 
 optimization, this is where you start and I suggest to start with the 
-topopt88.py.
+[`topopt88.py`](https://github.com/stefanhiemer/topoptlab/blob/main/monolithic_codes/topopt88.py).
 
 # Installation, documentation and tests
 
@@ -170,10 +170,10 @@ on the [issue tracker](https://github.com/stefanhiemer/topoptlab/issues).
 
 Contact the maintainers via an enhancement suggestion in the 
 [issue tracker](https://github.com/stefanhiemer/topoptlab/issues) and 
-look at the [ROADMAP.md](https://github.com/stefanhiemer/topoptlab/ROADMAP.md) 
+look at the [ROADMAP.md](https://github.com/stefanhiemer/topoptlab/blob/main/ROADMAP.md)
 for a list of upcoming features. If you decide to contribute, fork the 
 repository and open a pull request. For detailed instructions check out 
-[CONTRIBUTING.md](https://github.com/stefanhiemer/topoptlab/CONTRIBUTING.md).
+[CONTRIBUTING.md](https://github.com/stefanhiemer/topoptlab/blob/main/CONTRIBUTING.md).
 
 # Acknowledgments
 
