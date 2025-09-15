@@ -64,16 +64,18 @@ sensitivities) necessary for the optimization $\nabla_{\boldsymbol{x}} C = 0$
 via adjoint analysis ({ref}`adjoint-analysis`) and use a constrained optimizer (e. g. MMA) which yields a 
 strange design with artifacts commonly known as checkerboard patterns. 
 
-![checkerboard patterns in a 60x20 MBB beam](https://github.com/stefanhiemer/topoptlab/blob/main/docs/source/_static/mbb_60x20_24_checkerboard.png)
+![checkerboard patterns in a 60x20 MBB beam](../_static/mbb_60x20_24_checkerboard.png)
 
 These patterns arise because the optimizer abuses short comings of low-order 
 elements to model the mechanical problem. An (expensive) solution would be to 
 employ higher order elements, but that just reveals another problem: the 
 designs show mesh dependence and even minor changes in discretization will 
 cause the final design to change, i. e. the results of TO are mesh dependent.
-The first ad-hoc countermeasure was to apply a smoothing filter (identical to the filter used in image processing) to the 
+The first ad-hoc countermeasure was to apply a smoothing filter (identical to the filter used in image processing) with radius $r$ to the 
 sensitivities as this prevents the concentration of gradients therefor 
-mitigating the appearance of checkerboards{cite}`sigmund1997design`. While intuitive and 
+mitigating the appearance of checkerboards{cite}`sigmund1997design` and also 
+yields the same results if the mesh is refined further as the filter 
+radius $r$ determines the smallest length scale of the design. While intuitive and 
 effective, this changes the original objective function $C$. For the stiffness 
 maximization in linear (local) elasticity, it can be shown that sensitivity 
 filtering changes the objective function to stiffness maximization in nonlocal 
@@ -87,7 +89,7 @@ x_p(r) = \int_{\Omega} H(r, s) \, x(s) \, ds
 where $H(r,s)$ is the convolution kernel (in most cases is a linear hat 
 function) and $\Omega$ the optimization domain. At this point we have to clearly
 distinguish between the design variables $\boldsymbol{x}$ and the filtered 
-variables $x_p$: $x_p$ are used in the material interpolation and thus are called
+variables $\boldsymbol{x}_p$: $\boldsymbol{x}_p$ are used in the material interpolation and thus are called
 "physical" densities as they directly manipulate the physical properties while 
 $\boldsymbol{x}$ describe the design. To update the design $\boldsymbol{x}$
 has to be changed, but adjoint analysis yields only $\frac{\partial C}{\partial x_{p}}$,
