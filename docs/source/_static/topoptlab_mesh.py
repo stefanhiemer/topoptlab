@@ -50,8 +50,8 @@ def plot_meshnumbering2d(nelx=4,nely=3,ndof=2,
     ax.set_xlim(-0.5, nelx-0.5)
     ax.set_ylim(nely-0.5, -0.5)
     if show:
-        plt.savefig("meshnumbering-2d.pdf",
-                    format="pdf")
+        plt.savefig("meshnumbering-2d.png",
+                    format="png")
         plt.show()
     return
 
@@ -131,13 +131,13 @@ def plot_meshnumbering3d(nelx=4,nely=3,nelz=2,ndof=2):
         axs[i,1].set_ylabel("y", fontsize=12)
     # Adjust layout to prevent overlap
     fig.tight_layout()
-    plt.savefig("meshnumbering-3d.pdf",
-                format="pdf")
+    plt.savefig("meshnumbering-3d.png",
+                format="png")
     plt.show()
     return
     
 if __name__ == "__main__":
     #
-    plot_meshnumbering2d(nelx=4,nely=3,ndof=2)
-    plot_meshnumbering3d(nelx=4,nely=3,ndof=3)
+    plot_meshnumbering2d(nelx=4,nely=3,ndof=1)
+    plot_meshnumbering3d(nelx=4,nely=3,ndof=1)
     

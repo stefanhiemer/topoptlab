@@ -3,15 +3,17 @@ from typing import Any, Callable, Union
 
 import numpy as np
 
-def bmatrix(xi: np.ndarray, eta: np.ndarray, xe: np.ndarray,
-            invjacobian: np.ndarray, shape_functions_dxi: np.ndarray,
-            zeta: Union[None,np.ndarray] = None, 
-            check_fnc: Union[None,Callable] = None,
-            all_elems: bool = False, return_detJ: bool = False,
-            **kwargs: Any):
+def eng_strain(xi: np.ndarray, eta: np.ndarray, xe: np.ndarray,
+               invjacobian: np.ndarray, shape_functions_dxi: np.ndarray,
+               zeta: Union[None,np.ndarray] = None, 
+               check_fnc: Union[None,Callable] = None,
+               all_elems: bool = False, return_detJ: bool = False,
+               **kwargs: Any):
     """
-    B matrix for bilinear quadrilateral Lagrangian element to calculate
-    to calculate strains, stresses etc. from nodal values
+    Engineering strain via the B matrix for bilinear quadrilateral Lagrangian 
+    element to calculate to calculate strains, stresses etc. from nodal values:
+    
+    eps = B@u
     
     Parameters
     ----------

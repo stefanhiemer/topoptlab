@@ -7,3 +7,4 @@ Introduction and Tutorials
    introduction/intro_to
    introduction/filter
    introduction/adjoint_analysis
+   introduction/meshing

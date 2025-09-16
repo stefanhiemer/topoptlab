@@ -23,7 +23,8 @@ and the total derivative is
 \frac{d q}{d x} &= 0 + 2u \cdot 2x = 4x^3
 \end{align}
 ``` 
-## Direct method
+(direct-method)=
+## Direct Method
 We differentiate $C$ with regards to a design variable $x$ which 
 yields 
 ```{math}

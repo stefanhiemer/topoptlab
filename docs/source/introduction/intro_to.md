@@ -71,18 +71,27 @@ elements to model the mechanical problem. An (expensive) solution would be to
 employ higher order elements, but that just reveals another problem: the 
 designs show mesh dependence and even minor changes in discretization will 
 cause the final design to change, i. e. the results of TO are mesh dependent.
-The first ad-hoc countermeasure was to apply a smoothing filter (identical to the filter used in image processing) with radius $r$ to the 
-sensitivities as this prevents the concentration of gradients therefor 
-mitigating the appearance of checkerboards{cite}`sigmund1997design` and also 
-yields the same results if the mesh is refined further as the filter 
-radius $r$ determines the smallest length scale of the design. While intuitive and 
-effective, this changes the original objective function $C$. For the stiffness 
-maximization in linear (local) elasticity, it can be shown that sensitivity 
-filtering changes the objective function to stiffness maximization in nonlocal 
-elasticity{cite}`sigmund2012sensitivity`. A solution that leaves the original objective function untouched is 
-the smoothing of the design densities and guarantees well-posedness and 
-mesh-independence{cite}`bruns2001topology`. This operation ca be written via a 
-convolution integral
+The first ad-hoc countermeasure was to apply a smoothing filter (identical to 
+the filter used in image processing) with radius $r$ to the sensitivities as 
+this prevents the concentration of gradients therefor mitigating the appearance 
+of checkerboards{cite}`sigmund1997design` and also yields the same results if 
+the mesh is refined further as the filter radius $r$ determines the smallest 
+length scale of the design.
+   
+(fig-mbb-convergence)=
+**Figure:** Convergence demonstration of topology optimization for different mesh refinements with constant filter radius. Top row density filter bottom row sensitivity filter.
+
+| ![](/_static/mbb_60x20_24_density.png){width=200px} | ![](/_static/mbb_120x40_48_density.png){width=200px} | ![](/_static/mbb_240x80_96_density.png){width=200px} |
+|---|---|---|
+| ![](/_static/mbb_60x20_24_sensitivity.png){width=200px} | ![](/_static/mbb_120x40_48_sensitivity.png){width=200px} | ![](/_static/mbb_240x80_96_sensitivity.png){width=200px}
+
+While intuitive and effective, this changes the original objective function $C$. 
+For the stiffness maximization in linear (local) elasticity, it can be shown 
+that sensitivity filtering changes the objective function to stiffness 
+maximization in nonlocal elasticity{cite}`sigmund2012sensitivity`. A solution 
+that leaves the original objective function untouched is the smoothing of the 
+design densities and guarantees well-posedness and mesh-independence{cite}`bruns2001topology`. 
+This operation ca be written via a convolution integral
 ```{math}
 x_p(r) = \int_{\Omega} H(r, s) \, x(s) \, ds
 ```
