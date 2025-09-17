@@ -186,6 +186,3 @@ For people unfamiliar with FEM or in need of refreshing the following books and 
 - lecture material by Dennis Kochmann for his course "Introduction to Finite Element Analysis" https://mm.ethz.ch/education/lecture-notes.html : excellently written, easy to understand and very useful when trying to understand the FE implementation in this code
 
 - advanced textbook by Peter Wriggers {cite}`wriggers2008nonlinear`: covers anything that the previous two have not covered and for me the first place to look for problems beyond the basics.
-
-```{bibliography}
-:style: unsrt

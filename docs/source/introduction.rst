@@ -8,3 +8,4 @@ Introduction and Tutorials
    introduction/filter
    introduction/adjoint_analysis
    introduction/meshing
+   introduction/references

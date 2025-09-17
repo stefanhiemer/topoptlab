@@ -52,8 +52,9 @@ this becomes
 ```{math}
 \frac{\partial \boldsymbol{u}}{\partial x} = -\boldsymbol{K}^{-1} \frac{\partial \boldsymbol{K}}{\partial x}\boldsymbol{K}^{-1} \boldsymbol{f},
 ```
-This solution is for all practical purposes is useless as $\boldsymbol{K}$ is a
-very large.
+This solution for all practical purposes is impractical as $\boldsymbol{K}$ is 
+a very large which makes the matrix products and inversion computationally too 
+expensive.
 
 (adjoint-analysis)=
 ## Adjoint Analysis
@@ -64,8 +65,8 @@ In adjoint analysis, one rewrites the objective function as
 ```
 where $\boldsymbol{\lambda}$ is an arbitrary vector which we call the adjoint 
 vector or in general adjoint variables. It is arbitrary as we have written 
-$\lambda \cot \boldsymbol{0}$, therefor the values of $\boldsymbol{\lambda}$ can 
-be chosen however one likes. After differentiation
+$\boldsymbol{\lambda } \cdot \boldsymbol{0}$, therefor the values of $\boldsymbol{\lambda}$ 
+are arbitrary. After differentiation
 ```{math}
 \frac{d \tilde{C}}{d x} = \frac{\partial C}{\partial x} + \nabla_{\boldsymbol{u}}C \frac{\partial \boldsymbol{u}}{\partial x} +  \boldsymbol{\lambda}^T \left( \frac{\partial \boldsymbol{K}}{\partial x} \boldsymbol{u} + \boldsymbol{K} \frac{\partial \boldsymbol{u}}{\partial x}  - \frac{\partial \boldsymbol{f}}{\partial x} \right)
 ```

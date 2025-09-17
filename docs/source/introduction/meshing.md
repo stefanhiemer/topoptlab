@@ -44,7 +44,7 @@ spatial dimesion. In 2d the local degrees of freedom in the elements are
 arranged counter-clockwise starting from the node located at (-1,-1). In 3d the 
 same method is used where we start from node (-1,-1,-1), number all nodes with
 $z=-1$ and then repeat the same for the nodes $z=1$. This is the same approach
-as in the famous 88 line code`andreassen2011efficient` and its updated version {cite}`ferrari2020new`
+as in the famous 88 line code{cite}`andreassen2011efficient` and its updated version {cite}`ferrari2020new`
 For scalar fields (e. g. temperature) the global degrees of freedom are 
 enumerated as follows (with elements as roman numbers) in 2D
 
