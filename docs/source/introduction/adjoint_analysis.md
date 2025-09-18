@@ -68,7 +68,7 @@ vector or in general adjoint variables. It is arbitrary as we have written
 $\boldsymbol{\lambda } \cdot \boldsymbol{0}$, therefor the values of $\boldsymbol{\lambda}$ 
 are arbitrary. After differentiation
 ```{math}
-\frac{d \tilde{C}}{d x} = \frac{\partial C}{\partial x} + \nabla_{\boldsymbol{u}}C \frac{\partial \boldsymbol{u}}{\partial x} +  \boldsymbol{\lambda}^T \left( \frac{\partial \boldsymbol{K}}{\partial x} \boldsymbol{u} + \boldsymbol{K} \frac{\partial \boldsymbol{u}}{\partial x}  - \frac{\partial \boldsymbol{f}}{\partial x} \right)
+\frac{d \tilde{C}}{d x} = \frac{\partial C}{\partial x} + \nabla_{\boldsymbol{u}}C^T \frac{\partial \boldsymbol{u}}{\partial x} +  \boldsymbol{\lambda}^T \left( \frac{\partial \boldsymbol{K}}{\partial x} \boldsymbol{u} + \boldsymbol{K} \frac{\partial \boldsymbol{u}}{\partial x}  - \frac{\partial \boldsymbol{f}}{\partial x} \right)
 ```
 we again assume for sake of clarity that the right hand side of the phys. 
 problem $\boldsymbol{f}$ is independent of $x$, therefor $\frac{\partial \boldsymbol{f}}{\partial x}=\boldsymbol{0}$
