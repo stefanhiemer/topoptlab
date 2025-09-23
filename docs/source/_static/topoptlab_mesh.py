@@ -34,7 +34,7 @@ def plot_meshnumbering2d(nelx=4,nely=3,ndof=2,
     # add node numbers
     for i in range(nely+1):
         for j in range(nelx+1):
-            ax.text(x=j-0.35, y=i-0.3, 
+            ax.text(x=j-0.5, y=i-0.3, 
                     s=",".join([str(s+ndoffset) for s in \
                                 ndgrid[i*ndof:(i+1)*ndof,j]]), 
                     ha='center', va='center', fontsize=10)
@@ -50,7 +50,7 @@ def plot_meshnumbering2d(nelx=4,nely=3,ndof=2,
     ax.set_xlim(-0.5, nelx-0.5)
     ax.set_ylim(nely-0.5, -0.5)
     if show:
-        plt.savefig("meshnumbering-2d.png",
+        plt.savefig("meshnumbering-"+["scalar","vector"][int(ndof!=1)]+"-2d.png",
                     format="png")
         plt.show()
     return
@@ -124,20 +124,24 @@ def plot_meshnumbering3d(nelx=4,nely=3,nelz=2,ndof=2):
     # 2d plots 
     for i in range(nelz+1):
         axs[i,1].set_title("z = "+str(i), fontsize=12)
-        plot_meshnumbering2d(nelx=nelx,nely=nely,ndof=ndof,
-                             eloffset=i*nelx*nely,ndoffset=i*(nelx+1)*(nely+1),
+        plot_meshnumbering2d(nelx=nelx, nely=nely, ndof=ndof,
+                             eloffset=i*nelx*nely,
+                             ndoffset=i*(nelx+1)*(nely+1)*ndof,
                              ax=axs[i,1])
         axs[i,1].set_xlabel("x", fontsize=12)
         axs[i,1].set_ylabel("y", fontsize=12)
     # Adjust layout to prevent overlap
     fig.tight_layout()
-    plt.savefig("meshnumbering-3d.png",
+    plt.savefig("meshnumbering-"+["scalar","vector"][int(ndof!=1)]+"-3d.png",
                 format="png")
     plt.show()
     return
     
 if __name__ == "__main__":
-    #
+    # scalar fields
     plot_meshnumbering2d(nelx=4,nely=3,ndof=1)
     plot_meshnumbering3d(nelx=4,nely=3,ndof=1)
+    # vector fields
+    plot_meshnumbering2d(nelx=3,nely=2,ndof=2)
+    plot_meshnumbering3d(nelx=3,nely=2,ndof=3)
     
