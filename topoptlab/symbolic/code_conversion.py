@@ -41,23 +41,8 @@ def convert_to_code(matrix: MatrixFunction,
         function.
 
     """
-    # convert symfem.MatrixFunction to list to better print it
-    ls = []
-    for i in range(matrix.shape[0]):
-        ls.append([])
-        for j in range(matrix.shape[1]):
-            ls[-1].append(matrix[i,j])
-    # create a StringIO object to capture print output
-    stringio_capturer = StringIO()
-    # redirect stdout to the StringIO object
-    sys.stdout = stringio_capturer
-    # feed the matrix into the capturer
-    print(ls)
-    # reset stdout back to normal
-    sys.stdout = sys.__stdout__
-    # convert printed output to string
-    lines = stringio_capturer.getvalue()
-    stringio_capturer.close()
+    #
+    lines = symfemMatrixFunc_to_str(matrxfnc=matrix)
     #
     first_line = lines.split("],",1)[0]
     #
@@ -95,4 +80,39 @@ def convert_to_code(matrix: MatrixFunction,
         lines = sub(vector + r'(\d)',
                     lambda m: vector + f'[{int(m.group(1))-1}]',
                     lines)
+    return lines
+
+
+def symfemMatrixFunc_to_str(matrxfnc: MatrixFunction) -> str:
+    """
+    Convert symfem MatrixFunction to str via print() and capture this.
+
+    Parameters
+    ----------
+    matrxfnc : symfem.functions.MatrixFunction
+        matrix to convert to str.
+
+    Returns
+    -------
+    lines : str
+        symfem MatrixFunction converted to str via print() and captured.
+
+    """
+    # convert symfem.MatrixFunction to list to better print it
+    ls = []
+    for i in range(matrxfnc.shape[0]):
+        ls.append([])
+        for j in range(matrxfnc.shape[1]):
+            ls[-1].append(matrxfnc[i,j])
+    # create a StringIO object to capture print output
+    stringio_capturer = StringIO()
+    # redirect stdout to the StringIO object
+    sys.stdout = stringio_capturer
+    # feed the matrix into the capturer
+    print(ls)
+    # reset stdout back to normal
+    sys.stdout = sys.__stdout__
+    # convert printed output to string
+    lines = stringio_capturer.getvalue()
+    stringio_capturer.close()
     return lines
