@@ -3,8 +3,10 @@ from typing import Any, Callable, Union
 
 import numpy as np
 
-def eng_strain(xi: np.ndarray, eta: np.ndarray, xe: np.ndarray,
-               invjacobian: np.ndarray, shape_functions_dxi: np.ndarray,
+def eng_strain(xi: np.ndarray, eta: np.ndarray, 
+               xe: np.ndarray,
+               invjacobian: np.ndarray, 
+               shape_functions_dxi: np.ndarray,
                zeta: Union[None,np.ndarray] = None, 
                check_fnc: Union[None,Callable] = None,
                all_elems: bool = False, return_detJ: bool = False,
@@ -46,7 +48,8 @@ def eng_strain(xi: np.ndarray, eta: np.ndarray, xe: np.ndarray,
     nel, n_nodes, ndim = xe.shape
     # check coordinates and node data for consistency
     if hasattr(check_fnc, '__call__') and zeta is None:
-        xe,xi,eta,zeta = check_fnc(xi=xi,eta=eta,xe=xe,all_elems=all_elems) 
+        xe,xi,eta,zeta = check_fnc(xi=xi,eta=eta,xe=xe,
+                                   all_elems=all_elems) 
     # collect inverse jacobians
     if not return_detJ:
         invJ = invjacobian(xi=xi,eta=eta,zeta=zeta,xe=xe,

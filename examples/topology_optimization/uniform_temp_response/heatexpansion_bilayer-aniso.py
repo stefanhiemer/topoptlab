@@ -302,7 +302,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         n_ndof = int(KE.shape[-1]/8)
         nT_ndof = int(KT.shape[-1]/8)
         # number of degrees of freedom
-        ndof = (nelx+1)*(nely+1)*n_ndof
+        ndof = (nelx+1)*(nely+1)*(nelz+1)*n_ndof
         nTdof = (nelx+1)*(nely+1)*(nelz+1)*nT_ndof
         #
         T = np.ones((nTdof,1))
@@ -361,7 +361,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                 lf = lf_bodyforce_2d
             elif ndim == 3 and n_ndof!=1:
                 lf = lf_bodyforce_3d
-            fe_dens = lf_bodyforce_2d(b=body_forces_kw["density_coupled"])
+            fe_dens = lf(b=body_forces_kw["density_coupled"])
         else:
             fe_dens = None
         #
