@@ -50,6 +50,9 @@ def convert_from_voigt(A_v: MatrixFunction) -> MatrixFunction:
     elif isinstance(A_v,list):
         l = len(A_v)
     #
+    if l not in [1,3,6]:
+        raise ValueError("This is not a vector compatible with the assumptions of Voigt representation.")
+    #
     ndim = int( -1/2 + math.sqrt(1/2+2*l) )
     #
     A = [[0 for j in range(ndim)] for i in range(ndim)]

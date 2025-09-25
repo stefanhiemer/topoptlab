@@ -73,7 +73,7 @@ def isoparametric_map(basis: List, vertices: Tuple) -> MatrixFunction:
     elif isinstance(basis,MatrixFunction):
         if basis.shape[1] != 1:
             raise ValueError("If basis is provided as MatrixFunction, must have shape (n_nodes,1)")
-    return vertices.tranpose()@basis
+    return vertices.transpose()@basis
 
 def jacobian(ndim: int,
              element_type: str = "Lagrange",
@@ -132,7 +132,7 @@ def jacobian(ndim: int,
         # adjungate matrix
         Jinv = [[[] for j in range(ndim)] for j in range(ndim)]
         if ndim == 1:
-            Jinv[0][0] = 1 /J[0][0] / Jdet
+            Jinv[0][0] = 1 / Jdet
         elif ndim == 2:
             Jinv[0][0], Jinv[1][1] = J[1][1]/Jdet, J[0][0]/Jdet
             Jinv[0][1], Jinv[1][0] = -J[0][1]/Jdet, -J[1][0]/Jdet
