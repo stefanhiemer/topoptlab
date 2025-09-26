@@ -173,6 +173,7 @@ def inverse(A: MatrixFunction,
        square matrix of shape (ndim, ndim).
    Adet : symfem.functions.ScalarFunction or None, optional
        determinant of ``A``. Providing it allows reuse.
+       
     Returns
     -------
     Ainv : symfem.functions.MatrixFunction
@@ -206,3 +207,44 @@ def inverse(A: MatrixFunction,
         Ainv[2][1] = -(A[0][0]*A[2][1] - A[0][1]*A[2][0]) / Adet
         Ainv[2][2] = (A[0][0]*A[1][1] - A[0][1]*A[1][0]) / Adet
     return Ainv
+
+def trace(A: MatrixFunction) -> ScalarFunction:
+    """
+    Return trace of square matrix.
+
+    Parameters
+    ----------
+    A : symfem.functions.MatrixFunction
+       square matrix of shape (ndim, ndim).
+       
+    Returns
+    -------
+    trace : symfem.functions.ScalarFunction
+       trace of A.
+
+    """
+    #
+    check_square(A)
+    #
+    trace = 0
+    for i in range(A.shape[0]):
+        trace = trace + A[i,i]
+    return trace
+
+def check_square(A: MatrixFunction) -> None:
+    """
+    Check if A is a square matrix.
+
+    Parameters
+    ----------
+    A : symfem.functions.MatrixFunction
+       matrix to be checked.
+       
+    Returns
+    -------
+    None
+
+    """
+    if A.shape[0] != A.shape[1]:
+        raise ValueError("A is not square: ", A.shape)
+    return
