@@ -140,11 +140,11 @@ def export_vtk(filename,
     # insert data for elements
     el_data = {}
     el_data.update({"xPhys": [xPhys]})
-    if not x is None:
+    if x is not None:
         el_data.update({"x": [x]})
-    if not xTilde is None:
+    if xTilde is not None:
         el_data.update({"xTilde": [xTilde]})
-    if not volfrac is None:
+    if volfrac is not None:
         el_data.update({"xThresh": [threshold(xPhys,volfrac)]})
     #
     if nelz is None:

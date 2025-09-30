@@ -1,26 +1,125 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any,Union,Tuple
+from typing import Any,Callable,Dict,Union,Tuple
 
 import numpy as np
-from scipy.sparse import issparse,diags,triu,tril,csc_array
-from scipy.sparse.linalg import spsolve_triangular
+from scipy.sparse import issparse,diags,triu,tril,sparray
+from scipy.sparse.linalg import spsolve_triangular, LinearOperator
 
-def gauss_seidel(A: csc_array, b: np.ndarray,
+def max_res(r: np.ndarray, tol: float,
+            **kwargs: Any) -> bool:
+    """
+    Check if maximum residual smaller than tolerance.
+    
+    Parameters
+    ----------
+    r :np.ndarray
+        residual.
+    tol : float 
+        tolerance.
+
+    Returns
+    -------
+    converged : bool
+        if True, max. residual smaller than tolerance. 
+    """ 
+    return np.abs(r).max() < tol
+
+def pcg(A: sparray, b: np.ndarray,
+       P: Union[sparray,LinearOperator],
+       x0: Union[None,np.ndarray] = None,
+       tol: float = 1e-8, maxiter: int = 1000,
+       conv_criterium: Callable = max_res,
+       conv_args: Dict = {},
+       **kwargs: Any) -> Tuple[np.ndarray,int]:
+    """
+    Preconditioned conjugate gradient solver for `Ax=b`, for a symmetric, 
+    positive-definite matrix `A`. Iterate until convergence criteria met or the 
+    maximum number of iterations is exceeded.
+
+    Parameters
+    ----------
+    A : scipy.sparse.sparray
+        matrix of linear system.
+    b : np.ndarray 
+        right hand side of linear system.
+    P : scipy.sparse.sparray or scipy.sparse.LinearOperator
+        preconditioner that is called at each cg iteration.
+    x0 : np.ndarray
+        initial guess for solution.
+    tol : float
+        convergence tolerance.
+    maxiter : int
+        maximum number of iterations.
+    conv_criterium : callable
+        convergence criterium.
+    conv_args : dict
+        additional arguments for convergence criterium.
+        
+    Returns
+    -------
+    x : np.ndarray
+        final result for solution.
+    info : int
+        0: converged, info>0: exited due to reaching maximum number of 
+        iterations.
+    """
+    # type check
+    if not issparse(A):
+        raise TypeError("Matrix A must be a sparse array.")
+    if not isinstance(b, np.ndarray):
+        raise TypeError("b must be a numpy ndarray.")
+    # initial guess
+    if x0 is None:
+        x = np.zeros(b.shape)
+    else:
+        x = x0.copy()
+    # updates of residual and x
+    dx = np.zeros(x.shape)
+    dr,z = dx.copy(),dx.copy()
+    #
+    r = b - A@x
+    for i in range(maxiter):
+        # check convergence
+        if conv_criterium(r=r,tol=tol,**conv_args):
+            i = 0
+            break
+        # preconditioner
+        z[:] = P@r
+        rho_cur = np.dot(r, z)
+        if i > 0:
+            beta = rho_cur / rho_prev
+            dx[:] = dx*beta + z
+        else:
+            dx[:] = z.copy()
+        #
+        dr[:] = A@dx
+        alpha = rho_cur / np.dot(dx, dr)
+        x[:] += alpha*dx
+        r[:] -= alpha*dr
+        rho_prev = rho_cur
+        
+    return x, i
+
+
+def gauss_seidel(A: sparray, b: np.ndarray,
                  x0: Union[None,np.ndarray] = None, 
                  tol: float = 1e-8, max_iter: int = 1000,
-                 L: Union[None,csc_array] = None, 
-                 U: Union[None,csc_array] = None,
+                 L: Union[None,sparray] = None, 
+                 U: Union[None,sparray] = None,
+                 conv_criterium: Callable = max_res,
+                 conv_args: Dict = {},
                  **kwargs: Any) -> Tuple[np.ndarray,int]:
     """
     Gauss-Seidel solver for Ax = b. We rewrite 
     
     L x^i = omega b - U x^(i-1)
     
-    to avoid Python for loops.
+    to avoid Python for loops. Iterate until the residual `r=b-Ax` fulfills
+    r.max()<tol or the maximum number of iterations is exceeded.
     
     Parameters
     ----------
-    A : scipy.sparse.csc_array
+    A : scipy.sparse.sparray
         matrix of linear system.
     b : np.ndarray 
         right hand side of linear system.
@@ -30,10 +129,14 @@ def gauss_seidel(A: csc_array, b: np.ndarray,
         convergence tolerance.
     maxiter : int
         maximum number of iterations.
-    L : scipy.sparse.csc_array or None
+    L : scipy.sparse.sparray or None
         lower triangular matrix of A (with diagonal).
-    U : scipy.sparse.csc_array or None
+    U : scipy.sparse.sparray or None
         upper triangular matrix of A (without diagonal).
+    conv_criterium : callable
+        convergence criterium.
+    conv_args : dict
+        additional arguments for convergence criterium.
 
     Returns
     -------
@@ -57,31 +160,36 @@ def gauss_seidel(A: csc_array, b: np.ndarray,
     if L is None and U is None:
         L = tril(A,k=0,format="csc")
         U =  triu(A,k=1,format="csc")
-    #
-    r = np.zeros(x.shape,dtype=np.float64)
+    # initial residual
+    r = b - A @ x
     for i in np.arange(max_iter):
+        # check convergence
+        if conv_criterium(r=r,tol=tol,**conv_args):
+            i = 0
+            break
         # SRO update
         x[:] = spsolve_triangular(L, b - U@x,
                                   lower=True)
         # residual
         r[:] = b - A @ x
-        # check convergence
-        if np.abs(r).max() < tol:
-            i = 0
-            break
+        
     return x, i
 
-def smoothed_jacobi(A: csc_array, b: np.ndarray, 
+def smoothed_jacobi(A: sparray, b: np.ndarray, 
                     x0: Union[None,np.ndarray] = None, 
                     omega: float = 0.67, 
                     tol: float = 1e-8, max_iter: int = 1000,
+                    conv_criterium: Callable = max_res,
+                    conv_args: Dict = {},
                     **kwargs: Any) -> Tuple[np.ndarray,int]:
     """
-    Smoothed Jacobi iterative solver for Ax = b.
+    Smoothed Jacobi iterative solver for `Ax = b`. Iterate until the residual 
+    `r=b-Ax` fulfills r.max()<tol or the maximum number of iterations is 
+    exceeded.
 
     Parameters
     ----------
-    A : scipy.sparse.csc_array
+    A : scipy.sparse.sparray
         matrix of linear system.
     b : np.ndarray 
         right hand side of linear system.
@@ -90,9 +198,13 @@ def smoothed_jacobi(A: csc_array, b: np.ndarray,
     omega : float
         damping factor usually between 0/1.
     tol : float
-        convergence tolerance
+        convergence tolerance.
     maxiter : int
-        maximum number of iterations
+        maximum number of iterations.
+    conv_criterium : callable
+        convergence criterium.
+    conv_args : dict
+        additional arguments for convergence criterium.
 
     Returns
     -------
@@ -114,30 +226,34 @@ def smoothed_jacobi(A: csc_array, b: np.ndarray,
         x = x0.copy()
     # inverse of diagonal
     Dinv = 1. / A.diagonal()
-    # initialize residual
-    r = np.zeros(x.shape,dtype=np.float64)
+    # initial residual
+    r = b - A @ x
     for i in np.arange(max_iter):
+        # check convergence
+        if conv_criterium(r=r,tol=tol,**conv_args):
+            i = 0
+            break
         # smoothed Jacobi update
         x[:] = x + omega * ( Dinv*b - Dinv*(A@x) )
         # residual
         r[:] = b - A @ x
-        # check convergence
-        if np.abs(r).max() < tol:
-            i = 0
-            break
     return x, i
 
-def modified_richardson(A: csc_array, b: np.ndarray, 
+def modified_richardson(A: sparray, b: np.ndarray, 
                         x0: Union[None,np.ndarray] = None, 
                         omega: float = 0.1, 
                         tol: float = 1e-8, max_iter: int = 1000,
+                        conv_criterium: Callable = max_res,
+                        conv_args: Dict = {},
                         **kwargs: Any) -> Tuple[np.ndarray,int]:
     """
-    Modified Richardson iterative solver for Ax = b.
+    Modified Richardson iterative solver for `Ax=b`. Iterate until the residual 
+    `r=b-Ax` fulfills r.max()<tol or the maximum number of iterations is 
+    exceeded.
 
     Parameters
     ----------
-    A : scipy.sparse.csc_array
+    A : scipy.sparse.sparray
         matrix of linear system.
     b : np.ndarray 
         right hand side of linear system.
@@ -146,9 +262,13 @@ def modified_richardson(A: csc_array, b: np.ndarray,
     omega : float
         damping factor usually between 0/1.
     tol : float
-        convergence tolerance
+        convergence tolerance.
     maxiter : int
-        maximum number of iterations
+        maximum number of iterations.
+    conv_criterium : callable
+        convergence criterium.
+    conv_args : dict
+        additional arguments for convergence criterium.
 
     Returns
     -------
@@ -171,26 +291,28 @@ def modified_richardson(A: csc_array, b: np.ndarray,
     # initial residual
     r = b - A @ x
     for i in np.arange(max_iter):
+        # check convergence
+        if conv_criterium(r=r,tol=tol,**conv_args):
+            i = 0
+            break
         # richardson update
         x[:] = x + omega*r
         # residual
         r[:] = b - A @ x
-        # check convergence
-        if np.abs(r).max() < tol:
-            i = 0
-            break
     return x, i
 
-def successive_overrelaxation(A: csc_array, b: np.ndarray, 
+def successive_overrelaxation(A: sparray, b: np.ndarray, 
                               x0: Union[None,np.ndarray] = None, 
                               omega: float = 0.5, 
                               tol: float = 1e-8, max_iter: int = 1000,
-                              D: Union[None,csc_array] = None, 
-                              A_u: Union[None,csc_array] = None, 
-                              A_l: Union[None,csc_array] = None,
+                              D: Union[None,sparray] = None, 
+                              A_u: Union[None,sparray] = None, 
+                              A_l: Union[None,sparray] = None,
+                              conv_criterium: Callable = max_res,
+                              conv_args: Dict = {},
                               **kwargs: Any) -> Tuple[np.ndarray,int]:
     """
-    Successive over-relaxation (SRO) solver for Ax = b. We rewrite 
+    Successive over-relaxation (SRO) solver for `Ax=b`. We rewrite 
     
     (D+omega L) x^i = omega b - [ omega U + (omega - 1)D ]x^(i-1)
     
@@ -198,11 +320,13 @@ def successive_overrelaxation(A: csc_array, b: np.ndarray,
     
     A_l x^i = omega b - A_u x^i-1
     
-    to avoid repeated addition etc. in the sparse matrices.
+    to avoid repeated addition etc. in the sparse matrices. Iterate until the 
+    residual `r=b-Ax` fulfills r.max()<tol or the maximum number of iterations 
+    is exceeded.
     
     Parameters
     ----------
-    A : scipy.sparse.csc_array
+    A : scipy.sparse.sparray
         matrix of linear system.
     b : np.ndarray 
         right hand side of linear system.
@@ -214,12 +338,16 @@ def successive_overrelaxation(A: csc_array, b: np.ndarray,
         convergence tolerance.
     maxiter : int
         maximum number of iterations.
-    D : scipy.sparse.csc_array or None
+    D : scipy.sparse.sparray or None
         diagonal of A.
-    M_u : scipy.sparse.csc_array or None
+    M_u : scipy.sparse.sparray or None
         helper matrix (see equation above).
-    M_l : scipy.sparse.csc_array or None
+    M_l : scipy.sparse.sparray or None
         helper matrix (see equation above).
+    conv_criterium : callable
+        convergence criterium.
+    conv_args : dict
+        additional arguments for convergence criterium.
 
     Returns
     -------
@@ -244,16 +372,16 @@ def successive_overrelaxation(A: csc_array, b: np.ndarray,
         D = diags(A.diagonal(),format="csc")
         M_l = D + omega * tril(A,k=-1,format="csc")
         M_u =  omega * triu(A,k=1,format="csc") + (omega - 1) * D
-    #
-    r = np.zeros(x.shape,dtype=np.float64)
+    # initial residual
+    r = b - A @ x
     for i in np.arange(max_iter):
+        # check convergence
+        if conv_criterium(r=r,tol=tol,**conv_args):
+            i = 0
+            break
         # SRO update
         x[:] = spsolve_triangular(M_l, omega * b - M_u@x,
                                   lower=True)
         # residual
         r[:] = b - A @ x
-        # check convergence
-        if np.abs(r).max() < tol:
-            i = 0
-            break
     return x, i

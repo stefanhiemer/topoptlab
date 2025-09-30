@@ -48,7 +48,7 @@ def solve_lin(K: Union[csc_array,spmatrix], rhs: Union[np.ndarray,matrix],
         preconditioner created during the solution. Concrete nature depends on
         the solver and library used.
     """
-    # direct solvers
+    ### direct solvers
     if solver == "scipy-direct":
         if rhs.shape[1] == 1:
             return spsolve(K, rhs)[:,None], None, None
@@ -72,7 +72,8 @@ def solve_lin(K: Union[csc_array,spmatrix], rhs: Union[np.ndarray,matrix],
         solve(factorization, B)
         #linsolve(K,B)
         return np.array(B), factorization, None
-    # iterative solvers
+    
+    ### iterative solvers
     if P is None and preconditioner is not None:
         if preconditioner == "scipy-ilu":
             ilu = spilu(K, fill_factor=100., drop_tol=1e-5)

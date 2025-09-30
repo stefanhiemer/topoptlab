@@ -271,14 +271,79 @@ def cantilever_2d_wrong(nelx: int, nely: int,
     f[-1,0] = -1
     return u,f,fixed,np.setdiff1d(dofs,fixed),None
 
+def cantilever_3d(nelx: int, nely: int, nelz: int,
+                  ndof: int,
+                  force_mode: str = "linear",
+                  **kwargs: Any
+                  ) -> Tuple[np.ndarray,np.ndarray,
+                             np.ndarray,np.ndarray,None]:
+    """
+    This is an equivalent to 4.2 in 
+    
+    Amir, Oded, Niels Aage, and Boyan S. Lazarov. "On multigrid-CG for 
+    efficient topology optimization." Structural and Multidisciplinary 
+    Optimization 49.5 (2014): 815-829.
+
+    Parameters
+    ----------
+    nelx : int
+        number of elements in x direction.
+    nely : int
+        number of elements in y direction.
+    nelz : int
+        number of elements in z direction.
+    ndof : int
+        number of degrees of freedom.
+    force_mode : str
+        mode how to distribute forces at cantilever end.
+
+    Returns
+    -------
+    u : np.ndarray
+        array of zeros for state variable (displacement, temperature) to be
+        filled of shape (ndof).
+    f : np.ndarray
+        array of zeros for state flow variables (forces, flow).
+    fixed : np.ndarray
+        indices of fixed dofs (nfixed).
+    free : np.ndarray
+        indices of free dofs (ndofs - nfixed).
+    springs : None
+        example has no springs.
+    """
+    #
+    dofs = np.arange(ndof)
+    # Solution and RHS vectors
+    f = np.zeros((ndof, 1))
+    u = np.zeros((ndof, 1))
+    # fixation to wall
+    fixation = np.arange(0,3*(nely+1),3)
+    fixation = np.tile(fixation,nelz+1)+\
+              np.repeat(np.arange(0,ndof,3*(nelx+1)*(nely+1)),nely+1)
+    fixation = np.hstack( (fixation,fixation+1,fixation+2) )
+    # symmetry bc (fix z displacements to zero)
+    zsymmetry = np.arange(2,(nelx+1)*(nely+1)*3,3)
+    #
+    fixed = np.union1d(zsymmetry,
+                        fixation)
+    # force pushing down in y direction on end of cantilever
+    if force_mode == "linear":
+        f0 = np.linspace(1.,0.,nelz+1)
+    elif force_mode == "constant":
+        f0 = 1. 
+    else:
+        raise ValueError("force_mode must be either 'linear' or 'constant': ",
+                         force_mode)
+    f[np.arange((nelx+1)*(nely+1)*3 - 2,ndof,(nelx+1)*(nely+1)*3), 0] = f0
+    return u,f,fixed,np.setdiff1d(dofs,fixed),None
+
 def forceinverter_2d(nelx: int, nely: int,
                      ndof: int, **kwargs: Any
                      ) -> Tuple[np.ndarray,np.ndarray,
                                 np.ndarray,np.ndarray,None]:
     """
-    Heat conduction problem with an evenly heated plate attached to a heat
-    sink at the negative x side. Example case taken from the standard TO
-    textbook by Sigmund and Bendsoe page 271.
+    Force inverter as example case for compliant mechanisms. Example case taken 
+    from the standard TO textbook by Sigmund and Bendsoe page 269.
 
     Parameters
     ----------
@@ -306,18 +371,85 @@ def forceinverter_2d(nelx: int, nely: int,
         the spring constants.
 
     """
+    # force and displacements
+    f = np.zeros((ndof, 1))
+    u = np.zeros((ndof, 1))
+    #
+    fixed = np.union1d(np.arange(1,(nelx+1)*(nely+1)*2,(nely+1)*2), # symmetry
+                       np.arange(2*(nely+1)-4,2*(nely+1))) # bottom left fixation
+    # load/source
+    f[0,0] = 1
+    #
+    springs = [np.array([0,2*nelx*(nely+1)]),np.array([0.1,0.1])]
+    return u,f,fixed,np.setdiff1d(np.arange(ndof),fixed),springs
+
+def forceinverter_3d(nelx: int, nely: int, nelz: int,
+                     ndof: int, fixation_mode: str = "point",
+                     **kwargs: Any
+                     ) -> Tuple[np.ndarray,np.ndarray,
+                                np.ndarray,np.ndarray,None]:
+    """
+    Force inverter case as in 
+    
+    Amir, Oded, Niels Aage, and Boyan S. Lazarov. "On multigrid-CG for 
+    efficient topology optimization." Structural and Multidisciplinary 
+    Optimization 49.5 (2014): 815-829.
+
+    Parameters
+    ----------
+    nelx : int
+        number of elements in x direction.
+    nely : int
+        number of elements in y direction.
+    nelz : int
+        number of elements in z direction.
+    ndof : int
+        number of degrees of freedom.
+    fixation_mode : str 
+        either "line" or "point".
+
+    Returns
+    -------
+    u : np.ndarray
+        array of zeros for state variable (displacement, temperature) to be
+        filled of shape (ndof).
+    f : np.ndarray
+        array of zeros for state flow variables (forces, flow).
+    fixed : np.ndarray
+        indices of fixed dofs (nfixed).
+    free : np.ndarray
+        indices of free dofs (ndofs - nfixed).
+    springs : list
+        contains two 1D np.ndarrays of equal length. first is of integer type
+        and contains the indices of dofs attached to a spring. second contains
+        the spring constants.
+
+    """
     # BC's
     dofs = np.arange(ndof)
     # Solution and RHS vectors
     f = np.zeros((ndof, 1))
     u = np.zeros((ndof, 1))
+    # symmetry bc (fix y displacements to zero)
+    ysymmetry = np.arange(1,ndof,3*(nely+1))
+    # symmetry bc (fix z displacements to zero)
+    zsymmetry = np.arange(2,(nelx+1)*(nely+1)*3,3)
     #
-    fixed = np.union1d(np.arange(1,(nelx+1)*(nely+1)*2,(nely+1)*2), # symmetry
-                       np.arange(2*(nely+1)-4,2*(nely+1))) # bottom left bit
+    if fixation_mode == "point": 
+        fixation = np.array([ndof - 3])
+    elif fixation_mode == "line": 
+        fixation = np.arange( ndof-3, 3*(nelx+1)*(nely+1)*nelz,-3*(nely+1) )
+    else:
+        raise ValueError("fixation mode must be either 'line' or 'point': ",
+                         fixation_mode)
+    #
+    fixed = np.hstack((ysymmetry,
+                       zsymmetry,
+                       fixation))
     # load/source
     f[0,0] = 1
     #
-    springs = [np.array([0,2*nelx*(nely+1)]),np.array([0.1,0.1])]
+    springs = [np.array([0,3*nelx*(nely+1)]),np.array([0.1,1e-4])]
     return u,f,fixed,np.setdiff1d(dofs,fixed),springs
 
 def threepointbending_2d(nelx: int, nely: int,

@@ -36,7 +36,6 @@ clean-ups and streamlining/refactoring
 
 documentation 
 - [ ] add the shape commentaries which now are being ignored.
-- [ ] short usage example in README.md
 - [ ] long usage example in README.md
 - [ ] document MMA and GCMMA.
 - [ ] document general constraints.

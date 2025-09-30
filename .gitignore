@@ -11,7 +11,10 @@ old_cholmod.py
 !images/*.pdf
 !images/*.png
 !docs/source/_static/*.png
+!examples/filter/mbb2d_240x80_v0.5_ft0.csv
 *.log
+*.npz
+*csv
 examples/fdm/runs
 docs/build/
 dist/
