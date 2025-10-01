@@ -45,7 +45,6 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
     xold=x.copy()
     xPhys=x.copy()
     g=0 # must be initialized to use the NGuyen/Paulino OC approach
-    dc=np.zeros((nely,nelx), dtype=float)
     # fetch element stiffness matrix
     KE = lk()
     # # dofs:
@@ -93,7 +92,7 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
     while change>0.01 and loop<2000:
         loop=loop+1
         # Setup and solve FE problem
-        sK=((KE.flatten()[np.newaxis]).T*(Emin+(xPhys)**penal*(Emax-Emin))).flatten(order='F')
+        sK=(KE.flatten()[:,None]*(Emin+(xPhys)**penal*(Emax-Emin))).flatten(order='F')
         K = coo_matrix((sK,(iK,jK)),shape=(ndof,ndof)).tocsc()
         # Remove constrained dofs from matrix
         K = K[free,:][:,free]
@@ -109,10 +108,10 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
         dv[:] = np.ones(nely*nelx)
         # Sensitivity filtering:
         if ft==0:
-            dc[:] = np.asarray((H*(x*dc))[np.newaxis].T/Hs)[:,0] / np.maximum(0.001,x)
+            dc[:] = np.asarray((H*(x*dc))[:,None]/Hs)[:,0] / np.maximum(0.001,x)
         elif ft==1:
-            dc[:] = np.asarray(H*(dc[np.newaxis].T/Hs))[:,0]
-            dv[:] = np.asarray(H*(dv[np.newaxis].T/Hs))[:,0]
+            dc[:] = np.asarray(H*(dc[:,None]/Hs))[:,0]
+            dv[:] = np.asarray(H*(dv[:,None]/Hs))[:,0]
         # Optimality criteria
         xold[:]=x
         x[:],g=oc(x,volfrac,dc,dv,g)
@@ -120,7 +119,7 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
         if ft==0:
             xPhys[:]=x
         elif ft==1:
-            xPhys[:]=np.asarray(H*x[np.newaxis].T/Hs)[:,0]
+            xPhys[:]=np.asarray(H*x[:,None]/Hs)[:,0]
         # Compute the change by the inf. norm
         change=np.abs(x-xold).max()
         # Plot to screen

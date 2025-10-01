@@ -159,19 +159,18 @@ def main(nelx: int, nely: int,
     #
     if nelz is None:
         ndim = 2
+        create_edofMat = create_edofMat2d
     else:
         ndim = 3
+        create_edofMat = create_edofMat3d
     #
     if write_log:
         # check if log file exists and if True delete
         to_log = init_logging(logfile=file)
         #
-        to_log(f"minimum compliance problem with optimizer {optimizer}")
+        to_log(f"optimizer {optimizer}")
         to_log(f"number of spatial dimensions: {ndim}")
-        if ndim == 2:
-            to_log(f"elements: {nelx} x {nely}")
-        elif ndim == 3:
-            to_log(f"elements: {nelx} x {nely} x {nelz}")
+        to_log("elements: "+" x ".join([f"{nelx}",f"{nely}",f"{nelz}"][:ndim]))
         if volfrac is not None:
             to_log(f"volfrac: {volfrac} rmin: {rmin}  penal: {penal}")
         else:
@@ -250,22 +249,13 @@ def main(nelx: int, nely: int,
     E = 1.0
     # get element stiffness matrix
     KE = lk(l=l)
-    if ndim == 2:
-        # infer nodal degrees of freedom assuming that we have 4/8 nodes in 2/3
-        n_ndof = int(KE.shape[-1]/4)
-        # number of degrees of freedom
-        ndof = (nelx+1)*(nely+1)*n_ndof
-        # element degree of freedom matrix plus some helper indices
-        edofMat, n1, n2, n3, n4 = create_edofMat2d(nelx=nelx,nely=nely,
-                                                   nnode_dof=n_ndof)
-    elif ndim == 3:
-        # infer nodal degrees of freedom assuming that we have 4/8 nodes in 2/3
-        n_ndof = int(KE.shape[-1]/8)
-        # number of degrees of freedom
-        ndof = (nelx+1)*(nely+1)*(nelz+1)*n_ndof
-        # element degree of freedom matrix plus some helper indices
-        edofMat, n1, n2, n3, n4 = create_edofMat3d(nelx=nelx,nely=nely,nelz=nelz,
-                                                   nnode_dof=n_ndof)
+    # infer nodal degrees of freedom assuming that we have 4/8 nodes in 2/3 D
+    n_nodaldof = int(KE.shape[-1]/2**ndim)
+    # total number of nodal dofs
+    ndof = n_nodaldof * np.prod( np.array([nelx,nely,nelz][:ndim])+1 )
+    # element degree of freedom matrix plus some helper indices
+    edofMat, n1, n2, n3, n4 = create_edofMat(nelx=nelx,nely=nely,nelz=nelz,
+                                             nnode_dof=n_nodaldof)
     # fetch body forces
     if len(body_forces_kw.keys())==0:
         fe_strain = None
@@ -291,11 +281,11 @@ def main(nelx: int, nely: int,
             # element, not its properties. This part is needed for
             # homogenization related objective functions and may later
             # become optional via some flags.
-            if ndim == 2 and n_ndof != 1:
+            if ndim == 2 and n_nodaldof != 1:
                 fixed = np.array([0,1,3])
-            elif ndim == 3 and n_ndof != 1:
+            elif ndim == 3 and n_nodaldof != 1:
                 fixed = np.array([0,1,2,4,5,7,8])
-            elif n_ndof == 1:
+            elif n_nodaldof == 1:
                 fixed = np.array([0])
             free = np.setdiff1d(np.arange(KE.shape[-1]), fixed)
             u0 = np.zeros(fe_strain.shape)
@@ -308,9 +298,9 @@ def main(nelx: int, nely: int,
         #
         if "density_coupled" in body_forces_kw.keys():
             # fetch functions to create body force
-            if ndim == 2 and n_ndof!=1:
+            if ndim == 2 and n_nodaldof!=1:
                 lf = lf_bodyforce_2d
-            elif ndim == 3 and n_ndof!=1:
+            elif ndim == 3 and n_nodaldof!=1:
                 lf = lf_bodyforce_3d
             fe_dens = lf_bodyforce_2d(b=body_forces_kw["density_coupled"])
         else:

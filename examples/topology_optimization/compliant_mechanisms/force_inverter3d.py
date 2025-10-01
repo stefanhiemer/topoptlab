@@ -13,7 +13,7 @@ if __name__ == "__main__":
     nely = int(nelx/2)
     nelz = int(nelx/2)
     volfrac = 0.1
-    rmin = 3*nelx/64 #0.04*nelx  # 5.4
+    rmin = 3*nelx/64 
     penal = 3.0
     ft = 1 # ft==0 -> sens, ft==1 -> dens
     display = False
@@ -25,17 +25,19 @@ if __name__ == "__main__":
     if len(sys.argv)>2: 
         nely = int(sys.argv[2])
     if len(sys.argv)>3: 
-        volfrac = float(sys.argv[3])
+        nelz = int(sys.argv[3])
     if len(sys.argv)>4: 
-        rmin = float(sys.argv[4])
+        volfrac = float(sys.argv[4])
     if len(sys.argv)>5: 
-        penal = float(sys.argv[5])
+        rmin = float(sys.argv[5])
     if len(sys.argv)>6: 
-        ft = int(sys.argv[6])
-    if len(sys.argv)>7:
-        display = bool(int(sys.argv[7]))
+        penal = float(sys.argv[6])
+    if len(sys.argv)>7: 
+        ft = int(sys.argv[7])
     if len(sys.argv)>8:
-        export = bool(int(sys.argv[8]))
+        display = bool(int(sys.argv[8]))
+    if len(sys.argv)>9:
+        export = bool(int(sys.argv[9]))
     #
     l = zeros((3*(nelx+1)*(nely+1)*(nelz+1),1))
     l[3*nelx*(nely+1),0] = -1

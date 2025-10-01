@@ -8,20 +8,21 @@ Basic implementation more or less identical to the famous 88 line code paper.
 This code is just a modfication of the already existing code by Niels Aage and 
 Villads Egede Johansen (JANUARY 2013) taken from https://www.topopt.mek.dtu.dk. 
 Changes are 
-- syntax changes from Python 2 to 3
-- deletion of from __future__ import division
-- extract filter construction into individual function
+- syntax changes from Python 2 to 3.
+- deletion of from __future__ import division.
+- extract filter construction into individual function.
 - switch change calculation to "np.abs(x-xold).max()" as it is better readable 
   and likely faster then the previous expression although probably only 
-  marginally
-- vectorization of the filter (could be done better I think) 
-- vectorization of the stiffness matrix construction 
-- insertion of plt.pause() as otherwise the figure appears only at the end
+  marginally.
+- vectorization of the filter (could be done better I think).
+- vectorization of the stiffness matrix construction.
+- insertion of plt.pause() as otherwise the figure appears only at the end.
 - deletion of unnecessary uses of tuples, indices, etc. pp.
-- construct fixed bc without use of union to make it a little more efficient
+- construct fixed bc without use of union to make it a little more efficient.
 - for constructing indices of stiffness matrix exchange Kronecker product with 
   repeat() and tile(). I guess it is faster (did not check), but more 
   importantly more clear in its meaning.
+- dc has been defined twice, so got rid of the first.
 
 topopt_cholmod88.py
 

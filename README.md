@@ -8,10 +8,13 @@ which were originally published MATLAB scripts. The goal is to make these method
 broadly accessible in Python, in a style similar to the well-known 
 *88-line code* by Andreassen and Sigmund. The package can be used in two ways:
 
-- **As a library: **  
-  Write your own scripts in the concise style of the 88 line MATLAB code.
+- As a library:  
+  Write your own scripts in the concise style of the 88 line MATLAB code. A simple 
+  re-write with extension to 3D, variable boundary conditions and changeable 
+  physics (lin. elasticity, heat conduction) can be found in 
+  [`TO_from_scratch.py`](https://github.com/stefanhiemer/topoptlab/blob/main/examples/topology_optimization/compliance_minimization/TO_from_scratch.py)
 
-- **As a modular “black-box” routine: **  
+- As a modular “black-box” routine:  
   Use the main function in [`topology_optimization.py`](https://github.com/stefanhiemer/topoptlab/blob/main/topoptlab/topology_optimization.py) as a black box function that returns an optimal 
   design once provided with a set of boundary conditions and parameters to run topology optimization directly. If the boundary conditions are already available, then running an optimization can be quite simple. 
   E. g. if one wants to reproduce the famous MBB beam in 2D it amounts to:

@@ -57,7 +57,6 @@ def main(nelx,nely,
     xold=x.copy()
     xPhys=x.copy()
     g=0 # must be initialized to use the NGuyen/Paulino OC approach
-    dc=np.zeros((nely,nelx), dtype=float)
     # build stiffness matrix
     # FE: Build the index vectors for the for coo matrix format.
     KE = lk()

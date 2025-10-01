@@ -55,7 +55,6 @@ def main(nelx,nely,volfrac,penal,rmin,ft,solver="lu"):
     xold=x.copy()
     xPhys=x.copy()
     g=0 # must be initialized to use the NGuyen/Paulino OC approach
-    dc=np.zeros((nely,nelx), dtype=float)
     # fetch element stiffness matrix
     KeE = lkE(E=1.0,nu=nu)
     KeET = lkET(E=1.0,nu=nu,a=1.0)
