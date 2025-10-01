@@ -21,3 +21,4 @@ dist/
 *~
 .coverage
 !tests/test_files/box.step
+*.prof

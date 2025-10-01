@@ -24,15 +24,19 @@ def test_anderson(obj_ref):
     x, obj = main(nelx=nelx, nely=nely, volfrac=volfrac, penal=penal, 
                   rmin=rmin, ft=ft, filter_mode="matrix", 
                   optimizer="mma", lin_solver="scipy-direct",
-                  nouteriter=1000,file="mbb_2d",
+                  nouteriter=1000,
                   accelerator_kw={"accel_freq": 4, 
                                   "accel_start": 20,
                                   "max_history": 4,
                                   "accelerator": anderson,
                                   "damp": 0.9},
                   bcs=mbb_2d,
-                  write_log=False,
-                  debug=False,display=False,export=False)
+                  output_kw = {"file": None,
+                               "display": False,
+                               "export": False,
+                               "write_log": False,
+                               "profile": False,
+                               "debug": 0})
     #
     assert_almost_equal(obj,obj_ref,decimal=3)
     return 

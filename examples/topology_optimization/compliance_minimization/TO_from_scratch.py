@@ -1,6 +1,7 @@
 # A 165 LINE TOPOLOGY OPTIMIZATION CODE BY NIELS AAGE AND VILLADS EGEDE JOHANSEN, JANUARY 2013
 # rewrite with the topoptlab package by Stefan Hiemer (January 2025)
 from typing import Callable, Union
+from cProfile import Profile
 
 import numpy as np
 from scipy.sparse import coo_matrix
@@ -57,6 +58,9 @@ def main(nelx: int, nely: int, nelz: Union[None,int],
     None.
 
     """
+    # initialize profiling
+    profiler = Profile() 
+    profiler.enable()
     #
     if nelz is None:
         ndim = 2
@@ -155,6 +159,9 @@ def main(nelx: int, nely: int, nelz: Union[None,int],
                     loop,obj,(g+volfrac*nelx*nely)/(nelx*nely),change))
     # Make sure the plot stays and that the shell remains
     plt.show()
+    # finish profiling
+    profiler.disable()
+    profiler.dump_stats("mbb_scratch.prof")
     input("Press any key...")
     return
 # The real main driver

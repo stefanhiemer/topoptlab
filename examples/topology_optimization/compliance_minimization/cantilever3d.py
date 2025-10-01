@@ -18,6 +18,7 @@ if __name__ == "__main__":
     ft = 1 # ft==0 -> sens, ft==1 -> dens
     display = False
     export = True
+    write_log=True
     #
     import sys
     if len(sys.argv)>1: 
@@ -38,6 +39,8 @@ if __name__ == "__main__":
         display = bool(int(sys.argv[8]))
     if len(sys.argv)>9:
         export = bool(int(sys.argv[9]))
+    if len(sys.argv)>10:
+        write_log = bool(int(sys.argv[10])) 
     #
     main(nelx=nelx, nely=nely, nelz=nelz, volfrac=volfrac, penal=penal, 
          rmin=rmin, ft=ft, filter_mode="matrix", 
@@ -45,11 +48,9 @@ if __name__ == "__main__":
          assembly_mode="lower",
          nouteriter=50,
          bcs=partial(cantilever_3d,fixation_mode="linear"),
-         file="cantilever_3d",
-         debug=False,display=display,
-         export=export)
-    #main(nelx=nelx, nely=nely, nelz=nelz, volfrac=volfrac, penal=penal, rmin=rmin, 
-    #     ft=ft, filter_mode="convolution", optimizer="oc",nouteriter=1000,
-    #     bcs=mbb_3d,
-    #     debug=False,display=False,
-    #     export=False)
+         output_kw = {"file": "cantilever_3d",
+                      "display": display,
+                      "export": export,
+                      "write_log": write_log,
+                      "profile": False,
+                      "debug": 0})

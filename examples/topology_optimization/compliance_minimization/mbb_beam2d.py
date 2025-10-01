@@ -20,6 +20,7 @@ if __name__ == "__main__":
                     "max_history": 5,
                     "accelerator": anderson,
                     "damp": 0.9}
+    write_log = True
     #
     import sys
     if len(sys.argv)>1:
@@ -38,13 +39,20 @@ if __name__ == "__main__":
         display = bool(int(sys.argv[7]))
     if len(sys.argv)>8:
         export = bool(int(sys.argv[8]))
+    if len(sys.argv)>9:
+        write_log = bool(int(sys.argv[9]))
     #
     x,obj = main(nelx=nelx, nely=nely, volfrac=volfrac, penal=penal,
                  rmin=rmin, ft=ft, filter_mode="matrix",
                  optimizer="mma",
                  assembly_mode="full",
-                 nouteriter=2000,file="mbb_2d",
+                 nouteriter=2000,
                  bcs=mbb_2d,
                  #body_forces_kw={"density_coupled": np.array([0,-0.01])},
                  #accelerator_kw=accelerator_kw,
-                 debug=False,display=display,export=export)
+                 output_kw = {"file": "mbb_2d",
+                              "display": display,
+                              "export": export,
+                              "write_log": write_log,
+                              "profile": False,
+                              "debug": 0})

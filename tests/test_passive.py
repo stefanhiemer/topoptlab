@@ -22,7 +22,12 @@ def test_compliance_1(nelx, nely, volfrac, ft, rmin, filter_mode, bcs, obj_ref):
     x, obj = main(nelx=nelx, nely=nely, volfrac=volfrac, penal=3.0, rmin=rmin, ft=ft,
                   el_flags=pass_el,filter_mode=filter_mode,optimizer="oc",
                   bcs=bcs,
-                  display=False,export=False,write_log=False)
+                  output_kw = {"file": None,
+                               "display": False,
+                               "export": False,
+                               "write_log": False,
+                               "profile": False,
+                               "debug": 0})
     #
     assert_almost_equal(obj,obj_ref,decimal=2)
     return
@@ -44,7 +49,12 @@ def test_compliance_2(nelx, nely, volfrac, ft, rmin, filter_mode, bcs, obj_ref):
     x, obj = main(nelx=nelx, nely=nely, volfrac=volfrac, penal=3.0, rmin=rmin, ft=ft,
                   el_flags=pass_el,filter_mode=filter_mode,optimizer="oc",
                   bcs=bcs,
-                  display=False,export=False,write_log=False)
+                  output_kw = {"file": None,
+                               "display": False,
+                               "export": False,
+                               "write_log": False,
+                               "profile": False,
+                               "debug": 0})
     #
     assert_almost_equal(obj,obj_ref,decimal=2)
     return

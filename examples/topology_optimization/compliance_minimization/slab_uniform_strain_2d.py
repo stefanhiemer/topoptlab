@@ -17,12 +17,7 @@ if __name__ == "__main__":
     ft = 1 # ft==0 -> sens, ft==1 -> dens
     display = True
     export = False
-    #
-    accelerator_kw={"accel_freq": 4,
-                    "accel_start": 100,
-                    "max_history": 5,
-                    "accelerator": anderson,
-                    "damp": 0.9}
+    write_log = True
     #
     import sys
     if len(sys.argv)>1:
@@ -41,11 +36,18 @@ if __name__ == "__main__":
         display = bool(int(sys.argv[7]))
     if len(sys.argv)>8:
         export = bool(int(sys.argv[8]))
+    if len(sys.argv)>9:
+        write_log = bool(int(sys.argv[9]))
     warn("At the moment this case is nonsense and will yield a result where the volume constraint is violated. Need to implement GCMMA to check that it can handle this one")
     #
     x,obj = main(nelx=nelx, nely=nely, volfrac=volfrac, penal=penal,
                  rmin=rmin, ft=ft, filter_mode="matrix",
                  optimizer="mma", lin_solver="scipy-direct",
-                 nouteriter=1000, file="uniformstrain_2d",
+                 nouteriter=1000,
                  bcs=singlenode, body_forces_kw={"strain_uniform": np.eye(3)},
-                 debug=False,display=display,export=export)
+                 output_kw = {"file": "uniformstrain_2d",
+                              "display": display,
+                              "export": export,
+                              "write_log": write_log,
+                              "profile": False,
+                              "debug": 0})

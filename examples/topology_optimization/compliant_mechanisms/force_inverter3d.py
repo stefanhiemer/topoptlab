@@ -18,6 +18,7 @@ if __name__ == "__main__":
     ft = 1 # ft==0 -> sens, ft==1 -> dens
     display = False
     export = True
+    write_log=True
     #
     import sys
     if len(sys.argv)>1: 
@@ -38,6 +39,8 @@ if __name__ == "__main__":
         display = bool(int(sys.argv[8]))
     if len(sys.argv)>9:
         export = bool(int(sys.argv[9]))
+    if len(sys.argv)>10:
+        write_log = bool(int(sys.argv[10])) 
     #
     l = zeros((3*(nelx+1)*(nely+1)*(nelz+1),1))
     l[3*nelx*(nely+1),0] = -1
@@ -51,6 +54,10 @@ if __name__ == "__main__":
          bcs=partial(forceinverter_3d,fixation_mode="line") , 
          obj_func=var_maximization ,obj_kw={"l": l},
          ft=ft, filter_mode="matrix",optimizer="mma",
-         file="force-inverter_3d",
-         display=display,export=export)
+         output_kw = {"file": "force-inverter_3d",
+                      "display": display,
+                      "export": export,
+                      "write_log": write_log,
+                      "profile": False,
+                      "debug": 0})
     

@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 from typing import Callable, Dict, List, Tuple, Union
 from functools import partial
+from cProfile import Profile
 #
 import numpy as np
 from scipy.sparse.linalg import factorized
@@ -67,11 +68,12 @@ def main(nelx: int, nely: int,
                                  "max_history": 0,
                                  "accelerator": None},
          nouteriter: int = 2000, ninneriter: int = 15,
-         file: str = "topopt",
-         display: bool = True, 
-         export: bool = True,
-         write_log: bool = True,
-         debug: int = 0) -> Tuple[np.ndarray,float]:
+         output_kw: Dict = {"file": "topopt",
+                            "display": True,
+                            "export": True,
+                            "write_log": True,
+                            "profile": False,
+                            "debug": 0}) -> Tuple[np.ndarray,float]:
     """
     Topology optimization workflow with the material interpolation method. 
     Can treat single physics stationary problems.
@@ -136,24 +138,20 @@ def main(nelx: int, nely: int,
         mixing parameter for design variable update.
     nouteriter: int
         number of TO iterations
-    ninneriter: int
-        number of inner iterations for GCMMA
-    display : bool
-        if True, plot design evolution to screen
-    file : str
-        name of output files
-    export : bool
-        if True, export design as vtk file.
-    write_log : bool
-        if True, write a log file and display results to command line.
-    debug : bool
-        if True, print extra output for debugging.
-
+    ninneriter : int
+        number of inner iterations for GCMMA.
+    output_kw : dict
+        dictionary containing output options.
+        
     Returns
     -------
     None.
 
     """
+    # initialize profiling
+    if output_kw["profile"]:
+        profiler = Profile() 
+        profiler.enable()
     #
     check_simulation_params(simulation_kw)
     #
@@ -164,9 +162,9 @@ def main(nelx: int, nely: int,
         ndim = 3
         create_edofMat = create_edofMat3d
     #
-    if write_log:
+    if output_kw["write_log"]:
         # check if log file exists and if True delete
-        to_log = init_logging(logfile=file)
+        to_log = init_logging(logfile=output_kw["file"])
         #
         to_log(f"optimizer {optimizer}")
         to_log(f"number of spatial dimensions: {ndim}")
@@ -356,7 +354,8 @@ def main(nelx: int, nely: int,
     if fe_dens is not None:
         if f.shape[-1] != fe_dens.shape[-1]:
             raise ValueError("Number of density based body forces and boundary conditions is incompatible. Last dimension must be equal.")
-    if display:
+    # initialize display functions
+    if output_kw["display"]:
         # Initialize plot and plot the initial design
         plt.ion()  # Ensure that redrawing is possible
         if ndim == 2:
@@ -469,7 +468,7 @@ def main(nelx: int, nely: int,
                 if "density_coupled" in body_forces_kw.keys():
                     dobj[:,0] -= simp_dx(xPhys=xPhys, eps=0., penal=1.)[:,0]*\
                                          np.dot(adj[edofMat,i],fe_dens[:,i])
-                if debug:
+                if output_kw["debug"]:
                     print("FEM: it.: {0}, problem: {1}, min. u: {2:.10f}, med. u: {3:.10f}, max. u: {4:.10f}".format(
                            loop,i,np.min(u[:,i]),np.median(u[:,i]),np.max(u[:,i])))
         # optimizer is unknown.
@@ -484,7 +483,7 @@ def main(nelx: int, nely: int,
                 dconstrs[:,0:1] = np.full(x.shape,1/x.shape[0])
             elif optimizer in ["oc","ocm","ocg"]:
                 dconstrs[:,0] = np.ones(x.shape[0])
-        if debug:
+        if output_kw["debug"]:
             print("Pre-Sensitivity Filter: it.: {0}, dobj: {1:.10f}, dv: {2:.10f}".format(
                    loop,
                    np.max(dobj),
@@ -518,7 +517,7 @@ def main(nelx: int, nely: int,
             dconstrs[:] = TF.T @ lu_solve(TF@dconstrs)
         elif ft == -1:
             pass
-        if debug:
+        if output_kw["debug"]:
             print("Post-Sensitivity Filter: it.: {0}, max. dobj: {1:.10f}, min. dv: {2:.10f}".format(
                    loop,
                    np.max(dobj),
@@ -555,7 +554,7 @@ def main(nelx: int, nely: int,
             optimizer_kw["low"] = low
             optimizer_kw["upp"] = upp
             x = xmma.copy()
-        if debug:
+        if output_kw["debug"]:
             print("Post Density Update: it.: {0}, med. x.: {1:.10f}, med. xTilde: {2:.10f}, med. xPhys: {3:.10f}".format(
                    loop, np.median(x),np.median(xTilde),np.median(xPhys)))
         # mixing
@@ -572,7 +571,7 @@ def main(nelx: int, nely: int,
         # prune history if too long
         if len(xhist)> max_history+1:
             xhist = xhist[-max_history-1:]
-        if debug:
+        if output_kw["debug"]:
             print("Post Mixing Update: it.: {0}, med. x.: {1:.10f}, med. xTilde: {2:.10f}, med. xPhys: {3:.10f}".format(
                    loop, np.median(x),np.median(xTilde),np.median(xPhys)))
         # Filter design variables
@@ -589,34 +588,36 @@ def main(nelx: int, nely: int,
             xPhys[:] = TF.T @ lu_solve(TF@x)
         elif ft == -1:
             xPhys[:]  = x
-        if debug:
+        if output_kw["debug"]:
             print("Post Density Filter: it.: {0}, med. x.: {1:.10f}, med. xTilde: {2:.10f}, med. xPhys: {3:.10f}".format(
                    loop, np.median(x),np.median(xTilde),np.median(xPhys)))
         # Compute the change by the inf. norm
         change = np.abs(xhist[-1] - xhist[-2]).max()
         # Plot to screen
-        if display:
+        if output_kw["display"]:
             if ndim == 2:
                 plotfunc(mapping(-xPhys))
-            elif ndim == 3:
-                im.set_array(mapping(-xPhys))
             fig.canvas.draw()
             plt.pause(0.01)
         # Write iteration history to screen (req. Python 2.6 or newer)
-        if write_log:
+        if output_kw["write_log"]:
             to_log("it.: {0} obj.: {1:.10f} vol.: {2:.10f} ch.: {3:.10f}".format(
                          loop+1, obj, xPhys.mean(), change))
         # convergence check
         if change < 0.01:
             break
     #
-    if display:
-        plt.show()
-        input("Press any key...")
-    #
-    if export:
-        export_vtk(filename=file,
+    if output_kw["export"]:
+        export_vtk(filename=output_kw["file"],
                    nelx=nelx,nely=nely,nelz=nelz,
                    xPhys=xPhys,x=x,
                    u=u,f=f,volfrac=volfrac)
+    # finish profiling
+    if output_kw["profile"]:
+        profiler.disable()
+        profiler.dump_stats(output_kw["file"]+".prof")
+    #
+    if output_kw["display"]:
+        plt.show()
+        input("Press any key...")
     return x, obj

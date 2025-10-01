@@ -15,24 +15,27 @@ if __name__ == "__main__":
     ft = 1 # ft==0 -> sens, ft==1 -> dens
     display = True
     export = False
+    write_log = False
     #
     import sys
-    if len(sys.argv)>1: 
+    if len(sys.argv)>1:
         nelx = int(sys.argv[1])
-    if len(sys.argv)>2: 
+    if len(sys.argv)>2:
         nely = int(sys.argv[2])
-    if len(sys.argv)>3: 
+    if len(sys.argv)>3:
         volfrac = float(sys.argv[3])
-    if len(sys.argv)>4: 
+    if len(sys.argv)>4:
         rmin = float(sys.argv[4])
-    if len(sys.argv)>5: 
+    if len(sys.argv)>5:
         penal = float(sys.argv[5])
-    if len(sys.argv)>6: 
+    if len(sys.argv)>6:
         ft = int(sys.argv[6])
     if len(sys.argv)>7:
         display = bool(int(sys.argv[7]))
     if len(sys.argv)>8:
         export = bool(int(sys.argv[8]))
+    if len(sys.argv)>9:
+        write_log = bool(int(sys.argv[9]))
     #
     l = zeros((2*(nelx+1)*(nely+1),1))
     l[2*nelx*(nely+1),0] = -1
@@ -40,5 +43,10 @@ if __name__ == "__main__":
     main(nelx=nelx, nely=nely, volfrac=volfrac, penal=penal, rmin=rmin, 
          bcs=forceinverter_2d , obj_func=var_maximization ,obj_kw={"l": l},
          ft=ft, filter_mode="matrix",optimizer="mma",
-         display=display,export=export)
+         output_kw = {"file": "force-inverter_2d",
+                      "display": display,
+                      "export": export,
+                      "write_log": write_log,
+                      "profile": False,
+                      "debug": 0})
     

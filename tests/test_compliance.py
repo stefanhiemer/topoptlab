@@ -24,7 +24,12 @@ def test_compliance_filters(nelx, nely, volfrac, ft, rmin, filter_mode, bcs, obj
                   rmin=rmin, ft=ft, filter_mode=filter_mode,
                   optimizer="oc",
                   bcs=bcs,
-                  display=False,export=False,write_log=False)
+                  output_kw = {"file": None,
+                               "display": False,
+                               "export": False,
+                               "write_log": False,
+                               "profile": False,
+                               "debug": 0})
     #
     assert_almost_equal(obj,obj_ref,decimal=5)
     return 
@@ -43,7 +48,12 @@ def test_compliance_filters_slow(nelx, nely, volfrac, ft, rmin, filter_mode, bcs
     x, obj = main(nelx=nelx, nely=nely, volfrac=volfrac, penal=3.0, rmin=rmin, ft=ft, 
                   filter_mode=filter_mode,optimizer="oc",
                   bcs=bcs,
-                  display=False,export=False,write_log=False)
+                  output_kw = {"file": None,
+                               "display": False,
+                               "export": False,
+                               "write_log": False,
+                               "profile": False,
+                               "debug": 0})
     #
     assert_almost_equal(obj,obj_ref,decimal=2)
     return 
@@ -64,7 +74,12 @@ def test_compliance_optimizers(optimizer,obj_ref):
                   rmin=rmin, ft=ft, filter_mode=filter_mode,
                   optimizer=optimizer,
                   bcs=mbb_2d,
-                  display=False,export=False,write_log=False)
+                  output_kw = {"file": None,
+                               "display": False,
+                               "export": False,
+                               "write_log": False,
+                               "profile": False,
+                               "debug": 0})
     #
     assert_almost_equal(obj,obj_ref,decimal=5)
     return 
@@ -86,7 +101,12 @@ def test_compliance_heat(obj_ref):
                   rmin=rmin, ft=ft, filter_mode=filter_mode,
                   optimizer="oc",
                   bcs=heatplate_2d, lk=lk_poisson_2d,
-                  display=False,export=False,write_log=False)
+                  output_kw = {"file": None,
+                               "display": False,
+                               "export": False,
+                               "write_log": False,
+                               "profile": False,
+                               "debug": 0})
     #
     assert_almost_equal(obj,obj_ref,decimal=5)
     return 

@@ -25,7 +25,12 @@ def test_force_inverter(ft,rmin,filter_mode,obj_ref):
     x, obj = main(nelx=nelx, nely=nely, volfrac=0.3, penal=3.0, rmin=rmin, ft=ft, 
                   filter_mode=filter_mode, optimizer="ocm",
                   bcs=forceinverter_2d , obj_func=var_maximization ,obj_kw={"l": l},
-                  display=False,export=False,write_log=False)
+                  output_kw = {"file": None,
+                               "display": False,
+                               "export": False,
+                               "write_log": False,
+                               "profile": False,
+                               "debug": 0})
     #
     assert_almost_equal(obj,obj_ref,decimal=2)
     return 

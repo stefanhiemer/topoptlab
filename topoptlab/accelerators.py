@@ -116,6 +116,8 @@ def diis(x: np.ndarray, xhist: List,
     # calculate residuals
     if r is None and rhist is None:
         R = X[:,1:] - X[:,:-1]
+    elif r is not None and rhist is None:
+        R = X[:,1:] - X[:,:-1]
     else:
         rhist = rhist + [r]
         R = np.column_stack(rhist)
