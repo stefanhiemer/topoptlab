@@ -22,13 +22,11 @@ broadly accessible in Python, in a style similar to the well-known
 from topoptlab.topology_optimization import main
 from topoptlab.example_bc.lin_elast import mbb_2d
 
-main(nelx=60, nely=20, volfrac=0.5, penal=3.,
+main(nelx=60, nely=20, 
+     volfrac=0.5, penal=3.,
      rmin=2.4, 
      optimizer="oc",
-     file="mbb_2d",
-     bcs=mbb_2d,
-     display=True,
-     export=True)
+     bcs=mbb_2d)
 ```
 For tutorials, explanations, and full documentation, see the 
 [online documentation](https://topoptlab.readthedocs.io/en/latest/).
