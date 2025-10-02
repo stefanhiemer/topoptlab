@@ -1,7 +1,7 @@
 # A 165 LINE TOPOLOGY OPTIMIZATION CODE BY NIELS AAGE AND VILLADS EGEDE JOHANSEN, JANUARY 2013
 # minor modifications by Stefan Hiemer (January 2025)
 import numpy as np
-from scipy.sparse import coo_matrix
+from scipy.sparse import coo_matrix,coo_array
 from scipy.sparse.linalg import spsolve,factorized
 from scipy.optimize import minimize
 from matplotlib import colors
@@ -127,7 +127,7 @@ def main(nelx,nely,volfrac,penal,rmin,ft,
         #    / (kappa * (kappa1-kappa2))
         a = (a1+(xPhys)**penal*(a2-a1))
         sK=((KeE.flatten()[np.newaxis]).T*E).flatten(order='F')
-        K_E = coo_matrix((sK,(iK,jK)),shape=(ndofE,ndofE)).tocsc()
+        K_E = coo_array((sK,(iK,jK)),shape=(ndofE,ndofE)).tocsc()
         # add springs to stiffness matrix
         K_E[dout,dout] += kout
         # Remove constrained dofs from matrix

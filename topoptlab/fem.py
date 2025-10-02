@@ -5,7 +5,7 @@ from typing import Callable,List,Tuple,Union
 from itertools import product
 
 import numpy as np
-from scipy.sparse import coo_array,csc_array
+from scipy.sparse import coo_array,csc_array,sparray
 
 from cvxopt import spmatrix
 
@@ -139,7 +139,7 @@ class FEM_Phys(ABC):
 
 def assemble_matrix(sK: np.ndarray, iK: np.ndarray, jK: np.ndarray,
                     ndof: int, solver: str, springs: Union[None,List]
-                    ) -> np.ndarray:
+                    ) -> csc_array:
     """
     Assemble matrix from indices.
 
@@ -180,11 +180,11 @@ def deleterowcol(A: csc_array,
                  delrow: np.ndarray, 
                  delcol: np.ndarray) -> coo_array:
     """
-    Stolen from the topopt_cholmod.py code by Niels Aage and Villads Egede.
+    Copied from the topopt_cholmod.py code by Niels Aage and Villads Egede.
 
     Parameters
     ----------
-    A : scipy.sparse.csc_array shape (nodf,ndof)
+    A : scipy.sparse.sparray shape (nodf,ndof)
         matrix.
     delrow : np.ndarray
         rows to delete .
@@ -204,10 +204,27 @@ def deleterowcol(A: csc_array,
     A = A[:, keep]
     return A.tocoo()
 
-def apply_bc(K: csc_array, solver: str,
+def apply_bc(K: sparray, solver: str,
              free: Union[None,np.ndarray] = None,
-             fixed: Union[None,np.ndarray] = None) -> coo_array:
-    
+             fixed: Union[None,np.ndarray] = None) -> Union[sparray,spmatrix]:
+    """
+    Apply boundary conditions to matrix K. At the moment only implements 
+    Dirichlet boundary conditions equal to zero.
+
+    Parameters
+    ----------
+    K : scipy.sparse.sparray shape (nodf,ndof)
+        matrix.
+    free : np.ndarray
+        indices of variables for which we solve.
+    fixed : np.ndarray
+        indices of variables to be set to zero.
+
+    Returns
+    -------
+    K : scipy.sparse.sparray or cvxopt.spmatrix shape (ndof_new,ndof_new)
+        new matrix with applied boundary conditions.
+    """
     if "scipy" in solver:
         #
         K = K[free, :][:, free]

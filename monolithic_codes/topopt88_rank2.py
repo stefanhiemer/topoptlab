@@ -1,7 +1,7 @@
 # A 165 LINE TOPOLOGY OPTIMIZATION CODE BY NIELS AAGE AND VILLADS EGEDE JOHANSEN, JANUARY 2013
 # minor modifications by Stefan Hiemer (January 2025)
 import numpy as np
-from scipy.sparse import coo_matrix
+from scipy.sparse import coo_matrix,coo_array
 from scipy.sparse.linalg import spsolve
 from matplotlib import colors
 import matplotlib.pyplot as plt
@@ -118,7 +118,7 @@ def main(nelx,nely,volfrac,penal,rmin,ft,
         c = c + c0
         # Setup and solve FE problem
         lks = lk(c) # element stiffness matrices
-        K = coo_matrix((lks.flatten(),(iK,jK)),shape=(ndof,ndof)).tocsc()
+        K = coo_array((lks.flatten(),(iK,jK)),shape=(ndof,ndof)).tocsc()
         # Remove constrained dofs from matrix
         K = K[free,:][:,free]
         print(K.todense())

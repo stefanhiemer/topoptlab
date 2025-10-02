@@ -1,8 +1,7 @@
 # A 165 LINE TOPOLOGY OPTIMIZATION CODE BY NIELS AAGE AND VILLADS EGEDE JOHANSEN, JANUARY 2013
 # minor modifications by Stefan Hiemer (January 2025)
 import numpy as np
-from scipy.sparse import coo_matrix
-from scipy.sparse.linalg import spsolve
+from scipy.sparse import coo_array,coo_matrix
 from matplotlib import colors
 import matplotlib.pyplot as plt
 from cvxopt import spmatrix,matrix
@@ -98,7 +97,7 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
         loop=loop+1
         # Setup and solve FE problem
         sK=((KE.flatten()[np.newaxis]).T*(Emin+(xPhys)**penal*(Emax-Emin))).flatten(order='F')
-        K = coo_matrix((sK,(iK,jK)),shape=(ndof,ndof)).tocsc()
+        K = coo_array((sK,(iK,jK)),shape=(ndof,ndof)).tocsc()
         # Remove constrained dofs from matrix and convert to coo
         K = deleterowcol(K,fixed,fixed).tocoo()
         # Solve system 

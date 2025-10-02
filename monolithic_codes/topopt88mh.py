@@ -1,7 +1,7 @@
 # A 165 LINE TOPOLOGY OPTIMIZATION CODE BY NIELS AAGE AND VILLADS EGEDE JOHANSEN, JANUARY 2013
 # minor modifications by Stefan Hiemer (January 2025)
 import numpy as np
-from scipy.sparse import coo_matrix
+from scipy.sparse import coo_matrix,coo_array
 from scipy.sparse.linalg import spsolve,factorized
 from matplotlib import colors
 import matplotlib.pyplot as plt
@@ -136,7 +136,7 @@ def main(nelx,nely,volfrac,penal,rmin,ft,solver="lu"):
         # Setup and solve heat FE problem
         k = (k1+(xPhys)**penal*(k2-k1))
         sKT=((KeT.flatten()[None]).T*k).flatten(order='F')
-        K_T = coo_matrix((sKT,(iKT,jKT)),shape=(ndofT,ndofT)).tocsc()
+        K_T = coo_array((sKT,(iKT,jKT)),shape=(ndofT,ndofT)).tocsc()
         # Remove constrained dofs from matrix
         K_T = K_T[freeT,:][:,freeT]
         # Solve system for temperature 

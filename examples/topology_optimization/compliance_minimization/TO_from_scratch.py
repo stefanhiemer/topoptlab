@@ -4,28 +4,35 @@ from typing import Callable, Union
 from cProfile import Profile
 
 import numpy as np
-from scipy.sparse import coo_matrix
-from scipy.sparse.linalg import spsolve
+from scipy.sparse import coo_array,save_npz
 
 from matplotlib import colors
 import matplotlib.pyplot as plt
 
 from topoptlab.filter.matrix_filter import assemble_matrix_filter
 from topoptlab.fem import create_matrixinds,assemble_matrix,apply_bc
+
 from topoptlab.example_bc.lin_elast import mbb_2d,mbb_3d
+from topoptlab.example_bc.heat_conduction import heatplate_2d
+
 from topoptlab.elements.bilinear_quadrilateral import create_edofMat as create_edofMat2d
 from topoptlab.elements.trilinear_hexahedron import create_edofMat as create_edofMat3d
 from topoptlab.elements.linear_elasticity_2d import lk_linear_elast_2d
 from topoptlab.elements.linear_elasticity_3d import lk_linear_elast_3d
+from topoptlab.elements.poisson_2d import lk_poisson_2d
+from topoptlab.elements.poisson_3d import lk_poisson_3d
+
 from topoptlab.optimizer.optimality_criterion import oc_top88
 from topoptlab.solve_linsystem import solve_lin
+
 # MAIN DRIVER
 def main(nelx: int, nely: int, nelz: Union[None,int],
          volfrac: float,
          penal: float,
          rmin: float, ft: int,
          bcs: Callable,
-         lk: Callable):
+         lk: Callable,
+         name = "heatplate"):
     """
     Topology optimization for maximum stiffness with the SIMP method based on
     the default direct solver of scipy sparse.
@@ -119,10 +126,20 @@ def main(nelx: int, nely: int, nelz: Union[None,int],
         loop=loop+1
         # Setup and solve FE problem
         sK=(KE.flatten()[:,None]*(Emin+xPhys**penal*(Emax-Emin))).flatten(order='F')
-        K = coo_matrix((sK,(iK,jK)),shape=(ndof,ndof)).tocsc()
+        K = coo_array((sK,(iK,jK)),shape=(ndof,ndof)).tocsc()
         # Remove constrained dofs from matrix
         K = apply_bc(K=K,solver="scipy-direct",
                      free=free,fixed=fixed)
+        if loop%25 == 0 or (loop%5==0 and loop<20):
+            save_npz(file="".join([f"stiffness-matrix_{name}{ndim}d_",
+                                   "x".join([f"{nelx}",f"{nely}",f"{nelz}"][:ndim]),
+                                   f"-{rmin}-{volfrac}-{ft}_{loop}.npz"]),
+                     matrix=K)
+            np.savetxt(fname="".join([f"xPhys_{name}{ndim}d_",
+                                      "x".join([f"{nelx}",f"{nely}",f"{nelz}"][:ndim]),
+                                      f"-{rmin}-{volfrac}-{ft}_{loop}.csv"]),
+                       X=xPhys,
+                       delimiter=",")
         # Solve system
         u[free, :], fact, precond = solve_lin(K=K, rhs=f[free],
                                               solver="scipy-direct",
@@ -157,6 +174,16 @@ def main(nelx: int, nely: int, nelz: Union[None,int],
         # Write iteration history to screen (req. Python 2.6 or newer)
         print("it.: {0} , obj.: {1:.10f} Vol.: {2:.10f}, ch.: {3:.10f}".format(\
                     loop,obj,(g+volfrac*nelx*nely)/(nelx*nely),change))
+    #
+    save_npz(file="".join([f"stiffness-matrix_{name}{ndim}d_",
+                           "x".join([f"{nelx}",f"{nely}",f"{nelz}"][:ndim]),
+                           f"-{rmin}-{volfrac}-{ft}_{loop}.npz"]),
+             matrix=K)
+    np.savetxt(fname="".join([f"xPhys_{name}{ndim}d_",
+                              "x".join([f"{nelx}",f"{nely}",f"{nelz}"][:ndim]),
+                              f"-{rmin}-{volfrac}-{ft}_{loop}.csv"]),
+               X=xPhys,
+               delimiter=",")
     # Make sure the plot stays and that the shell remains
     plt.show()
     # finish profiling
@@ -167,13 +194,13 @@ def main(nelx: int, nely: int, nelz: Union[None,int],
 # The real main driver
 if __name__ == "__main__":
     # Default input parameters
-    nelx=60
-    nely=20
+    nelx = 160
+    nely = nelx
     nelz=None
-    volfrac=0.5
-    rmin=2.4
+    volfrac = 0.4
+    rmin = 1.2/40 * nelx
     penal=3.0
-    ft=1 # ft==0 -> sens, ft==1 -> dens
+    ft=0 # ft==0 -> sens, ft==1 -> dens
     # put in arguments via command line
     import sys
     if len(sys.argv)>1: 
@@ -194,11 +221,11 @@ if __name__ == "__main__":
         ft     =int(sys.argv[7])
     #
     if nelz is None:
-        bcs = mbb_2d
-        lk = lk_linear_elast_2d
+        bcs = heatplate_2d
+        lk = lk_poisson_2d#lk_linear_elast_2d
     else:
         bcs = mbb_3d
-        lk = lk_linear_elast_3d
+        lk = lk_poisson_3d#lk_linear_elast_3d
     #
     main(nelx=nelx,nely=nely,nelz=nelz,
          volfrac=volfrac,penal=penal,rmin=rmin,ft=ft,

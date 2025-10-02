@@ -99,6 +99,7 @@ def rubestueben_coupling(A: sparray,
     iso = [0] + var_inds[~np.isin(var_inds,row_nr) ].tolist() + [nvars]
     s = chain.from_iterable([s[i:j]+[[]] for i,j in zip(iso[:-1],iso[1:])])
     s = list(s)[:-1]
+    s = [np.array(item,dtype=np.int32) for item in s]
     # set of transpose couplings
     inds = np.argsort(col)
     col_nr, split_inds = np.unique(col[inds][mask_strong[inds]], 
@@ -109,6 +110,7 @@ def rubestueben_coupling(A: sparray,
     iso = [0] + var_inds[~np.isin(var_inds,col_nr) ].tolist() + [nvars]
     s_t = chain.from_iterable([s_t[i:j]+[[]] for i,j in zip(iso[:-1],iso[1:])])
     s_t = list(s_t)[:-1]
+    s_t = [np.array(item,dtype=np.int32) for item in s_t]
     # re-insert diagonal
     A.setdiag(diagonal)
     return row, col, mask_strong, s, s_t, iso[1:-1]
@@ -147,10 +149,12 @@ def standard_coarsening(A: sparray,
     undecided = np.ones(nvars, dtype=bool)
     # calculate importance first time (no fine variables here, all variables 
     # are undecided)
-    importance = np.zeros(A.shape[0])
+    importance = np.zeros(A.shape[0],dtype=int)
     np.add.at( importance, col, mask_strong )
     # convert isolated variables to fine variables
     mask_fine[iso] = True
+    undecided[iso] = False
+    importance[iso] = -1
     # number of undecided variables
     n_u = A.shape[0] - len(iso)
     while n_u > 0:
@@ -159,30 +163,41 @@ def standard_coarsening(A: sparray,
         # pick strongly coupled variables of new coarse variable that are still 
         # undecided
         _s = s[ind][undecided[s[ind]]]
-        # pick set of strong tranpose variables that are still undecided
-        _s_t = s_t[ind]
-        _s_t = _s_t[undecided[_s_t]]
-        # change variable to coarse
+        # pick set of strong transpose variables that are still undecided
+        
+        try:
+            _s_t = s_t[ind][undecided[s_t[ind]]]
+        except TypeError:
+            print(n_u)
+            
+            import sys 
+            sys.exit()
+        # change variable to coarse and make it decided
         mask_coarse[ind] = True
-        # change its transpose coupled variables to fine 
-        mask_fine[ _s_t ] = True # possibly improveable
-        # take it out of undecided variables
         undecided[ind] = False
-        undecided[_s_t] = False
+        importance[ind] = -1
         # reduce importance of other undecided variables due to new coarse 
         # variable
         importance[ _s ] = importance[_s] - 1
-        # increase importance of other variables due to new fine variables
+        # increase importance of undecided variables due to new fine variables
         #print(np.hstack( [s[var] for var in _s_t]))
         if len(_s_t) != 0:
-            np.add.at (importance, # array to add to
-                       np.hstack( [s[var] for var in _s_t]), # indices
-                       1.) #value added
-        # set importance to zero for new coarse and fine variables
-        importance[ind] = 0
-        importance[_s_t] = 0
+            # change its transpose coupled variables to fine and take out of 
+            # undecided variables
+            mask_fine[_s_t] = True
+            undecided[_s_t] = False
+            importance[_s_t] = -1
+            #
+            targets = np.hstack([s[var] for var in _s_t])
+            # filter undecided only
+            targets = targets[undecided[targets]]  
+            if targets.size:
+                np.add.at(importance, # array to add to
+                          np.unique(targets), # indices
+                          1) #value added
         # update number of undecided variables
         n_u = n_u - 1 - _s_t.shape[0]
+        
     return mask_coarse
 
 def direct_interpolation(A: sparray, mask_coarse: np.ndarray) -> sparray:

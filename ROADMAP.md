@@ -29,8 +29,9 @@ generalizations
       variables
 
 clean-ups and streamlining/refactoring
+- [ ] exchange scipy.sparse matrices for sparse arrays
 - [ ] clean up filter length scales
-- [ ] clean up filter by Langelaar (vectorization, 3D, etc. pp.)
+- [ ] clean up filter by Langelaar (vectorization, 3D)
 - [ ] construct analytical elements with np.column_stack and reshape
 - [ ] construct analytical elements with common subexpressions elimination
 

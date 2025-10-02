@@ -12,6 +12,10 @@ old_cholmod.py
 !images/*.png
 !docs/source/_static/*.png
 !examples/filter/mbb2d_240x80_v0.5_ft0.csv
+!examples/linsolvers/xPhys_mbb2d_60x20-2.4-0.5-0_25.csv
+!examples/linsolvers/stiffness-matrix_mbb2d_60x20-2.4-0.5-0_25.npz
+!examples/linsolvers/xPhys_heatplate2d_40x40-1.2-0.4-0_25.csv
+!examples/linsolvers/stiffness-matrix_heatplate2d_40x40-1.2-0.4-0_25.npz
 *.log
 *.npz
 *csv

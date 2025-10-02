@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.sparse import coo_matrix
+from scipy.sparse import coo_matrix,coo_array
 from scipy.sparse.linalg import spsolve,factorized
 from matplotlib import colors
 import matplotlib.pyplot as plt
@@ -107,9 +107,9 @@ def main(nelx,nely,
         # Setup stiffness and mass matrix
         sK=((KE.flatten()[:,None])*(kmin+(xPhys)\
                 **penal*(kmax-kmin))).flatten(order='F')
-        K = coo_matrix((sK,(iE,jE)),shape=(ndof,ndof)).tocsc()
+        K = coo_array((sK,(iE,jE)),shape=(ndof,ndof)).tocsc()
         sM = ((ME.flatten()[np.newaxis]).T*(xPhys**penal)).flatten(order='F')
-        M = coo_matrix((sM,(iE,jE)),shape=(ndof,ndof)).tocsc()
+        M = coo_array((sM,(iE,jE)),shape=(ndof,ndof)).tocsc()
         # Remove constrained dofs from matrix
         K = K[free,:][:,free]
         M = M[free,:][:,free]
@@ -368,4 +368,8 @@ if __name__ == "__main__":
     if len(sys.argv)>7: dt     =int(sys.argv[7])
     if len(sys.argv)>8: nsteps =int(sys.argv[8])
     if len(sys.argv)>9: solver =int(sys.argv[9])
-    main(nelx,nely,nsteps,dt,solver,volfrac,penal,rmin,ft)
+    main(nelx=nelx, nely=nely,
+         nsteps=nsteps, dt=dt,
+         solver=solver, 
+         volfrac=volfrac,
+         penal=penal,rmin=rmin,ft=ft)

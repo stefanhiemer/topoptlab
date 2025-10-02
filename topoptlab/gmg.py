@@ -172,10 +172,10 @@ def create_coarse_inds(nelx: int, nely: int, nelz: Union[None,int] = None,
     """
     #
     if nelz is None:
-        n = (ndof, nelx+1, nely+1)
+        n = (ndof, nely+1, nelx+1)
         ndim = 2
     else:
-        n = (ndof, nelx+1, nely+1, nelz+1)
+        n = (ndof, nelz+1, nelx+1, nely+1)
         ndim = 3
     # convert stride to tuple
     if isinstance(stride,int):
@@ -184,11 +184,11 @@ def create_coarse_inds(nelx: int, nely: int, nelz: Union[None,int] = None,
     idx = np.arange(np.prod(n)).reshape(n,order="F")
     #
     if nelz is None:
-        return idx[:,::stride[0],::stride[1]].flatten(order="F")
+        return idx[:,::stride[1],::stride[0]].flatten(order="F")
     else:
-        return idx[:,::stride[0],::stride[1],::stride[2]].flatten(order="F")
+        return idx[:,::stride[2],::stride[0],::stride[1]].flatten(order="F")
 
-def create_coarse_mask(nelx: int, nely: int,nelz: Union[None,int] = None,
+def create_coarse_mask(nelx: int, nely: int, nelz: Union[None,int] = None,
                        ndof: int = 1, stride: int = 2) -> np.ndarray:
     """
     Create a boolean mask identifying the coarse-grid degrees of freedom for a 

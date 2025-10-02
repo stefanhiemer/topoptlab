@@ -40,7 +40,7 @@ Here is an (incomplete) list of features:
     - RAMP
     - (Hashin–Shtrikman) bound-based
   - Objectives
-    - Compliance / stiffness minimization / control
+    - Compliance minimization (stiffness maximization) / control
     - Displacement maximization / control
   - Filters
     - Sensitivity
@@ -69,8 +69,8 @@ Here is an (incomplete) list of features:
 
 - Example cases
   - MBB beam 2D / 3D
-  - Cantilever 2D
-  - Compliant mechanism 2D
+  - Cantilever 2D / 3D
+  - Compliant mechansim (force inverter) 2D / 3D
   - Heat plate cooling 2D (stationary and transient)
 
 - Solver / preconditioner for linear systems (beyond `scipy.sparse`)

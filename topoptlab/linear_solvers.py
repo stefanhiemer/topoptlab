@@ -25,12 +25,12 @@ def max_res(r: np.ndarray, tol: float,
     return np.abs(r).max() < tol
 
 def pcg(A: sparray, b: np.ndarray,
-       P: Union[sparray,LinearOperator],
-       x0: Union[None,np.ndarray] = None,
-       tol: float = 1e-8, maxiter: int = 1000,
-       conv_criterium: Callable = max_res,
-       conv_args: Dict = {},
-       **kwargs: Any) -> Tuple[np.ndarray,int]:
+        P: Union[sparray,LinearOperator],
+        x0: Union[None,np.ndarray] = None,
+        tol: float = 1e-8, maxiter: int = 1000,
+        conv_criterium: Callable = max_res,
+        conv_args: Dict = {},
+        **kwargs: Any) -> Tuple[np.ndarray,int]:
     """
     Preconditioned conjugate gradient solver for `Ax=b`, for a symmetric, 
     positive-definite matrix `A`. Iterate until convergence criteria met or the 
@@ -110,12 +110,13 @@ def gauss_seidel(A: sparray, b: np.ndarray,
                  conv_args: Dict = {},
                  **kwargs: Any) -> Tuple[np.ndarray,int]:
     """
-    Gauss-Seidel solver for Ax = b. We rewrite 
+    Gauss-Seidel solver for Ax = b. We re-write each iteration as with the 
+    lower and upper triangular matrices L,U 
     
     L x^i = omega b - U x^(i-1)
     
-    to avoid Python for loops. Iterate until the residual `r=b-Ax` fulfills
-    r.max()<tol or the maximum number of iterations is exceeded.
+    to avoid using for loops. Iterate until the residual `r=b-Ax` fulfills
+    the convergence criteria or the maximum number of iterations is exceeded.
     
     Parameters
     ----------
@@ -159,7 +160,7 @@ def gauss_seidel(A: sparray, b: np.ndarray,
     # inverse of diagonal
     if L is None and U is None:
         L = tril(A,k=0,format="csc")
-        U =  triu(A,k=1,format="csc")
+        U =  triu(A,k=1,format="csr")
     # initial residual
     r = b - A @ x
     for i in np.arange(max_iter):

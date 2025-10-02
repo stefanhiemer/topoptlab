@@ -38,15 +38,17 @@ def init_logging(logfile: str) -> Callable:
                             handlers=[logging.FileHandler(".".join([logfile,"log"])),
                                       logging.StreamHandler()])
         return logging.info
+    # most people on windows run Python with IDEs so I try to circumvent 
+    # logging issues with this.
     elif platform in ["win32"]:
-        return WindowsLogging(logfile)
+        return IDELogging(logfile)
     else:
         return print
     return
 
-class WindowsLogging:
+class IDELogging:
     """
-    Simple class to allow logging on Windows as there the logging module 
+    Simple class to allow logging in IDEs as there the logging module 
     continues running in the background even after the program has finished. 
     This can probably be avoided by calling python from the command line, but 
     to my experience nobody does this but runs it in some IDE.
