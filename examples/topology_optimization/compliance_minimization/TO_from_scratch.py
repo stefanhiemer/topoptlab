@@ -130,16 +130,6 @@ def main(nelx: int, nely: int, nelz: Union[None,int],
         # Remove constrained dofs from matrix
         K = apply_bc(K=K,solver="scipy-direct",
                      free=free,fixed=fixed)
-        if loop%25 == 0 or (loop%5==0 and loop<20):
-            save_npz(file="".join([f"stiffness-matrix_{name}{ndim}d_",
-                                   "x".join([f"{nelx}",f"{nely}",f"{nelz}"][:ndim]),
-                                   f"-{rmin}-{volfrac}-{ft}_{loop}.npz"]),
-                     matrix=K)
-            np.savetxt(fname="".join([f"xPhys_{name}{ndim}d_",
-                                      "x".join([f"{nelx}",f"{nely}",f"{nelz}"][:ndim]),
-                                      f"-{rmin}-{volfrac}-{ft}_{loop}.csv"]),
-                       X=xPhys,
-                       delimiter=",")
         # Solve system
         u[free, :], fact, precond = solve_lin(K=K, rhs=f[free],
                                               solver="scipy-direct",
@@ -174,16 +164,6 @@ def main(nelx: int, nely: int, nelz: Union[None,int],
         # Write iteration history to screen (req. Python 2.6 or newer)
         print("it.: {0} , obj.: {1:.10f} Vol.: {2:.10f}, ch.: {3:.10f}".format(\
                     loop,obj,(g+volfrac*nelx*nely)/(nelx*nely),change))
-    #
-    save_npz(file="".join([f"stiffness-matrix_{name}{ndim}d_",
-                           "x".join([f"{nelx}",f"{nely}",f"{nelz}"][:ndim]),
-                           f"-{rmin}-{volfrac}-{ft}_{loop}.npz"]),
-             matrix=K)
-    np.savetxt(fname="".join([f"xPhys_{name}{ndim}d_",
-                              "x".join([f"{nelx}",f"{nely}",f"{nelz}"][:ndim]),
-                              f"-{rmin}-{volfrac}-{ft}_{loop}.csv"]),
-               X=xPhys,
-               delimiter=",")
     # Make sure the plot stays and that the shell remains
     plt.show()
     # finish profiling
