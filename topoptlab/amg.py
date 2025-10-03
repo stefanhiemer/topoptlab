@@ -164,14 +164,7 @@ def standard_coarsening(A: sparray,
         # undecided
         _s = s[ind][undecided[s[ind]]]
         # pick set of strong transpose variables that are still undecided
-        
-        try:
-            _s_t = s_t[ind][undecided[s_t[ind]]]
-        except TypeError:
-            print(n_u)
-            
-            import sys 
-            sys.exit()
+        _s_t = s_t[ind][undecided[s_t[ind]]]
         # change variable to coarse and make it decided
         mask_coarse[ind] = True
         undecided[ind] = False

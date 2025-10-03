@@ -7,6 +7,8 @@ from scipy.sparse.linalg import spsolve,cg, spilu, LinearOperator, factorized, L
 
 from cvxopt import matrix,spmatrix
 from cvxopt.cholmod import solve,symbolic,numeric
+from pyamg.aggregation import adaptive_sa_solver,rootnode_solver,smoothed_aggregation_solver,pairwise_solver
+from pyamg.classical import air_solver,ruge_stuben_solver
 
 def solve_lin(K: Union[csc_array,spmatrix], rhs: Union[np.ndarray,matrix],
               solver: str,
@@ -79,6 +81,19 @@ def solve_lin(K: Union[csc_array,spmatrix], rhs: Union[np.ndarray,matrix],
             ilu = spilu(K, fill_factor=100., drop_tol=1e-5)
             P = LinearOperator(shape=K.shape,
                                matvec=ilu.solve)
+        elif preconditioner == "pyamg-air":
+            P = air_solver(A=K.tocsr()).aspreconditioner(cycle='V')
+        elif preconditioner == "pyamg-ruge_stuben":
+            P = ruge_stuben_solver(A=K.tocsr()).aspreconditioner(cycle='V')
+        elif preconditioner == "pyamg-smoothed_aggregation":
+            P = smoothed_aggregation_solver(A=K).aspreconditioner(cycle='V')
+        elif preconditioner == "pyamg-rootnode_solver":
+            P = rootnode_solver(A=K).aspreconditioner(cycle='V')
+        elif preconditioner == "pyamg-pairwise_solver":
+            P = pairwise_solver(A=K).aspreconditioner(cycle='V')
+        elif preconditioner == "pyamg-adaptive_sa":
+            P = adaptive_sa_solver(A=K).aspreconditioner(cycle='V')
+    
     # without preconditioner, bad idea. Purely there for testing
     if solver == "scipy-cg":
         # more than one set of boundary conditions to solve

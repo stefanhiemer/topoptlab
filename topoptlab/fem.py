@@ -254,7 +254,6 @@ def create_matrixinds(edofMat: np.ndarray,
     jM : np.ndarray shape (N)
         column indices for matrix construction.
     """
-
     #
     if mode == "full":
         iM = np.tile(edofMat,edofMat.shape[1])

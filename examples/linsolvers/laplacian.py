@@ -2,6 +2,9 @@
 import numpy as np
 from scipy.sparse.linalg import cg, splu, spsolve
 
+from pyamg.classical import ruge_stuben_solver 
+from pyamg.aggregation import smoothed_aggregation_solver
+
 from topoptlab.blocksparse_precond import create_primitive_blocks, make_block_preconditioner
 from topoptlab.solve_linsystem import laplacian
 from topoptlab.linear_solvers import smoothed_jacobi
@@ -64,6 +67,31 @@ def amg_solver(A, b,
                         nlevels=nlevels)
     return x
 
+def pyamg_rs_preconditioner(A, b, 
+                            nlevels=2,
+                            rtol=1e-5):
+    
+    P = ruge_stuben_solver(A=A.tocsr())
+                           #strength=('classical', {'theta': 0.25}),
+                           #CF=("RS", {'second_pass': False}),
+                           #interpolation="direct",
+                           #presmoother=('jacobi', {'omega': 0.6}),
+                           #postsmoother=('jacobi', {'omega': 0.6}))
+    P = P.aspreconditioner(cycle='V') 
+    x, info = cg(A,b,M=P,rtol=rtol)
+    return x
+
+def pyamg_smagg_preconditioner(A, b, 
+                               nlevels=2,
+                               smoother_fnc=smoothed_jacobi,
+                               smoother_kws = {"max_iter": 1,"omega": 0.6},
+                               rtol=1e-5):
+    
+    P = smoothed_aggregation_solver(A=A.tocsr())
+    P = P.aspreconditioner(cycle='V') 
+    x, info = cg(A,b,M=P,rtol=rtol)
+    return x
+
 if __name__ == "__main__":
     #
     grid_shape=(100,100)
@@ -78,12 +106,22 @@ if __name__ == "__main__":
                                         b=b,
                                         rtol=rtol)).max())
     #
-    print("AMG preconditioner max. residual: ", 
-          (x_sol - amg_preconditioner(A=L,
-                                      b=b,
-                                      rtol=rtol)).max())
+    #print("AMG preconditioner max. residual: ", 
+    #      (x_sol - amg_preconditioner(A=L,
+    #                                  b=b,
+    #                                  rtol=rtol)).max())
     #
     print("AMG solver max. residual: ", 
           (x_sol - amg_solver(A=L,
                               b=b,
                               tol=rtol)).max())
+    #
+    print("pyAMG ruge preconditioner max. residual: ", 
+          (x_sol - pyamg_rs_preconditioner(A=L,
+                                        b=b,
+                                        rtol=rtol)).max())
+    #
+    print("pyAMG smoothed aggreg. preconditioner max. residual: ", 
+          (x_sol - pyamg_smagg_preconditioner(A=L,
+                                              b=b,
+                                              rtol=rtol)).max())

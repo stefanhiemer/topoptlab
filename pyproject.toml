@@ -23,7 +23,8 @@ dependencies = ["numpy",
                 "gmsh",
                 "mmapy",
                 "meshio",
-                "symfem"]
+                "symfem",
+                "pyamg"]
 
 [project.optional-dependencies]
 tests = ['pytest']

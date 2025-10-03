@@ -6,7 +6,7 @@ import numpy as np
 from scipy.sparse import sparray
 from scipy.sparse.linalg import spsolve, LinearOperator
 
-from topoptlab.linear_solvers import smoothed_jacobi
+from topoptlab.linear_solvers import smoothed_jacobi, max_res
 
 def apply_multigrid(b : np.ndarray, 
                     A : sparray, x0 : np.ndarray,
@@ -15,7 +15,9 @@ def apply_multigrid(b : np.ndarray,
                     smoother_fnc : Callable,
                     smoother_kws : Dict,
                     max_cycles : int = 1,
-                    nlevels : int = 2) -> Tuple[np.ndarray,int]:
+                    nlevels : int = 2,
+                    conv_criterium: Callable = max_res,
+                    conv_args: Dict = {}) -> Tuple[np.ndarray,int]:
     """
     Apply a generic multigrid solver for the linear problem Ax=b. In this
     function we assume that the interpolation from coarse to fine grid
@@ -62,7 +64,12 @@ def apply_multigrid(b : np.ndarray,
     #
     x = np.zeros(x0.shape)
     r = np.zeros(b.shape)
+    #
+    r = b - A@x
     for i in np.arange(max_cycles):
+        # check convergence
+        if conv_criterium(r=r,tol=tol,**conv_args):
+            break
         # one
         x[:],info_cycle = cycle(A=A,b=b,x0=x,
                                 lvl=0,
@@ -72,12 +79,8 @@ def apply_multigrid(b : np.ndarray,
                                 nlevels=nlevels)
         # residual
         r[:] = b - A @ x
-        # check convergence
         print(np.abs(r).max())
-        if np.abs(r).max() < tol:
-            i = 0
-            break
-    return x#, i
+    return x
 
 def vcycle(A : sparray, b : np.ndarray, x0 : np.ndarray,
            lvl : int,
@@ -201,7 +204,6 @@ def multigrid_preconditioner(A: sparray,
     #
     nlevels = len(interpolators)+1
     #
-    # 
     matvec = partial(apply_multigrid,
                      A=A, x0=np.zeros(A.shape[0]),
                      interpolators=interpolators,

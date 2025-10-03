@@ -9,7 +9,11 @@ from topoptlab.example_bc.lin_elast import mbb_2d,mbb_3d
                          [(10,3,0.5,0,2.4,"scipy-direct",None,mbb_2d),
                           (10,3,0.5,1,2.4,"scipy-cg",None,mbb_2d),
                           (10,3,0.5,1,2.4,"scipy-cg","scipy-ilu",mbb_2d),
-                          (10,3,0.5,1,2.4,"cvxopt-cholmod",None,mbb_2d)])
+                          (10,3,0.5,1,2.4,"cvxopt-cholmod",None,mbb_2d),
+                          (10,3,0.5,1,2.4,"scipy-cg","pyamg-adaptive_sa",mbb_2d),
+                          (10,3,0.5,1,2.4,"scipy-cg","pyamg-rootnode_solver",mbb_2d),
+                          (10,3,0.5,1,2.4,"scipy-cg","pyamg-pairwise_solver",mbb_2d),
+                          (10,3,0.5,1,2.4,"scipy-cg","pyamg-smoothed_aggregation",mbb_2d),])
 
 def test_compliance_1(nelx, nely, volfrac,
                       ft, rmin,

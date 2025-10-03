@@ -75,7 +75,7 @@ Here is an (incomplete) list of features:
 
 - Solver / preconditioner for linear systems (beyond `scipy.sparse`)
   - Sparse Cholesky decomposition of CHOLMOD via CVXOPT
-  - Algebraic multigrid
+  - Algebraic multigrid (via `pyAMG` and self-written)
   - Geometric multigrid
   - Block-sparse preconditioner
 

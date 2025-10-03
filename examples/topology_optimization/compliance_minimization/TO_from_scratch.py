@@ -126,7 +126,7 @@ def main(nelx: int, nely: int, nelz: Union[None,int],
         loop=loop+1
         # Setup and solve FE problem
         sK=(KE.flatten()[:,None]*(Emin+xPhys**penal*(Emax-Emin))).flatten(order='F')
-        K = coo_array((sK,(iK,jK)),shape=(ndof,ndof)).tocsc()
+        K = coo_array((sK,(iK,jK)),shape=(ndof,ndof)).tocsr()
         # Remove constrained dofs from matrix
         K = apply_bc(K=K,solver="scipy-direct",
                      free=free,fixed=fixed)
