@@ -82,9 +82,9 @@ def solve_lin(K: Union[csc_array,spmatrix], rhs: Union[np.ndarray,matrix],
             P = LinearOperator(shape=K.shape,
                                matvec=ilu.solve)
         elif preconditioner == "pyamg-air":
-            P = air_solver(A=K.tocsr()).aspreconditioner(cycle='V')
+            P = air_solver(A=K).aspreconditioner(cycle='V')
         elif preconditioner == "pyamg-ruge_stuben":
-            P = ruge_stuben_solver(A=K.tocsr()).aspreconditioner(cycle='V')
+            P = ruge_stuben_solver(A=K).aspreconditioner(cycle='V')
         elif preconditioner == "pyamg-smoothed_aggregation":
             P = smoothed_aggregation_solver(A=K).aspreconditioner(cycle='V')
         elif preconditioner == "pyamg-rootnode_solver":
@@ -92,7 +92,8 @@ def solve_lin(K: Union[csc_array,spmatrix], rhs: Union[np.ndarray,matrix],
         elif preconditioner == "pyamg-pairwise_solver":
             P = pairwise_solver(A=K).aspreconditioner(cycle='V')
         elif preconditioner == "pyamg-adaptive_sa":
-            P = adaptive_sa_solver(A=K).aspreconditioner(cycle='V')
+            P,work = adaptive_sa_solver(A=K)
+            P = P.aspreconditioner(cycle='V')
     
     # without preconditioner, bad idea. Purely there for testing
     if solver == "scipy-cg":
