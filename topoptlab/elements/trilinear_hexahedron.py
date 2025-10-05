@@ -46,7 +46,7 @@ def create_edofMat(nelx,nely,nelz,nnode_dof,dtype=np.int32):
     edofMat = np.column_stack((n1+1,n2+1,n2,n1,
                                n3+1,n4+1,n4,n3))*nnode_dof
     edofMat = np.repeat(edofMat,nnode_dof,axis=1)
-    edofMat = edofMat + np.tile(np.arange(nnode_dof),8)[None,:]
+    edofMat = edofMat + np.tile(np.arange(nnode_dof,dtype=dtype),8)[None,:]
     return edofMat, n1, n2, n3, n4
 
 def apply_pbc(edofMat,pbc,nelx,nely,nelz,nnode_dof,

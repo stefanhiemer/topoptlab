@@ -47,7 +47,7 @@ from topoptlab.output_designs import export_vtk,threshold
 # map element data to img/voxel
 from topoptlab.utils import map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel
 # logging related stuff
-from topoptlab.log_utils import init_logging
+from topoptlab.log_utils import EmptyLogger,SimpleLogger
 # drawing function
 from topoptlab.draw_functions import spring, hinged_support
 
@@ -159,26 +159,28 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     #
     if write_log:
         # check if log file exists and if True delete
-        to_log = init_logging(logfile=file)
+        log = SimpleLogger(file=file)
         #
-        to_log(f"self bending under uniform temperature expansion with optimizer {optimizer}")
-        to_log(f"number of spatial dimensions: {ndim}")
+        log.info(f"self bending under uniform temperature expansion with optimizer {optimizer}")
+        log.info(f"number of spatial dimensions: {ndim}")
         if ndim == 2:
-            to_log(f"elements: {nelx} x {nely}")
+            log.info(f"elements: {nelx} x {nely}")
         elif ndim == 3:
-            to_log(f"elements: {nelx} x {nely} x {nelz}")
+            log.info(f"elements: {nelx} x {nely} x {nelz}")
         if volfrac is not None:
-            to_log(f"volfrac: {volfrac} rmin: {rmin}  penal: {penal}")
+            log.info(f"volfrac: {volfrac} rmin: {rmin}  penal: {penal}")
         else:
-            to_log(f"rmin: {rmin}  penal: {penal}")
-        to_log("filter: " + ["Sensitivity based",
+            log.info(f"rmin: {rmin}  penal: {penal}")
+        log.info("filter: " + ["Sensitivity based",
                              "Density based",
                              "Haeviside Guest",
                              "Haeviside complement Sigmund 2007",
                              "Haeviside eta projection",
                              "Volume Preserving eta projection",
                              "No filter"][ft])
-        to_log(f"filter mode: {filter_mode}")
+        log.info(f"filter mode: {filter_mode}")
+    else:
+        log = EmptyLogger()
     # total number of design variables/elements
     if ndim == 2:
         n = nelx * nely
@@ -659,7 +661,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             plt.pause(0.01)
         # Write iteration history to screen (req. Python 2.6 or newer)
         if write_log:
-            to_log("it.: {0} obj.: {1:.10f} vol.: {2:.10f} ch.: {3:.10f}".format(
+            log.info("it.: {0} obj.: {1:.10f} vol.: {2:.10f} ch.: {3:.10f}".format(
                          loop+1, obj, xPhys.mean(), change))
         # convergence check
         if change < 0.01 and beta is None:
@@ -731,7 +733,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                                     **obj_kw)
     #
     if write_log:
-        to_log("final.: obj.: {0:.10f} vol.: {1:.10f}".format(obj, xThresh.mean()))
+        log.info("final.: obj.: {0:.10f} vol.: {1:.10f}".format(obj, xThresh.mean()))
     #
     if export:
         export_vtk(filename=file,

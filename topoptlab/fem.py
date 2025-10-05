@@ -13,7 +13,7 @@ from topoptlab.elements.bilinear_quadrilateral import shape_functions
 
 class FEM_Phys(ABC):
     """
-    Base class for different.
+    Base class for different FEM physical problems.
     """
     
     @abstractmethod
@@ -225,7 +225,7 @@ def apply_bc(K: sparray, solver: str,
     K : scipy.sparse.sparray or cvxopt.spmatrix shape (ndof_new,ndof_new)
         new matrix with applied boundary conditions.
     """
-    if "scipy" in solver:
+    if "scipy" in solver or "topoptlab" in solver:
         #
         K = K[free, :][:, free]
     if "cvxopt" in solver:

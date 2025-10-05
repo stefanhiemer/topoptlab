@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Callable,Tuple,Union
+from typing import Any,Callable,Tuple,Union
 
 import numpy as np
 from scipy.sparse import csc_array
@@ -10,10 +10,15 @@ from cvxopt.cholmod import solve,symbolic,numeric
 from pyamg.aggregation import adaptive_sa_solver,rootnode_solver,smoothed_aggregation_solver,pairwise_solver
 from pyamg.classical import air_solver,ruge_stuben_solver
 
+from topoptlab.log_utils import EmptyLogger,SimpleLogger
+from topoptlab.linear_solvers import pcg
+
 def solve_lin(K: Union[csc_array,spmatrix], rhs: Union[np.ndarray,matrix],
               solver: str,
               preconditioner: Union[None,str] = None,
-              P: Union[None,Callable,spmatrix,csc_array] = None
+              P: Union[None,Callable,spmatrix,csc_array] = None,
+              logger: Union[EmptyLogger,SimpleLogger] = EmptyLogger,
+              **kwargs: Any
               ) -> Tuple[np.ndarray, 
                          Union[None,Callable],
                          Union[None,Callable,spmatrix,csc_array]]:
@@ -35,9 +40,8 @@ def solve_lin(K: Union[csc_array,spmatrix], rhs: Union[np.ndarray,matrix],
     P : callable or sparse matrix format
         preconditioner created during previous solution of Ku. Concrete nature
         depends on the solver and library used.
-    assembly_mode : str
-        string that indicates how matrix was assembled. Some libraries only
-        require the upper/lower half of the matrix.
+    logger : EmptyLogger or SimpleLogger
+        logger for writing information to logfile.
 
     Returns
     -------
@@ -99,7 +103,7 @@ def solve_lin(K: Union[csc_array,spmatrix], rhs: Union[np.ndarray,matrix],
     if solver == "scipy-cg":
         # more than one set of boundary conditions to solve
         if rhs.shape[1] == 1:
-            sol,fail = cg(K, rhs, rtol=1e-10, maxiter=10000,
+            sol,fail = cg(K, rhs, rtol=1e-5, maxiter=10000,
                           M=P)
             # shape consistent
             sol = sol[:,None]
@@ -108,11 +112,22 @@ def solve_lin(K: Union[csc_array,spmatrix], rhs: Union[np.ndarray,matrix],
         else:
             sol = np.zeros(rhs.shape)
             for i in np.arange(rhs.shape[1]):
-                sol[:,i],fail = cg(K, rhs[:,i], rtol=1e-10, maxiter=10000,
+                sol[:,i],fail = cg(K, rhs[:,i], rtol=1e-5, maxiter=10000,
                                    M=P)
                 if fail != 0:
                     raise RuntimeError("cg iteration did not converge for bc ",
                                        i)
+        return sol, None, P
+    elif solver == "topoptlab-pcg":
+        # more than one set of boundary conditions to solve
+        sol = np.zeros(rhs.shape)
+        for i in np.arange(rhs.shape[1]):
+            sol[:,i],fail = pcg(K, rhs[:,i], rtol=1e-5, 
+                                maxiter=10000,
+                               P=P, logger=logger)
+            if fail != 0:
+                raise RuntimeError("pcg iteration did not converge for bc ",
+                                   i)
         return sol, None, P
     else:
         raise ValueError("Unknown solver: ",solver)

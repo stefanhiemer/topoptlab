@@ -37,7 +37,7 @@ from topoptlab.output_designs import export_vtk
 # map element data to img/voxel
 from topoptlab.utils import map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel,check_simulation_params
 # logging related stuff
-from topoptlab.log_utils import init_logging
+from topoptlab.log_utils import EmptyLogger,SimpleLogger
 #
 from mmapy import mmasub
 
@@ -73,7 +73,7 @@ def main(nelx: int, nely: int,
                             "export": True,
                             "write_log": True,
                             "profile": False,
-                            "debug": 0}) -> Tuple[np.ndarray,float]:
+                            "verbosity": 20}) -> Tuple[np.ndarray,float]:
     """
     Topology optimization workflow with the material interpolation method. 
     Can treat single physics stationary problems.
@@ -164,23 +164,28 @@ def main(nelx: int, nely: int,
     #
     if output_kw["write_log"]:
         # check if log file exists and if True delete
-        to_log = init_logging(logfile=output_kw["file"])
+        log = SimpleLogger(file=output_kw["file"],
+                           verbosity=output_kw["verbosity"])
+        
         #
-        to_log(f"optimizer {optimizer}")
-        to_log(f"number of spatial dimensions: {ndim}")
-        to_log("elements: "+" x ".join([f"{nelx}",f"{nely}",f"{nelz}"][:ndim]))
+        log.info(f"optimizer {optimizer}")
+        log.info(f"number of spatial dimensions: {ndim}")
+        log.info("elements: "+" x ".join([f"{nelx}",f"{nely}",f"{nelz}"][:ndim]))
         if volfrac is not None:
-            to_log(f"volfrac: {volfrac} rmin: {rmin}  penal: {penal}")
+            log.info(f"volfrac: {volfrac} rmin: {rmin}  penal: {penal}")
         else:
-            to_log(f"rmin: {rmin}  penal: {penal}")
-        to_log("filter: " + ["Sensitivity based",
+            log.info(f"rmin: {rmin}  penal: {penal}")
+        log.info("filter: " + ["Sensitivity based",
                              "Density based",
                              "Haeviside Guest",
                              "Haeviside complement Sigmund 2007",
                              "Haeviside eta projection",
                              "Volume Preserving eta projection",
                              "No filter"][ft])
-        to_log(f"filter mode: {filter_mode}")
+        log.info(f"filter mode: {filter_mode}")
+    else:
+        # check if log file exists and if True delete
+        log = EmptyLogger()
     # total number of design elements
     n = np.prod([nelx,nely,nelz][:ndim])
     #
@@ -468,8 +473,8 @@ def main(nelx: int, nely: int,
                 if "density_coupled" in body_forces_kw.keys():
                     dobj[:,0] -= simp_dx(xPhys=xPhys, eps=0., penal=1.)[:,0]*\
                                          np.dot(adj[edofMat,i],fe_dens[:,i])
-                if output_kw["debug"]:
-                    print("FEM: it.: {0}, problem: {1}, min. u: {2:.10f}, med. u: {3:.10f}, max. u: {4:.10f}".format(
+                #
+                log.debug("[DEBUG] FEM: it.: {0}, problem: {1}, min. u: {2:.10f}, med. u: {3:.10f}, max. u: {4:.10f}".format(
                            loop,i,np.min(u[:,i]),np.median(u[:,i]),np.max(u[:,i])))
         # optimizer is unknown.
         else:
@@ -483,11 +488,9 @@ def main(nelx: int, nely: int,
                 dconstrs[:,0:1] = np.full(x.shape,1/x.shape[0])
             elif optimizer in ["oc","ocm","ocg"]:
                 dconstrs[:,0] = np.ones(x.shape[0])
-        if output_kw["debug"]:
-            print("Pre-Sensitivity Filter: it.: {0}, dobj: {1:.10f}, dv: {2:.10f}".format(
-                   loop,
-                   np.max(dobj),
-                   np.min(dconstrs)))
+        #
+        log.debug("[DEBUG] Pre-Sensitivity Filter: it.: {0}, dobj: {1:.10f}, dv: {2:.10f}".format(
+                  loop, np.max(dobj), np.min(dconstrs)))
         # Sensitivity filtering:
         if ft == 0 and filter_mode == "matrix":
             dobj[:] = np.asarray(H@(x*dobj) /
@@ -516,12 +519,10 @@ def main(nelx: int, nely: int,
             dobj[:] = TF.T @ lu_solve(TF@dobj)
             dconstrs[:] = TF.T @ lu_solve(TF@dconstrs)
         elif ft == -1:
-            pass
-        if output_kw["debug"]:
-            print("Post-Sensitivity Filter: it.: {0}, max. dobj: {1:.10f}, min. dv: {2:.10f}".format(
-                   loop,
-                   np.max(dobj),
-                   np.min(dconstrs)))
+            pass 
+        #
+        log.debug("[DEBUG] Post-Sensitivity Filter: it.: {0}, max. dobj: {1:.10f}, min. dv: {2:.10f}".format(
+                  loop, np.max(dobj), np.min(dconstrs)))
         # density update by optimizer
         # optimality criteria
         if optimizer=="oc":
@@ -554,8 +555,8 @@ def main(nelx: int, nely: int,
             optimizer_kw["low"] = low
             optimizer_kw["upp"] = upp
             x = xmma.copy()
-        if output_kw["debug"]:
-            print("Post Density Update: it.: {0}, med. x.: {1:.10f}, med. xTilde: {2:.10f}, med. xPhys: {3:.10f}".format(
+        #
+        log.debug("[DEBUG] Post Density Update: it.: {0}, med. x.: {1:.10f}, med. xTilde: {2:.10f}, med. xPhys: {3:.10f}".format(
                    loop, np.median(x),np.median(xTilde),np.median(xPhys)))
         # mixing
         if ((loop-accelerator_kw["accel_start"])%accelerator_kw["accel_freq"])==0 \
@@ -571,9 +572,9 @@ def main(nelx: int, nely: int,
         # prune history if too long
         if len(xhist)> max_history+1:
             xhist = xhist[-max_history-1:]
-        if output_kw["debug"]:
-            print("Post Mixing Update: it.: {0}, med. x.: {1:.10f}, med. xTilde: {2:.10f}, med. xPhys: {3:.10f}".format(
-                   loop, np.median(x),np.median(xTilde),np.median(xPhys)))
+        #
+        log.debug("[DEBUG] Post Mixing Update: it.: {0}, med. x.: {1:.10f}, med. xTilde: {2:.10f}, med. xPhys: {3:.10f}".format(
+                  loop, np.median(x),np.median(xTilde),np.median(xPhys)))
         # Filter design variables
         if ft == 0:
             xPhys[:] = x
@@ -588,9 +589,9 @@ def main(nelx: int, nely: int,
             xPhys[:] = TF.T @ lu_solve(TF@x)
         elif ft == -1:
             xPhys[:]  = x
-        if output_kw["debug"]:
-            print("Post Density Filter: it.: {0}, med. x.: {1:.10f}, med. xTilde: {2:.10f}, med. xPhys: {3:.10f}".format(
-                   loop, np.median(x),np.median(xTilde),np.median(xPhys)))
+        #
+        log.debug("[DEBUG] Post Density Filter: it.: {0}, med. x.: {1:.10f}, med. xTilde: {2:.10f}, med. xPhys: {3:.10f}".format(
+                  loop, np.median(x),np.median(xTilde),np.median(xPhys)))
         # Compute the change by the inf. norm
         change = np.abs(xhist[-1] - xhist[-2]).max()
         # Plot to screen
@@ -600,9 +601,8 @@ def main(nelx: int, nely: int,
             fig.canvas.draw()
             plt.pause(0.01)
         # Write iteration history to screen (req. Python 2.6 or newer)
-        if output_kw["write_log"]:
-            to_log("it.: {0} obj.: {1:.10f} vol.: {2:.10f} ch.: {3:.10f}".format(
-                         loop+1, obj, xPhys.mean(), change))
+        log.info("it.: {0} obj.: {1:.10f} vol.: {2:.10f} ch.: {3:.10f}".format(
+                     loop+1, obj, xPhys.mean(), change))
         # convergence check
         if change < 0.01:
             break

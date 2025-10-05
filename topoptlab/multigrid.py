@@ -6,7 +6,7 @@ import numpy as np
 from scipy.sparse import sparray
 from scipy.sparse.linalg import spsolve, LinearOperator
 
-from topoptlab.linear_solvers import smoothed_jacobi, max_res
+from topoptlab.linear_solvers import smoothed_jacobi, res_norm
 
 def apply_multigrid(b : np.ndarray, 
                     A : sparray, x0 : np.ndarray,
@@ -16,7 +16,7 @@ def apply_multigrid(b : np.ndarray,
                     smoother_kws : Dict,
                     max_cycles : int = 1,
                     nlevels : int = 2,
-                    conv_criterium: Callable = max_res,
+                    conv_criterium: Callable = res_norm,
                     conv_args: Dict = {}) -> Tuple[np.ndarray,int]:
     """
     Apply a generic multigrid solver for the linear problem Ax=b. In this

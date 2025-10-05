@@ -59,5 +59,5 @@ if __name__ == "__main__":
                       "export": export,
                       "write_log": write_log,
                       "profile": False,
-                      "debug": 0})
+                      "verbosity": 0})
     

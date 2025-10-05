@@ -26,9 +26,10 @@ def threshold(xPhys,
     """
     indices = np.flip(np.argsort(xPhys))
     vt = np.floor(volfrac*xPhys.shape[0]).astype(int)
-    xThresh = np.zeros(xPhys.shape)
+    xThresh = np.zeros(xPhys.shape,order="F")
     xThresh[indices[:vt]] = 1.
     xThresh[indices[vt:]] = 0.
+    
     print("Thresholded Vol.: {0:.3f}".format(vt/xThresh.shape[0]))
     return xThresh
 

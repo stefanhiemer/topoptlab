@@ -5,7 +5,8 @@ from scipy.sparse.linalg import cg, splu, spsolve
 from pyamg.classical import ruge_stuben_solver 
 from pyamg.aggregation import smoothed_aggregation_solver
 
-from topoptlab.blocksparse_precond import create_primitive_blocks, make_block_preconditioner
+from topoptlab.blocksparse.make_blocks import create_equal_blocks
+from topoptlab.blocksparse.blockdiagonal import make_blockdiagonal_preconditioner
 from topoptlab.solve_linsystem import laplacian
 from topoptlab.linear_solvers import smoothed_jacobi
 from topoptlab.multigrid import multigrid_preconditioner, apply_multigrid, vcycle
@@ -22,11 +23,11 @@ def block_preconditioner(A, b,
                          rtol=1e-5):
     
     #
-    indices = create_primitive_blocks(A=A, nblocks=nblocks)
+    indices = create_equal_blocks(A=A, nblocks=nblocks)
     #
-    P = make_block_preconditioner(A=A,
-                                  block_inds = indices,
-                                  solver_func=block_solver)
+    P = make_blockdiagonal_preconditioner(A=A,
+                                          block_inds = indices,
+                                          solver_func=block_solver)
     #
     x, info = cg(L,b,M=P,rtol=rtol)
     return x

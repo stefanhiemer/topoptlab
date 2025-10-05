@@ -4,8 +4,31 @@ from typing import Any,Callable,Dict,Union,Tuple
 import numpy as np
 from scipy.sparse import issparse,diags,triu,tril,sparray
 from scipy.sparse.linalg import spsolve_triangular, LinearOperator
+from scipy.sparse.linalg._isolve.iterative import _get_atol_rtol
 
-def max_res(r: np.ndarray, tol: float,
+from topoptlab.log_utils import EmptyLogger,SimpleLogger
+
+def max_res(r: np.ndarray, atol: float,
+            **kwargs: Any) -> bool:
+    """
+    Check if maximum residual smaller than tolerance. This is a very (!) strict
+    convergence criterion so should only be used for testing or similar things.
+    
+    Parameters
+    ----------
+    r :np.ndarray
+        residual.
+    atol : float 
+        absolute tolerance.
+
+    Returns
+    -------
+    converged : bool
+        if True, max. residual smaller than tolerance. 
+    """ 
+    return np.abs(r).max() < atol
+
+def res_norm(r: np.ndarray, atol: float,
             **kwargs: Any) -> bool:
     """
     Check if maximum residual smaller than tolerance.
@@ -22,14 +45,17 @@ def max_res(r: np.ndarray, tol: float,
     converged : bool
         if True, max. residual smaller than tolerance. 
     """ 
-    return np.abs(r).max() < tol
+    return np.linalg.norm(r) < atol
 
 def pcg(A: sparray, b: np.ndarray,
         P: Union[sparray,LinearOperator],
         x0: Union[None,np.ndarray] = None,
-        tol: float = 1e-8, maxiter: int = 1000,
-        conv_criterium: Callable = max_res,
+        rtol: Union[None,float] = 1e-5,
+        atol: Union[None,float] = 0., 
+        maxiter: int = 1000,
+        conv_criterium: Callable = res_norm,
         conv_args: Dict = {},
+        logger: Union[EmptyLogger,SimpleLogger] = EmptyLogger(),
         **kwargs: Any) -> Tuple[np.ndarray,int]:
     """
     Preconditioned conjugate gradient solver for `Ax=b`, for a symmetric, 
@@ -46,8 +72,10 @@ def pcg(A: sparray, b: np.ndarray,
         preconditioner that is called at each cg iteration.
     x0 : np.ndarray
         initial guess for solution.
-    tol : float
-        convergence tolerance.
+    rtol : None or float
+        relative convergence tolerance.
+    atol : None or float
+        absolute convergence tolerance.
     maxiter : int
         maximum number of iterations.
     conv_criterium : callable
@@ -73,6 +101,10 @@ def pcg(A: sparray, b: np.ndarray,
         x = np.zeros(b.shape)
     else:
         x = x0.copy()
+    #
+    atol,_ = _get_atol_rtol(name="pcg", 
+                          b_norm=np.linalg.norm(b), 
+                          atol=atol, rtol=rtol)
     # updates of residual and x
     dx = np.zeros(x.shape)
     dr,z = dx.copy(),dx.copy()
@@ -80,7 +112,8 @@ def pcg(A: sparray, b: np.ndarray,
     r = b - A@x
     for i in range(maxiter):
         # check convergence
-        if conv_criterium(r=r,tol=tol,**conv_args):
+        if conv_criterium(r=r,atol=atol,**conv_args):
+            logger.perf(f"{i} PCG iterations.")
             i = 0
             break
         # preconditioner
@@ -103,10 +136,10 @@ def pcg(A: sparray, b: np.ndarray,
 
 def gauss_seidel(A: sparray, b: np.ndarray,
                  x0: Union[None,np.ndarray] = None, 
-                 tol: float = 1e-8, max_iter: int = 1000,
+                 atol: float = 1e-8, max_iter: int = 1000,
                  L: Union[None,sparray] = None, 
                  U: Union[None,sparray] = None,
-                 conv_criterium: Callable = max_res,
+                 conv_criterium: Callable = res_norm,
                  conv_args: Dict = {},
                  **kwargs: Any) -> Tuple[np.ndarray,int]:
     """
@@ -126,8 +159,8 @@ def gauss_seidel(A: sparray, b: np.ndarray,
         right hand side of linear system.
     x0 : np.ndarray
         initial guess for solution.
-    tol : float
-        convergence tolerance.
+    atol : float
+        abs. convergence tolerance.
     maxiter : int
         maximum number of iterations.
     L : scipy.sparse.sparray or None
@@ -165,7 +198,7 @@ def gauss_seidel(A: sparray, b: np.ndarray,
     r = b - A @ x
     for i in np.arange(max_iter):
         # check convergence
-        if conv_criterium(r=r,tol=tol,**conv_args):
+        if conv_criterium(r=r,atol=atol,**conv_args):
             i = 0
             break
         # SRO update
@@ -179,8 +212,8 @@ def gauss_seidel(A: sparray, b: np.ndarray,
 def smoothed_jacobi(A: sparray, b: np.ndarray, 
                     x0: Union[None,np.ndarray] = None, 
                     omega: float = 0.67, 
-                    tol: float = 1e-8, max_iter: int = 1000,
-                    conv_criterium: Callable = max_res,
+                    atol: float = 1e-8, max_iter: int = 1000,
+                    conv_criterium: Callable = res_norm,
                     conv_args: Dict = {},
                     **kwargs: Any) -> Tuple[np.ndarray,int]:
     """
@@ -198,7 +231,7 @@ def smoothed_jacobi(A: sparray, b: np.ndarray,
         initial guess for solution.
     omega : float
         damping factor usually between 0/1.
-    tol : float
+    atol : float
         convergence tolerance.
     maxiter : int
         maximum number of iterations.
@@ -231,7 +264,7 @@ def smoothed_jacobi(A: sparray, b: np.ndarray,
     r = b - A @ x
     for i in np.arange(max_iter):
         # check convergence
-        if conv_criterium(r=r,tol=tol,**conv_args):
+        if conv_criterium(r=r,atol=atol,**conv_args):
             i = 0
             break
         # smoothed Jacobi update
@@ -243,8 +276,8 @@ def smoothed_jacobi(A: sparray, b: np.ndarray,
 def modified_richardson(A: sparray, b: np.ndarray, 
                         x0: Union[None,np.ndarray] = None, 
                         omega: float = 0.1, 
-                        tol: float = 1e-8, max_iter: int = 1000,
-                        conv_criterium: Callable = max_res,
+                        atol: float = 1e-8, max_iter: int = 1000,
+                        conv_criterium: Callable = res_norm,
                         conv_args: Dict = {},
                         **kwargs: Any) -> Tuple[np.ndarray,int]:
     """
@@ -262,8 +295,8 @@ def modified_richardson(A: sparray, b: np.ndarray,
         initial guess for solution.
     omega : float
         damping factor usually between 0/1.
-    tol : float
-        convergence tolerance.
+    atol : float
+        abs. convergence tolerance.
     maxiter : int
         maximum number of iterations.
     conv_criterium : callable
@@ -293,7 +326,7 @@ def modified_richardson(A: sparray, b: np.ndarray,
     r = b - A @ x
     for i in np.arange(max_iter):
         # check convergence
-        if conv_criterium(r=r,tol=tol,**conv_args):
+        if conv_criterium(r=r,atol=atol,**conv_args):
             i = 0
             break
         # richardson update
@@ -305,11 +338,11 @@ def modified_richardson(A: sparray, b: np.ndarray,
 def successive_overrelaxation(A: sparray, b: np.ndarray, 
                               x0: Union[None,np.ndarray] = None, 
                               omega: float = 0.5, 
-                              tol: float = 1e-8, max_iter: int = 1000,
+                              atol: float = 1e-8, max_iter: int = 1000,
                               D: Union[None,sparray] = None, 
                               A_u: Union[None,sparray] = None, 
                               A_l: Union[None,sparray] = None,
-                              conv_criterium: Callable = max_res,
+                              conv_criterium: Callable = res_norm,
                               conv_args: Dict = {},
                               **kwargs: Any) -> Tuple[np.ndarray,int]:
     """
@@ -335,8 +368,8 @@ def successive_overrelaxation(A: sparray, b: np.ndarray,
         initial guess for solution.
     omega : float
         damping factor usually between 0/1.
-    tol : float
-        convergence tolerance.
+    atol : float
+        abs. convergence tolerance.
     maxiter : int
         maximum number of iterations.
     D : scipy.sparse.sparray or None
@@ -377,7 +410,7 @@ def successive_overrelaxation(A: sparray, b: np.ndarray,
     r = b - A @ x
     for i in np.arange(max_iter):
         # check convergence
-        if conv_criterium(r=r,tol=tol,**conv_args):
+        if conv_criterium(r=r,atol=atol,**conv_args):
             i = 0
             break
         # SRO update
