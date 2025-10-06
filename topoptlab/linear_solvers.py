@@ -113,7 +113,7 @@ def pcg(A: sparray, b: np.ndarray,
     for i in range(maxiter):
         # check convergence
         if conv_criterium(r=r,atol=atol,**conv_args):
-            logger.perf(f"{i} PCG iterations.")
+            logger.perf(f"PCGit. {i}")
             i = 0
             break
         # preconditioner

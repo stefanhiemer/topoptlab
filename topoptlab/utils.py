@@ -51,60 +51,6 @@ def even_spaced_ternary(npoints: int) -> np.ndarray:
             fracs.append([a,b,1-a-b])
     return np.array(fracs)
 
-def parse_logfile(file: str) -> Tuple[Dict,np.ndarray]:
-    """
-    Parse log file of the compliance minimization TO workflow.
-
-    Parameters
-    ----------
-    file : str
-        filename of the logfile.
-
-    Returns
-    -------
-    params : dict
-        contains some of the parameters like system size and shape, 
-        optimizer etc..
-    data : np.ndarray
-        iteration history over objective function, volume constraint, change.
-
-    """
-    
-    params = dict()
-    with open(file,"r") as f:
-        # 1st line
-        params["optimizer"] = f.readline().strip().split(" ")[-1]
-        # 2nd line
-        params["ndim"] = int(f.readline().strip().split(" ")[-1])
-        # 3rd line
-        line = f.readline().strip().split(" ")
-        if len(line) == 4:
-            nelx,nely = line[1::2] 
-            params["nelx"] = int(nelx) 
-            params["nely"] = int(nely)
-        if len(line) == 6:
-            nelx,nely,nelz = line[1::2]
-            params["nelx"] = int(nelx) 
-            params["nely"] = int(nely)
-            params["nelz"] = int(nelz)
-        # 4th line
-        line = f.readline().strip().split(" ")
-        params["volfrac"] = float(line[1][:])
-        params["rmin"] = float(line[3][:])
-        params["penal"] = float(line[-1])
-        # 5th line 
-        params["filter"] = f.readline().strip().split(" ",1)[1]
-        # 6th line
-        params["filter method"] = f.readline().strip().split(" ",1)[1]
-        # 
-        lines = [line.replace(",","") for line in f]
-        # last_line
-        #final = [float(i) for i in lines[-1].strip().split(" ")[2::2]]
-        
-    data = np.loadtxt(lines, delimiter=" ",
-                      skiprows=0, usecols = [1,3,5,7]) 
-    return params,data
-
 def unique_sort(iM: np.ndarray, jM: np.ndarray, 
                 combine: bool = False) -> Tuple[np.ndarray,
                                                 np.ndarray,

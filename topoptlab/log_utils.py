@@ -1,9 +1,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any,Callable, Union
+from typing import Any,Dict,Tuple
 from abc import ABC, abstractmethod
 from os.path import isfile
 from os import remove
 from sys import platform
+import re
+
+import numpy as np
 
 def _noop(msg: str) -> None:
     """
@@ -442,3 +445,117 @@ def init_logging(logfile: str,
                          "to the list in line 43 as quickfix. Otherwise ",
                          "contact the maintainers.")
     return
+
+def parse_simple_logfile(path: str) -> Dict[str, Any]:
+    """
+    Parse a log file written by SimpleLogger into header information,
+    iteration data, and tagged messages such as [PERF], [DEBUG], etc.
+      
+     Parameters
+     ----------
+     path : str
+         path of logfile.
+
+     Returns
+     -------
+     log_data : dict
+         dictionary of information of logfile.
+         
+    Notes
+    -----
+    The parser stops collecting header information once it encounters  an 
+    iteration line ("it.: ...") or any line beginning with a log prefix such as
+    [PERF], [DEBUG], etc.
+    """
+    
+    #
+    log_data = {}
+    # regex pattern of tagged messages
+    tag_pattern = re.compile(r"^\[([A-Z]+)\]\s*(.*)")
+    # pattern for finding key-value pairs in iteration information
+    kv_pattern = re.compile(r"([A-Za-z_]+\.?):\s*([-+]?\d*\.\d+|\d+|[A-Za-z_./-]+)")
+    # read logfile
+    with open(path, "r") as f:
+        lines = [line.strip() for line in f if line.strip()]
+
+    # extract lines containing the header
+    header_lines = []
+    for i, line in enumerate(lines):
+        if line.startswith("it.:") or tag_pattern.match(line):
+            start_idx = i
+            break
+        header_lines.append(line)
+    else:
+        start_idx = len(lines)
+    
+    # parse key–value pairs from header
+    header_dict: Dict[str, Any] = dict()
+    for line in header_lines:
+        # detect elements line and extract nelx, nely, (nelz)
+        if line.lower().startswith("elements:"):
+            m = re.search(r"elements:\s*(\d+)\s*x\s*(\d+)(?:\s*x\s*(\d+))?", line)
+            if m:
+                params = ["nelx", "nely", "nelz"]
+                for i, val in enumerate(m.groups()):
+                    if val is not None:
+                        header_dict[params[i]] = int(val)
+            continue
+        #
+        if line.lower().startswith("filter method:"):
+            value = line.split(":", 1)[-1].strip()
+            header_dict["filter method"] = value
+            continue
+        #
+        kvs = kv_pattern.findall(line)
+        if kvs:
+            for k, v in kvs:
+                key = k.strip(":")
+                try:
+                    header_dict[key] = float(v)
+                except ValueError:
+                    header_dict[key] = v
+        else:
+            header_dict[f"line_{len(header_dict)}"] = line
+    # add header information
+    log_data["header"] = header_dict
+    # extract iteration data and tagged information
+    tagged = dict()
+    data_list = []
+    for line in lines[start_idx:]:
+        # design iteration information
+        if line.startswith("it.:"):
+            kvs = kv_pattern.findall(line)
+            entry: Dict[str, Any] = dict()
+            for k, v in kvs:
+                key = k.strip(".: ")
+                try:
+                    entry[key] = float(v)
+                except ValueError:
+                    entry[key] = v
+            data_list.append(entry)
+        # find tagged information
+        tag_match = tag_pattern.match(line)
+        if tag_match:
+            tag, msg = tag_match.groups()
+            tag = tag.lower()
+            if tag not in tagged:
+                tagged[tag] = []
+            tagged[tag].append(msg)
+            continue
+    # package all in one array
+    if len(data_list) > 0:
+        # collect all unique keys
+        all_keys = set().union(*(d.keys() for d in data_list))
+        data = {}
+        for key in all_keys:
+            try:
+                data[key] = np.array([float(d.get(key, np.nan)) for d in data_list])
+            except ValueError:
+                # fallback if a key is non-numeric
+                data[key] = np.array([d.get(key, "") for d in data_list])
+    else:
+        data = {}
+    #
+    #log_data["tagged"] = tagged
+    log_data["history"] = data
+    return log_data | tagged
