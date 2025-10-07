@@ -381,3 +381,50 @@ def create_interpolators_amg(A: sparray,
                                      _lvl = _lvl+1)
         return [interpolator] + interpolators
     
+def rigid_bodymodes(coords : np.ndarray,
+                    pbc : Union[bool,List] = False) -> np.ndarray:
+    """
+    Calculate rigid body modes from the coordinates of N nodes. 
+    
+    This function does not take into account any boundary conditions, so modes 
+    eliminated by Dirichlet boundary conditions have to be eliminated later. 
+    If periodic boundary conditions are active, it is assumed that they are 
+    already applied and no redundant nodes are in the list of coordinates.
+
+    Parameters
+    ----------
+    coords : np.ndarray
+        x coordinates shape (N,ndim)
+    pbc : bool or list
+        bool flags whether dimension is periodic.
+        
+    Returns
+    -------
+    B : np.ndarray
+        rigid body modes of shape (ndim*N, (ndim**2 + ndim)/2.
+
+    """
+    #
+    N,ndim = coords.shape
+    #
+    if isinstance(pbc, bool):
+        pbc = tuple([pbc])*ndim
+    if np.any(pbc):
+        raise NotImplementedError("pbc not yet implemented here.")
+    #
+    n_modes = int( (ndim**2 + ndim)/2 )
+    #
+    B = np.zeros((N*ndim,n_modes))
+    # translation
+    for i in np.arange(ndim):
+        B[0+i::ndim,i] = 1.
+    # rotation
+    if ndim == 3:
+        for i in np.arange(n_modes-ndim):
+            B[(1+i)%ndim::ndim,i+ndim] = -coords[:,(2+i)%ndim]
+            B[(2+i)%ndim::ndim,i+ndim] = coords[:,(1+i)%ndim]
+    else:
+        B[0::2,2] = -coords[:,1]
+        B[1::2,2] = coords[:,0]
+    return B
+    

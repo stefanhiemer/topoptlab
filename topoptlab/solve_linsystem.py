@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any,Callable,Tuple,Union
+from typing import Any,Callable,Dict,Tuple,Union
 
 import numpy as np
 from scipy.sparse import csc_array
@@ -15,8 +15,10 @@ from topoptlab.linear_solvers import pcg
 
 def solve_lin(K: Union[csc_array,spmatrix], rhs: Union[np.ndarray,matrix],
               solver: str,
+              solver_kw: Dict = {},
               preconditioner: Union[None,str] = None,
               P: Union[None,Callable,spmatrix,csc_array] = None,
+              preconditioner_kw: Dict = {},
               logger: Union[EmptyLogger,SimpleLogger] = EmptyLogger,
               **kwargs: Any
               ) -> Tuple[np.ndarray, 
@@ -35,8 +37,12 @@ def solve_lin(K: Union[csc_array,spmatrix], rhs: Union[np.ndarray,matrix],
         rows to delete.
     solver : str
         string that indicates the library and type of solver to be used.
+    solver_kw : dict
+        arguments for the solver.
     preconditioner : str
         string that indicates preconditioner to be used.
+    preconditioner_kw : dict
+        arguments for the preconditioner.
     P : callable or sparse matrix format
         preconditioner created during previous solution of Ku. Concrete nature
         depends on the solver and library used.
@@ -82,29 +88,34 @@ def solve_lin(K: Union[csc_array,spmatrix], rhs: Union[np.ndarray,matrix],
     ### iterative solvers
     if P is None and preconditioner is not None:
         if preconditioner == "scipy-ilu":
-            ilu = spilu(K, fill_factor=100., drop_tol=1e-5)
+            ilu = spilu(K, **preconditioner_kw)
             P = LinearOperator(shape=K.shape,
                                matvec=ilu.solve)
         elif preconditioner == "pyamg-air":
-            P = air_solver(A=K).aspreconditioner(cycle='V')
+            P = air_solver(A=K,
+                           **preconditioner_kw).aspreconditioner(cycle='V')
         elif preconditioner == "pyamg-ruge_stuben":
-            P = ruge_stuben_solver(A=K).aspreconditioner(cycle='V')
+            P = ruge_stuben_solver(A=K,
+                                   **preconditioner_kw).aspreconditioner(cycle='V')
         elif preconditioner == "pyamg-smoothed_aggregation":
-            P = smoothed_aggregation_solver(A=K).aspreconditioner(cycle='V')
+            P = smoothed_aggregation_solver(A=K,
+                                            **preconditioner_kw).aspreconditioner(cycle='V')
         elif preconditioner == "pyamg-rootnode_solver":
-            P = rootnode_solver(A=K).aspreconditioner(cycle='V')
+            P = rootnode_solver(A=K,
+                                **preconditioner_kw).aspreconditioner(cycle='V')
         elif preconditioner == "pyamg-pairwise_solver":
-            P = pairwise_solver(A=K).aspreconditioner(cycle='V')
+            P = pairwise_solver(A=K,
+                                **preconditioner_kw).aspreconditioner(cycle='V')
         elif preconditioner == "pyamg-adaptive_sa":
-            P,work = adaptive_sa_solver(A=K)
+            P,work = adaptive_sa_solver(A=K,
+                                        **preconditioner_kw)
             P = P.aspreconditioner(cycle='V')
     
     # without preconditioner, bad idea. Purely there for testing
     if solver == "scipy-cg":
         # more than one set of boundary conditions to solve
         if rhs.shape[1] == 1:
-            sol,fail = cg(K, rhs, rtol=1e-5, maxiter=10000,
-                          M=P)
+            sol,fail = cg(K, rhs, M=P, **solver_kw)
             # shape consistent
             sol = sol[:,None]
             if fail != 0:
@@ -112,8 +123,8 @@ def solve_lin(K: Union[csc_array,spmatrix], rhs: Union[np.ndarray,matrix],
         else:
             sol = np.zeros(rhs.shape)
             for i in np.arange(rhs.shape[1]):
-                sol[:,i],fail = cg(K, rhs[:,i], rtol=1e-5, maxiter=10000,
-                                   M=P)
+                sol[:,i],fail = cg(K, rhs[:,i],
+                                   M=P, **solver_kw)
                 if fail != 0:
                     raise RuntimeError("cg iteration did not converge for bc ",
                                        i)
@@ -122,9 +133,9 @@ def solve_lin(K: Union[csc_array,spmatrix], rhs: Union[np.ndarray,matrix],
         # more than one set of boundary conditions to solve
         sol = np.zeros(rhs.shape)
         for i in np.arange(rhs.shape[1]):
-            sol[:,i],fail = pcg(K, rhs[:,i], rtol=1e-5, 
-                                maxiter=10000,
-                               P=P, logger=logger)
+            sol[:,i],fail = pcg(K, rhs[:,i], 
+                                P=P, logger=logger,
+                                **solver_kw)
             if fail != 0:
                 raise RuntimeError("pcg iteration did not converge for bc ",
                                    i)

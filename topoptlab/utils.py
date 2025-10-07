@@ -85,6 +85,23 @@ def unique_sort(iM: np.ndarray, jM: np.ndarray,
     else:
         return iM[inds],jM[inds]
 
+def dict_without(dictionary: Dict, keys: List) -> Dict:
+    """Return a copy of a dictionary without the given keys.
+    
+    Parameters
+    ----------
+    dictionary : dict
+        full dictionary.
+    keys : list
+        list of keys to not include in the copy
+
+    Returns
+    -------
+    dictionary_new : dict
+        dictionary without given keys 
+    """
+    return {k: v for k, v in dictionary.items() if k not in keys}
+
 def map_eltoimg(quant: np.ndarray, 
                 nelx: int, nely: int, 
                 **kwargs: Any) -> np.ndarray:
@@ -190,39 +207,93 @@ def map_voxeltoel(voxel: np.ndarray,
 
 def elid_to_coords(el: np.ndarray, 
                    nelx: int, nely: int, nelz: Union[None,int] = None,
-                   **kwargs: Any):
+                   l: Union[float,List] = [1.,1.,1.],
+                   **kwargs: Any) -> np.ndarray:
     """
-    Map element ids to cartesian coordinates in the usual regular grid.
+    Map element IDs to cartesian coordinates in the usual regular grid.
 
     Parameters
     ----------
     el : np.ndarray, shape (n)
-        elment IDs.
+        element IDs.
     nelx : int
         number of elements in x direction.
     nely : int
         number of elements in y direction.
     nelz : int or None
         number of elements in z direction.
-
+    l : float or list 
+        side length of element
+    
     Returns
     -------
-    x : np.ndarray shape (n)
-        x coordinates.
-    y : np.ndarray shape (n)
-        y coordinates.
-    z : np.ndarray shape (n), optional
-        z coordinates only if nelz is not None.
+    coords : np.ndarray 
+        element coordinates of shape shape (n,ndim).
 
     """
-    # find coordinates of each element/density
     if nelz is None:
+        ndim = 2
+    else:
+        ndim = 3
+    #
+    if isinstance(l, float):
+        l = [l for i in range(ndim)]
+    # find coordinates of each element/density
+    if ndim == 2:
         x,y = np.divmod(el,nely) # same as np.floor(el/nely),el%nely
-        return x,y
+        coords = (np.array([[0,nely-1]])-np.column_stack((x,y)))
+        #coords = coords * np.array([[-1,1]]) * np.array(l)[None,:ndim] 
     else:
         z,rest = np.divmod(el,nelx*nely)
         x,y = np.divmod(rest,nely)
-        return x,y,z
+        coords = (np.array([[0,nely-1,0]])-np.column_stack((x,y,z)))
+        #coords = coords * np.array([[-1,1,1]]) * np.array(l)[None,:] 
+    return coords * np.array([[-1,1,-1]])[:,:ndim] * np.array(l)[None,:ndim] 
+    
+def nodeid_to_coords(nd: np.ndarray, 
+                     nelx: int, nely: int, nelz: Union[None,int] = None,
+                     l: Union[float,List] = [1.,1.,1.],
+                     **kwargs: Any) -> np.ndarray:
+    """
+    Map node IDs to cartesian coordinates in the usual regular grid.
+
+    Parameters
+    ----------
+    nd : np.ndarray, shape (n)
+        node IDs.
+    nelx : int
+        number of elements in x direction.
+    nely : int
+        number of elements in y direction.
+    nelz : int or None
+        number of elements in z direction.
+    l : float or List
+        side length of element
+        
+    Returns
+    -------
+    coords : np.ndarray 
+        node coordinates of shape shape (n,ndim).
+
+    """
+    if nelz is None:
+        ndim = 2
+    else:
+        ndim = 3
+    #
+    if isinstance(l, float):
+        l = [l for i in range(ndim)]
+    # find coordinates of each element/density
+    if nelz is None:
+        x,y = np.divmod(nd,nely+1) # same as np.floor(el/nely),el%nely
+        coords = np.array([[1,nely]])-np.column_stack((x,y))-0.5
+        #coords = coords * np.array([[-1,1]]) * np.array(l)[None,:]
+    else:
+        z,rest = np.divmod(nd,(nelx+1)*(nely+1))
+        x,y = np.divmod(rest,(nely+1))
+        coords = np.array([[1,nely,1]])-np.column_stack((x,y,z))-0.5
+        #coords = coords * np.array([[-1,1,1]]) * np.array(l)[None,:]
+    return coords * np.array([[-1,1,-1]])[:,:ndim] * np.array(l)[None,:ndim]
 
 def upsampling(x: np.ndarray, magnification: Union[float,int,List],
                nelx: int, nely: int, nelz: Union[None,int] = None,

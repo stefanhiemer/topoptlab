@@ -23,7 +23,7 @@ def test_anderson(obj_ref):
     ft = 1 # ft==0 -> sens, ft==1 -> dens
     x, obj = main(nelx=nelx, nely=nely, volfrac=volfrac, penal=penal, 
                   rmin=rmin, ft=ft, filter_mode="matrix", 
-                  optimizer="mma", lin_solver="scipy-direct",
+                  optimizer="mma", lin_solver_kw={"name":"scipy-direct"},
                   nouteriter=1000,
                   accelerator_kw={"accel_freq": 4, 
                                   "accel_start": 20,
@@ -35,8 +35,7 @@ def test_anderson(obj_ref):
                                "display": False,
                                "export": False,
                                "write_log": False,
-                               "profile": False,
-                               "debug": 0})
+                               "profile": False})
     #
     assert_almost_equal(obj,obj_ref,decimal=0)
     return 

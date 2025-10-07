@@ -49,7 +49,7 @@ if __name__ == "__main__":
          volfrac=volfrac, 
          penal=penal, rmin=rmin, 
          nouteriter=100,
-         lin_solver="cvxopt-cholmod",
+         lin_solver_kw={"name": "cvxopt-cholmod"},
          assembly_mode="lower",
          bcs=partial(forceinverter_3d,fixation_mode="line") , 
          obj_func=var_maximization ,obj_kw={"l": l},

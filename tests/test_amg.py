@@ -163,3 +163,62 @@ def test_direct_interpolation(test, solution):
     #
     assert_allclose(P.toarray(),solution)
     return
+
+from numpy import arange,array,ones,prod
+from scipy.sparse import coo_array
+
+from topoptlab.amg import rigid_bodymodes
+from topoptlab.fem import create_matrixinds
+from topoptlab.utils import nodeid_to_coords
+
+@pytest.mark.parametrize('nelx, nely, nelz',
+                         [(2,2,None),
+                          (10,3,None),
+                          (2,2,2),
+                          (10,3,5),])
+
+def test_rigid_modes(nelx,nely,nelz):
+    
+    #
+    if nelz is None:
+        ndim = 2
+        from topoptlab.elements.bilinear_quadrilateral import create_edofMat
+        from topoptlab.elements.linear_elasticity_2d import lk_linear_elast_2d as lk
+    else:
+        ndim = 3
+        from topoptlab.elements.trilinear_hexahedron import create_edofMat
+        from topoptlab.elements.linear_elasticity_3d import lk_linear_elast_3d as lk
+    # total number of design elements
+    n = prod([nelx,nely,nelz][:ndim])
+    ndof = ndim*prod( array([nelx,nely,nelz][:ndim])+1)
+    # Max and min stiffness
+    Emin=1e-9
+    Emax=1.0
+    # fetch element stiffness matrix
+    KE = lk()
+    # dofs:
+    n_ndof = int(KE.shape[-1]/2**ndim)
+    ndof = n_ndof * prod( array([nelx,nely,nelz][:ndim])+1 )
+    # FE: Build the index vectors for the for coo matrix format.
+    # element degree of freedom matrix plus some helper indices
+    edofMat, n1, n2, n3, n4 = create_edofMat(nelx=nelx,nely=nely,nelz=nelz,
+                                             nnode_dof=n_ndof)
+    # Construct the index pointers for the coo format
+    iK,jK = create_matrixinds(edofMat=edofMat, mode="full")
+    # Setup and solve FE problem
+    sK=(KE.flatten()[:,None]*(Emin+ones(n)*(Emax-Emin))).flatten(order='F')
+    K = coo_array((sK,(iK,jK)),shape=(ndof,ndof)).asformat("csr")
+    #
+    coords = nodeid_to_coords(nd = arange( prod( array([nelx,
+                                                        nely,
+                                                        nelz][:ndim])+1) ),
+                              nelx=nelx, 
+                              nely=nely,
+                              nelz=nelz)
+    #
+    u_b = rigid_bodymodes(coords)
+    #
+    assert_allclose((K@u_b).max(), 0., atol=1e-14)
+    return
+
+

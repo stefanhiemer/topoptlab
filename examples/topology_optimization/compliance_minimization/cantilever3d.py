@@ -44,7 +44,7 @@ if __name__ == "__main__":
     #
     main(nelx=nelx, nely=nely, nelz=nelz, volfrac=volfrac, penal=penal, 
          rmin=rmin, ft=ft, filter_mode="matrix", 
-         optimizer="oc", lin_solver = "cvxopt-cholmod",
+         optimizer="oc", lin_solver_kw = {"name": "cvxopt-cholmod"},
          assembly_mode="lower",
          nouteriter=50,
          bcs=partial(cantilever_3d,fixation_mode="linear"),

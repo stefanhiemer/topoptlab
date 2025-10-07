@@ -40,7 +40,7 @@ if __name__ == "__main__":
          rmin=rmin, ft=ft, filter_mode = "matrix",
          obj_func=compliance,
          #obj_func=compliance_squarederror, obj_kw={"c0": [75, 80]},
-         optimizer="mma",lin_solver="cvxopt-cholmod",
+         optimizer="mma",lin_solver_kw={"name": "cvxopt-cholmod"},
          bcs=cantilever_2d_twoloads_wrong,
          output_kw = {"file": "cantilever_multiload2d",
                       "display": display,

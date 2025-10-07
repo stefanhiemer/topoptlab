@@ -35,7 +35,7 @@ from topoptlab.objectives import compliance
 # output final design to a Paraview readable format
 from topoptlab.output_designs import export_vtk
 # map element data to img/voxel
-from topoptlab.utils import map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel,check_simulation_params
+from topoptlab.utils import map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel,check_simulation_params,dict_without
 # logging related stuff
 from topoptlab.log_utils import EmptyLogger,SimpleLogger
 #
@@ -49,8 +49,8 @@ def main(nelx: int, nely: int,
                                 "meshfile": None},
          nelz: Union[None,int] = None,
          filter_mode: str = "matrix",
-         lin_solver: str = "scipy-direct", 
-         preconditioner: Union[None,Callable,str] = None,
+         lin_solver_kw: Dict = {"name": "scipy-direct"}, 
+         preconditioner_kw: Dict = {"name": None},
          assembly_mode: str = "full",
          materials_kw: Dict = {"E": 1.}, 
          body_forces_kw: Dict = {},
@@ -154,6 +154,11 @@ def main(nelx: int, nely: int,
         profiler.enable()
     #
     check_simulation_params(simulation_kw)
+    # extract linear solver and preconditioner
+    lin_solver = lin_solver_kw["name"] 
+    preconditioner = preconditioner_kw["name"]
+    lin_solver_kw = dict_without(lin_solver_kw, "name")
+    preconditioner_kw = dict_without(preconditioner_kw, "name")
     #
     if nelz is None:
         ndim = 2
@@ -341,7 +346,6 @@ def main(nelx: int, nely: int,
                                            rmin=rmin,
                                            mapping=mapping,
                                            invmapping=invmapping)
-        print(h.shape,hs.shape)
     elif filter_mode == "helmholtz" and ft in [0,1]:
         KF,TF = assemble_helmholtz_filter(nelx=nelx,nely=nely,nelz=nelz,
                                           rmin=rmin, l=l,
@@ -429,8 +433,10 @@ def main(nelx: int, nely: int,
                          free=free,fixed=fixed)
             # solve linear system. fact is a factorization and precond a preconditioner
             u[free, :], fact, precond = solve_lin(K=K, rhs=rhs[free],
-                                                  solver=lin_solver,
-                                                  preconditioner=preconditioner)
+                                      solver=lin_solver,
+                                      solver_kw=lin_solver_kw,
+                                      preconditioner=preconditioner,
+                                      preconditioner_kw=preconditioner_kw)
             # objective and sensitivities with regards to object
             obj = 0
             dobj[:] = 0.
@@ -453,8 +459,10 @@ def main(nelx: int, nely: int,
                 else:
                     adj = np.zeros(f.shape)
                     adj[free],_,_ = solve_lin(K, rhs=rhs_adj[free],
-                                            solver=lin_solver, P=precond,
-                                            preconditioner = preconditioner)
+                                            solver=lin_solver,
+                                            solver_kw=lin_solver_kw,
+                                            P=precond,
+                                            preconditioner=preconditioner)
                 # update sensitivity for quantities that need a small offset to
                 # avoid degeneracy of the FE problem
                 # standard contribution of element stiffness/conductivity
