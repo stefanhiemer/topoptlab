@@ -52,7 +52,7 @@ def pcg(A: sparray, b: np.ndarray,
         x0: Union[None,np.ndarray] = None,
         rtol: Union[None,float] = 1e-5,
         atol: Union[None,float] = 0., 
-        maxiter: int = 1000,
+        maxiter: int = 100000,
         conv_criterium: Callable = res_norm,
         conv_args: Dict = {},
         logger: Union[EmptyLogger,SimpleLogger] = EmptyLogger(),
@@ -124,6 +124,92 @@ def pcg(A: sparray, b: np.ndarray,
             dx[:] = dx*beta + z
         else:
             dx[:] = z.copy()
+        #
+        dr[:] = A@dx
+        alpha = rho_cur / np.dot(dx, dr)
+        x[:] += alpha*dx
+        r[:] -= alpha*dr
+        rho_prev = rho_cur
+        
+    return x, i
+
+def cg(A: sparray, b: np.ndarray,
+       x0: Union[None,np.ndarray] = None,
+       rtol: Union[None,float] = 1e-5,
+       atol: Union[None,float] = 0., 
+       maxiter: int = 100000,
+       conv_criterium: Callable = res_norm,
+       conv_args: Dict = {},
+       logger: Union[EmptyLogger,SimpleLogger] = EmptyLogger(),
+       **kwargs: Any) -> Tuple[np.ndarray,int]:
+    """
+    Conjugate gradient solver for `Ax=b`, for a symmetric, positive-definite 
+    matrix `A` without any preconditioning. Iterate until convergence criteria 
+    met or the maximum number of iterations is exceeded.
+    
+    This is purely for teaching and 
+    benchmarking reasons and should never be used for any production runs. 
+    
+
+    Parameters
+    ----------
+    A : scipy.sparse.sparray
+        matrix of linear system.
+    b : np.ndarray 
+        right hand side of linear system.
+    x0 : np.ndarray
+        initial guess for solution.
+    rtol : None or float
+        relative convergence tolerance.
+    atol : None or float
+        absolute convergence tolerance.
+    maxiter : int
+        maximum number of iterations.
+    conv_criterium : callable
+        convergence criterium.
+    conv_args : dict
+        additional arguments for convergence criterium.
+        
+    Returns
+    -------
+    x : np.ndarray
+        final result for solution.
+    info : int
+        0: converged, info>0: exited due to reaching maximum number of 
+        iterations.
+    """
+    # type check
+    if not issparse(A):
+        raise TypeError("Matrix A must be a sparse array.")
+    if not isinstance(b, np.ndarray):
+        raise TypeError("b must be a numpy ndarray.")
+    # initial guess
+    if x0 is None:
+        x = np.zeros(b.shape)
+    else:
+        x = x0.copy()
+    #
+    atol,_ = _get_atol_rtol(name="cg", 
+                          b_norm=np.linalg.norm(b), 
+                          atol=atol, rtol=rtol)
+    # updates of residual and x
+    dx = np.zeros(x.shape)
+    dr,z = dx.copy(),dx.copy()
+    #
+    r = b - A@x
+    for i in range(maxiter):
+        # check convergence
+        if conv_criterium(r=r,atol=atol,**conv_args):
+            logger.perf(f"CGit. {i}")
+            i = 0
+            break
+        # preconditioner
+        rho_cur = np.dot(r, r)
+        if i > 0:
+            beta = rho_cur / rho_prev
+            dx[:] = dx*beta + r
+        else:
+            dx[:] = r.copy()
         #
         dr[:] = A@dx
         alpha = rho_cur / np.dot(dx, dr)

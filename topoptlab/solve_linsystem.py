@@ -11,10 +11,12 @@ from pyamg.aggregation import adaptive_sa_solver,rootnode_solver,smoothed_aggreg
 from pyamg.classical import air_solver,ruge_stuben_solver
 
 from topoptlab.log_utils import EmptyLogger,SimpleLogger
-from topoptlab.linear_solvers import pcg
+from topoptlab.linear_solvers import cg as topopt_cg
+from topoptlab.linear_solvers import pcg as pcg
 
 def solve_lin(K: Union[csc_array,spmatrix], rhs: Union[np.ndarray,matrix],
               solver: str,
+              rhs0: Union[None,np.ndarray,matrix] = None,
               solver_kw: Dict = {},
               preconditioner: Union[None,str] = None,
               P: Union[None,Callable,spmatrix,csc_array] = None,
@@ -33,10 +35,13 @@ def solve_lin(K: Union[csc_array,spmatrix], rhs: Union[np.ndarray,matrix],
     ----------
     K : scipy.sparse.csc_arrayor cvxopt.base.spmatrix (ndof_free,ndof_free)
         matrix to solve.
-    rhs : np.ndarray or cvxopt.base.matrix (ndof_free,ndof_free,nbc)
-        rows to delete.
+    rhs : np.ndarray or cvxopt.base.matrix (ndof_free,nbc)
+        right hand side of linear system.
     solver : str
         string that indicates the library and type of solver to be used.
+    rhs0 : None or np.ndarray or cvxopt.base.matrix (ndof_free,nbc)
+        initial guess for right hand side of linear system. Only relevant for
+        iterative solvers.
     solver_kw : dict
         arguments for the solver.
     preconditioner : str
@@ -100,10 +105,10 @@ def solve_lin(K: Union[csc_array,spmatrix], rhs: Union[np.ndarray,matrix],
         elif preconditioner == "pyamg-smoothed_aggregation":
             P = smoothed_aggregation_solver(A=K,
                                             **preconditioner_kw).aspreconditioner(cycle='V')
-        elif preconditioner == "pyamg-rootnode_solver":
+        elif preconditioner == "pyamg-rootnode":
             P = rootnode_solver(A=K,
                                 **preconditioner_kw).aspreconditioner(cycle='V')
-        elif preconditioner == "pyamg-pairwise_solver":
+        elif preconditioner == "pyamg-pairwise":
             P = pairwise_solver(A=K,
                                 **preconditioner_kw).aspreconditioner(cycle='V')
         elif preconditioner == "pyamg-adaptive_sa":
@@ -115,7 +120,10 @@ def solve_lin(K: Union[csc_array,spmatrix], rhs: Union[np.ndarray,matrix],
     if solver == "scipy-cg":
         # more than one set of boundary conditions to solve
         if rhs.shape[1] == 1:
-            sol,fail = cg(K, rhs, M=P, **solver_kw)
+            sol,fail = cg(A=K, b=rhs,  
+                          x0=rhs0,
+                          M=P,
+                          **solver_kw)
             # shape consistent
             sol = sol[:,None]
             if fail != 0:
@@ -123,8 +131,10 @@ def solve_lin(K: Union[csc_array,spmatrix], rhs: Union[np.ndarray,matrix],
         else:
             sol = np.zeros(rhs.shape)
             for i in np.arange(rhs.shape[1]):
-                sol[:,i],fail = cg(K, rhs[:,i],
-                                   M=P, **solver_kw)
+                sol[:,i],fail = cg(A=K, b=rhs[:,i],
+                                   x0=rhs0[:,i],
+                                   M=P, 
+                                   **solver_kw)
                 if fail != 0:
                     raise RuntimeError("cg iteration did not converge for bc ",
                                        i)
@@ -133,11 +143,23 @@ def solve_lin(K: Union[csc_array,spmatrix], rhs: Union[np.ndarray,matrix],
         # more than one set of boundary conditions to solve
         sol = np.zeros(rhs.shape)
         for i in np.arange(rhs.shape[1]):
-            sol[:,i],fail = pcg(K, rhs[:,i], 
+            sol[:,i],fail = pcg(A=K, b=rhs[:,i], 
+                                x0=rhs0[:,i],
                                 P=P, logger=logger,
                                 **solver_kw)
             if fail != 0:
                 raise RuntimeError("pcg iteration did not converge for bc ",
+                                   i)
+        return sol, None, P
+    elif solver == "topoptlab-cg":
+        sol = np.zeros(rhs.shape)
+        for i in np.arange(rhs.shape[1]):
+            sol[:,i],fail = topopt_cg(A=K, b=rhs[:,i], 
+                                      x0=rhs0[:,i],
+                                      logger=logger,
+                                      **solver_kw)
+            if fail != 0:
+                raise RuntimeError("cg iteration did not converge for bc ",
                                    i)
         return sol, None, P
     else:

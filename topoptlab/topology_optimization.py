@@ -389,6 +389,8 @@ def main(nelx: int, nely: int,
         xhist = [x.copy() for i in np.arange(max_history)]
     elif max_history < accelerator_kw["max_history"]:
         xhist = [x.copy() for i in np.arange(accelerator_kw["max_history"])]
+    # initialize adjoint variables
+    adj = np.zeros(f.shape)
     # optimization loop
     for loop in np.arange(nouteriter):
         # solve FEM, calculate obj. func. and gradients.
@@ -433,6 +435,7 @@ def main(nelx: int, nely: int,
                          free=free,fixed=fixed)
             # solve linear system. fact is a factorization and precond a preconditioner
             u[free, :], fact, precond = solve_lin(K=K, rhs=rhs[free],
+                                      rhs0=u[free,:],
                                       solver=lin_solver,
                                       solver_kw=lin_solver_kw,
                                       preconditioner=preconditioner,
@@ -454,11 +457,10 @@ def main(nelx: int, nely: int,
                 # calculate derivatives, else use analytical solution
                 if self_adj:
                     #dobj[:] += rhs_adj
-                    adj = np.zeros(f.shape)
-                    adj[free] = rhs_adj[free]
+                    adj[free,i] = rhs_adj[free]
                 else:
-                    adj = np.zeros(f.shape)
-                    adj[free],_,_ = solve_lin(K, rhs=rhs_adj[free],
+                    adj[free,i],_,_ = solve_lin(K, rhs=rhs_adj[free,i],
+                                            rhs0=adj[free,i],
                                             solver=lin_solver,
                                             solver_kw=lin_solver_kw,
                                             P=precond,
