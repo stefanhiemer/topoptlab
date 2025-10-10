@@ -457,10 +457,10 @@ def main(nelx: int, nely: int,
                 # calculate derivatives, else use analytical solution
                 if self_adj:
                     #dobj[:] += rhs_adj
-                    adj[free,i] = rhs_adj[free]
+                    adj[free,i] = rhs_adj[free,i]
                 else:
-                    adj[free,i],_,_ = solve_lin(K, rhs=rhs_adj[free,i],
-                                            rhs0=adj[free,i],
+                    adj[free,i:i+1],_,_ = solve_lin(K, rhs=rhs_adj[free,i:i+1],
+                                            rhs0=adj[free,i:i+1],
                                             solver=lin_solver,
                                             solver_kw=lin_solver_kw,
                                             P=precond,

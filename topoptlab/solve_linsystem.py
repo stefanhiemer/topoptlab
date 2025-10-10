@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 from typing import Any,Callable,Dict,Tuple,Union
+from functools import partial
 
 import numpy as np
 from scipy.sparse import csc_array
-from scipy.sparse.linalg import spsolve,cg, spilu, LinearOperator, factorized, LaplacianNd
+from scipy.sparse.linalg import spsolve,cg, spilu, LinearOperator, factorized, LaplacianNd, aslinearoperator
 
 from cvxopt import matrix,spmatrix
 from cvxopt.cholmod import solve,symbolic,numeric
@@ -12,7 +13,7 @@ from pyamg.classical import air_solver,ruge_stuben_solver
 
 from topoptlab.log_utils import EmptyLogger,SimpleLogger
 from topoptlab.linear_solvers import cg as topopt_cg
-from topoptlab.linear_solvers import pcg as pcg
+from topoptlab.linear_solvers import pcg
 
 def solve_lin(K: Union[csc_array,spmatrix], rhs: Union[np.ndarray,matrix],
               solver: str,
@@ -96,6 +97,11 @@ def solve_lin(K: Union[csc_array,spmatrix], rhs: Union[np.ndarray,matrix],
             ilu = spilu(K, **preconditioner_kw)
             P = LinearOperator(shape=K.shape,
                                matvec=ilu.solve)
+        elif preconditioner == "topoptlab-ichol":
+            Lhat=ichol(A=K)
+            P = LinearOperator(shape=K.shape,
+                               matvec=partial(apply_ichol,
+                                              Lhat=Lhat))
         elif preconditioner == "pyamg-air":
             P = air_solver(A=K,
                            **preconditioner_kw).aspreconditioner(cycle='V')

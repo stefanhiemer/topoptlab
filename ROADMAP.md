@@ -10,13 +10,13 @@ features
 - [ ] anisotropic / orientation variable optimization
 - [ ] anisotropic hyperelasticity
 - [ ] include Globally Convergent Method of Moving symptotes (GCMMA) into TO main
-- [ ] geometric multigrid (GMG)
-- [ ] algebraic multigrid (AMG)
 - [ ] optimality criteria with analytical update
 - [ ] unstructured meshes from GMSH
 - [ ] add aggregation functions
 
 generalizations
+- [ ] wrap filter in TOFilter class
+- [ ] wrap different physical phenomena in FEM_Phys class
 - [ ] generalize boundary conditions
 - [ ] generalize filters to multimaterial optimization
 - [ ] generalize filters to orientation variables
@@ -37,8 +37,6 @@ clean-ups and streamlining/refactoring
 
 documentation 
 - [ ] add the shape commentaries which now are being ignored.
-- [ ] long usage example in README.md
 - [ ] document MMA and GCMMA.
 - [ ] document general constraints.
-- [ ] How to use
 - [ ] add FAQ

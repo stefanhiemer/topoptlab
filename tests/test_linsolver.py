@@ -6,13 +6,14 @@ from scipy.sparse import csc_matrix,eye
 import pytest
 
 from topoptlab.linear_solvers import gauss_seidel ,smoothed_jacobi,\
-    modified_richardson, successive_overrelaxation,pcg
+    modified_richardson, successive_overrelaxation,pcg,cg
 @pytest.mark.parametrize('fun',
                          [(gauss_seidel),
                           (smoothed_jacobi),
                           (modified_richardson),
                           (successive_overrelaxation),
-                          ( partial(pcg,P=eye(3,3)) ) ])
+                          ( partial(pcg,P=eye(3,3)) ),
+                          cg])
 
 def test_linsystem(fun):
     

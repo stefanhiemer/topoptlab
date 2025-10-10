@@ -2,7 +2,7 @@
 from typing import Any,Callable,Dict,Union,Tuple
 
 import numpy as np
-from scipy.sparse import issparse,diags,triu,tril,sparray
+from scipy.sparse import issparse,diags,triu,tril,sparray, coo_array,bsr_array
 from scipy.sparse.linalg import spsolve_triangular, LinearOperator
 from scipy.sparse.linalg._isolve.iterative import _get_atol_rtol
 
