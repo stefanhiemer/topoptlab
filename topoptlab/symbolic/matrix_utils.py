@@ -6,6 +6,8 @@ from math import sqrt
 from sympy import symbols, Symbol
 from symfem.functions import ScalarFunction,MatrixFunction
 
+from topoptlab.symbolic.utils import is_equal
+
 def generate_constMatrix(ncol: int, nrow: int, name: str,
                          symmetric: bool = False,
                          return_symbols: bool = False
@@ -206,7 +208,7 @@ def inverse(A: MatrixFunction,
         Ainv[2][0] = (A[1][0]*A[2][1] - A[1][1]*A[2][0]) / Adet
         Ainv[2][1] = -(A[0][0]*A[2][1] - A[0][1]*A[2][0]) / Adet
         Ainv[2][2] = (A[0][0]*A[1][1] - A[0][1]*A[1][0]) / Adet
-    return Ainv
+    return MatrixFunction(Ainv)
 
 def trace(A: MatrixFunction) -> ScalarFunction:
     """
@@ -248,3 +250,32 @@ def check_square(A: MatrixFunction) -> None:
     if A.shape[0] != A.shape[1]:
         raise ValueError("A is not square: ", A.shape)
     return
+
+def matrix_equal(A: MatrixFunction, B: MatrixFunction) -> bool:
+    """
+    Check if matrix A is equal to matrix B.
+
+    Parameters
+    ----------
+    A : symfem.functions.MatrixFunction
+       matrix to be checked.
+    B : symfem.functions.MatrixFunction
+       matrix to be checked.
+       
+    Returns
+    -------
+    is_equal
+       True if A==B.     
+
+    """
+    
+    rows,cols = A.shape 
+    # check shape identical
+    if A.shape!=B.shape:
+        return False
+    # check entries
+    for i in range(rows):
+        for j in range(cols):
+            if not is_equal(A[i,j],B[i,j]):
+                return False
+    return True
