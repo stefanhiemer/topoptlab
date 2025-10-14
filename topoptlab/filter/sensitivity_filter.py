@@ -8,10 +8,10 @@ from topoptlab.filter.matrix_filter import MatrixFilter
 from topoptlab.filter.helmholtz_filter import HelmholtzFilter
 from topoptlab.filter.convolution_filter import ConvolutionFilter
 
-class DensityFilter(TOFilter):
+class SensitivityFilter(TOFilter):
     """
     
-    Implements the density filter by 
+    Implements the sensitivity filter by 
     
     Sigmund, Ole. "On the design of compliant mechanisms using topology 
     optimization." Journal of Structural Mechanics 25.4 (1997): 493-524.
@@ -67,9 +67,12 @@ class DensityFilter(TOFilter):
             self.filter = HelmholtzFilter(nelx=nelx, 
                                           nely=nely, 
                                           rmin=rmin,
-                                          nelz=nelz)    
+                                          nelz=nelz)
+        return
         
-    def apply_filter(self, x: np.ndarray) -> np.ndarray:
+    def apply_filter(self, 
+                     x: np.ndarray,
+                     **kwargs: Any) -> np.ndarray:
         """
         Apply filter to (intermediate) design variables x
         
@@ -90,7 +93,8 @@ class DensityFilter(TOFilter):
     
     def apply_filter_dx(self, 
                         x_filtered : np.ndarray, 
-                        dx_filtered : np.ndarray) -> np.ndarray:
+                        dx_filtered : np.ndarray,
+                        **kwargs: Any) -> np.ndarray:
         """
         Apply filter to the sensitivities with respect to filtered variables 
         x_filtered using the chain rule assuming
@@ -115,3 +119,18 @@ class DensityFilter(TOFilter):
         return self.filter.apply_filter(x_filtered=None,
                                         dx_filtered=dx_filtered) / \
                np.maximum(self.gamma, x_filtered)
+    
+    @property
+    def vol_conserv(self) -> bool:
+        """
+        Set self.vol_conserv to True as filter is volume conserving. 
+        
+        Parameters
+        ----------
+        None.
+            
+        Returns
+        -------
+        True
+        """
+        return True

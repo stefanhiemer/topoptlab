@@ -30,9 +30,16 @@ class DensityFilter(TOFilter):
     x_filtered = int K(r,s) x dr
     
     where K(r,s) is the convolution kernel. The commonly kernel used kernel is 
-    hat function, but other variants exist as well. The convolution 
-    integral is evaluated here in two different variations: i) discretize the 
-    integral and  
+    hat function, but other variants exist as well. This convolution is 
+    implemented via the standard matrix filter or the PDE filter as described 
+    in 
+    
+    Andreassen, Erik, et al. "Efficient topology optimization in MATLAB using 
+    88 lines of code." Structural and Multidisciplinary Optimization 43.1 (
+    2011): 1-16.
+    
+    and a prototype using scipy's ndimage convolution is on the way, but not 
+    yet working.
     """
     
     def __init__(self,
@@ -73,9 +80,12 @@ class DensityFilter(TOFilter):
             self.filter = HelmholtzFilter(nelx=nelx, 
                                           nely=nely, 
                                           rmin=rmin,
-                                          nelz=nelz)    
+                                          nelz=nelz)  
+        return
         
-    def apply_filter(self, x: np.ndarray) -> np.ndarray:
+    def apply_filter(self, 
+                     x: np.ndarray,
+                     **kwargs: Any) -> np.ndarray:
         """
         Apply filter to (intermediate) design variables x
         
@@ -95,8 +105,8 @@ class DensityFilter(TOFilter):
         return self.filter.apply_filter(x=x)
     
     def apply_filter_dx(self, 
-                        x_filtered : np.ndarray, 
-                        dx_filtered : np.ndarray) -> np.ndarray:
+                        dx_filtered : np.ndarray,
+                        **kwargs: Any) -> np.ndarray:
         """
         Apply filter to the sensitivities with respect to filtered variables 
         x_filtered using the chain rule assuming
@@ -120,3 +130,18 @@ class DensityFilter(TOFilter):
         """
         return self.filter.apply_filter_dx(x_filtered=None,
                                            dx_filtered=dx_filtered)
+    
+    @property
+    def vol_conserv(self) -> bool:
+        """
+        Set self.vol_conserv to True as filter is volume conserving. 
+        
+        Parameters
+        ----------
+        None.
+            
+        Returns
+        -------
+        True
+        """
+        return True
