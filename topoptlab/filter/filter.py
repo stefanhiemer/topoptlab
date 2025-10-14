@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
+from typing import Any
 from abc import ABC, abstractmethod
 
 import numpy as np
@@ -8,6 +9,7 @@ class TOFilter(ABC):
     Base class for all filters and projections that allows modular stacking 
     of filters.  
     """
+    vol_conserv : bool 
     
     @abstractmethod
     def __init__(self) -> None:
@@ -22,7 +24,9 @@ class TOFilter(ABC):
         ...
     
     @abstractmethod
-    def apply_filter(self, x: np.ndarray) -> np.ndarray:
+    def apply_filter(self, 
+                     x: np.ndarray,
+                     **kwargs: Any) -> np.ndarray:
         """
         Apply filter to (intermediate) design variables x
         
@@ -44,7 +48,8 @@ class TOFilter(ABC):
     @abstractmethod
     def apply_filter_dx(self, 
                         x_filtered : np.ndarray, 
-                        dx_filtered : np.ndarray) -> np.ndarray:
+                        dx_filtered : np.ndarray,
+                        **kwargs: Any) -> np.ndarray:
         """
         Apply filter to the sensitivities with respect to filtered variables 
         x_filtered using the chain rule assuming
@@ -52,7 +57,9 @@ class TOFilter(ABC):
         x_filtered = filter(x)
         
         to get the sensitivities with respect to the (unfiltered) design 
-        variables or in the case of many filters intermediate design variables. 
+        variables or in the case of many filters intermediate design variables.
+        Not for all types of filters either x_filtered or dx_filtered are 
+        needed.
         
         Parameters
         ----------
@@ -65,5 +72,23 @@ class TOFilter(ABC):
         -------
         dx : np.ndarray
             design sensitivities with respect to un-filtered design variables.
+        """
+        ...
+    
+    @property
+    @abstractmethod
+    def vol_conserv(self) -> bool:
+        """
+        Set self.vol_conserv to indicate if filter is volume conserving. 
+        
+        Parameters
+        ----------
+        None.
+            
+        Returns
+        -------
+        vol_conserv : bool
+            True if filter is volume conserving.
+            
         """
         ...

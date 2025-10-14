@@ -1,10 +1,14 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any,Tuple
+from typing import Any,Dict,Tuple
 
 import numpy as np
 from scipy.optimize import root_scalar
 
 def find_eta(eta0: float, xTilde: np.ndarray, beta: float, volfrac: float,
+             root_args: Dict = {"fprime": True,
+                                "method": "newton",
+                                "maxiter": 1000,
+                                "bracket": [-1/2,1/2]},
              **kwargs: Any) -> float:
     """
     Find volume preserving eta for the element-wiser elaxed Haeviside 
@@ -24,6 +28,8 @@ def find_eta(eta0: float, xTilde: np.ndarray, beta: float, volfrac: float,
         function which is recovered in the limit of beta to infinity
     volfrac : float
         volume fraction.
+    root_args : dict
+        arguments for root finding algorithm to find the volume conserving eta.
 
     Returns
     -------
@@ -34,10 +40,9 @@ def find_eta(eta0: float, xTilde: np.ndarray, beta: float, volfrac: float,
     # unfortunately scipy.optimize needs f to change sign between the
     # respective ends of the brackets, therefor the eta found by this function
     # is offset by -1/2 to the value later used
-    result = root_scalar(f=_root_func,fprime=True,method="newton",
-                         x0=eta0-1/2, x1=0., maxiter=1000,
-                         args=(xTilde,beta,volfrac),
-                         bracket=[-1/2,1/2])
+    result = root_scalar(f=_root_func, x0=eta0-1/2, args=(xTilde,beta,volfrac),
+                         x1=0.,
+                         fprime=True, method="newton", maxiter=1000, bracket=[-1/2,1/2])
     #
     if result.converged:
         return result.root+1/2
