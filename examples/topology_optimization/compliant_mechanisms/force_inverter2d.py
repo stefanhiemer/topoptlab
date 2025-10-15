@@ -7,12 +7,12 @@ from topoptlab.objectives import var_maximization
 
 if __name__ == "__main__":
     # Default input parameters
-    nelx = 160
+    nelx = 40
     nely = int(nelx/2)
     volfrac = 0.3
     rmin = 0.03 * nelx #0.04*nelx  # 5.4
     penal = 3.0
-    ft = 1 # ft==0 -> sens, ft==1 -> dens
+    ft = 0 # ft==0 -> sens, ft==1 -> dens
     display = True
     export = False
     write_log = False
