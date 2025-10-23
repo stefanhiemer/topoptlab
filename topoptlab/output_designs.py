@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
+from typing import Union
 import numpy as np
 
 from meshio import Mesh
-from meshio.xdmf import TimeSeriesWriter
 
-def threshold(xPhys,
-              volfrac):
+def threshold(xPhys: np.ndarray,
+              volfrac: float) -> np.ndarray:
     """
     Threshold grey scale design to black and white design.
 
@@ -24,25 +24,26 @@ def threshold(xPhys,
         material properties. 
 
     """
-    indices = np.flip(np.argsort(xPhys))
+    indices = np.flip(np.argsort(xPhys[:,0]))
     vt = np.floor(volfrac*xPhys.shape[0]).astype(int)
     xThresh = np.zeros(xPhys.shape,order="F")
     xThresh[indices[:vt]] = 1.
     xThresh[indices[vt:]] = 0.
     
-    print("Thresholded Vol.: {0:.3f}".format(vt/xThresh.shape[0]))
+    print("Thresholded Vol.: {0:.5f}".format(vt/xThresh.shape[0]))
     return xThresh
 
-def export_vtk(filename, 
-               nelx,nely, 
-               xPhys,
-               nelz=None,
-               x=None,
-               u=None, f=None,
-               u_bw=None,
-               f_bw=None,
-               xTilde=None,
-               volfrac=None):
+def export_vtk(filename: str, 
+               nelx: int, nely: int, 
+               xPhys: np.ndarray,
+               nelz: Union[None,int],
+               x: Union[None,np.ndarray] = None,
+               u: Union[None,np.ndarray] = None, 
+               f: Union[None,np.ndarray] = None,
+               u_bw: Union[None,np.ndarray] = None,
+               f_bw: Union[None,np.ndarray] = None,
+               xTilde: Union[None,np.ndarray] = None,
+               volfrac: Union[None,float] = None) -> None:
     """
     Export design to a vtk file for visualisation e. g. with Paraview.
 
@@ -160,10 +161,10 @@ def export_vtk(filename,
              cell_data=el_data).write(filename+".vtk")
     return
 
-def export_stl(filename, 
-               nelx,nely, 
-               xPhys,
-               volfrac):
+def export_stl(filename: str, 
+               nelx: int, nely: int, 
+               xPhys: np.ndarray,
+               volfrac: float) -> None:
     """
     Export design to a stl file for 3D printing.
 

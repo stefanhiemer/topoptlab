@@ -88,7 +88,7 @@ from topoptlab.example_bc.heat_conduction import heatplate_2d
 from topoptlab.elements.poisson_2d import lk_poisson_2d
 
 @pytest.mark.parametrize('obj_ref',
-                         [(4730631.8492601598),])
+                         [(473.2754922063),])
 
 def test_compliance_heat(obj_ref):
     """

@@ -15,7 +15,7 @@ if __name__ == "__main__":
     volfrac = 0.1
     rmin = 3*nelx/64 
     penal = 3.0
-    ft = 1 # ft==0 -> sens, ft==1 -> dens
+    ft = 0 # ft==0 -> sens, ft==1 -> dens
     display = False
     export = True
     write_log=True
@@ -48,7 +48,7 @@ if __name__ == "__main__":
     main(nelx=nelx, nely=nely, nelz=nelz, 
          volfrac=volfrac, 
          penal=penal, rmin=rmin, 
-         nouteriter=100,
+         nouteriter=50,
          lin_solver_kw={"name": "cvxopt-cholmod"},
          assembly_mode="lower",
          bcs=partial(forceinverter_3d,fixation_mode="line") , 
@@ -59,5 +59,5 @@ if __name__ == "__main__":
                       "export": export,
                       "write_log": write_log,
                       "profile": False,
-                      "verbosity": 0})
+                      "verbosity": 20})
     

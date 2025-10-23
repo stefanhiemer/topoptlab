@@ -38,6 +38,10 @@ def plot_meshnumbering2d(nelx=4,nely=3,ndof=2,
                     s=",".join([str(s+ndoffset) for s in \
                                 ndgrid[i*ndof:(i+1)*ndof,j]]), 
                     ha='center', va='center', fontsize=10)
+    # put black dots at each node
+    ax.scatter( np.repeat(np.arange(-0.5, nelx+0.5, 1),nely+1),
+                np.tile(np.arange(-0.5, nely+0.5, 1),nelx+1),
+                color="k",s=10, clip_on=False)
     # grid lines
     ax.set_xticks(np.arange(0.5, nelx+0.5, 1), minor=False)
     ax.set_yticks(np.arange(0.5, nely+0.5, 1), minor=False)

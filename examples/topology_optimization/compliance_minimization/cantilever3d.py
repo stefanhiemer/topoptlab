@@ -9,13 +9,13 @@ from topoptlab.example_bc.lin_elast import cantilever_3d
 # The real main driver
 if __name__ == "__main__":
     # Default input parameters
-    nelx = 80
+    nelx = 48
     nely = int(nelx/2)
     nelz = int(nelx/4)
     volfrac = 0.12
     rmin = np.cbrt(3)*nelx/48
     penal = 3.0
-    ft = 1 # ft==0 -> sens, ft==1 -> dens
+    ft = 0 # ft==0 -> sens, ft==1 -> dens
     display = False
     export = True
     write_log=True
@@ -46,11 +46,12 @@ if __name__ == "__main__":
          rmin=rmin, ft=ft, filter_mode="matrix", 
          optimizer="oc", lin_solver_kw = {"name": "cvxopt-cholmod"},
          assembly_mode="lower",
-         nouteriter=50,
+         nouteriter=500,
          bcs=partial(cantilever_3d,fixation_mode="linear"),
          output_kw = {"file": "cantilever_3d",
                       "display": display,
                       "export": export,
                       "write_log": write_log,
                       "profile": False,
-                      "verbosity": 20})
+                      "verbosity": 20,
+                      "output_movie": False})

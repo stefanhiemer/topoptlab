@@ -97,6 +97,7 @@ def solve_lin(K: Union[csc_array,spmatrix], rhs: Union[np.ndarray,matrix],
             ilu = spilu(K, **preconditioner_kw)
             P = LinearOperator(shape=K.shape,
                                matvec=ilu.solve)
+        # pyamg stuff
         elif preconditioner == "pyamg-air":
             P = air_solver(A=K,
                            **preconditioner_kw).aspreconditioner(cycle='V')

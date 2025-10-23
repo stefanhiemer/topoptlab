@@ -255,6 +255,7 @@ from topoptlab.bounds.hashin_shtrikman_3d import emod_binary_low,emod_binary_upp
 from topoptlab.bounds.hashin_shtrikman_3d import poiss_binary_low,poiss_binary_upp
 from topoptlab.bounds.hashin_shtrikman_3d import emod_nary_low,emod_nary_upp
 from topoptlab.bounds.hashin_shtrikman_3d import poiss_nary_low,poiss_nary_upp
+
 def show_youngmoduluspoiss(ncomp=2):
     #
     npoints = 21
@@ -427,11 +428,6 @@ def show_heat_exp():
     fig,ax = plt.subplots(1,1)
     #
     x = np.linspace(0,1,21)
-    #
-    a_simp = heatexpcoeff_binary_iso(xPhys=x, 
-                                     K = K2*simp(xPhys=x, eps=K1/K2, penal=3),
-                                amax=a2, amin=a1,
-                                Kmin=K1, Kmax=K2)
     K_bd = bound_interpol(xPhys=x,w=0.5,
                           bd_low=bulkmod_binary_low,
                           bd_upp=bulkmod_binary_upp,
@@ -455,7 +451,6 @@ def show_heat_exp():
                               Kmin=K1,Kmax=K2,
                               Gmin=G1,Gmax=G2,
                               amin=a1,amax=a2)
-    ax.plot(x,a_simp,label="SIMP-interpolation",c="b",linestyle="--")
     ax.plot(x,a_hs,label="HS-interpolation",c="b")
     ax.plot(x,aupp,label="upper bound")
     ax.plot(x,alow,label="lower bound")

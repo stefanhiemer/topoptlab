@@ -6,13 +6,13 @@ from topoptlab.example_bc.lin_elast import cantilever_2d
 if __name__ == "__main__":
     # Default input parameters
     nelx = 160
-    nely = 100
+    nely = int(5/8 * nelx)
     volfrac = 0.4
-    rmin = 6  # 5.4
+    rmin = 3/80 *nelx  # 5.4
     penal = 3.0
     ft = 0 # ft==0 -> sens, ft==1 -> dens
     display = True
-    export = False
+    export = True
     write_log = True
     #
     import sys
@@ -43,4 +43,5 @@ if __name__ == "__main__":
                       "export": export,
                       "write_log": write_log,
                       "profile": False,
-                      "verbosity": 20})
+                      "verbosity": 20, 
+                      "output_movie": False})
