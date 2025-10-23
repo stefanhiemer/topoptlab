@@ -35,7 +35,9 @@ from topoptlab.objectives import compliance
 # output final design to a Paraview readable format
 from topoptlab.output_designs import export_vtk
 # map element data to img/voxel
-from topoptlab.utils import map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel,check_simulation_params,dict_without
+from topoptlab.utils import map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel,\
+                            check_simulation_params,dict_without,\
+                            default_outputkw,check_output_kw
 # logging related stuff
 from topoptlab.log_utils import EmptyLogger,SimpleLogger
 #
@@ -68,12 +70,7 @@ def main(nelx: int, nely: int,
                                  "max_history": 0,
                                  "accelerator": None},
          nouteriter: int = 2000, ninneriter: int = 15,
-         output_kw: Dict = {"file": "topopt",
-                            "display": True,
-                            "export": True,
-                            "write_log": True,
-                            "profile": False,
-                            "verbosity": 20}) -> Tuple[np.ndarray,float]:
+         output_kw: Dict = default_outputkw()) -> Tuple[np.ndarray,float]:
     """
     Topology optimization workflow with the material interpolation method. 
     Can treat single physics stationary problems.
@@ -109,6 +106,9 @@ def main(nelx: int, nely: int,
     assembly_mode : str
         whether full or only lower triangle of linear system / matrix is
         created.
+    materials_kw : dict
+        dictionary containing all materials and their properties. Conventions 
+        must still be determined.
     bcs : str or callable
         returns the boundary conditions
     lk : None or callable
@@ -148,12 +148,13 @@ def main(nelx: int, nely: int,
     None.
 
     """
+    # check dictionaries
+    check_output_kw(output_kw)
+    check_simulation_params(simulation_kw)
     # initialize profiling
     if output_kw["profile"]:
         profiler = Profile() 
         profiler.enable()
-    #
-    check_simulation_params(simulation_kw)
     # extract linear solver and preconditioner
     lin_solver = lin_solver_kw["name"] 
     preconditioner = preconditioner_kw["name"]
@@ -254,7 +255,7 @@ def main(nelx: int, nely: int,
         xPhys[mask] = 1.
     # Max and min Young's modulus
     Emin = 1e-9
-    E = 1.0
+    E = materials_kw["E"]
     # get element stiffness matrix
     KE = lk(l=l)
     # infer nodal degrees of freedom assuming that we have 4/8 nodes in 2/3 D
@@ -382,6 +383,9 @@ def main(nelx: int, nely: int,
                        labelleft=False)
         ax.axis("off")
         fig.show()
+    #
+    if output_kw["output_movie"]:
+        output_kw["mov_ndigits"] = len(str(nouteriter))
     # initialize iteration history
     if max_history and accelerator_kw is None:
         xhist = [x.copy() for i in np.arange(max_history)]
@@ -602,15 +606,22 @@ def main(nelx: int, nely: int,
         #
         log.debug("[DEBUG] Post Density Filter: it.: {0}, med. x.: {1:.10f}, med. xTilde: {2:.10f}, med. xPhys: {3:.10f}".format(
                   loop, np.median(x),np.median(xTilde),np.median(xPhys)))
-        # Compute the change by the inf. norm
+        # compute the change by the inf. norm
         change = np.abs(xhist[-1] - xhist[-2]).max()
-        # Plot to screen
+        # plot to screen
         if output_kw["display"]:
             if ndim == 2:
                 plotfunc(mapping(-xPhys))
             fig.canvas.draw()
             plt.pause(0.01)
-        # Write iteration history to screen (req. Python 2.6 or newer)
+        #
+        if output_kw["output_movie"]:
+            export_vtk(filename="_".join([output_kw["file"],
+                                   str(loop).zfill(output_kw["mov_ndigits"])]),
+                       nelx=nelx,nely=nely,nelz=nelz,
+                       xPhys=xPhys,x=x,
+                       u=u,f=f,volfrac=volfrac)
+        # write iteration history to screen (req. Python 2.6 or newer)
         log.info("it.: {0} obj.: {1:.10f} vol.: {2:.10f} ch.: {3:.10f}".format(
                      loop+1, obj, xPhys.mean(), change))
         # convergence check

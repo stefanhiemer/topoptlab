@@ -328,9 +328,9 @@ def cantilever_3d(nelx: int, nely: int, nelz: int,
                         fixation)
     # force pushing down in y direction on end of cantilever
     if force_mode == "linear":
-        f0 = np.linspace(1.,0.,nelz+1)
+        f0 = -np.linspace(1.,0.,nelz+1)
     elif force_mode == "constant":
-        f0 = 1. 
+        f0 = -1. 
     else:
         raise ValueError("force_mode must be either 'linear' or 'constant': ",
                          force_mode)

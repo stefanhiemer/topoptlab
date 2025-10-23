@@ -39,10 +39,12 @@ def heatplate_2d(nelx: int, nely: int,
     f = np.zeros((ndof, 1))
     u = np.zeros((ndof, 1))
     # heat sink
+    #mid = int(np.median(np.arange(nely+1)))
+    #width = 
     fixed = np.arange(int(nely / 2 + 1 - nely / 20), 
                       int(nely / 2 + 1 + nely / 20) + 1)
     # load/source
-    f[:, 0] = -1 # constant source
+    f[:, 0] = 0.01 # constant source
     return u,f,fixed,np.setdiff1d(dofs,fixed),None
 
 def rectangle_2d(nelx: int, nely: int,

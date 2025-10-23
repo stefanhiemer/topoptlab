@@ -49,7 +49,8 @@ if __name__ == "__main__":
                       "export": export,
                       "write_log": write_log,
                       "profile": True,
-                      "verbosity": 20})
+                      "verbosity": 20,
+                      "output_movie": True})
     #main(nelx=nelx, nely=nely, nelz=nelz, volfrac=volfrac, penal=penal, rmin=rmin, 
     #     ft=ft, filter_mode="convolution", optimizer="oc",nouteriter=1000,
     #     bcs=mbb_3d,

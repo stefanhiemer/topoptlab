@@ -383,7 +383,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         if change < 0.01:
             break 
     # threshold
-    xThresh = threshold(xPhys,volfrac)
+    xThresh = threshold(xPhys[:,None],volfrac)[:,0]
     #
     # basic stiffness matrix
     sK = (KE.flatten()[:,None]*(Emin+(xThresh)
@@ -416,13 +416,13 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         #
         export_vtk(filename=file, 
                    nelx=nelx,nely=nely, 
-                   xPhys=xPhys,x=x, 
+                   xPhys=xPhys[:,None],x=x, 
                    u=u,f=f,
                    u_bw=u_bw,f_bw=f_bw,
                    volfrac=volfrac)
         export_stl(filename=file, 
                    nelx=nelx,nely=nely, 
-                   xPhys=xPhys,
+                   xPhys=xPhys[:,None],
                    volfrac=volfrac)
     return x, obj
 

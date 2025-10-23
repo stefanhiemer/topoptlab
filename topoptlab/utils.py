@@ -4,6 +4,66 @@ from typing import Any,Dict,List,Tuple,Union
 import numpy as np
 from scipy.ndimage import zoom
 
+def default_outputkw() -> Dict:
+    """
+    Return the default dictionary containing general parameters for output
+    and logging in the topology_optimization.main() function.
+
+    This dictionary defines the default for output-related behavior, such as 
+    file naming, verbosity, etc. It can be used as a reference or as a source 
+    for inserting missing keys in user-defined dictionaries.
+
+    Keys and Default Values
+    -----------------------
+    | Key             | Type  | Default   | Description                                |
+    |-----------------|-------|-----------|--------------------------------------------|
+    | "file"          | str   | "topopt"  | Base name used for output files.           |
+    | "display"       | bool  | True      | display intermediary design.               |
+    | "export"        | bool  | True      | export final results to disk as vtk.       |
+    | "write_log"     | bool  | True      | write a log file.                          |
+    | "profile"       | bool  | False     | profile of the code execution.             |
+    | "output_movie"  | bool  | False     | generate a movie of the intermed. designs. |
+    | "verbosity"     | int   | 20        | level of verbosity. For the meaning of the |
+    |                 |       |           |  value check the ´SimpleLogger´ class      |
+
+    Returns
+    -------
+    output_kw
+        dictionary containing the default output parameters.
+    """
+    
+    return {"file": "topopt",
+            "display": True,
+            "export": True,
+            "write_log": True,
+            "profile": False,
+            "output_movie": False,
+            "verbosity": 20}
+
+def check_output_kw(output_kw: Dict) -> None:
+    """
+    Check that general output parameters are sensible or implemented and insert
+    missing ones based on the default dictionary.
+
+    Parameters
+    ----------
+    output_kw : dictionary
+        contains general parameters for outputting information . All relevant 
+        values can be found in default_outputkw.
+
+    Returns
+    -------
+    None
+    
+    """
+    #
+    default_kw = default_outputkw()
+    #
+    missing_keys = set(default_kw.keys()) - set(output_kw.keys())
+    for key in missing_keys:
+        output_kw[key] = default_kw[key]
+    return
+
 def check_simulation_params(simulation_kw: Dict) -> None:
     """
     Check that general simulation parameters are sensible or implemented.

@@ -44,7 +44,7 @@ if __name__ == "__main__":
     #
     x,obj = main(nelx=nelx, nely=nely, volfrac=volfrac, penal=penal,
                  rmin=rmin, ft=ft, filter_mode="matrix",
-                 optimizer="mma",
+                 optimizer="oc",
                  assembly_mode="full",
                  nouteriter=2000,
                  bcs=mbb_2d,
@@ -55,4 +55,5 @@ if __name__ == "__main__":
                               "export": export,
                               "write_log": write_log,
                               "profile": False,
-                              "verbosity": 20})
+                              "verbosity": 20,
+                              "output_movie": False})
