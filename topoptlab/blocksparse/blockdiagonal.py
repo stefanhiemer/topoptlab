@@ -11,9 +11,9 @@ def _apply_blockdiagonal(b: np.ndarray,
                          solvers: List[Callable],
                          **kwargs: Any) -> np.ndarray:
     """
-    Apply block diagonal preconditioner where the matrix is solved independently 
-    on each block via the provided solvers (e. g. direct factorization or even 
-    an incomplete one).
+    Apply block diagonal preconditioner where the matrix is solved 
+    independently on each block via the provided solvers (e. g. direct 
+    factorization or even an incomplete one).
 
     Parameters
     ----------
@@ -63,9 +63,7 @@ def make_blockdiagonal_preconditioner(A: sparray,
 
     """
     # create solver for each block
-    solvers = []
-    for k, idx in enumerate(block_inds):
-        solvers.append(solver_func(A[idx, :][:, idx]))
+    solvers = [solver_func(A[idx, :][:, idx]) for idx in block_inds]
     #
     if hasattr(solvers[0], "solve") and callable(getattr(solvers[0], "solve")):
         solvers = [solver.solve for solver in solvers]

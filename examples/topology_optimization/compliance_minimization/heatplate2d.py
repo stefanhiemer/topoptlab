@@ -1,4 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
+from functools import partial
+
 from topoptlab.topology_optimization import main
 from topoptlab.example_bc.heat_conduction import heatplate_2d
 from topoptlab.elements.poisson_2d import lk_poisson_2d
@@ -7,13 +9,13 @@ from topoptlab.elements.poisson_2d import lk_poisson_2d
 if __name__ == "__main__":
     # Default input parameters
     nelx = 40
-    nely = nelx
+    nely = int(nelx/2)
     volfrac = 0.4
     rmin = 0.03*nelx
     penal = 3.0
     ft = 0 # ft==0 -> sens, ft==1 -> dens
-    display = False
-    export = True
+    display = True
+    export = False
     write_log = True
     #
     import sys
@@ -40,7 +42,8 @@ if __name__ == "__main__":
          ft=ft, filter_mode="matrix", optimizer="oc",nouteriter=1000,
          #lin_solver_kw = {"name": "cvxopt-cholmod"},
          #lin_solver_kw = {"name": "topoptlab-cg"}, preconditioner_kw = {"name": "pyamg-pyamg-ruge_stuben"},
-         bcs=heatplate_2d, lk=lk_poisson_2d,
+         bcs=partial(heatplate_2d,symmetry=1), 
+         lk=lk_poisson_2d,
          output_kw = {"file": "heatplate_2d",
                       "display": display,
                       "export": export,

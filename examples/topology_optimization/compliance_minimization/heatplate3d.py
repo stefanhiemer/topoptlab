@@ -1,19 +1,21 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from numpy import zeros
+from functools import partial
 
 from topoptlab.topology_optimization import main
-from topoptlab.example_bc.lin_elast import forceinverter_2d
-from topoptlab.objectives import var_maximization
+from topoptlab.example_bc.heat_conduction import heatplate_3d
+from topoptlab.elements.poisson_3d import lk_poisson_3d
 
+# The real main driver
 if __name__ == "__main__":
     # Default input parameters
-    nelx = 240
-    nely = int(nelx/2)
-    volfrac = 0.3
-    rmin = 0.015 * nelx #0.04*nelx  # 5.4
+    nelx = 40
+    nely = 40#int(nelx/2)
+    nelz = 40#int(nelx/2)
+    volfrac = 0.4
+    rmin = 0.03*nelx
     penal = 3.0
     ft = 0 # ft==0 -> sens, ft==1 -> dens
-    display = True
+    display = False
     export = True
     write_log = True
     #
@@ -37,17 +39,16 @@ if __name__ == "__main__":
     if len(sys.argv)>9:
         write_log = bool(int(sys.argv[9]))
     #
-    l = zeros((2*(nelx+1)*(nely+1),1))
-    l[2*nelx*(nely+1),0] = -1
-    #
-    main(nelx=nelx, nely=nely, volfrac=volfrac, penal=penal, rmin=rmin, 
-         bcs=forceinverter_2d , obj_func=var_maximization ,obj_kw={"l": l},
-         ft=ft, filter_mode="matrix",optimizer="mma",
-         nouteriter=250,
-         output_kw = {"file": "force-inverter_2d",
+    main(nelx=nelx, nely=nely, nelz=nelz, 
+         volfrac=volfrac, penal=penal, rmin=rmin, 
+         ft=ft, filter_mode="matrix", optimizer="oc",nouteriter=100,
+         lin_solver_kw = {"name": "cvxopt-cholmod"}, assembly_mode="lower",
+         #lin_solver_kw = {"name": "topoptlab-cg"}, preconditioner_kw = {"name": "pyamg-pyamg-ruge_stuben"},
+         bcs=partial(heatplate_3d,symmetry=False), 
+         lk=lk_poisson_3d,
+         output_kw = {"file": "heatplate_3d",
                       "display": display,
                       "export": export,
                       "write_log": write_log,
                       "profile": False,
                       "verbosity": 20})
-    
