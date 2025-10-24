@@ -50,7 +50,7 @@ enumerated as follows (with elements as roman numbers) in 2D
 
  ![](/_static/meshnumbering-scalar-2d.png)
 
-3D 
+and in 3D 
 
  ![](/_static/meshnumbering-scalar-3d.png)
 
