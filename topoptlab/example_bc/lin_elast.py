@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any,Tuple,Union,List
+from typing import Any,Tuple,Union
 
 import numpy as np
 

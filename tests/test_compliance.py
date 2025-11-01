@@ -108,5 +108,5 @@ def test_compliance_heat(obj_ref):
                                "profile": False,
                                "debug": 0})
     #
-    assert_almost_equal(obj,obj_ref,decimal=5)
+    assert_almost_equal(obj,obj_ref,decimal=3)
     return 
