@@ -9,7 +9,6 @@ Submodules
 
    topoptlab.accelerators
    topoptlab.amg
-   topoptlab.blocksparse_precond
    topoptlab.design_analysis
    topoptlab.draw_functions
    topoptlab.fdm

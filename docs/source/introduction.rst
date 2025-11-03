@@ -1,5 +1,5 @@
-Introduction and Tutorials
-==========================
+Introduction and Tutorials to Topology Optimization
+===================================================
 
 .. toctree::
    :maxdepth: 1
@@ -8,4 +8,5 @@ Introduction and Tutorials
    introduction/filter
    introduction/adjoint_analysis
    introduction/meshing
+   introduction/crashcourse_fem
    introduction/references
