@@ -5,7 +5,15 @@ textbook by Belytschko and Fish {cite}`fish2007first`, the excellent lecture
 notes by Dennis Kochmann (https://mm.ethz.ch/education/lecture-notes.html), and 
 the textbook by Peter Wriggers {cite}`wriggers2008nonlinear` for advanced 
 topics. This section outlines the basic "recipe" to discretize a physical 
-problem described by a partial differential equation (PDE) using FEM.
+problem described by a partial differential equation (PDE) using FEM which is 
+commonly done the following the steps: 
+
+- derive weak form 
+- if PDE nonlinear: linearize
+- approximate weak form 
+
+In this section we will restrict ourselves to examples of linear problems and
+only hint or show final results for nonlinear problems.
 
 ## From Strong to Weak Form
 Most physical problems can be written as PDEs based on a conservation law or 
@@ -54,18 +62,20 @@ $f$ represents any inhomogeneous terms often called source/sink terms and
 $\Omega$ our (simulation) domain. For numerical treatment, it is often 
 convenient to work with integrals as they can be approximated cheaply with 
 low-order splines or polynomials. As additional step, we multiply the strong 
-form by an arbitrary **weight function** $w$ (also called *test function*) and 
-integrate over the domain $\Omega$
+form by a **weight function** $w$ and integrate over the domain $\Omega$
 ```{math}
 \int_\Omega w \, (\mathcal{L}(u) - f) \, dV = 0.
 ```
-This is the **weak form**. The weak form is fully equivalent to the strong 
-form if $u$ and $w$ are sufficiently smooth. The reason is the arbitrariness of 
-$w$: if the integral holds for all admissible $w$, then the residual 
-$(L(u) − f)$ must vanish everywhere, which is the same in the strong form.
-The weight function $w$ is also useful from a numerical perspective as we will 
-later see it allows to use less smooth, i. e. cheaper approximations and it 
-naturally introduces boundary terms (Neumann conditions).  
+This is the **weak form** which weak form is fully equivalent to the strong 
+form if $u$ and $w$ satisfy some conditions among which are $w!=0$ and that 
+the weak form must hold for abitrary $w$ as then the residual $r$
+```{math}
+r=\int_\Omega w \, (\mathcal{L}(u) - f) \, dV 
+```
+must vanish everywhere, which is the same in the strong form. The weight 
+function $w$ is also useful from a numerical perspective as we will later see
+it allows to use less smooth, i. e. cheaper approximations and it naturally 
+introduces boundary terms for Neumann boundary conditions.  
 
 ### Example 1: Poisson equation / Heat conduction / Diffusion
 derive weak form for 3D heat eq.
@@ -81,11 +91,11 @@ $\varphi(\boldsymbol{x}) \in \Omega$. Depending on which configuration the
 balance laws are expressed in, different stress measures and their
 thermodynamic conjugate strain measures are used. 
 
-| Stress measure | Work-conjugate strain measure | Configuration |
-|----------------|-------------------------------|----------------|
-| First Piola–Kirchhoff $ \boldsymbol{P} $ | $\boldsymbol{F}$ | Reference |
-| Second Piola–Kirchhoff $ \boldsymbol{S} $ | Green–Lagrange strain $\boldsymbol{E}$ | Reference |
-| Cauchy stress $ \boldsymbol{\sigma} $ | $\boldsymbol{\epsilon}$ | Current |
+| Stress measure | Work-conjugate strain measure | 
+|----------------|-------------------------------|
+| First Piola–Kirchhoff $ \boldsymbol{P} $ | deformation gradient $\boldsymbol{F}$ |
+| Second Piola–Kirchhoff $ \boldsymbol{S} $ | Green–Lagrange strain $\boldsymbol{E}$ |
+| Cauchy stress $ \boldsymbol{\sigma} $ |  |
 
 The stress measures are related by  
 $\boldsymbol{P} = \boldsymbol{F} \boldsymbol{S}$ and 
@@ -122,7 +132,7 @@ $\delta\boldsymbol{E}=\operatorname{sym}(\boldsymbol{F}^\mathrm{T}\nabla_0 \bold
 **(c) Current configuration with Cauchy stress $\boldsymbol{\sigma}$**
 
 We can write weak form also in terms of the Cauchy stress tensor 
-$\boldsymbol{sigma}$ using $\boldsymbol{P}=\boldsymbol{F}\boldsymbol{S}$
+$\boldsymbol{\sigma}$ using $\boldsymbol{P}=\boldsymbol{F}\boldsymbol{S}$
 ```{math}
 \int_{\Omega} \nabla \boldsymbol{w} : \boldsymbol{\sigma}, \mathrm{d}v
 = \int_{\Omega} \boldsymbol{w}\cdot \boldsymbol{b}, \mathrm{d}v
@@ -131,7 +141,7 @@ $\boldsymbol{sigma}$ using $\boldsymbol{P}=\boldsymbol{F}\boldsymbol{S}$
 ```
 where $\nabla$ is the spatial gradient w.r.t. $x$, $\boldsymbol{b}$ is body 
 force per current volume, and 
-$\bar{\boldsymbol{t}}=\boldsymbol{\sigma}, \boldsymbol{n}$ is the Cauchy 
+$\bar{\boldsymbol{t}}=\boldsymbol{\sigma}$, $\bar{\boldsymbol{t}}$ is the Cauchy 
 traction on the Neumann boundary $\Gamma_N$ (with outward normal $\boldsymbol{n}$). On 
 the Dirichlet boundary $\Gamma_D$, $\boldsymbol{w}=\boldsymbol{0}$.
 
