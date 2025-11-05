@@ -91,7 +91,7 @@ that sensitivity filtering changes the objective function to stiffness
 maximization in nonlocal elasticity{cite}`sigmund2012sensitivity`. A solution 
 that leaves the original objective function untouched is the smoothing of the 
 design densities and guarantees well-posedness and mesh-independence{cite}`bruns2001topology`. 
-This operation ca be written via a convolution integral
+This operation can be written via a convolution integral
 ```{math}
 x_p(r) = \int_{\Omega} H(r, s) \, x(s) \, ds
 ```
