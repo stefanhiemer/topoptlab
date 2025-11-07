@@ -79,20 +79,24 @@ Furthermore, from a numerical perspective, it is often convenient to work with
 integrals as they can be approximated cheaply with low-order splines or 
 polynomials.
 
-### Example 1: Poisson equation / Heat conduction / Diffusion
-We write down weak form via standard procedure 
-i) multiply by $w$ ii) integrate over domain $\Omega$:
+### Example: Weak form of  Poisson equation 
+In this paragraph we will write down the weak form for the Poisson equation
+which guides an abundant number of physical phenomena like temperature 
+conduction, diffusion, gravity, electrostatics, etc. pp. For sake of brevity, 
+we focus on time-independent (stationary) heat conduction. We start with the 
+weak form via standard procedure i) multiply by $w$ ii) integrate over domain 
+$\Omega$:
 ```{math}
 \int_\Omega w \nabla \cdot (\boldsymbol{K} \nabla \phi) dV = \int_\Omega w f dV
 ```
-Technically one can stop now as this is correct, but we would like to reduce 
-the highest order derivative as much as we can as in FEM this means we can 
-approximate it cheaper. We split weak form into left hand side and right hand 
-side. Now consider the "problematic" left hand side
+Technically one can stop now as this is a correct weak from, but we want to 
+reduce the highest order derivative as much as we can as in FEM this means we 
+can approximate it cheaper. We split weak form into left hand side and right 
+hand side and consider the "problematic" left hand side
 ```{math}
 \int_\Omega w \nabla \cdot (\boldsymbol{K} \nabla \phi) dV
 ```
-and try to simplify it. We write down the chain rule for a general vector $\boldsymbol{v}$ 
+to simplify it further. We remember the chain rule for a general vector $\boldsymbol{v}$ 
 and the scalar function $w$
 ```{math}
 \nabla \cdot (w\boldsymbol{v}) = w\nabla \cdot \boldsymbol{v} + \nabla w \cdot \boldsymbol{v}
@@ -106,90 +110,59 @@ We then insert $\boldsymbol{v}=\nabla \phi$ and rewrite the left hand side to
 \int_\Omega w \nabla \cdot (\boldsymbol{K} \nabla \phi) dV = \int_\Omega \nabla w \cdot \boldsymbol{K} \nabla \phi dV - \int_\Omega \nabla \cdot \left(w \boldsymbol{K} \nabla \phi\right) dV
 ```
 If we inspect this closer, we recognize that the second term on the right hand 
-side is the volume integral of the divergence of the flow $\boldsymbol{K} \nabla \phi$ 
-scaled by $w$. 
-divergence theorem
+side is the volume integral of the divergence of the flow 
+$\boldsymbol{K} \nabla \phi$ scaled by $w$. In simple words, this integral 
+describes how much of $w \boldsymbol{K} \nabla \phi $ is being produced or lost 
+within the volume. Instead of measuring what happens inside, we can 
+equivalently measure how much of $w \boldsymbol{K} \nabla \phi $ flows in or 
+out through the surface enclosing it which is what the divergence theorem 
+expresses
 ```{math}
 \int_{\Omega} \nabla \cdot \boldsymbol{v} dV = \int_{\Gamma} \boldsymbol{v} \cdot \boldsymbol{n} dA 
 ```
-which we can use to simplify the second part 
+which we can use to simplify the second part to
 ```{math}
-\int_\Omega \nabla \cdot \left(w \boldsymbol{K} \nabla \phi\right) dV = \int_{\Gamma} \left(w \boldsymbol{K} \nabla \phi\right) \cdot \boldsymbol{n} dA 
+\int_\Omega \nabla \cdot \left(w \boldsymbol{K} \nabla \phi\right) dV = \int_{\Gamma_{N}} \left(w \boldsymbol{K} \nabla \phi\right) \cdot \boldsymbol{n} dA 
 ```
-### Example 2: Linear Elasticity
-derive weak form for 3D lin. elast.
-### Common Weak Forms: Nonlin. Elasticity and stress measures
-
-In nonlinear mechanics, we distinguish between the (undeformed) reference 
-configuration and the (deformed) current configuration. The motion 
-$\varphi$ maps material points from the reference position 
-$\boldsymbol{x} \in \Omega_0$ to the current position 
-$\varphi(\boldsymbol{x}) \in \Omega$. Depending on which configuration the 
-balance laws are expressed in, different stress measures and their
-thermodynamic conjugate strain measures are used. 
-
-| Stress measure | Work-conjugate strain measure | 
-|----------------|-------------------------------|
-| First Piola–Kirchhoff $ \boldsymbol{P} $ | deformation gradient $\boldsymbol{F}$ |
-| Second Piola–Kirchhoff $ \boldsymbol{S} $ | Green–Lagrange strain $\boldsymbol{E}$ |
-| Cauchy stress $ \boldsymbol{\sigma} $ |  |
-
-The stress measures are related by 
+This boundary flux conveniently represent the von Neumann boundary conditions, 
+so they appear naturally in the weak form which is why they are often referred 
+to as natural boundary conditions in FEM terminology. We write down the full 
+weak form in its simplified form
 ```{math}
-\boldsymbol{P} = \boldsymbol{F} \boldsymbol{S}
+\int_\Omega \nabla w \cdot \boldsymbol{K} \nabla \phi dV - \int_{\Gamma_{N}} \left(w \boldsymbol{K} \nabla \phi\right) \cdot \boldsymbol{n} dA   = \int_\Omega w f dV.
 ```
-and 
+Since we want to solve for $phi$ while both the von Neumann boundary conditions
+and the function $f$ are given, we move the von Neumann terms to the right hand
+side such that we have cleanly divided the weak form in the terms we seek to 
+solve/invert and the terms that are part of the problem statement:
 ```{math}
-\boldsymbol{\sigma} = \det( \boldsymbol{F})^{-1} \boldsymbol{P} \boldsymbol{F}^T
+\int_\Omega \nabla w \cdot \boldsymbol{K} \nabla \phi dV   = \int_\Omega w f dV + \int_{\Gamma_{N}} \left(w \boldsymbol{K} \nabla \phi\right) \cdot \boldsymbol{n} dA.
 ```
-
-**(a) Reference configuration with First Piola–Kirchhoff stress $\boldsymbol{P}$**
-```{math}
-\int_{\Omega_0} \nabla_0 \boldsymbol{w} : \boldsymbol{P} dV_0
-= \int_{\Omega_0} \boldsymbol{w}\cdot \boldsymbol{b}_0 dV_0
-+ \int_{\Gamma_{0,N}} \boldsymbol{w}\cdot \bar{\boldsymbol{t}}_0\, dA_0.
-```
-Here $\nabla_0$ is the gradient w.r.t. the reference coordinate $\boldsymbol{x}$, 
-$\boldsymbol{b}_0$ is the body force per reference volume $V_0$, and 
-$\bar{\boldsymbol{t}}_0$ is the nominal traction (per reference area).
-
-**(b) Reference configuration with Second Piola–Kirchhoff stress $\boldsymbol{S}$**
-
-We can rewrite the previous weak form also in terms of the 2nd Piola-Kirchhoff 
-stress tensor $\boldsymbol{S}$ using $\boldsymbol{P}=\boldsymbol{F}\boldsymbol{S}$
-```{math}
-\int_{\Omega_0} (\nabla_0 \boldsymbol{w} \boldsymbol{F}) : \boldsymbol{S} dV_0
-= \int_{\Omega_0} \boldsymbol{w}\cdot \boldsymbol{b}_0 dV_0 + 
-\int_{\Gamma_{0,N}} \boldsymbol{w}\cdot \bar{\boldsymbol{t}}_0 dA_0.
-```
-Equivalently, using the Green–Lagrange strain 
-$\boldsymbol{E}=\tfrac{1}{2}(\boldsymbol{F}^\mathrm{T}\boldsymbol{F}-\boldsymbol{I})$ 
-and its variation
-$\delta\boldsymbol{E}=\operatorname{sym}(\boldsymbol{F}^\mathrm{T}\nabla_0 \boldsymbol{w})$:
-```{math}
-\int_{\Omega_0} \boldsymbol{S} : \delta\boldsymbol{E} dV_0
-= \int_{\Omega_0} \boldsymbol{w}\cdot \boldsymbol{b}_0 dV_0 + 
-\int_{\Gamma_{0,N}} \boldsymbol{w}\cdot \bar{\boldsymbol{t}}_0 dA_0.
-```
-**(c) Current configuration with Cauchy stress $\boldsymbol{\sigma}$**
-
-We can write weak form also in terms of the Cauchy stress tensor 
-$\boldsymbol{\sigma}$ using $\boldsymbol{P}=\boldsymbol{F}\boldsymbol{S}$
-```{math}
-\int_{\Omega} \nabla \boldsymbol{w} : \boldsymbol{\sigma} dV
-= \int_{\Omega} \boldsymbol{w}\cdot \boldsymbol{b} dV + 
-\int_{\Gamma_{N}} \boldsymbol{w}\cdot \bar{\boldsymbol{t}} dA,
-```
-where $\nabla$ is the spatial gradient w.r.t. $\phi(x)$, $\boldsymbol{b}$ is body 
-force per current volume $V$, and 
-$\bar{\boldsymbol{t}}=\boldsymbol{\sigma}\boldsymbol{n}$ is the Cauchy 
-traction on the Neumann boundary $\Gamma_N$ (with outward normal $\boldsymbol{n}$). 
-On the Dirichlet boundary $\Gamma_D$, $\boldsymbol{w}=\boldsymbol{0}$.
 
 ## Discretization of Weak Form
 
 ### Shape Functions and Interpolation
+- approximate the field variable $u$ and $w$ by low order splines 
+- in standard Galerkin FE $u,w$ described same function form 
+- linear combination of basis functions 
+```{math}
+u(x) = \sum_{i=1} N\left(x;x_i\right)u_{i}
+```
+```{math}
+w(x) = \sum_{i=1} N\left(x;x_i\right)w_{i}
+```
+rewrite to vector format
+```{math}
+u(x) = \boldsymbol{N}^T \boldsymbol{u}_n
+```
+```{math}
+w(x) = \boldsymbol{N}^T \boldsymbol{w}_n
+```
 
-### Assembly of Global (Non-)Linear Problem
+
+
+### Assembly of Global Linear Problem
 
 ### Numerical Integration 
+
+### Isoparametric Map
