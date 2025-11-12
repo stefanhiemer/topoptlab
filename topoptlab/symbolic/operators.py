@@ -1,11 +1,15 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 from typing import Union
 
+from sympy import symbols
+
 from symfem.functions import VectorFunction,MatrixFunction
 from symfem.symbols import x
 
 from topoptlab.symbolic.cell import base_cell 
-from topoptlab.symbolic.matrix_utils import  generate_constMatrix,simplify_matrix 
+from topoptlab.symbolic.matrix_utils import  generate_constMatrix,\
+                                             generate_FunctMatrix,\
+                                             simplify_matrix 
 from topoptlab.symbolic.parametric_map import jacobian
 
 def aniso_laplacian(ndim: int, K: Union[None,MatrixFunction] = None,
@@ -13,7 +17,11 @@ def aniso_laplacian(ndim: int, K: Union[None,MatrixFunction] = None,
                     order: int = 1) -> MatrixFunction:
     """
     Symbolically compute the stiffness matrix for an anisotropic Laplacian 
-    operator nabla K nabla. This type of operator is encountered in heat 
+    operator 
+    
+    nabla \cdot (K@nabla \phi),
+    
+    where \phi is a scalar field. This type of operator is encountered in heat 
     conduction, diffusion, etc.
 
     Parameters
@@ -38,9 +46,64 @@ def aniso_laplacian(ndim: int, K: Union[None,MatrixFunction] = None,
     vertices, nd_inds, ref, basis  = base_cell(ndim,
                                                element_type=element_type,
                                                order=order)
-    # anisotropic heat conductivity or equivalent
+    # anisotropic heat conductivity or equivalent material property
     if K is None:
-        K = generate_constMatrix(ndim,ndim,"k")
+        K = generate_constMatrix(col=ndim,row=ndim,
+                                 name="k",
+                                 symmetric=True)
+    #
+    Jinv, Jdet = jacobian(ndim=ndim, element_type=element_type, order=order,
+                          return_J=False, return_inv=True, return_det=True)
+    gradN = VectorFunction(basis).grad(ndim)@Jinv.transpose()
+    #
+    integrand = gradN@K@gradN.transpose() * Jdet
+    return simplify_matrix( integrand.integral(ref,x)) 
+
+def nonlin_laplacian(ndim: int, K: Union[None,MatrixFunction] = None,
+                    element_type: str = "Lagrange",
+                    order: int = 1) -> MatrixFunction:
+    """
+    Symbolically compute the (tangent) conductivity matrix for the (informal) 
+    an anisotropic nonlinear Laplacian operator 
+    
+    nabla \cdot (K(\phi)@nabla \phi),
+    
+    where \phi is a scalar field. This is not(!) the Laplace operator in the 
+    strict mathematical sense, but arises when equations, that are usually 
+    modelled with constant material properties, incorporate nonlinearities of 
+    the material property with regards to the state variable. This type of 
+    operator is encountered e. g. in heat conduction and diffusion with the 
+    heat conductivity/diffusion coefficient depending on the scalar field 
+    (temperature, concentration) itself.
+
+    Parameters
+    ----------
+    ndim : int
+        number of spatial dimensions. Must be between 1 and 3.
+    K : None or symfem.functions.MatrixFunction
+        heat conductivity tensor.
+    element_type : str
+        type of element.
+    order : int
+        order of element.
+
+    Returns
+    -------
+    stiffness_matrix : symfem.functions.MatrixFunction
+        symbolic stiffness matrix as list of lists .
+
+    """
+
+    #
+    vertices, nd_inds, ref, basis  = base_cell(ndim,
+                                               element_type=element_type,
+                                               order=order)
+    # anisotropic heat conductivity or equivalent nonlinear material property
+    if K is None:
+        K = generate_FunctMatrix(col=ndim,row=ndim,
+                                 name="k",
+                                 variables=[symbols("phi")],
+                                 symmetric=True)
     #
     Jinv, Jdet = jacobian(ndim=ndim, element_type=element_type, order=order,
                           return_J=False, return_inv=True, return_det=True)

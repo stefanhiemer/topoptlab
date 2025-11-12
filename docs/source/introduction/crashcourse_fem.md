@@ -58,16 +58,38 @@ where the linear differential operator $\mathcal{L}$ represents all terms with
 derivatives involving the unknown field $u$ (e. g. for linear elasticity 
 $\nabla \cdot \left( \boldsymbol{C} : \boldsymbol{\epsilon} \right)$), 
 $f$ represents any inhomogeneous terms often called source/sink terms and 
-$\Omega$ the simulation domain. We multiply the strong form by a 
-**weight function** $w$ and integrate over the domain $\Omega$, so we end up 
-with
+$\Omega$ the simulation domain. In terms of boundary conditions, we only 
+concern ourselves in this article with Dirichlet boundary conditions that fix
+the state variable to specific values on a part of the boundary $\Gamma_D$
 ```{math}
-\int_\Omega w \, (\mathcal{L}(u) - f) \, dV = 0.
+u = u_{D} \quad \text{on } \Gamma_{D}
 ```
-This is the **weak form** which is fully equivalent to the strong 
-form if $u$ and $w$ satisfy some conditions. Among these conditions are
-$w!=0$ and that the weak form must hold for abitrary $w$ as then the residual 
-$r$
+and von Neumann boundary conditions that fixes the value first derivative(s) to
+on a part of the boundary $\Gamma_N$ 
+ 
+```{math}
+\nabla u\boldsymbol{n} = \boldsymbol{\partial u}_{N} \quad \text{on } \Gamma_{N}
+```
+In solid mechanics, Dirichlet boundary conditions correspond to displacement 
+boundary conditions while in heat conduction or diffusion they correspond to 
+temperature/concentration boundary condtions. Von Neumann boundary conditions 
+are often formulated differently, as in real cases rarely the gradient of the 
+state variable $u$ is available, but instead the **flux** is measured, so the
+above equation is simply rescaled by some material constants 
+```{math}
+\boldsymbol{K} (\nabla u)^T \boldsymbol{n} = u_{N} \quad \text{on } \Gamma_{N}
+```
+
+To arrive at the **weak form**, we multiply the strong form and its boundary 
+conditions by a **weight function** $w$ and integrate over the domain $\Omega$, 
+so we end up with
+```{math}
+\int_\Omega w \, (\mathcal{L}(u) - f) \, dV = 0. \\ 
+\int_{\Gamma_{N}} w (\nabla u)^T \boldsymbol{n} dA  = u_{N} 
+```
+The weak form is fully equivalent to the strong form only if $u$ and $w$ 
+satisfy some conditions. Among these conditions are $w!=0$ and that the weak 
+form must hold for abitrary (!) $w$ as then the residual $r$
 ```{math}
 r=\int_\Omega w \, (\mathcal{L}(u) - f) \, dV 
 ```
@@ -84,10 +106,11 @@ In this paragraph we will write down the weak form for the Poisson equation
 which guides an abundant number of physical phenomena like temperature 
 conduction, diffusion, gravity, electrostatics, etc. pp. For sake of brevity, 
 we focus on time-independent (stationary) heat conduction. We start with the 
-weak form via standard procedure i) multiply by $w$ ii) integrate over domain 
-$\Omega$:
+weak form via standard procedure i) multiply PDE and boundary conditions by $w$ 
+ii) integrate over domain $\Omega$:
 ```{math}
-\int_\Omega w \nabla \cdot (\boldsymbol{K} \nabla \phi) dV = \int_\Omega w f dV
+\int_\Omega w \nabla \cdot (\boldsymbol{K} \nabla \phi) dV = \int_\Omega w f dV \\
+\int_{\Gamma_{N}} \left(w \boldsymbol{K} \nabla \phi\right) \cdot \boldsymbol{n} dA
 ```
 Technically one can stop now as this is a correct weak from, but we want to 
 reduce the highest order derivative as much as we can as in FEM this means we 

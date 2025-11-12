@@ -3,7 +3,7 @@ from typing import List, Tuple, Union
 from itertools import product
 from math import sqrt
 
-from sympy import symbols, Symbol
+from sympy import symbols, Symbol, Function
 from symfem.functions import ScalarFunction,MatrixFunction
 
 from topoptlab.symbolic.utils import is_equal
@@ -13,7 +13,7 @@ def generate_constMatrix(ncol: int, nrow: int, name: str,
                          return_symbols: bool = False
                          ) -> Tuple[MatrixFunction, List]:
     """
-    Generate matrix full of symbolic constants as a list of lists.
+    Generate matrix full of symbolic constants.
 
     Parameters
     ----------
@@ -76,6 +76,74 @@ def generate_constMatrix(ncol: int, nrow: int, name: str,
         return MatrixFunction(M)
     else:
         return MatrixFunction(M), symbol_list
+    
+def generate_FunctMatrix(ncol: int, nrow: int, name: str,
+                         variables: List,
+                         symmetric: bool = False,
+                         return_symbols: bool = False
+                         ) -> Tuple[MatrixFunction, List]:
+    """
+    Generate matrix where each entry is a function of the .
+
+    Parameters
+    ----------
+    ncol : int
+        number of rows.
+    nrow : int
+        number of cols.
+    name : str
+        name to put in front of indices.
+    variables : list
+        list of symbols on which the matrix entries depend.
+    symmetric : bool
+        if True, matrix generated in symmetric fashion
+    return_symbols : bool
+        if True, returns the list of symbols of the entries. May be needed if
+        you want to apply assumptions on them in a Sympy assumptions context.
+
+    Returns
+    -------
+    M : symfem.functions.MatrixFunction
+        symfem MatrixFunction filled with symbolic functions e. g. for a 2x2 
+        matrix depending on x   [[M11(x),M12(x)],[M21(x),M22(x)]].
+    symbol_list : list
+        list of all symbols used for the matrix/vector
+
+    """
+    #
+    M = []
+    if return_symbols:
+        function_list = []
+    #
+    for i in range(1,nrow+1):
+        # create the matrix as list of lists
+        if nrow != 1 and ncol !=1:
+            functions = [name+str(i)+str(j) for j in range(1,ncol+1)]
+        # create row vector as list
+        elif nrow == 1:
+            functions = [name+str(j) for j in range(1,ncol+1)]
+        # create column vector as list
+        elif ncol == 1:
+            functions = [name+str(i) for j in range(1,ncol+1)]
+        # introduce dependence on the variables
+        functions = [Function(f)(*variables) for f in functions]
+        #
+        M.append( functions )
+        if return_symbols:
+            function_list = function_list + functions
+    # make matrix symmetric
+    if symmetric:
+        if ncol != nrow:
+            raise ValueError("For matrix to be symmetric, it must be square. Currenly ncol != nrow")
+        #
+        for i in range(nrow):
+            for j in range(i+1,nrow):
+                M[j][i] = M[i][j]
+    #
+    if not return_symbols:
+        return MatrixFunction(M)
+    else:
+        return MatrixFunction(M), function_list
 
 def simplify_matrix(M: Union[List,MatrixFunction]) -> MatrixFunction:
     """
