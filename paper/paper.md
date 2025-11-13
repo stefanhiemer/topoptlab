@@ -76,8 +76,8 @@ negligence of close to empty elements as preconditioning.
 *Topoptlab* was developed to address these challenges by providing a stable and 
 extensible environment tailored to the needs of the TO community. It serves 
 as a library for writing complete problems from scratch in spirit of the 
-already conventional Matlab scripts, and offers a offers a high-level driver 
-routine (topology_optimization) in which users can exchange components 
+already conventional Matlab scripts, and offers a high-level driver 
+routine (`topology_optimization`) in which users can exchange components 
 (filter, objective function, etc.) by passing custom callables or objects as 
 arguments. It may also serve as a reference implementation which can be used as 
 test case for existing HPC codes that want to incorporate TO in their software.
@@ -92,15 +92,15 @@ both standard numerical integration and analytically integrated elements
 generated through *Symfem*[@scroggs2021symfem]. Constrained optimization is 
 supported through the Method of Moving Asymptotes (MMA) [@svanberg1987], the 
 Globally Convergent Method of Moving Asymptotes (GCMMA) [@svanberg2002class] 
-as inmplemented in [@deetman2024gcmma] as well as the Optimality Criteria 
+as implemented in [@deetman2024gcmma] as well as the Optimality Criteria 
 [@andreassen2011efficient ;@bendsoe2003topology], while the solution of 
 the system of equations is done via routines offered by *scipy* [@2020SciPy-NMeth], 
 *cvxopt* [@andersen2020cvxopt], and also custom implementations of 
 preconditioners like algebraic multigrid or block-preconditioners. Finally, 
-*TopOptLab* offers a number of introductory articles with comments on 
+*Topoptlab* offers a number of introductory articles with comments on 
 implementation and contains monolithic scripts that serve as teaching tools as 
 well as an archive for Python translations of important Matlab teaching codes 
-(e. g. [@andreassen2011efficient; andreassen2014determine]). 
+(e.g. [@andreassen2011efficient; @andreassen2014determine]). 
 
 # Acknowledgments
 
