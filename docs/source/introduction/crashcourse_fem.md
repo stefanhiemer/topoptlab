@@ -77,8 +77,10 @@ are often formulated differently, as in real cases rarely the gradient of the
 state variable $u$ is available, but instead the **flux** is measured, so the
 above equation is simply rescaled by some material constants 
 ```{math}
-\boldsymbol{K} (\nabla u)^T \boldsymbol{n} = u_{N} \quad \text{on } \Gamma_{N}
+\boldsymbol{K} \nabla u) = q_{N} \quad \text{on } \Gamma_{N}
 ```
+which however does not change the nature of the boundary condition: it is still
+a boundary condition in terms of the first order derivatives.
 
 To arrive at the **weak form**, we multiply the strong form and its boundary 
 conditions by a **weight function** $w$ and integrate over the domain $\Omega$, 
