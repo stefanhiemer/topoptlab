@@ -19,10 +19,10 @@ def aniso_laplacian(ndim: int, K: Union[None,MatrixFunction] = None,
     Symbolically compute the stiffness matrix for an anisotropic Laplacian 
     operator 
     
-    nabla \cdot (K@nabla \phi),
+    nabla @ K @ nabla^T phi_n,
     
-    where \phi is a scalar field. This type of operator is encountered in heat 
-    conduction, diffusion, etc.
+    where phi_n are the nodal values of a scalar field phi. This type of 
+    operator is encountered in heat conduction, diffusion, etc.
 
     Parameters
     ----------
@@ -59,29 +59,33 @@ def aniso_laplacian(ndim: int, K: Union[None,MatrixFunction] = None,
     integrand = gradN@K@gradN.transpose() * Jdet
     return simplify_matrix( integrand.integral(ref,x)) 
 
-def nonlin_laplacian(ndim: int, K: Union[None,MatrixFunction] = None,
-                    element_type: str = "Lagrange",
-                    order: int = 1) -> MatrixFunction:
+def nonlin_laplacian(ndim: int, 
+                     K: Union[None,MatrixFunction] = None,
+                     linearization="picard",
+                     element_type: str = "Lagrange",
+                     order: int = 1) -> MatrixFunction:
     """
     Symbolically compute the (tangent) conductivity matrix for the (informal) 
-    an anisotropic nonlinear Laplacian operator 
+    an anisotropic nonlinear Laplacian operator at point phi_0
     
-    nabla \cdot (K(\phi)@nabla \phi),
+    nabla @ K(phi) @ nabla phi_n,
     
-    where \phi is a scalar field. This is not(!) the Laplace operator in the 
-    strict mathematical sense, but arises when equations, that are usually 
-    modelled with constant material properties, incorporate nonlinearities of 
-    the material property with regards to the state variable. This type of 
-    operator is encountered e. g. in heat conduction and diffusion with the 
-    heat conductivity/diffusion coefficient depending on the scalar field 
-    (temperature, concentration) itself.
+    where phi_n are the nodal values of a scalar field phi. This is not(!) the 
+    Laplace operator in the strict mathematical sense, but arises when 
+    equations, that are usually modelled with constant material properties, 
+    incorporate nonlinearities of the material property with regards to the 
+    state variable. This type of operator is encountered e. g. in heat 
+    conduction and diffusion with the heat conductivity/diffusion coefficient 
+    depending on the scalar field (temperature, concentration) itself.
 
     Parameters
     ----------
     ndim : int
         number of spatial dimensions. Must be between 1 and 3.
     K : None or symfem.functions.MatrixFunction
-        heat conductivity tensor.
+        heat conductivity tensor as function of phi.
+    linearization : str
+        type of linearization. Either "picard" or "newton".
     element_type : str
         type of element.
     order : int
@@ -93,21 +97,28 @@ def nonlin_laplacian(ndim: int, K: Union[None,MatrixFunction] = None,
         symbolic stiffness matrix as list of lists .
 
     """
-
     #
     vertices, nd_inds, ref, basis  = base_cell(ndim,
                                                element_type=element_type,
                                                order=order)
+    #
+    phi0 = generate_constMatrix(len(basis), nrow=1, name="phi0")
     # anisotropic heat conductivity or equivalent nonlinear material property
     if K is None:
-        K = generate_FunctMatrix(col=ndim,row=ndim,
+        K = generate_FunctMatrix(ncol=ndim,nrow=ndim,
                                  name="k",
                                  variables=[symbols("phi")],
                                  symmetric=True)
+    print(K.subs( VectorFunction(basis).dot(phi0) ))
+    import sys 
+    sys.exit()
     #
     Jinv, Jdet = jacobian(ndim=ndim, element_type=element_type, order=order,
                           return_J=False, return_inv=True, return_det=True)
     gradN = VectorFunction(basis).grad(ndim)@Jinv.transpose()
     #
-    integrand = gradN@K@gradN.transpose() * Jdet
-    return simplify_matrix( integrand.integral(ref,x)) 
+    integrand = gradN@K@gradN.transpose()
+    return simplify_matrix( (integrand* Jdet).integral(ref,x)) 
+
+if __name__ == "__main__":
+    nonlin_laplacian(ndim=1)

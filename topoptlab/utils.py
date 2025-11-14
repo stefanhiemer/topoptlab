@@ -397,21 +397,23 @@ def upsampling(x: np.ndarray, magnification: Union[float,int,List],
         magnification = ndim * [magnification] + [1]
     #
     if nelz is None:
-        x = map_eltoimg(quant=x, nelx=nelx, nely=nely)
+        x = map_eltoimg(quant=x, 
+                        nelx=nelx, nely=nely)
     else:
-        x = map_eltovoxel(quant=x, nelx=nelx, nely=nely, nelz=nelz)
+        x = map_eltovoxel(quant=x, 
+                          nelx=nelx, nely=nely, nelz=nelz)
     #
     x = zoom(x, zoom=magnification,
              order=order, mode="nearest",
              cval=0.)
     #
-    
-    #
     if return_flat:
         if nelz is None:
             nely,nelx,nchannel = x.shape
-            x = map_imgtoel(img=x, nelx=nelx, nely=nely)
+            x = map_imgtoel(img=x, 
+                            nelx=nelx, nely=nely)
         else:
             nelz,nely,nelx,nchannel = x.shape
-            x = map_voxeltoel(voxel=x, nelx=nelx, nely=nely, nelz=nelz)
+            x = map_voxeltoel(voxel=x, 
+                              nelx=nelx, nely=nely, nelz=nelz)
     return x

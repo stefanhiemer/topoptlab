@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any,Tuple,Union
+from typing import Any,List,Tuple,Union
 
 import numpy as np
 from scipy.sparse import coo_matrix,csc_matrix
@@ -93,12 +93,151 @@ class MatrixFilter(TOFilter):
         """
         return np.asarray(self.H*(dx_filtered/self.Hs))
 
-def assemble_matrix_filter(nelx: int, nely: int, rmin: float,
+def assemble_matrix_filter(nelx: int, nely: int, 
+                           rmin: Union[float,List,np.ndarray],
                            nelz: Union[int, None] = None,
+                           pbc: Union[bool,List,np.ndarray] = False,
                            **kwargs: Any) -> Tuple[csc_matrix,np.matrix]:
     """
     Assemble distance based filters as sparse matrix that is applied on to
     densities/sensitivities by standard multiplication.
+
+    Parameters
+    ----------
+    nelx : int
+        number of elements in x direction.
+    nely : int
+        number of elements in y direction.
+    rmin : float, list or np.ndarray
+        cutoff radius for the filter. Only elements within the element-center
+        to element center distance are used for filtering. Can also be defined
+        for each dimension.
+    nelz : int or None
+        number of elements in z direction.
+    pbc : bool, list or np.ndarray 
+        flag for periodic boundary conditions.
+        
+    Returns
+    -------
+    H : csc.matrix
+        unnormalized filter.
+    Hs : np.matrix
+        normalization factor.
+
+    """
+    # number of elements/design variables
+    if nelz is None:
+        ndim = 2
+    else:
+        ndim = 3
+    #
+    n = np.array([nelx,nely,nelz][:ndim])
+    nel= np.prod(n)
+    #
+    if isinstance(pbc,bool):
+        pbc = np.array(ndim*[pbc])
+    elif isinstance(pbc, list):
+        pbc = np.array(pbc)
+    elif isinstance(pbc, np.ndarray):
+        if len(pbc.shape)==1 and pbc.shape[0] == 1:
+            pbc = np.array(ndim*[pbc[0]])
+        elif pbc.shape != ndim:
+            raise ValueError("pbc must be of shape (1) or (ndim): ",
+                             pbc.shape)
+    else:
+        raise ValueError("pbc must be list,np.ndarray or bool: ",
+                         pbc)    
+    #
+    if isinstance(rmin, float):
+        rmin = np.array(ndim*[rmin])
+    elif isinstance(rmin, list):
+        rmin = np.array(rmin)
+    elif isinstance(rmin, np.ndarray):
+        if len(rmin.shape)==1 and rmin.shape[0] == 1:
+            rmin = np.array(ndim*[rmin[0]])
+        elif rmin.shape != ndim:
+            raise ValueError("rmin must be of shape (1) or (ndim): ",
+                             rmin.shape)
+    else:
+        raise ValueError("rmin must be list,np.ndarray or float: ",
+                         rmin)
+    # index array of densities/elements
+    el = np.arange(nel)
+    # filter size
+    nfilter = int(nel*( np.prod(2*(np.ceil(rmin)-1)+1) ))
+    # create empty arrays for indices and values of final filter
+    iH = np.zeros(nfilter)
+    jH = np.zeros(nfilter)
+    sH = np.zeros(nfilter)
+    # find coordinates of each element
+    if ndim == 2:
+        coords = np.column_stack(np.divmod(el,nely)) # same as np.floor(el/nely),el%nely
+    elif ndim == 3:
+        z,rest = np.divmod(el,nelx*nely)
+        x,y = np.divmod(rest,nely)
+        coords = np.column_stack( (np.divmod(rest,nely)+tuple([z])) )
+    print("coords: ",coords)
+    # convert/round rmin to integer 
+    dx = np.maximum(np.ceil(rmin)-1,np.zeros(ndim)).astype(int)
+    # create stencil for neighbors
+    neighbors = [np.arange(-d,d+1) for d in dx]
+    neighbors = [n.flatten() for n in np.meshgrid(*neighbors, indexing='ij')]
+    neighbors = np.column_stack(neighbors)
+    print("neighbors: ",neighbors)
+    # calculate distance for neighbors
+    r = np.linalg.norm(neighbors, axis=1, ord=2)
+    print("r: ",r)
+    # create coordinates of neighbours for each element
+    neighbors = coords[:,None,:] + neighbors[None,:,:] 
+    print("neighbors: ",neighbors)
+    # apply boundary condtions
+    # finite
+    if not np.any(pbc):
+        inside = np.all((neighbors >= 0) &\
+                        (neighbors < n[None,None,:]),
+                        axis=2)
+    # pbc
+    else:
+        #
+        length = ( np.array([nelx,nely,nelz][:ndim]) )[None,None,:]
+        #
+        out_of_domain_neg = neighbors < 0 
+        out_of_domain_pos = neighbors >= length
+        #
+        inside = np.all(~(out_of_domain_neg | out_of_domain_pos) |\
+                        pbc[None,None,:],
+                        axis=2)
+        #
+        length = np.ones(out_of_domain_neg.shape)*length
+        #
+        mask = out_of_domain_neg&pbc[None,None,:]
+        neighbors[mask]=neighbors[mask]+length[mask]
+        #
+        mask = out_of_domain_pos&pbc[None,None,:]
+        neighbors[mask]=neighbors[mask]-length[mask]
+    # convert neighbor coordinates to indices
+    neighbors = (neighbors*\
+                 np.array([nely,1,nelx*nely][:ndim])[None,None,:]).sum(axis=-1)
+    #
+    iH = np.repeat( el, np.sum(inside,axis=1))
+    jH = neighbors[inside].astype(int)
+    sH = np.tile(np.linalg.norm(rmin,ord=2) / np.sqrt(ndim)-r,
+                 (nel,1))[inside]
+    sH = np.maximum(sH,0.)
+    # Finalize assembly and convert to csc format
+    H = coo_matrix((sH, (iH, jH)), shape=(nel, nel)).tocsc()
+    # normalization constants
+    Hs = H.sum(1)
+    return H,Hs
+
+def assemble_matrix_filter_legacy(nelx: int, nely: int, rmin: float,
+                                  nelz: Union[int, None] = None,
+                                  **kwargs: Any
+                                  ) -> Tuple[csc_matrix,np.matrix]:
+    """
+    Will only be used for testing. Assemble distance based filters as sparse 
+    matrix that is applied on to densities/sensitivities by standard 
+    multiplication. 
 
     Parameters
     ----------
@@ -114,9 +253,9 @@ def assemble_matrix_filter(nelx: int, nely: int, rmin: float,
 
     Returns
     -------
-    H : csc matrix
+    H : csc.matrix
         unnormalized filter.
-    Hs : np matrix
+    Hs : np.matrix
         normalization factor.
 
     """
