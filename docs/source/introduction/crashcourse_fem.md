@@ -103,7 +103,7 @@ Furthermore, from a numerical perspective, it is often convenient to work with
 integrals as they can be approximated cheaply with low-order splines or 
 polynomials.
 
-### Example: Weak form of  Poisson equation 
+### Example: Weak form of Poisson equation 
 In this paragraph we will write down the weak form for the Poisson equation
 which guides an abundant number of physical phenomena like temperature 
 conduction, diffusion, gravity, electrostatics, etc. pp. For sake of brevity, 
@@ -159,34 +159,68 @@ weak form in its simplified form
 Since we want to solve for $phi$ while both the von Neumann boundary conditions
 and the function $f$ are given, we move the von Neumann terms to the right hand
 side such that we have cleanly divided the weak form in the terms we seek to 
-solve/invert and the terms that are part of the problem statement:
+solve/invert and the terms that are part of the problem statement, i. e. the 
+boundary conditions:
 ```{math}
-\int_\Omega \nabla w \cdot \boldsymbol{K} \nabla \phi dV   = \int_\Omega w f dV + \int_{\Gamma_{N}} \left(w \boldsymbol{K} \nabla \phi\right) \cdot \boldsymbol{n} dA.
+\int_\Omega \nabla w \cdot \boldsymbol{K} \nabla \phi dV = \int_\Omega w f dV + \int_{\Gamma_{N}} \left(w \boldsymbol{K} \nabla \phi\right) \cdot \boldsymbol{n} dA.
 ```
 
 ## Discretization of Weak Form
-
+Since the weak form is an integral, we can now slowly see how elements as 
+subdivisions of the simulation domain emerge: integrals are additive, meaning 
+an integral over interval $a$ to $c$ can be split into sub-intervals $a$ to 
+$b$ and $b$ to $c$
+```{math}
+\inta^c ... dx = \int_a^b ... dx + \int_b^c ... dx
+```
+so we can re-write the weak form to 
+```{math}
+\sum_{i=1}^{N_{e}}\int_{\Omega_i} \nabla w \cdot \boldsymbol{K} \nabla \phi dV_{\Omega_i} = \int_{\Omega_i} w f dV_i + \int_{\Gamma_{N,i}} \left(w \boldsymbol{K} \nabla \phi\right) \cdot \boldsymbol{n} dA_i.
+```
+where the index $i$ is the element index. So in other words an element is just 
+a sub-interval/area/volume of the entire domain. This step is purely geometric 
+and does not yet introduce any approximation as it just rewrites the weak form 
+as a sum of element-wise contributions that via simple summation assemble the 
+global problem. We now move on, how to approximate these integrals to arrive at a continuous, smooth solution.
+ 
 ### Shape Functions and Interpolation
-- approximate the field variable $u$ and $w$ by low order splines 
-- in standard Galerkin FE $u,w$ described same function form 
-- linear combination of basis functions 
-```{math}
-u(x) = \sum_{i=1} N\left(x;x_i\right)u_{i}
-```
-```{math}
-w(x) = \sum_{i=1} N\left(x;x_i\right)w_{i}
-```
-rewrite to vector format
-```{math}
-u(x) = \boldsymbol{N}^T \boldsymbol{u}_n
-```
-```{math}
-w(x) = \boldsymbol{N}^T \boldsymbol{w}_n
-```
+After splitting the domain into elements, a few things need to be kept in mind: 
+i) we need to approximate the unknown field $u$ inside each element to solve 
+the local element integrals. ii) the values of $u$ at the element borders 
+should match for the smoothness and continuity required by the PDE. The natural 
+choice for these requirements are splines as they only require nodal values at 
+the border between elements for interpolation, due to their local polynomial 
+nature are easy to integrate (even high school students could do it) and offer 
+flexibel smoothness/continuity via the choice of order. As a rule of thumb, it 
+is preferable to choose the lowest order of spline that is sufficient to solve
+the PDE at hand. Having chosen splines an interpolation, we can now express 
+both the unknown field $u$ and the test function $w$ in terms of these local basis 
+functions. This turns the continuous fields into finite sets of nodal values, 
+which can then be used directly in the weak form on each element.
 
-
+We restrict ourselves to the standard Galerkin finite element method where both 
+$w$ and $u$ are approximated by the same functions, i. e. are interpolated in 
+the same function space. In general, $u$ and $w$ inside element $i$ can be 
+written as 
+```{math}
+u_i(x) = \sum_{i=1} N\left(x;x_i\right)u_{i}
+```
+```{math}
+w_i(x) = \sum_{i=1} N\left(x;x_i\right)w_{i}
+```
+or more commonly in vector format as
+```{math}
+u_i(x) = \boldsymbol{N}^T \boldsymbol{u}_n
+```
+```{math}
+w_i(x) = \boldsymbol{N}^T \boldsymbol{w}_n.
+```
 
 ### Assembly of Global Linear Problem
+
+```{math}
+\boldsymbol{K}= \sum_{i} \boldsymbol{K}_i
+```
 
 ### Numerical Integration 
 
