@@ -6,7 +6,8 @@
 This project provides a collection of topology optimization techniques, many of 
 which were originally published MATLAB scripts. The goal is to make these methods 
 broadly accessible in Python, in a style similar to the well-known 
-*88-line code* by Andreassen and Sigmund. The package can be used in two ways:
+[`88 line code`](https://link.springer.com/article/10.1007/s00158-010-0594-7) 
+by Andreassen and Sigmund. The package can be used in two ways:
 
 - As a library:  
   Write your own scripts in the concise style of the 88 line MATLAB code. A simple 
