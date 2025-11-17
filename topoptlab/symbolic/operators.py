@@ -19,10 +19,10 @@ def aniso_laplacian(ndim: int, K: Union[None,MatrixFunction] = None,
     Symbolically compute the stiffness matrix for an anisotropic Laplacian 
     operator 
     
-    nabla @ K @ nabla^T phi_n,
+    nabla^T @ K(phi) @ nabla phi,
     
-    where phi_n are the nodal values of a scalar field phi. This type of 
-    operator is encountered in heat conduction, diffusion, etc.
+    of a scalar field phi. This type of operator is encountered in heat 
+    conduction, diffusion, etc.
 
     Parameters
     ----------
@@ -68,15 +68,15 @@ def nonlin_laplacian(ndim: int,
     Symbolically compute the (tangent) conductivity matrix for the (informal) 
     an anisotropic nonlinear Laplacian operator at point phi_0
     
-    nabla @ K(phi) @ nabla phi_n,
+    nabla^T @ K(phi) @ nabla phi,
     
-    where phi_n are the nodal values of a scalar field phi. This is not(!) the 
-    Laplace operator in the strict mathematical sense, but arises when 
-    equations, that are usually modelled with constant material properties, 
-    incorporate nonlinearities of the material property with regards to the 
-    state variable. This type of operator is encountered e. g. in heat 
-    conduction and diffusion with the heat conductivity/diffusion coefficient 
-    depending on the scalar field (temperature, concentration) itself.
+    of a scalar field phi. This is not(!) the Laplace operator in the strict 
+    mathematical sense, but arises when equations, that are usually modelled 
+    with constant material properties, incorporate nonlinearities of the 
+    material property with regards to the state variable. This type of 
+    operator is encountered e. g. in heat conduction and diffusion with the 
+    heat conductivity/diffusion coefficient depending on the scalar field 
+    (temperature, concentration) itself.
 
     Parameters
     ----------

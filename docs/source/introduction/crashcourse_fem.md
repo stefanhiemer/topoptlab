@@ -68,7 +68,7 @@ and von Neumann boundary conditions that fixes the value first derivative(s) to
 on a part of the boundary $\Gamma_N$ 
  
 ```{math}
-\nabla u\boldsymbol{n} = \boldsymbol{\partial u}_{N} \quad \text{on } \Gamma_{N}
+\nabla u = \boldsymbol{\partial u}_{N} \quad \text{on } \Gamma_{N}
 ```
 In solid mechanics, Dirichlet boundary conditions correspond to displacement 
 boundary conditions while in heat conduction or diffusion they correspond to 
@@ -77,7 +77,7 @@ are often formulated differently, as in real cases rarely the gradient of the
 state variable $u$ is available, but instead the **flux** is measured, so the
 above equation is simply rescaled by some material constants 
 ```{math}
-\boldsymbol{K} \nabla u) = q_{N} \quad \text{on } \Gamma_{N}
+\boldsymbol{K} \nabla u = q_{N} \quad \text{on } \Gamma_{N}
 ```
 which however does not change the nature of the boundary condition: it is still
 a boundary condition in terms of the first order derivatives.
@@ -87,7 +87,7 @@ conditions by a **weight function** $w$ and integrate over the domain $\Omega$,
 so we end up with
 ```{math}
 \int_\Omega w \, (\mathcal{L}(u) - f) \, dV = 0. \\ 
-\int_{\Gamma_{N}} w (\nabla u)^T \boldsymbol{n} dA  = u_{N} 
+\int_{\Gamma_{N}} w ( \boldsymbol{K} \nabla u)^T \boldsymbol{n} dA  = u_{N} 
 ```
 The weak form is fully equivalent to the strong form only if $u$ and $w$ 
 satisfy some conditions. Among these conditions are $w!=0$ and that the weak 
@@ -112,7 +112,7 @@ weak form via standard procedure i) multiply PDE and boundary conditions by $w$
 ii) integrate over domain $\Omega$:
 ```{math}
 \int_\Omega w \nabla \cdot (\boldsymbol{K} \nabla \phi) dV = \int_\Omega w f dV \\
-\int_{\Gamma_{N}} \left(w \boldsymbol{K} \nabla \phi\right) \cdot \boldsymbol{n} dA
+\int_{\Gamma_{N}} w\left(\boldsymbol{K} \nabla \phi\right)^T \boldsymbol{n} dA
 ```
 Technically one can stop now as this is a correct weak from, but we want to 
 reduce the highest order derivative as much as we can as in FEM this means we 
@@ -132,7 +132,7 @@ w\nabla \boldsymbol{v} = \nabla w \cdot \boldsymbol{v} - \nabla \cdot (w\boldsym
 ```
 We then insert $\boldsymbol{v}=\nabla \phi$ and rewrite the left hand side to
 ```{math}
-\int_\Omega w \nabla \cdot (\boldsymbol{K} \nabla \phi) dV = \int_\Omega \nabla w \cdot \boldsymbol{K} \nabla \phi dV - \int_\Omega \nabla \cdot \left(w \boldsymbol{K} \nabla \phi\right) dV
+\int_\Omega w \nabla \cdot (\boldsymbol{K} \nabla \phi) dV = \int_\Omega \nabla w \cdot \boldsymbol{K} \nabla \phi dV - \int_\Omega \nabla \cdot w\left(\boldsymbol{K} \nabla \phi\right) dV
 ```
 If we inspect this closer, we recognize that the second term on the right hand 
 side is the volume integral of the divergence of the flow 
@@ -147,14 +147,14 @@ expresses
 ```
 which we can use to simplify the second part to
 ```{math}
-\int_\Omega \nabla \cdot \left(w \boldsymbol{K} \nabla \phi\right) dV = \int_{\Gamma_{N}} \left(w \boldsymbol{K} \nabla \phi\right) \cdot \boldsymbol{n} dA 
+\int_\Omega \nabla \cdot w\left(\boldsymbol{K} \nabla \phi\right) dV = \int_{\Gamma_{N}} w\left(\boldsymbol{K} \nabla \phi\right)^T \boldsymbol{n} dA 
 ```
 This boundary flux conveniently represent the von Neumann boundary conditions, 
 so they appear naturally in the weak form which is why they are often referred 
 to as natural boundary conditions in FEM terminology. We write down the full 
 weak form in its simplified form
 ```{math}
-\int_\Omega \nabla w \cdot \boldsymbol{K} \nabla \phi dV - \int_{\Gamma_{N}} \left(w \boldsymbol{K} \nabla \phi\right) \cdot \boldsymbol{n} dA   = \int_\Omega w f dV.
+\int_\Omega \nabla w \cdot \boldsymbol{K} \nabla \phi dV - \int_{\Gamma_{N}} w\left(\boldsymbol{K} \nabla \phi\right)^T \boldsymbol{n} dA   = \int_\Omega w f dV.
 ```
 Since we want to solve for $phi$ while both the von Neumann boundary conditions
 and the function $f$ are given, we move the von Neumann terms to the right hand
@@ -162,7 +162,7 @@ side such that we have cleanly divided the weak form in the terms we seek to
 solve/invert and the terms that are part of the problem statement, i. e. the 
 boundary conditions:
 ```{math}
-\int_\Omega \nabla w \cdot \boldsymbol{K} \nabla \phi dV = \int_\Omega w f dV + \int_{\Gamma_{N}} \left(w \boldsymbol{K} \nabla \phi\right) \cdot \boldsymbol{n} dA.
+\int_\Omega \nabla w \cdot \boldsymbol{K} \nabla \phi dV = \int_\Omega w f dV + \int_{\Gamma_{N}} w\left(\boldsymbol{K} \nabla \phi\right)^T \boldsymbol{n} dA.
 ```
 
 ## Discretization of Weak Form
@@ -171,13 +171,13 @@ subdivisions of the simulation domain emerge: integrals are additive, meaning
 an integral over interval $a$ to $c$ can be split into sub-intervals $a$ to 
 $b$ and $b$ to $c$
 ```{math}
-\inta^c ... dx = \int_a^b ... dx + \int_b^c ... dx
+\int_a^c ... dx = \int_a^b ... dx + \int_b^c ... dx
 ```
 so we can re-write the weak form to 
 ```{math}
-\sum_{i=1}^{N_{e}}\int_{\Omega_i} \nabla w \cdot \boldsymbol{K} \nabla \phi dV_{\Omega_i} = \int_{\Omega_i} w f dV_i + \int_{\Gamma_{N,i}} \left(w \boldsymbol{K} \nabla \phi\right) \cdot \boldsymbol{n} dA_i.
+\sum_{e=1}^{N_{e}}\int_{\Omega_e} \left(\nabla w\right)^T \boldsymbol{K} \nabla \phi dV_{\Omega_e} = \sum_{e=1}^{N_{e}} \int_{\Omega_e} w f dV_e + \int_{\Gamma_{N,e}} w\left(\boldsymbol{K} \nabla \phi\right)^T \boldsymbol{n} dA_e.
 ```
-where the index $i$ is the element index. So in other words an element is just 
+where the index $e$ is the element index. So in other words an element is just 
 a sub-interval/area/volume of the entire domain. This step is purely geometric 
 and does not yet introduce any approximation as it just rewrites the weak form 
 as a sum of element-wise contributions that via simple summation assemble the 
@@ -200,26 +200,55 @@ which can then be used directly in the weak form on each element.
 
 We restrict ourselves to the standard Galerkin finite element method where both 
 $w$ and $u$ are approximated by the same functions, i. e. are interpolated in 
-the same function space. In general, $u$ and $w$ inside element $i$ can be 
-written as 
+the same function space. In general, $u$ and $w$ inside element $e$ are 
+approximated as 
 ```{math}
-u_i(x) = \sum_{i=1} N\left(x;x_i\right)u_{i}
+u_e(x) = \sum_{j=1}^{n} N_{j}\left(x;x_j\right)u_{j}
 ```
 ```{math}
-w_i(x) = \sum_{i=1} N\left(x;x_i\right)w_{i}
+w_e(x) = \sum_{j=1}^{n} N_{j}\left(x;x_j\right)w_{j}
 ```
 or more commonly in vector format as
 ```{math}
-u_i(x) = \boldsymbol{N}^T \boldsymbol{u}_n
+u_e(x) = \boldsymbol{N}^T \boldsymbol{u}_n
 ```
 ```{math}
-w_i(x) = \boldsymbol{N}^T \boldsymbol{w}_n.
+w_e(x) = \boldsymbol{N}^T \boldsymbol{w}_n.
 ```
+where $n$ is the number of nodes in the element, $u_{i},w_{i}$ are the value 
+of $u,w$ at the nodes and $N_{i}$ the **shape function** associated with node 
+$i$. Generally these shape functions constitute of polynomial functions in 
+terms of space and take the value $1$ at $x_i$ and the value $0$ at nodes 
+$i \neq j$. The latter is referred as the **delta-property** of shape 
+functions which constructs a smooth interpolation within the element and that
+connects smoothly to the other elements thus fulfilling our requirement for
+a smooth solution. 
+
+We now take the weak form for a single element  
+```{math}
+\int_{\Omega_e} \left(\nabla w_e\right)^T \boldsymbol{K} \nabla \phi_e dV_{\Omega_e} = \int_{\Omega_e} w_e f_e dV_e + \int_{\Gamma_{N,e}} \left(w_e \boldsymbol{K} \nabla \phi_e\right)^T \boldsymbol{n} dA_e.
+```
+and insert our approximation 
+```{math}
+\boldsymbol{w}_{n}^T \int_{\Omega_e} \left(\nabla \boldsymbol{N} \right)^T \boldsymbol{K} \nabla \boldsymbol{N}^T  dV_{\Omega_i} \boldsymbol{\phi}_n = \boldsymbol{w}_e^T \left[ \int_{\Omega_e} \boldsymbol{N} f dV_e + \int_{\Gamma_{N,e}} \boldsymbol{N} \left( \boldsymbol{K} \nabla \phi\right)^T \boldsymbol{n} dA_e \right].
+```
+After some careful consideration, we recognize the left hand side as a linear
+system 
+```{math}
+\boldsymbol{w}_n^T \int_{\Omega_e} \boldsymbol{A} \boldsymbol{\phi}_n  = \boldsymbol{w}_n^T \int_{\Omega_e}  \left(\nabla \boldsymbol{N} \right)^T \boldsymbol{K} \nabla \boldsymbol{N}^T  dV_{\Omega_i} \boldsymbol{\phi}_n.
+```
+$\boldsymbol{w}_n$ must not matter as the requirement for the weak form
+to deliver a solution to the original PDE was that $w$ must be arbitrary. This
+reduces the expression further to
+```{math}
+\boldsymbol{A} \boldsymbol{\phi}_n  = \int_{\Omega_e} \left(\nabla \boldsymbol{N} \right)^T \boldsymbol{K} \nabla \boldsymbol{N}^T dV_{\Omega_i} \boldsymbol{\phi}_n
+```
+
 
 ### Assembly of Global Linear Problem
 
 ```{math}
-\boldsymbol{K}= \sum_{i} \boldsymbol{K}_i
+\boldsymbol{K}= \sum_{e=1}^{N_e} \boldsymbol{K}_e
 ```
 
 ### Numerical Integration 

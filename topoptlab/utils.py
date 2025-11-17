@@ -13,18 +13,21 @@ def default_outputkw() -> Dict:
     file naming, verbosity, etc. It can be used as a reference or as a source 
     for inserting missing keys in user-defined dictionaries.
 
-    Keys and Default Values
+    Keys and Default Values 
     -----------------------
-    | Key             | Type  | Default   | Description                                |
-    |-----------------|-------|-----------|--------------------------------------------|
-    | "file"          | str   | "topopt"  | Base name used for output files.           |
-    | "display"       | bool  | True      | display intermediary design.               |
-    | "export"        | bool  | True      | export final results to disk as vtk.       |
-    | "write_log"     | bool  | True      | write a log file.                          |
-    | "profile"       | bool  | False     | profile of the code execution.             |
-    | "output_movie"  | bool  | False     | generate a movie of the intermed. designs. |
-    | "verbosity"     | int   | 20        | level of verbosity. For the meaning of the |
-    |                 |       |           |  value check the ´SimpleLogger´ class      |
+
+    +------------------+-------+-----------+---------------------------------------------+
+    | Key              | Type  | Default   | Description                                 |
+    +------------------+-------+-----------+---------------------------------------------+
+    | "file"           | str   | "topopt"  | Base name used for output files.            |
+    | "display"        | bool  | True      | Display intermediary design.                |
+    | "export"         | bool  | True      | Export final results to disk as VTK.        |
+    | "write_log"      | bool  | True      | Write a log file.                           |
+    | "profile"        | bool  | False     | Profile code execution.                     |
+    | "output_movie"   | bool  | False     | Generate a movie of intermediate designs.   |
+    | "verbosity"      | int   | 20        | Level of verbosity (see SimpleLogger).      |
+    +------------------+-------+-----------+---------------------------------------------+
+
 
     Returns
     -------
@@ -146,7 +149,8 @@ def unique_sort(iM: np.ndarray, jM: np.ndarray,
         return iM[inds],jM[inds]
 
 def dict_without(dictionary: Dict, keys: List) -> Dict:
-    """Return a copy of a dictionary without the given keys.
+    """
+    Return a copy of a dictionary without the given keys.
     
     Parameters
     ----------
