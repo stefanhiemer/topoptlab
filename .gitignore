@@ -10,6 +10,7 @@ old_cholmod.py
 *.prof
 *.npz
 *.csv
+*.log
 !images/*.pdf
 !images/*.png
 !docs/source/_static/*.png
