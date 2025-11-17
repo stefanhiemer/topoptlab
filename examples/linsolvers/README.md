@@ -1,9 +1,17 @@
+anderson.py
+
 laplacian.py
 
-Demonstrate different preconditioners/solvers with the Laplace equation on 
-a uniform grid.
+Demonstrate different solvers on finite difference laplacian.
+
+show_coarse.py
+
+Show coarse degrees of freedom for multigrid solver for a heatplate design or 
+blocks of block preconditioners.
 
 show_coarse_laplacian.py
 
-Show the coarse variables of different multigrid methods on for the Laplace 
-equation on a uniform grid.
+Show coarse degrees of freedom for multigrid solver for finite difference 
+laplacian or blocks of block preconditioners.
+
+

@@ -8,6 +8,8 @@ old_cholmod.py
 *.step
 *.msh
 *.prof
+*.npz
+*.csv
 !images/*.pdf
 !images/*.png
 !docs/source/_static/*.png
@@ -16,9 +18,6 @@ old_cholmod.py
 !examples/linsolvers/stiffness-matrix_mbb2d_60x20-2.4-0.5-0_25.npz
 !examples/linsolvers/xPhys_heatplate2d_40x40-1.2-0.4-0_25.csv
 !examples/linsolvers/stiffness-matrix_heatplate2d_40x40-1.2-0.4-0_25.npz
-*.log
-*.npz
-*csv
 examples/fdm/runs
 docs/build/
 dist/

@@ -9,4 +9,3 @@ if __name__ == "__main__":
     print("Jacobian: ",J)
     print("inverse of Jacobian: ", Jinv) 
     print("determinant of Jacobian: ",Jdet)
-    #print(convert_to_code(jacobian(ndim = 2)))

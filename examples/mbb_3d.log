@@ -1,0 +1,11 @@
+minimum compliance problem with optimizer oc
+number of spatial dimensions: 3
+elements: 60 x 20 x 10
+volfrac: 0.5 rmin: 2.4  penal: 3.0
+filter: Density based
+filter mode: matrix
+it.: 1 obj.: 11631.7361914450 vol.: 0.5000218618 ch.: 0.2000000000
+it.: 2 obj.: 6123.5037317200 vol.: 0.4999960447 ch.: 0.2000000000
+it.: 3 obj.: 4331.5713358217 vol.: 0.5001205661 ch.: 0.2000000000
+it.: 4 obj.: 3613.8150227923 vol.: 0.5001060649 ch.: 0.2000000000
+it.: 5 obj.: 3441.1978019065 vol.: 0.4998428569 ch.: 0.1845805374

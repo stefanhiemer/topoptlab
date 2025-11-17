@@ -69,18 +69,28 @@ frameworks such as **FEniCS**[@alnaes2014unified; @scroggs2022construction; @scr
 **deal.II** [@arndt2021deal], and **ElmerFEM**[@malinen2013elmer] provide powerful 
 high-performance environments, their abstraction layers tend to complicate 
 access to low-level implementation details which is necessary for research in 
-TO. Also common use cases in TO allow shortcuts such as regular meshes as 
-ideally the geometry emerges during the optimization process or partial 
-negligence of close to empty elements as preconditioning.   
+TO. Examples of standard TO tasks with the need to access low-level data 
+structures are the update of the element stiffness matrices $K_{e}(x)$ 
+based on the design variables $x$, calculation of the sensitivity of the element 
+matrices with respect to the design variables $\frac{\partial K_e}{\partial x}$ 
+and access to the global stiffness matrix for solving the adjoint problem to 
+derive the gradients. Also common use cases in TO allow shortcuts such as 
+regular meshes as ideally the geometry emerges during the optimization process 
+or partial negligence of close to empty elements as preconditioning. 
 
-*Topoptlab* was developed to address these challenges by providing a stable and 
-extensible environment tailored to the needs of the TO community. It serves 
+*Topoptlab* was developed to address these challenges by providing a stable 
+and extensible environment tailored to the needs of the TO community. It serves 
 as a library for writing complete problems from scratch in spirit of the 
 already conventional Matlab scripts, and offers a high-level driver 
 routine (`topology_optimization`) in which users can exchange components 
 (filter, objective function, etc.) by passing custom callables or objects as 
 arguments. It may also serve as a reference implementation which can be used as 
 test case for existing HPC codes that want to incorporate TO in their software.
+An example demonstrating the topology_optimization routine, as well as links to 
+from-scratch implementations, are available in the project README on the 
+repository while tutorials, derivations and explanations of the background of 
+TO are in the documentation. A more extensive list of examples can be found in 
+the `examples` section of the repository.
 
 *Topoptlab* offers the components needed for TO such as different material 
 interpolation schemes (SIMP, RAMP, and bound-based interpolation), filters for 

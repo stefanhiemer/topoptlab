@@ -4,8 +4,9 @@ from scipy.linalg import lstsq
 
 def f(x):
     """
-    Simple demonstration code for the use of the barizilai borwein optimizer
-    by minimizing the rosenbrock function in the interval [-1.5,1.5].
+    Fixed point equation 
+    
+       f(x) = np.sin(x)+np.arctan(x)..
     
     Parameters
     ----------
@@ -21,8 +22,14 @@ def f(x):
 
 def anderson_example(solver="lstsq"):
     """
-    Simple demonstration code for the use of the method of moving asymptotes
-    minimizing the rosenbrock function in the interval [-1.5,1.5].
+    Example taken from 
+    
+    
+    to find fixed point of equation 
+    
+       f(x) = np.sin(x)+np.arctan(x)
+    
+    with Anderson acceleration.
     
     Parameters
     ----------
@@ -49,10 +56,6 @@ def anderson_example(solver="lstsq"):
     G_k = np.array([[g[-1,0] - g[-2,0]]])
     # Matrix of increments in x.
     X_k = np.array([[x[-1,0] - x[-2,0]]])
-    print(x)
-    print(g)
-    print(X_k) 
-    print(G_k.shape)
     # 
     k = 2
     while k < k_max and np.abs(g[-1]) > tol_res:
@@ -69,7 +72,6 @@ def anderson_example(solver="lstsq"):
             X_k = X_k[:,-m_k:]
             G_k = G_k[:,-m_k:]
         k = k + 1
-        print(G_k.shape)
     # Prints result: Computed fixed point 2.0134445990 after 9 iterations
     print("Computed fixed point {0:.5f} after {1} iterations\n".format(x[-1], k));
     return

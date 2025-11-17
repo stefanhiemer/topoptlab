@@ -5,7 +5,7 @@ from scipy.sparse.linalg import LaplacianNd
 
 from topoptlab.amg import standard_coarsening
 from topoptlab.gmg import create_coarse_mask
-from topoptlab.blocksparse_precond import create_primitive_blocks
+from topoptlab.blocksparse.make_blocks import create_equal_blocks
 
 if __name__ == "__main__":
     #
@@ -26,7 +26,7 @@ if __name__ == "__main__":
     # algebraic multigrid
     amg_mask = standard_coarsening(A=L)
     # block_precond
-    block_masks = create_primitive_blocks(A=L,nblocks=2)
+    block_masks = create_equal_blocks(A=L,nblocks=2)
     #
     fig,axs = plt.subplots(1,3)
     #

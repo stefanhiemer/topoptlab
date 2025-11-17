@@ -51,6 +51,10 @@ def apply_multigrid(b : np.ndarray,
         maximum number of cycles.
     nlevels : int
         number of grid levels.
+    conv_criterium : callable
+        converge criterion.
+    conv_args : dict
+        arguments regarding the convergence criterion.
 
     Returns
     -------
@@ -68,7 +72,7 @@ def apply_multigrid(b : np.ndarray,
     r = b - A@x
     for i in np.arange(max_cycles):
         # check convergence
-        if conv_criterium(r=r,tol=tol,**conv_args):
+        if conv_criterium(r=r,atol=tol,**conv_args):
             break
         # one
         x[:],info_cycle = cycle(A=A,b=b,x0=x,

@@ -10,7 +10,7 @@ def cahn_hilliard_fft(ndim=2, grid_size=128,
                       seed=0,
                       dtype=np.float32):
     """
-    Solves the Cahn-Hilliard equation using a pseudo spectrail method via 
+    Solves the Cahn-Hilliard equation using a pseudo spectral method via 
     operator split and explicit time integration.
 
     Parameters

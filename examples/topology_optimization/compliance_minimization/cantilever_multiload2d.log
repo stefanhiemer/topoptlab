@@ -1,0 +1,13 @@
+optimizer mma
+number of spatial dimensions: 2
+elements: 150 x 150
+volfrac: 0.4 rmin: 6.0  penal: 3.0
+filter: Sensitivity based
+filter mode: matrix
+it.: 1 obj.: 553.5316173290 vol.: 0.3847227831 ch.: 0.1999999951
+it.: 2 obj.: 339.1803629765 vol.: 0.3914807542 ch.: 0.1999999742
+it.: 3 obj.: 250.9407822952 vol.: 0.3939603251 ch.: 0.1999999086
+it.: 4 obj.: 209.1227930520 vol.: 0.3949394635 ch.: 0.1474555418
+it.: 5 obj.: 186.5012600982 vol.: 0.3957916632 ch.: 0.1297814871
+it.: 6 obj.: 168.8906790236 vol.: 0.3960847130 ch.: 0.1999966850
+it.: 7 obj.: 155.1503819734 vol.: 0.3955575524 ch.: 0.1999996651

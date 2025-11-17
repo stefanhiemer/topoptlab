@@ -125,19 +125,21 @@ def base_cell(ndim: int,
 
 def determine_nodeinds(vertices: Tuple,
                        basis_funcs: Union[List, ScalarFunction],
-                       ndim: int) -> List:
+                       ndim: int,
+                       autoshift: bool = True) -> List:
     """
     Find index of each vertex by finding the basis function that amounts to 1.
 
     For a set of vertex coordinates, determine to which basis function each
     vertex corresponds. Keep in mind that the current default unit cell used
-    by symfem is in the interval [0,1] whereas mine is typically in the
-    interval [-1,1].
+    by symfem is in the interval [0,1] whereas topoptlab's is typically in the
+    interval [-1,1]. If ´autoshift´ is True, I assume the cell to be within 
+    [-1,1].
 
     Parameters
     ----------
     vertices : tuple
-        coordinates of vertices as created by base cell
+        coordinates of vertices as created by base_cell
     basis_funcs : list of symfem.functions.ScalarFunction
         list of basis functions which are usually extracted by calling
         element.get_basis_functions().
@@ -153,7 +155,8 @@ def determine_nodeinds(vertices: Tuple,
     inds = []
     for vertex in vertices:
         # shift from interval [-1,1] to [0,1]
-        vertex = [c/2 + 1/2 for c in vertex]
+        if autoshift:
+            vertex = [c/2 + 1/2 for c in vertex]
         # evaluate basis functions at vertex
         ind = [i for i,func in enumerate(basis_funcs) \
                if func.subs(vars=["x","y", "z"][:ndim], values=vertex)==1]
