@@ -87,10 +87,11 @@ routine (`topology_optimization`) in which users can exchange components
 arguments. It may also serve as a reference implementation which can be used as 
 test case for existing HPC codes that want to incorporate TO in their software.
 An example demonstrating the topology_optimization routine, as well as links to 
-from-scratch implementations, are available in the project README on the 
-repository while tutorials, derivations and explanations of the background of 
-TO are in the documentation. A more extensive list of examples can be found in 
-the `examples` section of the repository.
+from-scratch implementations, are available in the [`README.md`](https://github.com/stefanhiemer/topoptlab/blob/main/README.md) 
+while tutorials, derivations and explanations of the background of TO are in 
+the documentation. A more extensive list of examples can be found in the 
+[`examples](https://github.com/stefanhiemer/topoptlab/tree/main/examples) 
+section of the repository.
 
 *Topoptlab* offers the components needed for TO such as different material 
 interpolation schemes (SIMP, RAMP, and bound-based interpolation), filters for 
