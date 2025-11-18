@@ -90,7 +90,7 @@ An example demonstrating the topology_optimization routine, as well as links to
 from-scratch implementations, are available in the [`README.md`](https://github.com/stefanhiemer/topoptlab/blob/main/README.md) 
 while tutorials, derivations and explanations of the background of TO are in 
 the documentation. A more extensive list of examples can be found in the 
-[`examples](https://github.com/stefanhiemer/topoptlab/tree/main/examples) 
+[`examples`](https://github.com/stefanhiemer/topoptlab/tree/main/examples) 
 section of the repository.
 
 *Topoptlab* offers the components needed for TO such as different material 
