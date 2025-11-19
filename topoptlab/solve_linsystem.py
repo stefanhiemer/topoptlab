@@ -4,7 +4,9 @@ from functools import partial
 
 import numpy as np
 from scipy.sparse import csc_array
-from scipy.sparse.linalg import spsolve,cg, spilu, LinearOperator, factorized, LaplacianNd, aslinearoperator
+from scipy.sparse.linalg import spsolve,cg, bicg, spilu, LinearOperator,\
+                                factorized, LaplacianNd, aslinearoperator,\
+                                gmres
 
 from cvxopt import matrix,spmatrix
 from cvxopt.cholmod import solve,symbolic,numeric
@@ -91,8 +93,9 @@ def solve_lin(K: Union[csc_array,spmatrix], rhs: Union[np.ndarray,matrix],
         #linsolve(K,B)
         return np.array(B), factorization, None
     
-    ### iterative solvers
+    ### preconditioners for iterative solvers
     if P is None and preconditioner is not None:
+        # scipy
         if preconditioner == "scipy-ilu":
             ilu = spilu(K, **preconditioner_kw)
             P = LinearOperator(shape=K.shape,
@@ -117,8 +120,10 @@ def solve_lin(K: Union[csc_array,spmatrix], rhs: Union[np.ndarray,matrix],
             P,work = adaptive_sa_solver(A=K,
                                         **preconditioner_kw)
             P = P.aspreconditioner(cycle='V')
+        #
+        
     
-    # without preconditioner, bad idea. Purely there for testing
+    ### iterative solvers: without preconditioner, bad idea.
     if solver == "scipy-cg":
         # more than one set of boundary conditions to solve
         if rhs.shape[1] == 1:
@@ -139,6 +144,50 @@ def solve_lin(K: Union[csc_array,spmatrix], rhs: Union[np.ndarray,matrix],
                                    **solver_kw)
                 if fail != 0:
                     raise RuntimeError("cg iteration did not converge for bc ",
+                                       i)
+        return sol, None, P
+    elif solver == "scipy-bicg":
+        # more than one set of boundary conditions to solve
+        if rhs.shape[1] == 1:
+            sol,fail = bicg(A=K, b=rhs,  
+                            x0=rhs0,
+                            M=P,
+                            **solver_kw)
+            # shape consistent
+            sol = sol[:,None]
+            if fail != 0:
+                raise RuntimeError("bicg iteration did not converge.")
+        else:
+            sol = np.zeros(rhs.shape)
+            for i in np.arange(rhs.shape[1]):
+                sol[:,i],fail = bicg(A=K, b=rhs[:,i],
+                                     x0=rhs0[:,i],
+                                     M=P, 
+                                     **solver_kw)
+                if fail != 0:
+                    raise RuntimeError("bicg iteration did not converge for bc ",
+                                       i)
+        return sol, None, P
+    elif solver == "scipy-gmres":
+        # more than one set of boundary conditions to solve
+        if rhs.shape[1] == 1:
+            sol,fail = gmres(A=K, b=rhs,  
+                             x0=rhs0,
+                             M=P,
+                             **solver_kw)
+            # shape consistent
+            sol = sol[:,None]
+            if fail != 0:
+                raise RuntimeError("gmres iteration did not converge.")
+        else:
+            sol = np.zeros(rhs.shape)
+            for i in np.arange(rhs.shape[1]):
+                sol[:,i],fail = gmres(A=K, b=rhs[:,i],
+                                      x0=rhs0[:,i],
+                                      M=P, 
+                                      **solver_kw)
+                if fail != 0:
+                    raise RuntimeError("gmres iteration did not converge for bc ",
                                        i)
         return sol, None, P
     elif solver == "topoptlab-pcg":
