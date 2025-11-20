@@ -122,6 +122,9 @@ def update_mma(x,xold1,xold2,xPhys,
                nconstr,xmin,xmax,low,upp,
                a0,a,c,d,move,
                **kwargs):
+    """
+    This function is purely legacy and will be removed in future versions.
+    """
     mu0 = 1.0 # Scale factor for objective function
     mu1 = 1.0 # Scale factor for volume constraint function
     f0val = mu0*obj 

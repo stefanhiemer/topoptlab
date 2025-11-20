@@ -4,6 +4,8 @@ from typing import Any,Dict,List,Tuple,Union
 import numpy as np
 from scipy.ndimage import zoom
 
+from topoptlab.optimizer.mma_utils import mma_defaultkws, gcmma_defaultkws
+
 def default_outputkw() -> Dict:
     """
     Return the default dictionary containing general parameters for output
@@ -66,6 +68,54 @@ def check_output_kw(output_kw: Dict) -> None:
     for key in missing_keys:
         output_kw[key] = default_kw[key]
     return
+
+def check_optimizer_kw(optimizer: str, 
+                       n : int,
+                       ft : int,
+                       n_constr : int,
+                       optimizer_kw: Dict) -> None:
+    """
+    Check that general optimuer parameters are sensible or implemented and 
+    insert missing ones based on the default dictionary.
+
+    Parameters
+    ----------
+    optimizer : str
+        name of optimizer.
+    n : int
+        number of design variables.
+    ft : int
+        code for filter.
+    n_constr : int 
+        number of constraints.
+    optimizer_kw : dictionary
+        contains parameters for the optimizern . All relevant 
+        values can be found in default_outputkw.
+
+    Returns
+    -------
+    None
+    
+    """
+    #
+    if optimizer_kw is None:
+        optimizer_kw = dict()
+    #
+    if optimizer == "mma":
+        default_kw = mma_defaultkws(n = n,
+                                    ft = ft,
+                                    n_constr = n_constr)
+    elif optimizer == "gcmma":
+        default_kw = gcmma_defaultkws(n = n,
+                                      ft = ft,
+                                      n_constr = n_constr)
+    elif optimizer in ["oc","ocm","oc88","ocg"]:
+        default_kw = {}
+    #
+    missing_keys = set(default_kw.keys()) - set(optimizer_kw.keys())
+    for key in missing_keys:
+        optimizer_kw[key] = default_kw[key] 
+    return optimizer_kw
 
 def check_simulation_params(simulation_kw: Dict) -> None:
     """

@@ -12,11 +12,6 @@ from topoptlab.linear_solvers import smoothed_jacobi
 from topoptlab.multigrid import multigrid_preconditioner, apply_multigrid, vcycle
 from topoptlab.amg import create_interpolators_amg
 
-def just_cg(A, b, rtol=1e-5):
-    #
-    x,info = cg(A,b,rtol=rtol)
-    return x
-
 def block_preconditioner(A, b, 
                          nblocks=2, 
                          block_solver=splu,

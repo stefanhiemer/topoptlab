@@ -82,6 +82,8 @@ def pcg(A: sparray, b: np.ndarray,
         convergence criterium.
     conv_args : dict
         additional arguments for convergence criterium.
+    logger : BaseLogger
+        logger object to log performance.
         
     Returns
     -------
@@ -169,6 +171,8 @@ def cg(A: sparray, b: np.ndarray,
         convergence criterium.
     conv_args : dict
         additional arguments for convergence criterium.
+    logger : BaseLogger
+        logger object to log performance.
         
     Returns
     -------
@@ -227,6 +231,7 @@ def gauss_seidel(A: sparray, b: np.ndarray,
                  U: Union[None,sparray] = None,
                  conv_criterium: Callable = res_norm,
                  conv_args: Dict = {},
+                 logger: Union[EmptyLogger,SimpleLogger] = EmptyLogger(),
                  **kwargs: Any) -> Tuple[np.ndarray,int]:
     """
     Gauss-Seidel solver for Ax = b. We re-write each iteration as with the 
@@ -257,6 +262,8 @@ def gauss_seidel(A: sparray, b: np.ndarray,
         convergence criterium.
     conv_args : dict
         additional arguments for convergence criterium.
+    logger : BaseLogger
+        logger object to log performance.
 
     Returns
     -------
@@ -285,6 +292,7 @@ def gauss_seidel(A: sparray, b: np.ndarray,
     for i in np.arange(max_iter):
         # check convergence
         if conv_criterium(r=r,atol=atol,**conv_args):
+            logger.perf(f"Gauss-Seidel it. {i}")
             i = 0
             break
         # SRO update
@@ -301,6 +309,7 @@ def smoothed_jacobi(A: sparray, b: np.ndarray,
                     atol: float = 1e-8, max_iter: int = 1000,
                     conv_criterium: Callable = res_norm,
                     conv_args: Dict = {},
+                    logger: Union[EmptyLogger,SimpleLogger] = EmptyLogger(),
                     **kwargs: Any) -> Tuple[np.ndarray,int]:
     """
     Smoothed Jacobi iterative solver for `Ax = b`. Iterate until the residual 
@@ -325,6 +334,8 @@ def smoothed_jacobi(A: sparray, b: np.ndarray,
         convergence criterium.
     conv_args : dict
         additional arguments for convergence criterium.
+    logger : BaseLogger
+        logger object to log performance.
 
     Returns
     -------
@@ -351,6 +362,7 @@ def smoothed_jacobi(A: sparray, b: np.ndarray,
     for i in np.arange(max_iter):
         # check convergence
         if conv_criterium(r=r,atol=atol,**conv_args):
+            logger.perf(f"Smoothed-Jacobi it. {i}")
             i = 0
             break
         # smoothed Jacobi update
@@ -365,6 +377,7 @@ def modified_richardson(A: sparray, b: np.ndarray,
                         atol: float = 1e-8, max_iter: int = 1000,
                         conv_criterium: Callable = res_norm,
                         conv_args: Dict = {},
+                        logger: Union[EmptyLogger,SimpleLogger] = EmptyLogger(),
                         **kwargs: Any) -> Tuple[np.ndarray,int]:
     """
     Modified Richardson iterative solver for `Ax=b`. Iterate until the residual 
@@ -389,6 +402,8 @@ def modified_richardson(A: sparray, b: np.ndarray,
         convergence criterium.
     conv_args : dict
         additional arguments for convergence criterium.
+    logger : BaseLogger
+        logger object to log performance.
 
     Returns
     -------
@@ -413,6 +428,7 @@ def modified_richardson(A: sparray, b: np.ndarray,
     for i in np.arange(max_iter):
         # check convergence
         if conv_criterium(r=r,atol=atol,**conv_args):
+            logger.perf(f"modified Richardson it. {i}")
             i = 0
             break
         # richardson update
@@ -422,15 +438,17 @@ def modified_richardson(A: sparray, b: np.ndarray,
     return x, i
 
 def successive_overrelaxation(A: sparray, b: np.ndarray, 
-                              x0: Union[None,np.ndarray] = None, 
-                              omega: float = 0.5, 
-                              atol: float = 1e-8, max_iter: int = 1000,
-                              D: Union[None,sparray] = None, 
-                              A_u: Union[None,sparray] = None, 
-                              A_l: Union[None,sparray] = None,
-                              conv_criterium: Callable = res_norm,
-                              conv_args: Dict = {},
-                              **kwargs: Any) -> Tuple[np.ndarray,int]:
+                       x0: Union[None,np.ndarray] = None, 
+                       omega: float = 0.5, 
+                       atol: float = 1e-8, 
+                       max_iter: int = 1000,
+                       D: Union[None,sparray] = None, 
+                       A_u: Union[None,sparray] = None, 
+                       A_l: Union[None,sparray] = None,
+                       conv_criterium: Callable = res_norm,
+                       conv_args: Dict = {},
+                       logger: Union[EmptyLogger,SimpleLogger] = EmptyLogger(),
+                       **kwargs: Any) -> Tuple[np.ndarray,int]:
     """
     Successive over-relaxation (SRO) solver for `Ax=b`. We rewrite 
     
@@ -468,6 +486,8 @@ def successive_overrelaxation(A: sparray, b: np.ndarray,
         convergence criterium.
     conv_args : dict
         additional arguments for convergence criterium.
+    logger : BaseLogger
+        logger object to log performance.
 
     Returns
     -------
@@ -497,6 +517,7 @@ def successive_overrelaxation(A: sparray, b: np.ndarray,
     for i in np.arange(max_iter):
         # check convergence
         if conv_criterium(r=r,atol=atol,**conv_args):
+            logger.perf(f"successive overrelaxation it. {i}")
             i = 0
             break
         # SRO update

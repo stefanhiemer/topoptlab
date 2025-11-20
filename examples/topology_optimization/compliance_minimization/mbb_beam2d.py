@@ -44,7 +44,7 @@ if __name__ == "__main__":
     #
     x,obj = main(nelx=nelx, nely=nely, volfrac=volfrac, penal=penal,
                  rmin=rmin, ft=ft, filter_mode="matrix",
-                 optimizer="oc",
+                 optimizer="mma",
                  assembly_mode="full",
                  nouteriter=2000,
                  bcs=mbb_2d,

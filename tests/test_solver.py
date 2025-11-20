@@ -1,5 +1,4 @@
 from numpy.testing import assert_almost_equal
-from numpy import array
 
 import pytest
 
@@ -10,7 +9,11 @@ from topoptlab.example_bc.lin_elast import mbb_2d,mbb_3d
                          [(10,3,0.5,0,2.4,"scipy-direct",None,mbb_2d),
                           (10,3,0.5,1,2.4,"scipy-cg",None,mbb_2d),
                           (10,3,0.5,1,2.4,"scipy-bicg",None,mbb_2d),
+                          (10,3,0.5,1,2.4,"scipy-cgs",None,mbb_2d),
+                          (10,3,0.5,1,2.4,"scipy-minres",None,mbb_2d),
+                          (10,3,0.5,1,2.4,"scipy-lgmres",None,mbb_2d),
                           (10,3,0.5,1,2.4,"scipy-gmres","scipy-ilu",mbb_2d),
+                          (10,3,0.5,1,2.4,"scipy-gcrotmk",None,mbb_2d),
                           (10,3,0.5,1,2.4,"scipy-cg","scipy-ilu",mbb_2d),
                           (10,3,0.5,1,2.4,"cvxopt-cholmod",None,mbb_2d),
                           (10,3,0.5,1,2.4,"scipy-cg","pyamg-adaptive_sa",mbb_2d),
@@ -43,8 +46,8 @@ def test_compliance_1(nelx, nely, volfrac,
                   rmin=rmin, ft=ft,
                   filter_mode="matrix",optimizer="oc",
                   bcs=bcs,
-                  lin_solver_kw = {"name": solver,
-                                   "maxiter": 1000},
+                  lin_solver_kw = {"name": solver, "rtol": 1e-10,
+                                   "maxiter": 10000},
                   preconditioner_kw = {"name": preconditioner},
                   output_kw = {"file": None,
                                "display": False,

@@ -119,26 +119,3 @@ def create_quantile_blocks(xPhys : np.ndarray,
         done[mask] = True
         i = i + 1
     return block_nd_inds
-
-if __name__ == "__main__":
-    #
-    from topoptlab.elements.bilinear_quadrilateral import create_edofMat
-    #
-    nelx = 4
-    nely = 4
-    #
-    xPhys = (np.arange(1,nelx*nely+1)/nelx*nely)[:,None]
-    #
-    print(create_equal_blocks(n_nodes=int( (nelx+1)*(nely+1)) , 
-                              nblocks=4,
-                              nnode_dof=2))
-    #
-    print(create_volthresh_blocks(xPhys=xPhys,
-                            volfrac=0.5,
-                            edofMat=create_edofMat(nelx=nelx,nely=nely,nelz=None,
-                                                  nnode_dof=2)[0]))
-    #
-    print(create_quantile_blocks(xPhys=xPhys,
-                           quantiles=[0.25,0.5,0.75],
-                           edofMat=create_edofMat(nelx=nelx,nely=nely,nelz=None,
-                                                  nnode_dof=2)[0]))

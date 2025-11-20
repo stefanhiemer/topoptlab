@@ -37,7 +37,7 @@ from topoptlab.output_designs import export_vtk
 # map element data to img/voxel
 from topoptlab.utils import map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel,\
                             check_simulation_params,dict_without,\
-                            default_outputkw,check_output_kw
+                            default_outputkw,check_output_kw,check_optimizer_kw
 # logging related stuff
 from topoptlab.log_utils import EmptyLogger,SimpleLogger
 #
@@ -98,11 +98,6 @@ def main(nelx: int, nely: int,
         "helmholtz". If "matrix", then density/sensitivity filters are
         implemented via a sparse matrix and applied by multiplying
         said matrix with the densities/sensitivities.
-    solver : str
-        solver for linear systems. Check function lin solve for available
-        options.
-    preconditioner : str or None
-        preconditioner for linear systems.
     assembly_mode : str
         whether full or only lower triangle of linear system / matrix is
         created.
@@ -218,27 +213,25 @@ def main(nelx: int, nely: int,
         n_constr += 1
     constrs = np.zeros( (n_constr, 1) )
     dconstrs = np.zeros( (n, n_constr) )
-    # initialize solver
-    if optimizer_kw is None:
-        if optimizer in ["oc","ocm","ocg"]:
-            # must be initialized to use the NGuyen/Paulino OC approach
-            g = 0
-            #
-            max_history = 2
-        elif optimizer == "mma":
-            # mma needs results of the two previous iterations
-            max_history = 3
-            #
-            if optimizer_kw is None:
-                optimizer_kw = mma_defaultkws(x.shape[0],ft=ft,n_constr=1)
-        elif optimizer == "gcmma":
-            # gcmma needs results of the two previous iterations
-            max_history = 3
-            #
-            if optimizer_kw is None:
-                optimizer_kw = gcmma_defaultkws(x.shape[0],ft=ft,n_constr=1)
-        else:
-            raise ValueError("Unknown optimizer: ", optimizer)
+    # initialize history length needed for optimizer
+    optimizer_kw = check_optimizer_kw(optimizer=optimizer,
+                                      n=x.shape[0],
+                                      ft=ft,
+                                      n_constr=1,
+                                      optimizer_kw=optimizer_kw)
+    if optimizer in ["oc","ocm","ocg"]:
+        # must be initialized to use the NGuyen/Paulino OC approach
+        g = 0
+        #
+        max_history = 2
+    elif optimizer == "mma":
+        # mma needs results of the two previous iterations
+        max_history = 3
+    elif optimizer == "gcmma":
+        # gcmma needs results of the two previous iterations
+        max_history = 3
+    else:
+        raise ValueError("Unknown optimizer: ", optimizer)
     # handle element element flags
     if el_flags is not None and optimizer in ["mma","gcmma"]:
         # passive
@@ -438,12 +431,13 @@ def main(nelx: int, nely: int,
             K = apply_bc(K=K,solver=lin_solver,
                          free=free,fixed=fixed)
             # solve linear system. fact is a factorization and precond a preconditioner
-            u[free, :], fact, precond = solve_lin(K=K, rhs=rhs[free],
-                                      rhs0=u[free,:],
-                                      solver=lin_solver,
-                                      solver_kw=lin_solver_kw,
-                                      preconditioner=preconditioner,
-                                      preconditioner_kw=preconditioner_kw)
+            u[free, :], fact, precond = solve_lin(K=K, 
+                                           rhs=rhs[free],
+                                           rhs0=u[free,:],
+                                           solver=lin_solver,
+                                           solver_kw=lin_solver_kw,
+                                           preconditioner=preconditioner,
+                                           preconditioner_kw=preconditioner_kw)
             # objective and sensitivities with regards to object
             obj = 0
             dobj[:] = 0.
@@ -463,12 +457,15 @@ def main(nelx: int, nely: int,
                     #dobj[:] += rhs_adj
                     adj[free,i] = rhs_adj[free,i]
                 else:
-                    adj[free,i:i+1],_,_ = solve_lin(K, rhs=rhs_adj[free,i:i+1],
-                                            rhs0=adj[free,i:i+1],
-                                            solver=lin_solver,
-                                            solver_kw=lin_solver_kw,
-                                            P=precond,
-                                            preconditioner=preconditioner)
+                    adj[free,i:i+1],_,_ = solve_lin(K, 
+                                           rhs=rhs_adj[free,i:i+1],
+                                           rhs0=adj[free,i:i+1],
+                                           solver=lin_solver,
+                                           solver_kw=lin_solver_kw,
+                                           factorization=fact,
+                                           P=precond,
+                                           preconditioner=preconditioner,
+                                           preconditioner_kw=preconditioner_kw)
                 # update sensitivity for quantities that need a small offset to
                 # avoid degeneracy of the FE problem
                 # standard contribution of element stiffness/conductivity

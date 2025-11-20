@@ -4,9 +4,9 @@ from functools import partial
 
 import numpy as np
 from scipy.sparse import csc_array
-from scipy.sparse.linalg import spsolve,cg, bicg, spilu, LinearOperator,\
+from scipy.sparse.linalg import spsolve,cg, bicg, cgs, spilu, LinearOperator,\
                                 factorized, LaplacianNd, aslinearoperator,\
-                                gmres
+                                gmres, lgmres, minres, qmr, tfqmr, gcrotmk
 
 from cvxopt import matrix,spmatrix
 from cvxopt.cholmod import solve,symbolic,numeric
@@ -21,9 +21,10 @@ def solve_lin(K: Union[csc_array,spmatrix], rhs: Union[np.ndarray,matrix],
               solver: str,
               rhs0: Union[None,np.ndarray,matrix] = None,
               solver_kw: Dict = {},
+              factorization: Union[None,Callable] = None,
               preconditioner: Union[None,str] = None,
-              P: Union[None,Callable,spmatrix,csc_array] = None,
               preconditioner_kw: Dict = {},
+              P: Union[None,Callable,spmatrix,csc_array] = None,
               logger: Union[EmptyLogger,SimpleLogger] = EmptyLogger,
               **kwargs: Any
               ) -> Tuple[np.ndarray, 
@@ -41,14 +42,24 @@ def solve_lin(K: Union[csc_array,spmatrix], rhs: Union[np.ndarray,matrix],
     rhs : np.ndarray or cvxopt.base.matrix (ndof_free,nbc)
         right hand side of linear system.
     solver : str
-        string that indicates the library and type of solver to be used.
+        string that indicates the library and type of solver to be used 
+        according to the scheme "library-solvername". Current libraries are 
+        "scipy", "pyamg" and "topoptlab". All iterative solvers of scipy.sparse
+        are included under identical names. "topoptlab" has a preconditioned 
+        conjugate gradient solver "pcg" capable of logging process and "cg" 
+        without preconditioning.
     rhs0 : None or np.ndarray or cvxopt.base.matrix (ndof_free,nbc)
         initial guess for right hand side of linear system. Only relevant for
         iterative solvers.
     solver_kw : dict
         arguments for the solver.
     preconditioner : str
-        string that indicates preconditioner to be used.
+        string that indicates the library and type of preconditioner to be used 
+        according to the scheme "library-solvername". Current libraries are 
+        "scipy", "pyamg" and "topoptlab". Scipy has only "ilu". pyamg has 
+        "air", "ruge_stuben", "smoothed_aggregation", "rootnode", "pairwise" 
+        and "adaptive_sa". For details regarding keywords, check the pyamg 
+        documentation.
     preconditioner_kw : dict
         arguments for the preconditioner.
     P : callable or sparse matrix format
@@ -76,7 +87,8 @@ def solve_lin(K: Union[csc_array,spmatrix], rhs: Union[np.ndarray,matrix],
             return spsolve(K, rhs), None, None
     # lu decomposition with either with SuperLU or umfpack
     elif solver == "scipy-lu":
-        lu_solve = factorized(K)
+        if factorization is None:
+            lu_solve = factorized(K)
         if rhs.shape[1] == 1:
             sol =  lu_solve(rhs)[:,None]
         else:
@@ -87,7 +99,8 @@ def solve_lin(K: Union[csc_array,spmatrix], rhs: Union[np.ndarray,matrix],
     # sparse cholesky decomposition
     elif solver == "cvxopt-cholmod":
         B = matrix(rhs)
-        factorization = symbolic(K, uplo='L')
+        if factorization is None:
+            factorization = symbolic(K, uplo='L')
         numeric(K, factorization)
         solve(factorization, B)
         #linsolve(K,B)
@@ -120,10 +133,11 @@ def solve_lin(K: Union[csc_array,spmatrix], rhs: Union[np.ndarray,matrix],
             P,work = adaptive_sa_solver(A=K,
                                         **preconditioner_kw)
             P = P.aspreconditioner(cycle='V')
-        #
+        # topoptlab preconditioner
         
     
     ### iterative solvers: without preconditioner, bad idea.
+    # scipy.sparse solvers
     if solver == "scipy-cg":
         # more than one set of boundary conditions to solve
         if rhs.shape[1] == 1:
@@ -168,6 +182,28 @@ def solve_lin(K: Union[csc_array,spmatrix], rhs: Union[np.ndarray,matrix],
                     raise RuntimeError("bicg iteration did not converge for bc ",
                                        i)
         return sol, None, P
+    elif solver == "scipy-cgs":
+        # more than one set of boundary conditions to solve
+        if rhs.shape[1] == 1:
+            sol,fail = cgs(A=K, b=rhs,  
+                           x0=rhs0,
+                           M=P,
+                           **solver_kw)
+            # shape consistent
+            sol = sol[:,None]
+            if fail != 0:
+                raise RuntimeError("cgs iteration did not converge.")
+        else:
+            sol = np.zeros(rhs.shape)
+            for i in np.arange(rhs.shape[1]):
+                sol[:,i],fail = cgs(A=K, b=rhs[:,i],
+                                    x0=rhs0[:,i],
+                                    M=P, 
+                                    **solver_kw)
+                if fail != 0:
+                    raise RuntimeError("cgs iteration did not converge for bc ",
+                                       i)
+        return sol, None, P
     elif solver == "scipy-gmres":
         # more than one set of boundary conditions to solve
         if rhs.shape[1] == 1:
@@ -190,6 +226,118 @@ def solve_lin(K: Union[csc_array,spmatrix], rhs: Union[np.ndarray,matrix],
                     raise RuntimeError("gmres iteration did not converge for bc ",
                                        i)
         return sol, None, P
+    elif solver == "scipy-lgmres":
+        # more than one set of boundary conditions to solve
+        if rhs.shape[1] == 1:
+            sol,fail = lgmres(A=K, b=rhs,  
+                             x0=rhs0,
+                             M=P,
+                             **solver_kw)
+            # shape consistent
+            sol = sol[:,None]
+            if fail != 0:
+                raise RuntimeError("lgmres iteration did not converge.")
+        else:
+            sol = np.zeros(rhs.shape)
+            for i in np.arange(rhs.shape[1]):
+                sol[:,i],fail = lgmres(A=K, b=rhs[:,i],
+                                      x0=rhs0[:,i],
+                                      M=P, 
+                                      **solver_kw)
+                if fail != 0:
+                    raise RuntimeError("lgmres iteration did not converge for bc ",
+                                       i)
+        return sol, None, P
+    elif solver == "scipy-minres":
+        # more than one set of boundary conditions to solve
+        if rhs.shape[1] == 1:
+            sol,fail = minres(A=K, b=rhs,  
+                              x0=rhs0,
+                              M=P,
+                              **solver_kw)
+            # shape consistent
+            sol = sol[:,None]
+            if fail != 0:
+                raise RuntimeError("minres iteration did not converge.")
+        else:
+            sol = np.zeros(rhs.shape)
+            for i in np.arange(rhs.shape[1]):
+                sol[:,i],fail = minres(A=K, b=rhs[:,i],
+                                       x0=rhs0[:,i],
+                                       M=P, 
+                                       **solver_kw)
+                if fail != 0:
+                    raise RuntimeError("minres iteration did not converge for bc ",
+                                        i)
+        return sol, None, P
+    elif solver == "scipy-qmr":
+        # more than one set of boundary conditions to solve
+        if rhs.shape[1] == 1:
+            sol,fail = qmr(A=K, b=rhs,  
+                              x0=rhs0,
+                              M=P,
+                              **solver_kw)
+            # shape consistent
+            sol = sol[:,None]
+            if fail != 0:
+                raise RuntimeError("qmr iteration did not converge.")
+        else:
+            sol = np.zeros(rhs.shape)
+            for i in np.arange(rhs.shape[1]):
+                sol[:,i],fail = qmr(A=K, b=rhs[:,i],
+                                       x0=rhs0[:,i],
+                                       M=P, 
+                                       **solver_kw)
+                if fail != 0:
+                    raise RuntimeError("qmr iteration did not converge for bc ",
+                                        i)
+        return sol, None, P
+    elif solver == "scipy-tfqmr":
+        # more than one set of boundary conditions to solve
+        if rhs.shape[1] == 1:
+            sol,fail = tfqmr(A=K, b=rhs,  
+                              x0=rhs0,
+                              M=P,
+                              **solver_kw)
+            # shape consistent
+            sol = sol[:,None]
+            if fail != 0:
+                raise RuntimeError("tfqmr iteration did not converge.")
+        else:
+            sol = np.zeros(rhs.shape)
+            for i in np.arange(rhs.shape[1]):
+                sol[:,i],fail = tfqmr(A=K, b=rhs[:,i],
+                                       x0=rhs0[:,i],
+                                       M=P, 
+                                       **solver_kw)
+                if fail != 0:
+                    raise RuntimeError("tfqmr iteration did not converge for bc ",
+                                        i)
+        return sol, None, P
+    elif solver == "scipy-gcrotmk":
+        # more than one set of boundary conditions to solve
+        if rhs.shape[1] == 1:
+            sol,fail = gcrotmk(A=K, b=rhs,  
+                              x0=rhs0,
+                              M=P,
+                              **solver_kw)
+            # shape consistent
+            sol = sol[:,None]
+            if fail != 0:
+                raise RuntimeError("gcrotmk iteration did not converge.")
+        else:
+            sol = np.zeros(rhs.shape)
+            for i in np.arange(rhs.shape[1]):
+                sol[:,i],fail = gcrotmk(A=K, b=rhs[:,i],
+                                       x0=rhs0[:,i],
+                                       M=P, 
+                                       **solver_kw)
+                if fail != 0:
+                    raise RuntimeError("gcrotmk iteration did not converge for bc ",
+                                        i)
+        return sol, None, P
+    # pyamg
+    # topoptlab
     elif solver == "topoptlab-pcg":
         # more than one set of boundary conditions to solve
         sol = np.zeros(rhs.shape)

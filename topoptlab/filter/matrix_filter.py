@@ -176,20 +176,16 @@ def assemble_matrix_filter(nelx: int, nely: int,
         z,rest = np.divmod(el,nelx*nely)
         x,y = np.divmod(rest,nely)
         coords = np.column_stack( (np.divmod(rest,nely)+tuple([z])) )
-    print("coords: ",coords)
     # convert/round rmin to integer 
     dx = np.maximum(np.ceil(rmin)-1,np.zeros(ndim)).astype(int)
     # create stencil for neighbors
     neighbors = [np.arange(-d,d+1) for d in dx]
     neighbors = [n.flatten() for n in np.meshgrid(*neighbors, indexing='ij')]
     neighbors = np.column_stack(neighbors)
-    print("neighbors: ",neighbors)
     # calculate distance for neighbors
     r = np.linalg.norm(neighbors, axis=1, ord=2)
-    print("r: ",r)
     # create coordinates of neighbours for each element
-    neighbors = coords[:,None,:] + neighbors[None,:,:] 
-    print("neighbors: ",neighbors)
+    neighbors = coords[:,None,:] + neighbors[None,:,:]
     # apply boundary condtions
     # finite
     if not np.any(pbc):
