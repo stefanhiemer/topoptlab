@@ -3,7 +3,8 @@ from typing import Union,Any
 
 import numpy as np
 
-def gradient_descent(x: np.ndarray, dobj: np.ndarray, 
+def gradient_descent(x: np.ndarray, 
+                     dobj: np.ndarray, 
                      xmin: Union[float,np.ndarray], 
                      xmax: Union[float,np.ndarray], 
                      stepsize: float = 1e-4,

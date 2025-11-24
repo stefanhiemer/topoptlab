@@ -7,9 +7,9 @@ from symfem.functions import VectorFunction,MatrixFunction
 from symfem.symbols import x
 
 from topoptlab.symbolic.cell import base_cell 
-from topoptlab.symbolic.matrix_utils import  generate_constMatrix,\
-                                             generate_FunctMatrix,\
-                                             simplify_matrix 
+from topoptlab.symbolic.matrix_utils import generate_constMatrix,\
+                                            generate_FunctMatrix,\
+                                            simplify_matrix,from_vectorfunction
 from topoptlab.symbolic.parametric_map import jacobian
 
 def aniso_laplacian(ndim: int, K: Union[None,MatrixFunction] = None,
@@ -61,14 +61,14 @@ def aniso_laplacian(ndim: int, K: Union[None,MatrixFunction] = None,
 
 def nonlin_laplacian(ndim: int, 
                      K: Union[None,MatrixFunction] = None,
-                     linearization="picard",
+                     linearization="newton",
                      element_type: str = "Lagrange",
                      order: int = 1) -> MatrixFunction:
     """
     Symbolically compute the (tangent) conductivity matrix for the (informal) 
     an anisotropic nonlinear Laplacian operator at point phi_0
     
-    nabla^T @ K(phi) @ nabla phi,
+    nabla @ K(phi) @ nabla^T phi,
     
     of a scalar field phi. This is not(!) the Laplace operator in the strict 
     mathematical sense, but arises when equations, that are usually modelled 
@@ -102,23 +102,43 @@ def nonlin_laplacian(ndim: int,
                                                element_type=element_type,
                                                order=order)
     #
-    phi0 = generate_constMatrix(len(basis), nrow=1, name="phi0")
+    phi0 = generate_constMatrix(ncol=1, nrow=len(basis), name="phi0")
     # anisotropic heat conductivity or equivalent nonlinear material property
     if K is None:
         K = generate_FunctMatrix(ncol=ndim,nrow=ndim,
                                  name="k",
                                  variables=[symbols("phi")],
                                  symmetric=True)
-    print(K.subs( VectorFunction(basis).dot(phi0) ))
-    import sys 
-    sys.exit()
-    #
+    # collect things related to isoparametric mapping
     Jinv, Jdet = jacobian(ndim=ndim, element_type=element_type, order=order,
                           return_J=False, return_inv=True, return_det=True)
-    gradN = VectorFunction(basis).grad(ndim)@Jinv.transpose()
+    
     #
+    N = VectorFunction(basis)
+    gradN = N.grad(ndim)@Jinv.transpose()
+    # interpolate the node points of phi0
+    phi0_interpol = (phi0.transpose()@N)[0]
+    # this term occurs both in picard and newton iterations
     integrand = gradN@K@gradN.transpose()
+    if linearization == "newton":
+        #
+        N = from_vectorfunction(N)
+        integrand = integrand.subs("phi",values=phi0_interpol) + \
+                    integrand.diff(variable="phi")@phi0@N.transpose()
+        integrand = integrand.subs("phi",values=phi0_interpol)
+    elif linearization == "picard":
+        integrand = integrand.subs("phi",values=phi0_interpol)
     return simplify_matrix( (integrand* Jdet).integral(ref,x)) 
 
 if __name__ == "__main__":
-    nonlin_laplacian(ndim=1)
+    ndim = 2
+    K = generate_constMatrix(ncol=ndim,nrow=ndim,
+                             name="a",
+                             symmetric=True) + \
+        generate_constMatrix(ncol=ndim,nrow=ndim,
+                                 name="b",
+                                 symmetric=True).__mul__(symbols("phi"))
+    print(K,"\n")
+    print(nonlin_laplacian(ndim=ndim,
+                           K=K,
+                           linearization="picard"))

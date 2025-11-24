@@ -4,7 +4,7 @@ from itertools import product
 from math import sqrt
 
 from sympy import symbols, Symbol, Function
-from symfem.functions import ScalarFunction,MatrixFunction
+from symfem.functions import ScalarFunction,VectorFunction,MatrixFunction
 
 from topoptlab.symbolic.utils import is_equal
 
@@ -347,3 +347,22 @@ def matrix_equal(A: MatrixFunction, B: MatrixFunction) -> bool:
             if not is_equal(A[i,j],B[i,j]):
                 return False
     return True
+
+def from_vectorfunction(vectorfunc : VectorFunction) -> MatrixFunction:
+    """
+    From VectorFunction of length v generate MatrixFunction of shape (v,1) by 
+    storing values in a list of lists which is then converted to a 
+    MatrixFunction.
+
+    Parameters
+    ----------
+    vectorfunc : symfem.functions.VectorFunction
+        Vectorfunction of length v.
+
+    Returns
+    -------
+    M : symfem.functions.MatrixFunction
+        MatrixFunction of shape (v,1).
+
+    """
+    return MatrixFunction([[element] for element in vectorfunc]) 
