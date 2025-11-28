@@ -122,15 +122,13 @@ def check_inputs(xi: Union[float,np.ndarray],
         if len(xi.shape) != 1:
             raise ValueError("xi must be 1D: ",
                              xi.shape)
-        elif xi.shape[0]:
-            raise ValueError("xi must have same shape: ",
-                             xi.shape)
         else:
             ncoords = xi.shape[0]
     elif isinstance(xi,int) or isinstance(xi,float):
         ncoords = 1
     else:
         raise ValueError("Datatype of xi nconsistent.")
+    #
     if xe is not None:
         #
         xe_shape = xe.shape
@@ -192,9 +190,10 @@ def shape_functions_dxi(xi: Union[float,np.ndarray],
         ncoords = 1
     elif isinstance(xi,np.ndarray):
         ncoords = xi.shape
-    return 1/2 * np.array([[-1, 1]]) * np.ones(ncoords)[:,None]
+    return 1/2 * np.array([[-1, 1]]) * np.ones(ncoords)[:,None,None]
 
-def jacobian(xi: Union[float,np.ndarray], xe: np.ndarray,
+def jacobian(xi: Union[float,np.ndarray], 
+             xe: np.ndarray,
              all_elems: bool = False) -> np.ndarray:
     """
     Jacobian for linear interval Lagrangian element.
@@ -221,6 +220,7 @@ def jacobian(xi: Union[float,np.ndarray], xe: np.ndarray,
     """
     # check coordinates and node data for consistency
     xe,xi,_,_ = check_inputs(xi=xi,xe=xe,all_elems=all_elems)
+    print(xe.shape,shape_functions_dxi(xi=xi).shape)
     return shape_functions_dxi(xi=xi).transpose([0,2,1]) @ xe
 
 def invjacobian(xi: np.ndarray, 
@@ -264,12 +264,14 @@ def invjacobian(xi: np.ndarray,
         raise ValueError("Determinant of Jacobian negative.")
     # return inverse
     if not return_det:
-        return J**(-1)[:,None,None]
+        return (J**(-1))[:,None,None]
     else:
-        return J**(-1)[:,None,None], J
+        return (J**(-1))[:,None,None], J
 
-def bmatrix(xi: np.ndarray, eta: np.ndarray, xe: np.ndarray,
-            all_elems: bool = False, return_detJ: bool = False,
+def bmatrix(xi: np.ndarray,
+            xe: np.ndarray,
+            all_elems: bool = False, 
+            return_detJ: bool = False,
             **kwargs: Any) -> np.ndarray:
     """
     B matrix for linear interval Lagrangian element to calculate
@@ -279,9 +281,6 @@ def bmatrix(xi: np.ndarray, eta: np.ndarray, xe: np.ndarray,
     ----------
     xi : np.ndarray
         x coordinate in the reference domain of shape (ncoords).
-    eta : np.ndarray
-        y coordinate in the reference domain of shape (ncoords). Coordinates are assumed to be
-        in the reference domain.
     xe : np.ndarray
         coordinates of element nodes shape (nels,2,1). nels must be either 1,
         ncoords/2 or the same as ncoords. The two exceptions are if
@@ -296,31 +295,23 @@ def bmatrix(xi: np.ndarray, eta: np.ndarray, xe: np.ndarray,
 
     Returns
     -------
-    B : np.ndarray, shape (ncoords,3,8) or (nels,3,8)
+    B : np.ndarray, shape (ncoords,1,2) or (nels,1,2)
         B matrix.
     detJ : np.ndarray, shape (ncoords) or (nels)
            determinant of Jacobian.
 
     """
-    raise NotImplementedError("Not yet implemented")
     # check coordinates and node data for consistency
-    xe,xi,eta,_ = check_inputs(xi=xi,eta=eta,xe=xe,all_elems=all_elems)
+    xe,xi,_,_ = check_inputs(xi=xi,xe=xe,all_elems=all_elems)
     # collect inverse jacobians
     if not return_detJ:
-        invJ = invjacobian(xi=xi,eta=eta,xe=xe,
+        invJ = invjacobian(xi=xi,xe=xe,
                            return_det=return_detJ)
     else:
-        invJ,detJ = invjacobian(xi=xi,eta=eta,xe=xe,
+        invJ,detJ = invjacobian(xi=xi,xe=xe,
                                 return_det=return_detJ)
     # helper array to collect shape function derivatives
-    helper = np.zeros((invJ.shape[0],4,8))
-    shp = shape_functions_dxi(xi=xi,eta=eta).transpose([0,2,1])
-    helper[:,:2,::2] = shp
-    helper[:,2:,1::2] = shp.copy() # copy to avoid np.views
-    #
-    B = np.array([[1,0,0,0],
-                  [0,0,0,1],
-                  [0,1,1,0]])@np.kron(np.eye(2),invJ)@helper
+    B = shape_functions_dxi(xi)*invJ
     if not return_detJ:
         return B
     else:

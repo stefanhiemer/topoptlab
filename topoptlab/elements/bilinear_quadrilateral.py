@@ -158,6 +158,7 @@ def check_inputs(xi: Union[float,np.ndarray],
         ncoords = 1
     else:
         raise ValueError("Datatypes of xi and eta inconsistent.")
+    #
     if xe is not None:
         #
         xe_shape = xe.shape
@@ -381,7 +382,7 @@ def bmatrix(xi: np.ndarray, eta: np.ndarray, xe: np.ndarray,
     Returns
     -------
     B : np.ndarray, shape (ncoords,3,8) or (nels,3,8)
-        B matrix.
+        infinitesimal strain matrix or B matrix.
     detJ : np.ndarray, shape (ncoords) or (nels)
            determinant of Jacobian.
 

@@ -38,6 +38,43 @@ def sphere(nelx: int, nely: int, center: np.ndarray,
     el_flags[mask] = fill_value
     return el_flags
 
+def ellipse(nelx: int, nely: int,
+            center: np.ndarray,
+            ax_half_lengths: np.ndarray,
+            fill_value: int = 1) -> np.ndarray:
+    """
+    Create element flags for an axis-aligned ellipse.
+
+    Parameters
+    ----------
+    nelx : int
+        number of elements in x direction.
+    nely : int
+        number of elements in y direction.
+    center : np.ndarray
+        (cx, cy) coordinates of ellipse center.
+    ax_half_lengths : np.ndarray
+        (a, b) ellipse semi-axes lengths.
+    fill_value : int
+        value assigned to elements inside the ellipse.
+
+    Returns
+    -------
+    el_flags : np.ndarray
+        element flags of shape (nelx*nely)
+    """
+    n = nelx * nely
+    el = np.arange(n, dtype=np.int32)
+    i, j = np.divmod(el, nely)
+
+    # ellipse equation: ((x-cx)^2)/a^2 + ((y-cy)^2)/b^2 ≤ 1
+    a, b = ax_half_lengths
+    mask = ((i - center[0])**2) / a**2 + ((j - center[1])**2) / b**2 <= 1.0
+
+    el_flags = np.zeros(n, dtype=np.int32)
+    el_flags[mask] = fill_value
+    return el_flags
+
 def ball(nelx: int, nely: int, nelz: int, 
          center: np.ndarray, radius: float, 
          fill_value: int = 1) -> np.ndarray:
@@ -72,6 +109,43 @@ def ball(nelx: int, nely: int, nelz: int,
     i,j = np.divmod(ij,nely)
     mask = (i-center[0])**2 + (j-center[1])**2 + (k-center[2])**2 <= radius**2
     #
+    el_flags = np.zeros(n, dtype=np.int32)
+    el_flags[mask] = fill_value
+    return el_flags
+
+def ellipsoid(nelx: int, nely: int, nelz: int,
+            center: np.ndarray,
+            ax_half_lengths: np.ndarray,
+            fill_value: int = 1) -> np.ndarray:
+    """
+    Create element flags for an axis-aligned ellipse.
+
+    Parameters
+    ----------
+    nelx : int
+        number of elements in x direction.
+    nely : int
+        number of elements in y direction.
+    center : np.ndarray
+        (cx, cy, cz) coordinates of ellipse center.
+    ax_half_lengths : np.ndarray
+        (a, b,c) ellipse semi-axes lengths.
+    fill_value : int
+        value assigned to elements inside the ellipse.
+
+    Returns
+    -------
+    el_flags : np.ndarray
+        element flags of shape (nelx*nely)
+    """
+    n = nelx*nely*nelz
+    el = np.arange(n, dtype=np.int32)
+    k,ij = np.divmod(el,nelx*nely)
+    i,j = np.divmod(ij,nely)
+    # ellipse equation: ((x-cx)^2)/a^2 + ((y-cy)^2)/b^2 ≤ 1
+    a, b = ax_half_lengths
+    mask = ((i - center[0])**2) / a**2 + ((j - center[1])**2) / b**2 <= 1.0
+
     el_flags = np.zeros(n, dtype=np.int32)
     el_flags[mask] = fill_value
     return el_flags

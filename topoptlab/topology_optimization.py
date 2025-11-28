@@ -30,7 +30,6 @@ from topoptlab.solve_linsystem import solve_lin
 from topoptlab.material_interpolation import simp, simp_dx
 # constrained optimizers
 from topoptlab.optimizer.optimality_criterion import oc_top88,oc_mechanism,oc_generalized
-from topoptlab.optimizer.mma_utils import mma_defaultkws,gcmma_defaultkws
 from topoptlab.objectives import compliance
 # output final design to a Paraview readable format
 from topoptlab.output_designs import export_vtk
