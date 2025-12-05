@@ -43,7 +43,7 @@ def cahn_hilliard_fdm(ndim=2, grid_size=128,
     # fetch laplacian operator
     if ndim == 2:
         laplacian = laplacian_2d
-    elif ndim == 2:
+    elif ndim == 3:
         laplacian = laplacian_3d
     # set random seed
     np.random.seed(seed)
@@ -63,13 +63,13 @@ def cahn_hilliard_fdm(ndim=2, grid_size=128,
         # update concentration
         c[:] += dt * M * laplacian(f=mu,dx=dx)
         # plot concentration field for 2D
-        if ndim == 2 and step % (n_steps // 100) == 0 and display:
+        if ndim == 2 and step+1 % (n_steps // 100) == 0 and display:
             plt.imshow(c, cmap='RdBu', origin='lower')
             plt.colorbar(label='Concentration')
             plt.title(f"Step {step}")
             plt.pause(0.001)
             plt.clf()
-        if step % (n_steps // 100) == 0:
+        if step+1 % (n_steps // 100) == 0:
             print("time.: {0:.10f} min(c).: {1:.10f} max(c).: {2:.10f} volfrac.: {3:.10f}".format(
                          dt*(step+1), c.min(), c.max(), np.mean(c) * dx**ndim))
     #
@@ -105,9 +105,9 @@ def run_simulation(seed, gamma=0.5):
 
 if __name__ == "__main__":
     #
-    ndim = 2
-    n = 128
-    display=True
+    ndim = 3
+    n = 64
+    display=False
     #
     import sys
     if len(sys.argv)>1:
@@ -118,9 +118,9 @@ if __name__ == "__main__":
         display = bool(int(sys.argv[3]))
     # 
     cahn_hilliard_fdm(ndim=ndim, grid_size=n,
-                     dx=1.0, dt=0.04,
+                     dx=1.0, dt=0.02,
                      gamma=0.5, M=1.0,
-                     n_steps=int(1e5),
+                     n_steps=int(1e4),
                      display=display)
     
     #

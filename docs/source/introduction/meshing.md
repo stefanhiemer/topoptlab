@@ -48,19 +48,35 @@ as in the famous 88 line code{cite}`andreassen2011efficient` and its updated ver
 For scalar fields (e. g. temperature) the global degrees of freedom are 
 enumerated as follows (with elements as roman numbers) in 2D
 
- ![](/_static/meshnumbering-scalar-2d.png)
+```{image} /_static/meshnumbering-scalar-2d.png
+:align: center
+:alt: Mesh numbering
+:width: 400px
+```
 
 and in 3D 
 
- ![](/_static/meshnumbering-scalar-3d.png)
+```{image} /_static/meshnumbering-scalar-3d.png
+:align: center
+:alt: Mesh numbering
+:width: 600px
+```
 
 Vector fields in 2D are enumerated as
 
- ![](/_static/meshnumbering-vector-2d.png)
+```{image} /_static/meshnumbering-vector-2d.png
+:align: center
+:alt: Mesh numbering
+:width: 400px
+```
+
+and in 3D as
+
+```{image} /_static/meshnumbering-vector-3d.png
+:align: center
+:alt: Mesh numbering
+:width: 600px
+```
  
- and in 3D as
- 
- ![](/_static/meshnumbering-vector-3d.png)
- 
- To better view these numberings, you also directly plot them via 
+To better view these numberings, you also directly plot them via 
 [`topoptlab_mesh.py`](https://github.com/stefanhiemer/topoptlab/blob/main/docs/source/_static/topoptlab_mesh.py).

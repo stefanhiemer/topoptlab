@@ -48,7 +48,7 @@ def unstructured():
     l4 = gmsh.model.occ.addLine(p4, p1)
 
     cl = gmsh.model.occ.addCurveLoop([l1, l2, l3, l4])
-    surf = gmsh.model.occ.addPlaneSurface([cl])
+    gmsh.model.occ.addPlaneSurface([cl])
     gmsh.model.occ.synchronize()
 
     # Use default unstructured triangulation

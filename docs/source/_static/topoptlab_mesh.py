@@ -140,12 +140,103 @@ def plot_meshnumbering3d(nelx=4,nely=3,nelz=2,ndof=2):
                 format="png")
     plt.show()
     return
+
+def show_local_ordering(ndim: int,
+                        nodes: np.ndarray = np.array([[-1,-1,-1],
+                                                      [ 1,-1,-1],
+                                                      [ 1, 1,-1],
+                                                      [-1, 1,-1],
+                                                      [-1,-1, 1],
+                                                      [ 1,-1, 1],
+                                                      [ 1, 1, 1],
+                                                      [-1, 1, 1]]),
+                        box_nodes: np.ndarray = np.array([[-1,-1,-1],
+                                                          [ 1,-1,-1],
+                                                          [ 1, 1,-1],
+                                                          [-1, 1,-1],
+                                                          [-1,-1, 1],
+                                                          [ 1,-1, 1],
+                                                          [ 1, 1, 1],
+                                                          [-1, 1, 1]]),
+                        draw_axis: bool = True,
+                        origin: np.ndarray = np.array([-1.3, -1.3, -1.3])
+                        ) -> None:
+    # reduce coordinates to the necessary ones given the dimension
+    nodes = nodes[:int(2**ndim),:ndim]
+    box_nodes = box_nodes[:int(2**ndim),:ndim]
+    origin = origin[:ndim]
+    #
+    fig,ax = plt.subplots(1,1)
+    if ndim == 3:
+        gs = ax.get_gridspec()
+        # remove the underlying Axes
+        ax.remove()
+        # 
+        ax = fig.add_subplot(gs[:,0], projection='3d')
+    # draw lines for box
+    for i in range(ndim-1):
+        nd = box_nodes[int(i*4):int((i+1)*4)]
+        ax.plot(*np.split(np.append(nd,nd[0:1],axis=0),
+                          ndim,axis=1),
+                color="gray", zorder=1)
+    if ndim==3:
+        for i in range(4):
+            ax.plot(*np.split(np.vstack((box_nodes[i:int(i+1),:],
+                                         box_nodes[int(4+i):int(5+i),:])),
+                              ndim,axis=1),
+                    color="gray", zorder=1)
+    # draw nodes
+    ax.scatter(*np.split(nodes,ndim,axis=1),
+               color="k", zorder=2)
+    # label nodes
+    for i, coord in enumerate(nodes):
+        ax.text(*coord + np.array([0.1,0.1,0.1])[:ndim], 
+                 f"{i}", fontsize=12, ha='right', va='bottom')
+    #
+    ax.tick_params(axis='both',
+                   which='both',
+                   bottom=False,
+                   left=False,
+                   labelbottom=False,
+                   labelleft=False)
+    ax.axis("off")
+    # draw coordinate axis
+    if draw_axis:
+        if ndim == 2:
+            arrow_dict = {"angles": "xy", 
+                          "scale_units": "xy", 
+                          "scale": 1}
+        elif ndim == 3:
+            arrow_dict = {"arrow_length_ratio": 0.1}
+        
+        ax.quiver(*origin, *[1, 0, 0][:ndim], 
+                  **arrow_dict, color="blue")
+        ax.text(*(np.array([1.1, 0, 0])[:ndim] + origin), 
+                "x", fontsize=12,color="blue")
+        
+        ax.quiver(*origin, *[0, 1, 0][:ndim], 
+                  **arrow_dict, color="red")
+        ax.text(*(np.array([0, 1.1, 0])[:ndim] + origin), 
+                "y", fontsize=12,color="red")
+        
+        if ndim == 3:
+            ax.quiver(*origin, *[0, 0, 1],
+                      **arrow_dict, color="green")
+            ax.text(*(np.array([0, 0, 1.1])[:ndim] + origin), 
+                    "z", fontsize=12,color="green")
+    #
+    plt.savefig(f"localnodeorder-scalar-{ndim}d.png",
+                format="png")
+    #
+    plt.show()
+    return
     
 if __name__ == "__main__":
     # scalar fields
-    plot_meshnumbering2d(nelx=4,nely=3,ndof=1)
-    plot_meshnumbering3d(nelx=4,nely=3,ndof=1)
+    #plot_meshnumbering2d(nelx=4,nely=3,ndof=1)
+    #plot_meshnumbering3d(nelx=4,nely=3,ndof=1)
     # vector fields
-    plot_meshnumbering2d(nelx=3,nely=2,ndof=2)
-    plot_meshnumbering3d(nelx=3,nely=2,ndof=3)
-    
+    #plot_meshnumbering2d(nelx=3,nely=2,ndof=2)
+    #plot_meshnumbering3d(nelx=3,nely=2,ndof=3)
+    show_local_ordering(ndim = 2)
+    show_local_ordering(ndim = 3)

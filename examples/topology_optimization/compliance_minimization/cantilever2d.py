@@ -2,7 +2,7 @@
 from topoptlab.topology_optimization import main
 from topoptlab.example_bc.lin_elast import cantilever_2d
 
-# The real main driver
+# 
 if __name__ == "__main__":
     # Default input parameters
     nelx = 160
