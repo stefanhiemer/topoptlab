@@ -38,15 +38,15 @@ $$
 \end{aligned}
 $$  
 
-The common TO choice of design representation is density-based material 
+The common TO choice of design representation is a density-based material 
 interpolation scheme, where the abstract design variables $x_e$ become relative 
 element-wise densities which scale the physical properties $A$ of each element 
 via simple relationships as in the popular modified SIMP approach [@sigmund2007morphology]:
 
 $$A(x_e) = A_{min} + (A_{0}-A_{min})x_{e}^{k}\text{ with }0\leq x_e\leq 1$$
 
-where $k$ is a penalization factor ensuring densities close to 0 or 1, $A_0$ 
-the property of the full material and $A_{min}$ a small value to prevent 
+where $k$ is a penalization factor ensuring densities close to 0 or 1, $A_0$ is
+the property of the full material and $A_{min}$ is a small value to prevent 
 singularities in the physical problem. The final design then emerges from the 
 optimal density distribution.  
 
@@ -58,15 +58,15 @@ and accessibility as a tool for both research and advanced education.
 
 
 In TO, it has become longstanding practice to demonstrate new methods with short 
-Matlab scripts[@sigmund200199; @andreassen2011efficient; @ferrari2020new; @wang2021comprehensive]. 
+Matlab scripts [@sigmund200199; @andreassen2011efficient; @ferrari2020new; @wang2021comprehensive]. 
 While these codes have played an important role in the spread 
 and development of ideas, they also come with notable limitations: First, Matlab 
-requires a commercial license, and is only partially compatible to its free 
+requires a commercial license, and is only partially compatible with its free 
 alternative Octave. Second, extension and combination of state-of-the-art 
 methods demands combining multiple monolithic scripts, some of 
 which are outdated or mutually incompatible. Third, while modern finite element 
-frameworks such as **FEniCS**[@alnaes2014unified; @scroggs2022construction; @scroggs2022basix; @baratta2023dolfinx], 
-**deal.II** [@arndt2021deal], and **ElmerFEM**[@malinen2013elmer] provide powerful 
+frameworks such as **FEniCS** [@alnaes2014unified; @scroggs2022construction; @scroggs2022basix; @baratta2023dolfinx], 
+**deal.II** [@arndt2021deal], and **ElmerFEM** [@malinen2013elmer] provide powerful 
 high-performance environments, their abstraction layers tend to complicate 
 access to low-level implementation details which is necessary for research in 
 TO. Examples of standard TO tasks with the need to access low-level data 
@@ -96,15 +96,15 @@ section of the repository.
 *Topoptlab* offers the components needed for TO such as different material 
 interpolation schemes (SIMP, RAMP, and bound-based interpolation), filters for 
 regularization [@sigmund1997design; @bruns2001topology], 
-projections [@guest2004achieving, @sigmund2007morphology; @xu2010volume] and 
+projections [@guest2004achieving; @sigmund2007morphology; @xu2010volume] and 
 manufacturability [@langelaar2017additive], and finite element implementations 
 for different physical problems (linear elasticity, heat conduction, etc.) with 
 both standard numerical integration and analytically integrated elements 
-generated through *Symfem*[@scroggs2021symfem]. Constrained optimization is 
+generated through *Symfem* [@scroggs2021symfem]. Constrained optimization is 
 supported through the Method of Moving Asymptotes (MMA) [@svanberg1987], the 
 Globally Convergent Method of Moving Asymptotes (GCMMA) [@svanberg2002class] 
 as implemented in [@deetman2024gcmma] as well as the Optimality Criteria 
-[@andreassen2011efficient ;@bendsoe2003topology], while the solution of 
+[@andreassen2011efficient; @bendsoe2003topology], while the solution of 
 the system of equations is done via routines offered by *scipy* [@2020SciPy-NMeth], 
 *cvxopt* [@andersen2020cvxopt], and also custom implementations of 
 preconditioners like algebraic multigrid or block-preconditioners. Finally, 
