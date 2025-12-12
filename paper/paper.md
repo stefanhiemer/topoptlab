@@ -43,7 +43,7 @@ interpolation scheme, where the abstract design variables $x_e$ become relative
 element-wise densities which scale the physical properties $A$ of each element 
 via simple relationships as in the popular modified SIMP approach [@sigmund2007morphology]:
 
-$A(x_e) = A_{min} + (A_{0}-A_{min})x_{e}^{k}$ with $0\leq x_e\leq 1$
+$$A(x_e) = A_{min} + (A_{0}-A_{min})x_{e}^{k}\text{ with }0\leq x_e\leq 1$$
 
 where $k$ is a penalization factor ensuring densities close to 0/1, $A_0$ 
 the property of the full material and $A_{min}$ a small value to prevent 
