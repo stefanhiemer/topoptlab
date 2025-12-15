@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 import numpy as np
 
-def bulkmodulus_hashin_shtrikman_upp(x: np.ndarray,
-                                     Kmin: float, Kmax: float,
-                                     Gmin: float, Gmax: float) -> np.ndarray:
+def bulkmod_binary_upp(x: np.ndarray,
+                       Kmin: float, Kmax: float,
+                       Gmin: float, Gmax: float) -> np.ndarray:
     """
     Return the upper Hashin Shtrikman bound in 2D for the bulkmodulus of 
     a composite consisting of two isotropic substances.
@@ -31,9 +31,9 @@ def bulkmodulus_hashin_shtrikman_upp(x: np.ndarray,
            (1-x) * x * (Kmax-Kmin)**2\
            /((1-x)*Kmax + x*Kmin + Gmax)
            
-def bulkmodulus_hashin_shtrikman_low(x: np.ndarray,
-                                     Kmin: float, Kmax: float,
-                                     Gmin: float, Gmax: float) -> np.ndarray:
+def bulkmod_binary_low(x: np.ndarray,
+                       Kmin: float, Kmax: float,
+                       Gmin: float, Gmax: float) -> np.ndarray:
     """
     Return the lower Hashin Shtrikman bound in 2D for the bulkmodulus of 
     a composite consisting of two isotropic substances.
@@ -61,7 +61,7 @@ def bulkmodulus_hashin_shtrikman_low(x: np.ndarray,
            (1-x) * x * (Kmax-Kmin)**2\
            /((1-x)*Kmax + x*Kmin + Gmin)
 
-def shearmodulus_hashin_shtrikman_upp(x: np.ndarray,
+def shearmod_binary_upp(x: np.ndarray,
                                       Kmin: float, Kmax: float,
                                       Gmin: float, Gmax: float) -> np.ndarray:
     """
@@ -90,9 +90,9 @@ def shearmodulus_hashin_shtrikman_upp(x: np.ndarray,
     return (1-x) * Gmin + x * Gmax - (1-x) * x * (Gmax-Gmin)**2\
            /((1-x)*Gmax + x*Gmin + Gmax * Kmax / (Gmax + 2*Kmax))
                
-def shearmodulus_hashin_shtrikman_low(x: np.ndarray,
-                                      Kmin: float, Kmax: float,
-                                      Gmin: float, Gmax: float) -> np.ndarray:
+def shearmod_binary_low(x: np.ndarray,
+                        Kmin: float, Kmax: float,
+                        Gmin: float, Gmax: float) -> np.ndarray:
     """
     Return the lower Hashin Shtrikman bound in 2D for the shearmodulus of 
     a composite consisting of two isotropic substances.
@@ -119,8 +119,8 @@ def shearmodulus_hashin_shtrikman_low(x: np.ndarray,
     return (1-x)*Gmin + x * Gmax - (1-x)*x* (Gmax - Gmin)**2\
            /((1-x)*Gmax + x*Gmin + Gmin*Kmin / (Gmin + 2*Kmin)) 
 
-def _conductivity_hashin_shtrikman_upp(x: np.ndarray, 
-                                       kmin: float, kmax: float) -> np.ndarray:
+def conductivity_binary_upp(x: np.ndarray, 
+                            kmin: float, kmax: float) -> np.ndarray:
     """
     Return the upper Hashin Shtrikman bound in 2D for the thermal conductvity 
     of a composite consisting of two isotropic substances. Also applies to 
@@ -145,8 +145,8 @@ def _conductivity_hashin_shtrikman_upp(x: np.ndarray,
            (1-x) * x * (kmax-kmin)**2\
            /((1-x)*kmax + x*kmin + kmax) 
 
-def _conductivity_hashin_shtrikman_low(x: np.ndarray, 
-                                       kmin: float, kmax: float) -> np.ndarray:
+def conductivity_binary_low(x: np.ndarray, 
+                            kmin: float, kmax: float) -> np.ndarray:
     """
     Return the lower Hashin Shtrikman bound in 2D for the thermal conductvity 
     of a composite consisting of two isotropic substances. Also applies to 

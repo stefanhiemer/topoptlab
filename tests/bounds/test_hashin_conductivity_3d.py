@@ -1,7 +1,7 @@
 from numpy import array, linspace, zeros
 from numpy.testing import assert_almost_equal
 
-from scipy.differentiate import derivative, jacobian
+from scipy.differentiate import derivative
 
 import pytest
 
