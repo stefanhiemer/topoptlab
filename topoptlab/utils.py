@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
+from warnings import warn
 from typing import Any,Dict,List,Tuple,Union
 
 import numpy as np
@@ -471,3 +472,54 @@ def upsampling(x: np.ndarray, magnification: Union[float,int,List],
             x = map_voxeltoel(voxel=x, 
                               nelx=nelx, nely=nely, nelz=nelz)
     return x
+
+def svd_inverse(A: np.ndarray, 
+                check_singular: bool = True) -> np.ndarray:
+    """
+    Form inverse via singular value decomposition (SVD). Not recommended as 
+    numerically unstable.
+
+    Parameters
+    ----------
+    A : np.ndarray shape (k,k) or (n,k,k)
+        Matrix/matrices to invert.
+    check_singular : bool
+        Check if singular. If not True, raise ValueError.
+
+    Returns
+    -------
+    Ainv : np.ndarray shape (k,k) or (n,k,k)
+        inverted matrix/matrices.
+    """
+    #
+    warn("Forming an inverse is generally a bad idea. ")
+    #
+    U, s, Vt = np.linalg.svd(A, full_matrices=False)
+    if check_singular:
+        if np.isclose(s,0.).any():
+            raise ValueError("A is singular or close to singular. Inversion unstable/impossible.")
+    #
+    if len(s.shape)==2:
+        return np.einsum('ibj,ij,iaj->iab', 
+                         Vt.transpose(0,2,1), 1/s, U)
+    elif len(s.shape)==1:
+        return np.einsum('bj,j,aj->ab', 
+                         Vt.T, 1/s, U)
+    
+def solve_inverse(A: np.ndarray) -> np.ndarray:
+    """
+    Form inverse via solving:
+        
+        solve(A,eye)
+
+    Parameters
+    ----------
+    A : np.ndarray shape (k,k) or (n,k,k)
+        Matrix/matrices to invert.
+
+    Returns
+    -------
+    Ainv : np.ndarray shape (k,k) or (n,k,k)
+        inverted matrix/matrices.
+    """
+    return np.linalg.solve(A, np.eye(A.shape[-1]))

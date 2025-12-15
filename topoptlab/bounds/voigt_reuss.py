@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 import numpy as np
 
+from topoptlab.utils import svd_inverse
+
 def voigt(x: np.ndarray, 
           props: np.ndarray) -> np.ndarray:
     """
@@ -99,8 +101,10 @@ def reuss(x: np.ndarray,
     if len(props.shape) == 1:
         return ((x/props[None,:-1]).sum(axis=1) + (1-x.sum(axis=1))/props[-1])**(-1)
     elif len(props.shape) == 3:
-        return np.linalg.inv((x[:,:,None,None]*np.linalg.inv(props[:-1])[None,:]).sum(axis=1)+\
-                             (1-x.sum(axis=1))[:,None,None]*np.linalg.inv(props[-1]))
+        #return np.linalg.inv((x[:,:,None,None]*np.linalg.inv(props[:-1])[None,:]).sum(axis=1)+\
+        #                     (1-x.sum(axis=1))[:,None,None]*np.linalg.inv(props[-1]))
+        return svd_inverse((x[:,:,None,None]*svd_inverse(props[:-1])[None,:]).sum(axis=1)+\
+                             (1-x.sum(axis=1))[:,None,None]*svd_inverse(props[-1]))
     else:
         raise ValueError("shape of props inconsistent.")
         
@@ -131,11 +135,13 @@ def reuss_dx(x: np.ndarray,
         return (-1)*((x/props[None,:-1]).sum(axis=1)+(1-x.sum(axis=1))/props[-1])[:,None]**(-2)*\
                (1/props[:-1] - 1/props[-1])[None,:]
     elif len(props.shape) == 3: 
-        Ainv = np.linalg.inv((x[:,:,None,None]*np.linalg.inv(props[:-1])[None,:]).sum(axis=1)+\
-                             (1-x.sum(axis=1))[:,None,None]*np.linalg.inv(props[-1])) 
+        #Ainv = np.linalg.inv((x[:,:,None,None]*np.linalg.inv(props[:-1])[None,:]).sum(axis=1)+\
+        #                     (1-x.sum(axis=1))[:,None,None]*np.linalg.inv(props[-1])) 
+        Ainv = svd_inverse((x[:,:,None,None]*svd_inverse(props[:-1])[None,:]).sum(axis=1)+\
+                            (1-x.sum(axis=1))[:,None,None]*svd_inverse(props[-1])) 
         return (-1)*np.einsum('nij,mjk,nkl->nmil', 
                               Ainv,
-                              np.linalg.inv(props[:-1])-np.linalg.inv(props[-1:]),
+                              svd_inverse(props[:-1])-svd_inverse(props[-1:]),#np.linalg.inv(props[:-1])-np.linalg.inv(props[-1:]),
                               Ainv)
     else:
         raise ValueError("shape of props inconsistent.")
