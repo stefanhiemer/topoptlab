@@ -64,24 +64,23 @@ def test_reuss(x,props,solution):
 
 from topoptlab.bounds.voigt_reuss import voigt_dx
 
-@pytest.mark.parametrize('x, props, atol',
+@pytest.mark.parametrize('x, props',
                          [(full( (10,2), 1/3 ),
-                           array([1.,2.,3.]),None),
+                           array([1.,2.,3.])),
                           (full( (10,2), 1/3 ),
-                           stack([eye(3)*i for i in range(1,4) ]),None),
+                           stack([eye(3)*i for i in range(1,4) ])),
                            (full((1,2),1/3), 
-                            array([[[0.125, 0.375, 0.2],
-                                    [0.375, 0.2, 0.35],
-                                    [0.2, 0.35, 0.06]],
-                                   [[0.83, 0.75, 0.43],
-                                    [0.75, 0.73, 0.66],
-                                    [0.43, 0.66, 0.63]],
-                                   [[0.51, 0.47, 0.47],
-                                    [0.47, 0.74, 0.75],
-                                    [0.47, 0.75, 0.99]]]),
-                            None),])
+                            array([[[1., 0.375, 0.18],
+                                    [0.375, 1., 0.35],
+                                    [0.18, 0.35, 1.]],
+                                   [[1., 0.75, 0.43],
+                                    [0.75, 1., 0.06],
+                                    [0.43, 0.06, 1.]],
+                                   [[1., 0.4, 0.47],
+                                    [0.4, 1., 0.7],
+                                    [0.47, 0.7, 1.]]])),])
 
-def test_voigt_dx(x,props,atol):
+def test_voigt_dx(x,props):
     #
     dx = 5e-9
     #
@@ -95,29 +94,28 @@ def test_voigt_dx(x,props,atol):
     #
     assert_allclose(actual, 
                     finite_diff,
-                    rtol=1e-6)
+                    atol=1e-7)
     return
 
 from topoptlab.bounds.voigt_reuss import reuss_dx
 
-@pytest.mark.parametrize('x, props, atol',
+@pytest.mark.parametrize('x, props',
                          [(full( (10,2), 1/3 ),
-                           array([1.,2.,3.]),None),
+                           array([1.,2.,3.])),
                           (full( (10,2), 1/3 ),
-                           stack([eye(3)*i for i in range(1,4) ]),None),
+                           stack([eye(3)*i for i in range(1,4) ])),
                           (full((1,2),1/3), 
-                           array([[[0.125, 0.375, 0.2],
-                                   [0.375, 0.2, 0.35],
-                                   [0.2, 0.35, 0.06]],
-                                  [[0.83, 0.75, 0.43],
-                                   [0.75, 0.73, 0.66],
-                                   [0.43, 0.66, 0.63]],
-                                  [[0.51, 0.47, 0.47],
-                                   [0.47, 0.74, 0.75],
-                                   [0.47, 0.75, 0.99]]]),
-                           None),])
+                           array([[[1., 0.375, 0.18],
+                                   [0.375, 1., 0.35],
+                                   [0.18, 0.35, 1.]],
+                                  [[1., 0.75, 0.43],
+                                   [0.75, 1., 0.06],
+                                   [0.43, 0.06, 1.]],
+                                  [[1., 0.4, 0.47],
+                                   [0.4, 1., 0.7],
+                                   [0.47, 0.7, 1.]]])),])
 
-def test_reuss_dx(x,props,atol): 
+def test_reuss_dx(x,props): 
     #
     dx = 5e-9
     #
@@ -131,5 +129,5 @@ def test_reuss_dx(x,props,atol):
     #
     assert_allclose(actual, 
                     finite_diff,
-                    rtol=1e-6)
+                    atol=1e-7)
     return

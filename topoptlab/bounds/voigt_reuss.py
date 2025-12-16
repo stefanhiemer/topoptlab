@@ -1,7 +1,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
+from typing import Callable
+
 import numpy as np
 
-from topoptlab.utils import svd_inverse
+from topoptlab.utils import svd_inverse,cholesky_inverse
 
 def voigt(x: np.ndarray, 
           props: np.ndarray) -> np.ndarray:
@@ -69,7 +71,8 @@ def voigt_dx(x: np.ndarray,
     
 
 def reuss(x: np.ndarray, 
-          props: np.ndarray) -> np.ndarray:
+          props: np.ndarray,
+          inverse: Callable = svd_inverse) -> np.ndarray:
     """
     Return the Reuss bound for a general property which might be either a 
     scalar quantity or in matrix form. The Reuss bound is the harmonic volume 
@@ -103,13 +106,14 @@ def reuss(x: np.ndarray,
     elif len(props.shape) == 3:
         #return np.linalg.inv((x[:,:,None,None]*np.linalg.inv(props[:-1])[None,:]).sum(axis=1)+\
         #                     (1-x.sum(axis=1))[:,None,None]*np.linalg.inv(props[-1]))
-        return svd_inverse((x[:,:,None,None]*svd_inverse(props[:-1])[None,:]).sum(axis=1)+\
-                             (1-x.sum(axis=1))[:,None,None]*svd_inverse(props[-1]))
+        return inverse((x[:,:,None,None]*inverse(props[:-1])[None,:]).sum(axis=1)+\
+                       (1-x.sum(axis=1))[:,None,None]*inverse(props[-1]))
     else:
         raise ValueError("shape of props inconsistent.")
         
 def reuss_dx(x: np.ndarray, 
-             props: np.ndarray) -> np.ndarray:
+             props: np.ndarray,
+             inverse: Callable = svd_inverse) -> np.ndarray:
     """
     Return the derivative of the Reuss bound for a general property which might 
     be either a scalar quantity or in matrix form. Assume that the Reuss bound
@@ -134,14 +138,12 @@ def reuss_dx(x: np.ndarray,
     if len(props.shape) == 1:
         return (-1)*((x/props[None,:-1]).sum(axis=1)+(1-x.sum(axis=1))/props[-1])[:,None]**(-2)*\
                (1/props[:-1] - 1/props[-1])[None,:]
-    elif len(props.shape) == 3: 
-        #Ainv = np.linalg.inv((x[:,:,None,None]*np.linalg.inv(props[:-1])[None,:]).sum(axis=1)+\
-        #                     (1-x.sum(axis=1))[:,None,None]*np.linalg.inv(props[-1])) 
-        Ainv = svd_inverse((x[:,:,None,None]*svd_inverse(props[:-1])[None,:]).sum(axis=1)+\
-                            (1-x.sum(axis=1))[:,None,None]*svd_inverse(props[-1])) 
+    elif len(props.shape) == 3:
+        Ainv = inverse((x[:,:,None,None]*inverse(props[:-1])[None,:]).sum(axis=1)+\
+                       (1-x.sum(axis=1))[:,None,None]*inverse(props[-1])) 
         return (-1)*np.einsum('nij,mjk,nkl->nmil', 
                               Ainv,
-                              svd_inverse(props[:-1])-svd_inverse(props[-1:]),#np.linalg.inv(props[:-1])-np.linalg.inv(props[-1:]),
+                              inverse(props[:-1])-inverse(props[-1:]),#np.linalg.inv(props[:-1])-np.linalg.inv(props[-1:]),
                               Ainv)
     else:
         raise ValueError("shape of props inconsistent.")

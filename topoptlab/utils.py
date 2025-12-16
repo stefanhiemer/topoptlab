@@ -4,6 +4,7 @@ from typing import Any,Dict,List,Tuple,Union
 
 import numpy as np
 from scipy.ndimage import zoom
+from scipy.linalg import solve_triangular
 
 from topoptlab.optimizer.mma_utils import mma_defaultkws, gcmma_defaultkws
 
@@ -492,7 +493,7 @@ def svd_inverse(A: np.ndarray,
         inverted matrix/matrices.
     """
     #
-    warn("Forming an inverse is generally a bad idea. ")
+    warn("Forming a matrix inverse is generally a bad idea. ")
     #
     U, s, Vt = np.linalg.svd(A, full_matrices=False)
     if check_singular:
@@ -523,3 +524,33 @@ def solve_inverse(A: np.ndarray) -> np.ndarray:
         inverted matrix/matrices.
     """
     return np.linalg.solve(A, np.eye(A.shape[-1]))
+
+def cholesky_inverse(A: np.ndarray) -> np.ndarray:
+    """
+    Form inverse via Cholesky decomposition:
+        
+        A = L @ L.T
+
+    Parameters
+    ----------
+    A : np.ndarray shape (k,k) or (n,k,k)
+        Matrix/matrices to invert.
+
+    Returns
+    -------
+    Ainv : np.ndarray shape (k,k) or (n,k,k)
+        inverted matrix/matrices.
+    """
+    L = np.linalg.cholesky(A)
+    if len(A.shape) == 3:
+        return solve_triangular(L.transpose((0,2,1)),
+                                solve_triangular(L,
+                                                 np.eye(A.shape[-1]),
+                                                 lower=True),
+                                lower=False)
+    elif len(A.shape) == 2:
+        return solve_triangular(L.T, 
+                                solve_triangular(L,
+                                                 np.eye(A.shape[-1]),
+                                                 lower=True),
+                                lower=False)
