@@ -93,7 +93,9 @@ def reuss(x: np.ndarray,
         volume fraction of first m-1 phases. The volume fraction of the mth 
         phase can then be inferred via 1-x.sum(axis=1)
     props : np.ndarray, shape(m) or shape (m,k,k)
-        scalar properties or tensors 
+        scalar properties or tensors.
+    function to calculate inverse property. Only necessary for matrix 
+    properties.
 
     Returns
     -------
@@ -128,6 +130,9 @@ def reuss_dx(x: np.ndarray,
         phase can then be inferred via 1-x.sum(axis=1)
     props : np.ndarray, shape(m) or shape (m,k,k)
         scalar properties or tensors 
+    inverse : callable
+        function to calculate inverse property. Only necessary for matrix 
+        properties.
 
     Returns
     -------

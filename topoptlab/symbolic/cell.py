@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 from typing import List, Tuple, Union
 
+from sympy import roots,symbols,solve,solve_univariate_inequality
 from symfem import create_element, create_reference
 from symfem.references import Reference
 from symfem.functions import ScalarFunction
@@ -45,19 +46,19 @@ def base_cell(ndim: int,
     #
     if order == 1 and element_type=="Lagrange":
         if ndim == 1:
-            # Define the vertived and triangles of the mesh
+            # define the vertices
             vertices = ((-1,), (1,))
             # node indices in reference cell of symfem. Check the git to see
             # how the numbering is done.
             nd_inds = [0, 1]
         elif ndim == 2:
-            # Define the vertived and triangles of the mesh
+            # define the vertices
             vertices = ((-1, -1), (1, -1), (1, 1), (-1, 1))
             # node indices in reference cell of symfem. Check the git to see
             # how the numbering is done.
             nd_inds = [0, 1, 3, 2]
         elif ndim == 3:
-            # Define the vertived and triangles of the mesh
+            # define the vertices
             vertices = ((-1, -1, -1), (1, -1, -1), (1, 1, -1), (-1, 1, -1),
                         (-1, -1, 1), (1, -1, 1), (1, 1, 1), (-1, 1, 1))
             # node indices in reference cell of symfem. Check the git to see
@@ -66,13 +67,13 @@ def base_cell(ndim: int,
                        4, 5, 7, 6]
     elif order == 2 and element_type=="Lagrange":
         if ndim == 1:
-            # Define the vertived and triangles of the mesh
+            # define the vertices
             vertices = ((-1,), (1,), (0,))
             # node indices in reference cell of symfem. Check the git to see
             # how the numbering is done.
             nd_inds = [0, 1, 2]
         elif ndim == 2:
-            # Define the vertived and triangles of the mesh
+            # define the vertices
             vertices = ((-1, -1), (1, -1), (1, 1), (-1, 1),
                         (0, -1), (1, 0), (0, 1), (-1, 0),
                         (0, 0) )
@@ -82,7 +83,7 @@ def base_cell(ndim: int,
                        4, 6, 7, 5,
                        8]
         elif ndim == 3:
-            # Define the vertived and triangles of the mesh
+            # define the vertices
             vertices = ((-1, -1, -1), (1, -1, -1), (1, 1, -1), (-1, 1, -1),
                         (-1, -1, 1), (1, -1, 1), (1, 1, 1), (-1, 1, 1),
                         (0, -1, -1), (1, 0, -1), (0, 1, -1), (-1, 0, -1),
@@ -105,7 +106,7 @@ def base_cell(ndim: int,
                        25]
     elif order == 3 and element_type=="Lagrange":
         if ndim == 1:
-            # Define the vertived and triangles of the mesh
+            # define the vertices
             vertices = ((-1,), (-1/3,), (1/3,), (1,) )
             # node indices in reference cell of symfem. Check the git to see
             # how the numbering is done.
@@ -162,3 +163,51 @@ def determine_nodeinds(vertices: Tuple,
                if func.subs(vars=["x","y", "z"][:ndim], values=vertex)==1]
         inds = inds + ind
     return inds
+
+def find_node_coords(basis_funcs: Union[List, ScalarFunction]) -> List:
+    """
+    Find coordinate of node associated with a basis function from the delta 
+    property.
+
+    Parameters
+    ----------
+    basis_funcs : list of symfem.functions.ScalarFunction
+        list of basis functions which are usually extracted by calling
+        element.get_basis_functions().
+
+    Returns
+    -------
+    coords : list
+        coordinates as list of list. 
+    """
+    if basis_funcs[0].as_sympy().has(symbols("z")): 
+        #sols = [[roots(func-1, symbols("x")),
+        #         roots(func-1, symbols("y")),
+        #         roots(func-1, symbols("z"))] for func in basis_funcs]
+        symbs = symbols("x y z")
+    elif basis_funcs[0].as_sympy().has(symbols("y")):
+        #ndim = 2
+        #sols = [[solve(func-1, symbols("x y"))] for func in basis_funcs]
+        symbs = symbols("x y")
+    elif basis_funcs[0].as_sympy().has(symbols("x")):
+        #ndim = 1
+        #sols = [[roots(func-1, symbols("x"))] for func in basis_funcs]
+        symbs = symbols("x")
+    else:
+        raise ValueError("The basis functions appear not to depend on space.")
+    #
+    sols = [solve(func-1, symbs)[0] for func in basis_funcs]
+    #
+    for symb in symbs:
+        for bas_sol in sols:
+            for sol in bas_sol:
+                solve_univariate_inequality(-1<=sol,symb) 
+    return sols 
+    
+if __name__=="__main__":
+    
+    lagr = create_element("quadrilateral", 
+                          "Lagrange", 
+                          1)
+    print(lagr.get_basis_functions())
+    print(find_node_coords(lagr.get_basis_functions()))
