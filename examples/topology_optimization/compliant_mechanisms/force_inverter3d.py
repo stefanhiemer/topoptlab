@@ -47,7 +47,8 @@ if __name__ == "__main__":
     #
     main(nelx=nelx, nely=nely, nelz=nelz, 
          volfrac=volfrac, 
-         penal=penal, rmin=rmin, 
+         matinterpol_kw={"eps":1e-9, "penal": penal},
+         rmin=rmin, 
          nouteriter=50,
          lin_solver_kw={"name": "cvxopt-cholmod"},
          assembly_mode="lower",

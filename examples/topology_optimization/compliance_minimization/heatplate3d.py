@@ -40,7 +40,9 @@ if __name__ == "__main__":
         write_log = bool(int(sys.argv[10]))
     #
     main(nelx=nelx, nely=nely, nelz=nelz, 
-         volfrac=volfrac, penal=penal, rmin=rmin, 
+         volfrac=volfrac, 
+         matinterpol_kw={"eps":1e-9, "penal": penal},
+         rmin=rmin, 
          ft=ft, filter_mode="matrix", optimizer="oc",nouteriter=100,
          lin_solver_kw = {"name": "cvxopt-cholmod"}, assembly_mode="lower",
          #lin_solver_kw = {"name": "topoptlab-cg"}, preconditioner_kw = {"name": "pyamg-pyamg-ruge_stuben"},

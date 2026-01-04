@@ -22,7 +22,7 @@ def test_force_inverter(ft,rmin,filter_mode,obj_ref):
     l = zeros((2*(nelx+1)*(nely+1),1))
     l[2*nelx*(nely+1),0] = -1
     # Default input parameters
-    x, obj = main(nelx=nelx, nely=nely, volfrac=0.3, penal=3.0, rmin=rmin, ft=ft, 
+    x, obj = main(nelx=nelx, nely=nely, volfrac=0.3, rmin=rmin, ft=ft, 
                   filter_mode=filter_mode, optimizer="ocm",
                   bcs=forceinverter_2d , obj_func=var_maximization ,obj_kw={"l": l},
                   output_kw = {"file": None,

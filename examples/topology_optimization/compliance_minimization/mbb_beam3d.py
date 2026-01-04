@@ -38,7 +38,8 @@ if __name__ == "__main__":
     if len(sys.argv)>10:
         write_log = bool(int(sys.argv[10])) 
     #
-    main(nelx=nelx, nely=nely, nelz=nelz, volfrac=volfrac, penal=penal, 
+    main(nelx=nelx, nely=nely, nelz=nelz, volfrac=volfrac, 
+         matinterpol_kw={"eps":1e-9, "penal": penal},
          rmin=rmin, ft=ft, filter_mode="matrix", 
          optimizer="oc", lin_solver_kw = {"name": "cvxopt-cholmod"},
          assembly_mode="lower",

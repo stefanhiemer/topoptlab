@@ -24,7 +24,7 @@ from topoptlab.topology_optimization import main
 from topoptlab.example_bc.lin_elast import mbb_2d
 
 main(nelx=60, nely=20, 
-     volfrac=0.5, penal=3.,
+     volfrac=0.5,
      rmin=2.4, 
      optimizer="oc",
      bcs=mbb_2d)

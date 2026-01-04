@@ -11,7 +11,7 @@ if __name__ == "__main__":
     volfrac = 0.4
     rmin = 6.  # 5.4
     penal = 3.0
-    ft = 0 # ft==0 -> sens, ft==1 -> dens
+    ft = 1 # ft==0 -> sens, ft==1 -> dens
     display = True
     export = False
     write_log = True
@@ -36,7 +36,8 @@ if __name__ == "__main__":
     if len(sys.argv)>9:
         write_log = bool(int(sys.argv[9]))
     #
-    main(nelx=nelx, nely=nely, volfrac=volfrac, penal=penal,
+    main(nelx=nelx, nely=nely, volfrac=volfrac, 
+         matinterpol_kw={"eps":1e-9, "penal": penal},
          rmin=rmin, ft=ft, filter_mode = "matrix",
          obj_func=compliance,
          #obj_func=compliance_squarederror, obj_kw={"c0": [75, 80]},

@@ -43,7 +43,9 @@ if __name__ == "__main__":
     #
     u0 = -0.3
     #
-    main(nelx=nelx, nely=nely, volfrac=volfrac, penal=penal, rmin=rmin,
+    main(nelx=nelx, nely=nely, volfrac=volfrac, 
+         matinterpol_kw={"eps":1e-9, "penal": penal},
+         rmin=rmin,
          bcs=forceinverter_2d, obj_func=var_squarederror,
          obj_kw={"l": l,"u0": u0},
          ft=ft, filter_mode="matrix",optimizer="ocm",

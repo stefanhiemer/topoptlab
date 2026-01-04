@@ -1,13 +1,19 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
+from typing import Any, Callable, Dict, Tuple
 import numpy as np
 
-def compliance(xPhys, u, KE, edofMat, i,
-               Amax, Amin, penal,
-               obj, **kwargs):
+def compliance(xPhys: np.ndarray, 
+               u: np.ndarray, 
+               KE: np.ndarray, 
+               edofMat: np.ndarray, 
+               i: int,
+               matinterpol: Callable, #matinterpol_dx : Callable,
+               matinterpol_kw: Dict,
+               obj: float, 
+               **kwargs: Any) -> Tuple[float,np.ndarray,bool]:
     """
     Update objective and gradient for stiffness maximization / compliance
-    minimization. The mechanic version of this is the compliant mechanism  with
-    maximized displacement.
+    minimization. 
 
     Parameters
     ----------
@@ -44,18 +50,22 @@ def compliance(xPhys, u, KE, edofMat, i,
 
     """
     ce = (np.dot(u[edofMat,i], KE) * u[edofMat,i]).sum(1)
-    obj += ((Amin+xPhys[:,0]**penal*(Amax-Amin))*ce).sum()
-    dc = (-1) * penal*xPhys**(penal-1)*(Amax-Amin)*ce
+    obj += (matinterpol(xPhys,**matinterpol_kw)[:,0]*ce).sum()
+    #dc = (-1) * matinterpol_dx(xPhys,**matinterpol_kw)*ce
     #return obj, dc, True #
     return obj,-u, True
 
-def compliance_squarederror(xPhys, u, c0, KE, edofMat, i,
-                            Amax, Amin, penal,
+def compliance_squarederror(xPhys: np.ndarray, 
+                            u: np.ndarray, 
+                            c0: float,
+                            KE: np.ndarray, 
+                            edofMat: np.ndarray, 
+                            i: int,
+                            matinterpol: Callable, #matinterpol_dx : Callable,
+                            matinterpol_kw: Dict,
                             obj, **kwargs):
     """
-    Update objective and gradient for stiffness maximization / compliance
-    minimization. The mechanic version of this is the compliant mechanism  with
-    maximized displacement.
+    Update objective and gradient for stiffness/compliance control. 
 
     Parameters
     ----------

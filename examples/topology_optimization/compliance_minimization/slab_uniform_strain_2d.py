@@ -40,7 +40,8 @@ if __name__ == "__main__":
         write_log = bool(int(sys.argv[9]))
     warn("At the moment this case is nonsense and will yield a result where the volume constraint is violated. Need to implement GCMMA to check that it can handle this one")
     #
-    x,obj = main(nelx=nelx, nely=nely, volfrac=volfrac, penal=penal,
+    x,obj = main(nelx=nelx, nely=nely, volfrac=volfrac, 
+                 matinterpol_kw={"eps":1e-9, "penal": penal},
                  rmin=rmin, ft=ft, filter_mode="matrix",
                  optimizer="mma", lin_solver_kw={"name": "scipy-direct"},
                  nouteriter=1000,

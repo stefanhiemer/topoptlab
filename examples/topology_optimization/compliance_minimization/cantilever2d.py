@@ -35,7 +35,9 @@ if __name__ == "__main__":
     if len(sys.argv)>9:
         write_log = bool(int(sys.argv[9]))
     #
-    main(nelx=nelx, nely=nely, volfrac=volfrac, penal=penal, rmin=rmin, 
+    main(nelx=nelx, nely=nely, volfrac=volfrac, 
+         matinterpol_kw={"eps":1e-9, "penal": penal},
+         rmin=rmin, 
          ft=ft, filter_mode = "matrix",optimizer="oc",
          bcs=cantilever_2d,
          output_kw = {"file": "cantilever_2d",

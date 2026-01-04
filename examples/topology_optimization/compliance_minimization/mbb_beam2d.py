@@ -42,9 +42,10 @@ if __name__ == "__main__":
     if len(sys.argv)>9:
         write_log = bool(int(sys.argv[9]))
     #
-    x,obj = main(nelx=nelx, nely=nely, volfrac=volfrac, penal=penal,
+    x,obj = main(nelx=nelx, nely=nely, volfrac=volfrac, 
+                 matinterpol_kw={"eps":1e-9, "penal": penal},
                  rmin=rmin, ft=ft, filter_mode="matrix",
-                 optimizer="mma",
+                 optimizer="oc",
                  assembly_mode="full",
                  nouteriter=2000,
                  bcs=mbb_2d,

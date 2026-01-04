@@ -40,7 +40,9 @@ if __name__ == "__main__":
     l = zeros((2*(nelx+1)*(nely+1),1))
     l[2*nelx*(nely+1),0] = -1
     #
-    main(nelx=nelx, nely=nely, volfrac=volfrac, penal=penal, rmin=rmin, 
+    main(nelx=nelx, nely=nely, volfrac=volfrac, 
+         matinterpol_kw={"eps":1e-9, "penal": penal},
+         rmin=rmin, 
          bcs=forceinverter_2d , obj_func=var_maximization ,obj_kw={"l": l},
          ft=ft, filter_mode="matrix",optimizer="mma",
          nouteriter=250,

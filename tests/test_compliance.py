@@ -20,7 +20,7 @@ def test_compliance_filters(nelx, nely, volfrac, ft, rmin, filter_mode, bcs, obj
     slow tests in same file.
     """
     #
-    x, obj = main(nelx=nelx, nely=nely, volfrac=volfrac, penal=3.0, 
+    x, obj = main(nelx=nelx, nely=nely, volfrac=volfrac, 
                   rmin=rmin, ft=ft, filter_mode=filter_mode,
                   optimizer="oc",
                   bcs=bcs,
@@ -45,7 +45,8 @@ def test_compliance_filters_slow(nelx, nely, volfrac, ft, rmin, filter_mode, bcs
     slow tests in same file.
     """
     #
-    x, obj = main(nelx=nelx, nely=nely, volfrac=volfrac, penal=3.0, rmin=rmin, ft=ft, 
+    x, obj = main(nelx=nelx, nely=nely, volfrac=volfrac,
+                  rmin=rmin, ft=ft, 
                   filter_mode=filter_mode,optimizer="oc",
                   bcs=bcs,
                   output_kw = {"file": None,
@@ -70,7 +71,7 @@ def test_compliance_optimizers(optimizer,obj_ref):
     #
     nelx, nely, volfrac, ft, rmin, filter_mode = 60,20,0.5,1,2.4,"matrix"
     #
-    x, obj = main(nelx=nelx, nely=nely, volfrac=volfrac, penal=3.0, 
+    x, obj = main(nelx=nelx, nely=nely, volfrac=volfrac, 
                   rmin=rmin, ft=ft, filter_mode=filter_mode,
                   optimizer=optimizer,
                   bcs=mbb_2d,
@@ -97,7 +98,7 @@ def test_compliance_heat(obj_ref):
     #
     nelx, nely, volfrac, ft, rmin, filter_mode = 40,40,0.4,0,1.2,"matrix"
     #
-    x, obj = main(nelx=nelx, nely=nely, volfrac=volfrac, penal=3.0, 
+    x, obj = main(nelx=nelx, nely=nely, volfrac=volfrac,
                   rmin=rmin, ft=ft, filter_mode=filter_mode,
                   optimizer="oc",
                   bcs=heatplate_2d, lk=lk_poisson_2d,

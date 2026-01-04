@@ -21,7 +21,7 @@ def test_anderson(obj_ref):
     rmin = 2.4  # 5.4
     penal = 3.0
     ft = 1 # ft==0 -> sens, ft==1 -> dens
-    x, obj = main(nelx=nelx, nely=nely, volfrac=volfrac, penal=penal, 
+    x, obj = main(nelx=nelx, nely=nely, volfrac=volfrac, 
                   rmin=rmin, ft=ft, filter_mode="matrix", 
                   optimizer="mma", lin_solver_kw={"name":"scipy-direct"},
                   nouteriter=1000,

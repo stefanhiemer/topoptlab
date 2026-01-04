@@ -25,7 +25,15 @@ def is_equal(expr1: Expr, expr2: Expr)-> bool:
     return simplify(expand(expr1 - expr2)) == 0
 
 
-def argsort_counterclock(points: np.ndarray, 
+rect = np.array([[[-1,-1],[1,-1],[1,1],[-1,1]]])
+hexahedron = np.array([[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
+                        [-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]]])
+triangle = np.array([[0,0],[1,0],[0,1]])
+tetrahedron = np.array([[0,0,0],[1,0,0],[0,1,0],[0,0,1]])
+
+def argsort_counterclock(coords: np.ndarray, 
+                         vertices: np.ndarray,
+                         adj_list: np.ndarray,
                          z_tol: float = 1e-9, 
                          angle_tol: float = 1e-12, 
                          round_decimals: int = 12) -> np.ndarray:
@@ -44,7 +52,7 @@ def argsort_counterclock(points: np.ndarray,
 
     Parameters
     ----------
-    points : np.ndarray, shape (N,ndim)
+    coords : np.ndarray, shape (N,ndim)
         coordinates.
     z_tol : float
         tolerance for putting coordinates in same z-layer.
@@ -58,22 +66,22 @@ def argsort_counterclock(points: np.ndarray,
     inds_sorted : np.ndarray, shape (N,ndim)
         indices to sort coordinates.
     """
-
-    points = np.asarray(points, float)
-    N, ndim = points.shape
-
+    #
+    coords = np.asarray(coords, float)
+    N, ndim = coords.shape
+    #
     # 1D 
     if ndim == 1:
-        return points[np.argsort(points[:, 0])]
+        return coords[np.argsort(coords[:, 0])]
     # angle
-    alpha = np.arctan2(points[:,1], points[:,0])
+    alpha = np.arctan2(coords[:,1], coords[:,0])
     # flip angles smaller than -3/4*np.pi
     mask = alpha<(-3/4)*np.pi
     alpha[mask] = alpha[mask] + 2*np.pi
     # snap small angle values (avoid -0.0)
     alpha[np.abs(alpha) < angle_tol] = 0.0
     # radius for edge/interior discrimination
-    r = np.linalg.norm(points[:,:2], axis=1)
+    r = np.linalg.norm(coords[:,:2], axis=1)
     # rounding for stability
     alpha = np.round(alpha, round_decimals)
     r     = np.round(r,     round_decimals)
@@ -81,13 +89,13 @@ def argsort_counterclock(points: np.ndarray,
     if ndim == 2:
         # lexicographic sort by (α, r)
         idx = np.lexsort((r, alpha))
-        return points[idx]
+        return coords[idx]
     # 3D
     if ndim == 3: 
         # lexicographic sort: first z, then α, then r
         idx = np.lexsort((r, 
                           alpha, 
-                          np.round(points[:,2], round_decimals))) # z
-        return points[idx]
+                          np.round(coords[:,2], round_decimals))) # z
+        return coords[idx]
 
     raise ValueError("Only dimensions 1, 2, 3 are supported.")

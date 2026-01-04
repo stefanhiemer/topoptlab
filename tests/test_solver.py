@@ -33,7 +33,7 @@ def test_compliance_1(nelx, nely, volfrac,
     standard scipy solver as comparison.
     """
     #
-    x, obj_ref = main(nelx=nelx, nely=nely, volfrac=volfrac, penal=3.0,
+    x, obj_ref = main(nelx=nelx, nely=nely, volfrac=volfrac, 
                       rmin=rmin, ft=ft,
                       filter_mode="matrix",optimizer="oc",
                       bcs=bcs,
@@ -44,7 +44,7 @@ def test_compliance_1(nelx, nely, volfrac,
                                    "write_log": False,
                                    "profile": False})
     #
-    x, obj = main(nelx=nelx, nely=nely, volfrac=volfrac, penal=3.0,
+    x, obj = main(nelx=nelx, nely=nely, volfrac=volfrac,
                   rmin=rmin, ft=ft,
                   filter_mode="matrix",optimizer="oc",
                   bcs=bcs,
@@ -75,7 +75,7 @@ def test_assembly(nelx, nely, nelz, volfrac,
     accumulation of floating errors causes serious deviations.
     """
     #
-    x, obj_ref = main(nelx=nelx, nely=nely, nelz=nelz, volfrac=volfrac, penal=3.0,
+    x, obj_ref = main(nelx=nelx, nely=nely, nelz=nelz, volfrac=volfrac, #penal=3.0,
                       rmin=rmin, ft=ft,
                       filter_mode="matrix",optimizer="oc",
                       bcs=bcs,
@@ -86,7 +86,7 @@ def test_assembly(nelx, nely, nelz, volfrac,
                                    "write_log": False,
                                    "profile": False})
     #
-    x, obj = main(nelx=nelx, nely=nely, nelz=nelz, volfrac=volfrac, penal=3.0,
+    x, obj = main(nelx=nelx, nely=nely, nelz=nelz, volfrac=volfrac, #penal=3.0,
                   rmin=rmin, ft=ft,assembly_mode=assembly_mode,
                   filter_mode="matrix",optimizer="oc",
                   bcs=bcs,

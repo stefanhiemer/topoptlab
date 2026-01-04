@@ -44,7 +44,9 @@ from mmapy import mmasub
 
 # MAIN DRIVER
 def main(nelx: int, nely: int, 
-         volfrac: float, penal: float, rmin: float, ft: int = 1,
+         volfrac: float, #penal: float, 
+         rmin: float, 
+         ft: int = 1,
          simulation_kw: Dict = {"grid": "regular",
                                 "element order": 1,
                                 "meshfile": None},
@@ -60,6 +62,9 @@ def main(nelx: int, nely: int,
          l: Union[float,List,np.ndarray] = 1.,
          obj_func: Callable = compliance, 
          obj_kw: Dict = {},
+         matinterpol: Callable = simp,
+         matinterpol_dx: Callable = simp_dx,
+         matinterpol_kw: Dict = {"eps": 1e-9, "penal": 3.},
          el_flags: Union[None,np.ndarray] = None,
          optimizer: str = "mma", 
          optimizer_kw: Union[None,Dict] = None,
@@ -172,9 +177,9 @@ def main(nelx: int, nely: int,
         log.info(f"number of spatial dimensions: {ndim}")
         log.info("elements: "+" x ".join([f"{nelx}",f"{nely}",f"{nelz}"][:ndim]))
         if volfrac is not None:
-            log.info(f"volfrac: {volfrac} rmin: {rmin}  penal: {penal}")
+            log.info(f"volfrac: {volfrac} rmin: {rmin}") # penal: {penal}")
         else:
-            log.info(f"rmin: {rmin}  penal: {penal}")
+            log.info(f"rmin: {rmin}")#  penal: {penal}")
         log.info("filter: " + ["Sensitivity based",
                              "Density based",
                              "Haeviside Guest",
@@ -223,30 +228,26 @@ def main(nelx: int, nely: int,
         g = 0
         #
         max_history = 2
-    elif optimizer == "mma":
+    elif optimizer in ["mma","gcmma"]:
         # mma needs results of the two previous iterations
-        max_history = 3
-    elif optimizer == "gcmma":
-        # gcmma needs results of the two previous iterations
-        max_history = 3
+        max_history = 3 
+        # handle element element flags
+        if el_flags is not None:
+            # passive
+            mask = el_flags == 1
+            optimizer_kw["xmin"][mask] = 0.
+            optimizer_kw["xmax"][mask] = 0.+1e-9
+            x[mask,0] = 1.
+            xPhys[mask,0] = 1.
+            # active
+            mask = el_flags == 2
+            optimizer_kw["xmin"][mask] = 1.- 1e-9
+            optimizer_kw["xmax"][mask] = 1.
+            x[mask] = 1.
+            xPhys[mask] = 1.
     else:
         raise ValueError("Unknown optimizer: ", optimizer)
-    # handle element element flags
-    if el_flags is not None and optimizer in ["mma","gcmma"]:
-        # passive
-        mask = el_flags == 1
-        optimizer_kw["xmin"][mask] = 0.
-        optimizer_kw["xmax"][mask] = 0.+1e-9
-        x[mask,0] = 1.
-        xPhys[mask,0] = 1.
-        # active
-        mask = el_flags == 2
-        optimizer_kw["xmin"][mask] = 1.- 1e-9
-        optimizer_kw["xmax"][mask] = 1.
-        x[mask] = 1.
-        xPhys[mask] = 1.
-    # Max and min Young's modulus
-    Emin = 1e-9
+    # Young's modulus 
     E = materials_kw["E"]
     # get element stiffness matrix
     KE = lk(l=l)
@@ -331,7 +332,7 @@ def main(nelx: int, nely: int,
         invmapping = partial(map_voxeltoel,
                              nelx=nelx,nely=nely,nelz=nelz)
     # Filter: Build (and assemble) the index+data vectors for the coo matrix format
-    if filter_mode == "matrix":
+    elif filter_mode == "matrix":
         H,Hs = assemble_matrix_filter(nelx=nelx,nely=nely,nelz=nelz,
                                       rmin=rmin,ndim=ndim)
     elif filter_mode == "convolution":
@@ -396,7 +397,7 @@ def main(nelx: int, nely: int,
            loop==0:
             # update physical properties of the elements and thus the entries
             # of the elements
-            scale = simp(xPhys=xPhys,penal=penal,eps=1e-9)
+            scale = matinterpol(xPhys=xPhys,**matinterpol_kw)
             Kes = KE[None,:,:]*scale[:,:,None]
             if assembly_mode == "full":
                 # this here is more memory efficient than Kes.flatten() as it
@@ -446,9 +447,9 @@ def main(nelx: int, nely: int,
                                                 xPhys=xPhys,u=u,
                                                 KE=KE, edofMat=edofMat,
                                                 Kes=Kes,
-                                                Amax=E,Amin=Emin,
-                                                cellVolume=cellVolume,
-                                                penal=penal,
+                                                matinterpol=matinterpol,
+                                                matinterpol_kw=matinterpol_kw,
+                                                cellVolume=cellVolume, 
                                                 **obj_kw)
                 # if problem not self adjoint, solve for adjoint variables and
                 # calculate derivatives, else use analytical solution
@@ -476,7 +477,7 @@ def main(nelx: int, nely: int,
                 if f0 is not None:
                     dobj_offset -= f0[None,:,i]
                 #
-                dobj[:,0] += (simp_dx(xPhys=xPhys, eps=1e-9, penal=penal)*\
+                dobj[:,0] += (matinterpol_dx(xPhys=xPhys, **matinterpol_kw)*\
                              adj[edofMat,i]*dobj_offset).sum(axis=1)
                 # update sensitivity for quantities that do not need a small
                 # offset to avoid degeneracy of the FE problem
