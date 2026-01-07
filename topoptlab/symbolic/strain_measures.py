@@ -199,8 +199,8 @@ def def_grad(ndim: int,
     I = eye(size=ndim)
     #
     H = disp_grad(ndim=ndim,
-                 element_type=element_type,
-                 order=order)
+                  element_type=element_type,
+                  order=order)
     return I + H
 
 def cauchy_strain(ndim: int,

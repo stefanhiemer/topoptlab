@@ -123,6 +123,13 @@ def main(nelx: int, nely: int,
         mechanism and maximization of the displacement it would be the
         indicator array for output nodes. Check the objective for the necessary
         entries.
+    matinterpol : callable 
+        callable for material interpolation. Default is SIMP (simp).
+    matinterpol_dx : callable 
+        callable of derivative of the material interpolation with regards to 
+        the design variable. Default is SIMP (simp_dx).
+    matinterpol_kw : callable 
+        dictionary containing the arguments for the material interpolation.
     el_flags : np.ndarray or None
         array of flags/integers that switch behaviour of specific elements.
         Currently 1 marks the element as passive (zero at all times), while 2

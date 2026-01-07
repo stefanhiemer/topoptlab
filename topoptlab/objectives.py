@@ -28,13 +28,10 @@ def compliance(xPhys: np.ndarray,
     i : int
         index of the problem. i-th problem is used to compute the objective
         function.
-    Amax : float
-        maximum value for material property A
-    Amin : float
-        minimum value for material property A. Should be small compared to Amax
-        but not zero and Amax + Amin should recover the property A of the material
-    penal: float
-        penalty exponent for the SIMP method.
+    matinterpol : callable 
+        callable for material interpolation. Default is SIMP (simp).
+    matinterpol_kw : callable 
+        dictionary containing the arguments for the material interpolation.
     obj : float
         objective function.
 
@@ -82,13 +79,10 @@ def compliance_squarederror(xPhys: np.ndarray,
     i : int
         index of the problem. i-th problem is used to compute the objective
         function.
-    Amax : float
-        maximum value for material property A
-    Amin : float
-        minimum value for material property A. Should be small compared to Amax
-        but not zero and Amax + Amin should recover the property A of the material
-    penal: float
-        penalty exponent for the SIMP method.
+    matinterpol : callable 
+        callable for material interpolation. Default is SIMP (simp).
+    matinterpol_kw : callable 
+        dictionary containing the arguments for the material interpolation.
     obj : float
         objective function.
 
@@ -105,13 +99,13 @@ def compliance_squarederror(xPhys: np.ndarray,
     """
     ce = (np.dot(u[edofMat,i], KE)
              * u[edofMat,i]).sum(1)
-    c = ((Amin+xPhys**penal*(Amax-Amin))*ce).sum()
+    c = (matinterpol(xPhys,**matinterpol_kw)[:,0]*ce).sum()
     if isinstance(c0,float):
         delta = c - c0
     else:
         delta = c - c0[i]
     obj += delta**2
-    dc = 2*delta * (-1) * penal*xPhys**(penal-1)*(Amax-Amin)*ce
+    #dc = 2*delta * (-1) * penal*xPhys**(penal-1)*(Amax-Amin)*ce
     return obj, -u * (c-c0), True 
 
 def volume(xPhys, **kwargs):
