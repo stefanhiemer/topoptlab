@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 from typing import Any, Callable, Dict, Tuple
+from warnings import warn
+
 import numpy as np
 
 def compliance(xPhys: np.ndarray, 
@@ -60,7 +62,9 @@ def compliance_squarederror(xPhys: np.ndarray,
                             i: int,
                             matinterpol: Callable, #matinterpol_dx : Callable,
                             matinterpol_kw: Dict,
-                            obj, **kwargs):
+                            obj: float, 
+                            **kwargs: Any
+                            ) -> Tuple[float,np.ndarray,bool]:
     """
     Update objective and gradient for stiffness/compliance control. 
 
@@ -108,12 +112,17 @@ def compliance_squarederror(xPhys: np.ndarray,
     #dc = 2*delta * (-1) * penal*xPhys**(penal-1)*(Amax-Amin)*ce
     return obj, -u * (c-c0), True 
 
-def volume(xPhys, **kwargs):
-    
+def volume(xPhys: np.ndarray, 
+           **kwargs: Any) -> Tuple[float,np.ndarray,bool]:
+    raise NotImplementedError()
     return xPhys.sum(axis=0)
 
-def var_maximization(u, l, i,
-                     obj, **kwargs):
+def var_maximization(u: np.ndarray, 
+                     l: np.ndarray, 
+                     i: int,
+                     obj: float, 
+                     **kwargs: Any
+                     ) -> Tuple[float,np.ndarray,bool]:
     """
     Update objective and gradient for maximization of state variable in
     specified points. The mechanic version of this is the compliant mechanism
@@ -146,8 +155,13 @@ def var_maximization(u, l, i,
     obj += u[l[:,i]!=0].sum()
     return obj, l, False
 
-def var_squarederror(u, u0, l, i,
-                     obj, **kwargs):
+def var_squarederror(u: np.ndarray, 
+                     u0: np.ndarray, 
+                     l: np.ndarray, 
+                     i: int,
+                     obj: float, 
+                     **kwargs: Any
+                     )-> Tuple[float,np.ndarray,bool]:
     """
     Update objective and gradient for forcing a state variable to a specific
     values at certain points. The mechanic version of this is the compliant
@@ -186,11 +200,18 @@ def var_squarederror(u, u0, l, i,
     rhs_adj[mask,0] = (-2)*(u[mask,i]-u0) / u0.shape[0]
     return obj, rhs_adj , False
 
-def inverse_homogenization_maximization(u, u0, edofMat, i, KE,
-                                        cellVolume, xPhys,
+def inverse_homogenization_maximization(u: np.ndarray, 
+                                        u0: np.ndarray, 
+                                        edofMat: np.ndarray, 
+                                        i: int, 
+                                        KE: np.ndarray,
+                                        cellVolume: float, 
+                                        xPhys: np.ndarray,
                                         Amax, Amin, penal,
                                         results, obj,
                                         **kwargs):
+    #
+    warn("Untested and probably not correct.")
     #
     if "CH" not in results.keys():
         results["CH"] = np.zeros((u.shape[-1],u.shape[-1]))
@@ -213,9 +234,12 @@ def inverse_homogenization_maximization(u, u0, edofMat, i, KE,
 
 def inverse_homogenization_control(u, u0, edofMat, i, KE,
                                    cellVolume, CH0, xPhys,
-                                   Amax, Amin, penal,
+                                   matinterpol: Callable, #matinterpol_dx : Callable,
+                                   matinterpol_kw: Dict,
                                    results, obj,
                                    **kwargs):
+    #
+    warn("Untested and probably not correct.")
     #
     if "CH" not in results.keys():
         results["CH"] = np.zeros(CH0)
@@ -226,10 +250,10 @@ def inverse_homogenization_control(u, u0, edofMat, i, KE,
     for j in range(i,CH0.shape[-1]):
         # calculate elemental compliance deviation
         delta_ce = (np.dot(du[edofMat,i], KE) * du[edofMat,i]).sum(1)
-        deltac = ((Amin+xPhys**penal*(Amax-Amin))*delta_ce).sum()
+        deltac = (matinterpol(xPhys,**matinterpol_kw)[:,0]*delta_ce).sum()
         results["CH"][i,j] = deltac / cellVolume
         #results["CH"][i,j] = np.einsum('nj,nij,ni->n', du[:,:,i], Kes, du[:,:,j]).sum()
-        dc = (-1) * penal*xPhys**(penal-1)*(Amax-Amin)*delta_ce
+        dc = (-1) * matinterpol(xPhys,**matinterpol_kw)[:,0]*delta_ce
         dobj += 2*(deltac/cellVolume -CH0[i,j]) * dc
     # fill off-diagonal
     results["CH"][i:,i] = results["CH"][i,i:]
