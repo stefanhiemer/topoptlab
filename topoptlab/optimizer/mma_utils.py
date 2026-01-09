@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Dict
+from typing import Dict,Union
 
 import numpy as np
 
 from mmapy import mmasub
 
-def mma_defaultkws(n: int, ft: int, n_constr: int) -> Dict:
+def mma_defaultkws(n: int, n_constr: int, ft: Union[None,int] = None) -> Dict:
     """
     Default arguments for the method of moving asymptotes (MMA).
     
@@ -13,10 +13,10 @@ def mma_defaultkws(n: int, ft: int, n_constr: int) -> Dict:
     ----------
     n : int
         number of design variables.
-    ft : int
-        filter flag.
     n_constr : int
         number of constraints.
+    ft : None or int
+        filter flag. If None, adopts default move limit of 0.2.
         
     Returns
     -------

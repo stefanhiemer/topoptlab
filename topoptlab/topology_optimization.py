@@ -10,6 +10,7 @@ from scipy.ndimage import convolve
 from matplotlib.colors import Normalize
 import matplotlib.pyplot as plt
 # functions to create filters
+from topoptlab.filter.filter import TOFilter 
 from topoptlab.filter.convolution_filter import assemble_convolution_filter
 from topoptlab.filter.helmholtz_filter import assemble_helmholtz_filter
 from topoptlab.filter.matrix_filter import assemble_matrix_filter
@@ -47,6 +48,7 @@ def main(nelx: int, nely: int,
          volfrac: float, #penal: float, 
          rmin: float, 
          ft: int = 1,
+         filter_kw: Dict = {},
          simulation_kw: Dict = {"grid": "regular",
                                 "element order": 1,
                                 "meshfile": None},
@@ -214,8 +216,12 @@ def main(nelx: int, nely: int,
     x = volfrac * np.ones( (n,1), dtype=float,order='F')
     #x = np.random.rand(n)
     #x = x/x.mean() * volfrac
-    xTilde = x.copy()
     xPhys = x.copy()
+    # intermediate filter variables
+    if isinstance(ft, list):
+        xTilde = dict()
+        for i in range(len(ft)):
+            xTilde.append(x.copy)
     # initialize arrays for gradients
     dobj = np.zeros( x.shape,order="F")
     # initialize constraints
@@ -254,8 +260,6 @@ def main(nelx: int, nely: int,
             xPhys[mask] = 1.
     else:
         raise ValueError("Unknown optimizer: ", optimizer)
-    # Young's modulus 
-    E = materials_kw["E"]
     # get element stiffness matrix
     KE = lk(l=l)
     # infer nodal degrees of freedom assuming that we have 4/8 nodes in 2/3 D
@@ -332,7 +336,12 @@ def main(nelx: int, nely: int,
         mapping = partial(map_eltovoxel,
                           nelx=nelx,nely=nely,nelz=nelz)
     # prepare functions to invert this mapping if we use the convolution filter
-    if filter_mode == "convolution" and ndim == 2:
+    if isinstance(ft, TOFilter):
+        ft = [ft(nelx=nelx,nely=nely,nelz=nelz,rmin=rmin,**filter_kw)]
+    elif isinstance(ft, list):
+        ft = [ft_obj(nelx=nelx,nely=nely,nelz=nelz,rmin=rmin,**filter_kw) \
+              for ft_obj in ft]
+    elif filter_mode == "convolution" and ndim == 2:
         invmapping = partial(map_imgtoel,
                              nelx=nelx,nely=nely)
     elif filter_mode == "convolution" and ndim == 3:
@@ -510,7 +519,27 @@ def main(nelx: int, nely: int,
         log.debug("[DEBUG] Pre-Sensitivity Filter: it.: {0}, dobj: {1:.10f}, dv: {2:.10f}".format(
                   loop, np.max(dobj), np.min(dconstrs)))
         # Sensitivity filtering:
-        if ft == 0 and filter_mode == "matrix":
+        if isinstance(ft, list):
+            dobj[:] = ft[-1].apply_filter_dx(x_filtered=xPhys,
+                                    dx_filtered=dobj)
+            dconstrs[:] = ft[-1].apply_filter_dx(x_filtered=xPhys,
+                                                 dx_filtered=dconstrs)
+            if len(ft) > 1:
+                for i in range(len(ft)-1,-1,-1):
+                    dobj[:] = ft[-1].apply_filter_dx(x_filtered=xTilde[i],
+                                                     dx_filtered=dobj)
+                    dconstrs[:] = ft[-1].apply_filter_dx(x_filtered=xTilde[i],
+                                                         dx_filtered=dconstrs)
+                
+        if isinstance(ft, list):
+            if len(ft) > 1:
+                xTilde[0] = ft[-1].apply_filter(x=x,rmin=rmin)
+                for i in range(1,len(ft)-1):
+                    ft[i].apply_filter(x=xTilde[i-1],rmin=rmin)
+                xPhys = ft[-1].apply_filter(x=xTilde[-1],rmin=rmin)
+            else:
+                xPhys = ft[0].apply_filter(x=x,rmin=rmin)
+        elif ft == 0 and filter_mode == "matrix":
             dobj[:] = np.asarray(H@(x*dobj) /
                                  Hs) / np.maximum(0.001, x)
             #dobj[:] = H @ (dc*x) / Hs / np.maximum(0.001, x)
@@ -574,8 +603,8 @@ def main(nelx: int, nely: int,
             optimizer_kw["upp"] = upp
             x = xmma.copy()
         #
-        log.debug("[DEBUG] Post Density Update: it.: {0}, med. x.: {1:.10f}, med. xTilde: {2:.10f}, med. xPhys: {3:.10f}".format(
-                   loop, np.median(x),np.median(xTilde),np.median(xPhys)))
+        log.debug("[DEBUG] Post Density Update: it.: {0}, med. x.: {1:.10f}, med. xPhys: {2:.10f}".format(
+                   loop, np.median(x),np.median(xPhys)))
         # mixing
         if ((loop-accelerator_kw["accel_start"])%accelerator_kw["accel_freq"])==0 \
             and loop >= accelerator_kw["accel_start"] and \
@@ -591,10 +620,18 @@ def main(nelx: int, nely: int,
         if len(xhist)> max_history+1:
             xhist = xhist[-max_history-1:]
         #
-        log.debug("[DEBUG] Post Mixing Update: it.: {0}, med. x.: {1:.10f}, med. xTilde: {2:.10f}, med. xPhys: {3:.10f}".format(
-                  loop, np.median(x),np.median(xTilde),np.median(xPhys)))
+        log.debug("[DEBUG] Post Mixing Update: it.: {0}, med. x.: {1:.10f}, med. xPhys: {2:.10f}".format(
+                  loop, np.median(x),np.median(xPhys)))
         # Filter design variables
-        if ft == 0:
+        if isinstance(ft, list):
+            if len(ft) > 1:
+                xTilde[0] = ft[-1].apply_filter(x=x,rmin=rmin)
+                for i in range(1,len(ft)-1):
+                    ft[i].apply_filter(x=xTilde[i-1],rmin=rmin)
+                xPhys = ft[-1].apply_filter(x=xTilde[-1],rmin=rmin)
+            else:
+                xPhys = ft[0].apply_filter(x=x,rmin=rmin)
+        elif ft == 0:
             xPhys[:] = x
         elif ft == 1 and filter_mode == "matrix":
             xPhys[:] = np.asarray(H*x/Hs)
@@ -608,8 +645,8 @@ def main(nelx: int, nely: int,
         elif ft == -1:
             xPhys[:]  = x
         #
-        log.debug("[DEBUG] Post Density Filter: it.: {0}, med. x.: {1:.10f}, med. xTilde: {2:.10f}, med. xPhys: {3:.10f}".format(
-                  loop, np.median(x),np.median(xTilde),np.median(xPhys)))
+        log.debug("[DEBUG] Post Density Filter: it.: {0}, med. x.: {1:.10f}, med. xPhys: {2:.10f}".format(
+                  loop, np.median(x),np.median(xPhys)))
         # compute the change by the inf. norm
         change = np.abs(xhist[-1] - xhist[-2]).max()
         # plot to screen
