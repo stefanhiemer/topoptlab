@@ -206,7 +206,7 @@ def diag(vals: List) -> MatrixFunction:
 
 def to_square(v, order: str = "C") -> MatrixFunction:
     """
-    Return MatrixFunction of shape (n**2,1) reshape (n,n) either in 'C' or 'F'
+    Convert MatrixFunction of shape (n**2,1) to (n,n) either in 'C' or 'F'
     order analogously to numpy reshaping.
 
     Parameters
@@ -230,6 +230,37 @@ def to_square(v, order: str = "C") -> MatrixFunction:
         for i in range(n):
             M.append([v[i*n+j,0] for j in range(n)])
     return MatrixFunction(M)
+
+def to_voigt(M) -> MatrixFunction:
+    """
+    Convert MatrixFunction M of shape (d,d) to Voigt notation resulting in 
+    shape (n,n). M must be square and symmetric.
+
+    Parameters
+    ----------
+    M : symfem.functions.MatrixFunction
+        matrix of shape (d,d). 
+
+    Returns
+    -------
+    M_v : symfem.functions.MatrixFunction
+        Voigt vector reshaped to shape (d*(d+1)/2,1)
+    """
+    #
+    d = M.shape[0]
+    #
+    if d!=M.shape[1]:
+        raise ValueError("M must be symmetric: ",M.shape)
+    # diagonal
+    M_v = [ [M[i,i]] for i in range(d)]
+    #
+    if d == 2:
+        M_v.append( [M[0,1]] )
+    elif d == 3:
+        M_v.append([M[1,2]])
+        M_v.append([M[0,2]]) 
+        M_v.append([M[0,1]])
+    return MatrixFunction(M_v)
 
 def inverse(A: MatrixFunction,
             Adet: Union[None, ScalarFunction] = None) -> MatrixFunction:

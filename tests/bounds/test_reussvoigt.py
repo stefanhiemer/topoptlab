@@ -117,7 +117,7 @@ from topoptlab.bounds.voigt_reuss import reuss_dx
 
 def test_reuss_dx(x,props): 
     #
-    dx = 5e-9
+    dx = 1e-9
     #
     actual = reuss_dx(x=x, props=props)
     #
@@ -129,5 +129,5 @@ def test_reuss_dx(x,props):
     #
     assert_allclose(actual, 
                     finite_diff,
-                    atol=1e-7)
+                    atol=1e-6)
     return

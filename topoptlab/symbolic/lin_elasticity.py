@@ -40,9 +40,9 @@ def stiffness_matrix(ndim : int,
     vertices, nd_inds, ref, basis  = base_cell(ndim)
     # anisotropic stiffness tensor or equivalent in Voigt notation 
     if c is None:
-        c = generate_constMatrix(int((ndim**2 + ndim) /2),
-                                 int((ndim**2 + ndim) /2),
-                                 "c")
+        c = generate_constMatrix(ncol=int((ndim**2 + ndim) /2),
+                                 nrow=int((ndim**2 + ndim) /2),
+                                 name="c")
     #
     b = small_strain_matrix(ndim=ndim,
                             nd_inds=nd_inds,
@@ -87,9 +87,9 @@ def strainforces(ndim : int,
     vertices, nd_inds, ref, basis  = base_cell(ndim)
     # anisotropic stiffness tensor or equivalent in Voigt notation
     if c is None:
-        c = generate_constMatrix(int((ndim**2 + ndim) /2),
-                                 int((ndim**2 + ndim) /2),
-                                 "c")
+        c = generate_constMatrix(ncol=int((ndim**2 + ndim) /2),
+                                 nrow=int((ndim**2 + ndim) /2),
+                                 name="c")
     # strains
     eps = generate_constMatrix(ncol=1,nrow=int((ndim**2 + ndim) /2),
                                name="eps")

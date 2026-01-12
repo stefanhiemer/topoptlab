@@ -42,3 +42,22 @@ def test_tosquare(size,order,sol):
     assert sol == to_square(v,order=order)
     return
 
+from topoptlab.symbolic.matrix_utils import to_voigt,generate_constMatrix
+
+@pytest.mark.parametrize('ndim',
+                         [ (2),
+                           (3)])
+
+def test_tovoigt(ndim):
+    #
+    M = generate_constMatrix(ndim,ndim,"M",symmetric=True)
+    M_v = to_voigt(M)
+    if ndim==2:
+        sol = MatrixFunction( [[M[0,0]],[M[1,1]],
+                               [M[0,1]]] )
+    elif ndim==3:
+        sol = MatrixFunction( [[M[0,0]],[M[1,1]],[M[2,2]],
+                               [M[1,2]],[M[0,2]],[M[0,1]]] )
+    assert sol == M_v
+    return
+
