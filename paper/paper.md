@@ -9,7 +9,7 @@ authors:
     orcid: 0000-0001-6562-4883
     affiliation: "1, 2" 
 affiliations:
- - name: Center for Complexity and Biosystems, Department of Physics ”Aldo Pontremoli”, University of Milan, Via Celoria 16, 20133 Milano, Italy
+ - name: Center for Complexity and Biosystems, Department of Physics "Aldo Pontremoli", University of Milan, Via Celoria 16, 20133 Milano, Italy
    index: 1
  - name: CNR – Consiglio Nazionale delle Ricerche, Istituto di Chimica della Materia Condensata e di Tecnologie per l’Energia, Via R. Cozzi 53, 20125 Milano, Italy
    index: 2 
