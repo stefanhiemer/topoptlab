@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 from typing import List, Tuple, Union
+from warnings import warn
 from itertools import product
-from math import sqrt
+from math import floor,sqrt
 
-from sympy import symbols, Symbol, Function
+from sympy import symbols, Symbol, Function, Inverse, Trace
 from symfem.functions import ScalarFunction,VectorFunction,MatrixFunction
 
 from topoptlab.symbolic.utils import is_equal
@@ -18,9 +19,9 @@ def generate_constMatrix(ncol: int, nrow: int, name: str,
     Parameters
     ----------
     ncol : int
-        number of rows.
+        number of columns.
     nrow : int
-        number of cols.
+        number of rows.
     name : str
         name to put in front of indices.
     symmetric : bool
@@ -83,14 +84,14 @@ def generate_FunctMatrix(ncol: int, nrow: int, name: str,
                          return_symbols: bool = False
                          ) -> Tuple[MatrixFunction, List]:
     """
-    Generate matrix where each entry is a function of the .
+    Generate matrix where each entry is a function of the variables.
 
     Parameters
     ----------
     ncol : int
-        number of rows.
+        number of columns.
     nrow : int
-        number of cols.
+        number of rows.
     name : str
         name to put in front of indices.
     variables : list
@@ -186,25 +187,47 @@ def eye(size: int) -> MatrixFunction:
     return MatrixFunction([[0 if i!=j else 1 for j in range(size)] \
                           for i in range(size)])
 
-def diag(vals: List) -> MatrixFunction:
+def diag(v: Union[List,MatrixFunction]) -> Union[List,MatrixFunction]:
     """
-    Return diagonal matrix with given diagonal values.
+    Return diagonal matrix with given diagonal values or extract diagonal
+    values and return as list.
 
     Parameters
     ----------
-    vals : list
-        values of diagonal.
-
+    v : list or symfem.functions.MatrixFunction
+        values of diagonal or matrix that needs diagonal extracted.
+        
     Returns
     -------
-    diag : symfem.functions.MatrixFunction
-        diagonal matrix.
+    diag : list or symfem.functions.MatrixFunction
+        diagonal matrix or extracted diagonal as list.
     """
-    size=len(vals)
-    return MatrixFunction([[0 if i!=j else vals[i] for j in range(size)] \
-                          for i in range(size)])
+    #
+    if isinstance(v, list):
+        size=len(v) 
+        return MatrixFunction([[0 if i!=j else v[i] for j in range(size)] \
+                                for i in range(size)])
+    elif isinstance(v, MatrixFunction):
+        
+        return [v[i,i] for i in range(min(v.shape))]
+    
+def trace(M: MatrixFunction) -> ScalarFunction:
+    """
+    Take the trace of the given matrix `M`.
 
-def to_square(v, order: str = "C") -> MatrixFunction:
+    Parameters
+    ----------
+    M : symfem.functions.MatrixFunction
+        matrix M.
+        
+    Returns
+    -------
+    trace : symfem.functions.ScalarFunction
+        trace of M.
+    """ 
+    return ScalarFunction(Trace(M.as_sympy()).simplify())
+
+def to_square(v: MatrixFunction, order: str = "F") -> MatrixFunction:
     """
     Convert MatrixFunction of shape (n**2,1) to (n,n) either in 'C' or 'F'
     order analogously to numpy reshaping.
@@ -231,10 +254,208 @@ def to_square(v, order: str = "C") -> MatrixFunction:
             M.append([v[i*n+j,0] for j in range(n)])
     return MatrixFunction(M)
 
-def to_voigt(M) -> MatrixFunction:
+def to_column(M: MatrixFunction, order: str = "C") -> MatrixFunction:
+    """
+    Flatten MatrixFunction of shape (m,n) to (m*n,1) either in 'C' or 'F'
+    order analogously to numpy reshaping.
+
+    Parameters
+    ----------
+    M : symfem.functions.MatrixFunction
+        matrix of shape (m,n).
+    order : str
+        order of reshaping
+
+    Returns
+    -------
+    v : symfem.functions.MatrixFunction
+        matrix reshaped to shape (m*n,1)
+    """
+    m,n = M.shape
+    v = []
+    if order == "F":
+        v = [[M[i%m, floor(i/n)]] for i in range(m*n)]
+    elif order == "C":
+        v = [[M[floor(i/n),i%m]] for i in range(m*n)]
+    return MatrixFunction(v)
+
+def kron(A: MatrixFunction,
+         B: MatrixFunction) -> MatrixFunction:
+    """
+    Apply Kronecker product.
+
+    Parameters
+    ----------
+    A : symfem.functions.MatrixFunction
+        matrix of shape (m,n). 
+    B : symfem.functions.MatrixFunction
+        matrix of shape (p,q).
+        
+    Returns
+    -------
+    M : symfem.functions.MatrixFunction
+        Kronecker product of shape (m*p,n*q)
+    """
+    m,n = A.shape
+    p,q = B.shape
+    M = []
+    for i in range(m*p):
+        M.append([])
+        for j in range(n*q):
+            M[-1].append(A[floor(i/p),floor(j/q)]*B[i%p,j%q])
+    return MatrixFunction(M)
+
+def eig(M: MatrixFunction) -> MatrixFunction:
+    """
+    Calculate eigenvalues and eigenvectors.
+
+    Parameters
+    ----------
+    M : symfem.functions.MatrixFunction
+        matrix of shape (n,n). 
+        
+    Returns
+    -------
+    eigenvalues : symfem.functions.MatrixFunction
+        The eigenvalues repeated according to multiplicity, but not sorted 
+        according to magnitude as symbolically this would need information 
+        about the variables. Shape (n,1)
+    eigenvectors : symfem.functions.MatrixFunction
+        The normlaized eigenvectors such that the i-th column belongs to the 
+        i-th eigenvalue. Shape (n,n)
+    """
+    #
+    if not is_square(M):
+        raise ValueError("M must be square to allow eigendecomposition. ",
+                         "Current shape: ", M.shape)
+    # use sympy for decomposition. 
+    eigenvectors,eigenvalues = M.as_sympy().diagonalize(normalize=True)
+    return diag(MatrixFunction(eigenvalues)),MatrixFunction(eigenvectors)
+
+def inverse(A: MatrixFunction,
+            Adet: Union[None, ScalarFunction] = None) -> MatrixFunction:
+    """
+    Return the symbolic inverse of a square matrix using explicit adjugate 
+    formulas. Does not work if dim(A) > 3.
+
+    Parameters
+    ----------
+    A : symfem.functions.MatrixFunction
+       square matrix of shape (ndim, ndim).
+   Adet : symfem.functions.ScalarFunction or None, optional
+       determinant of ``A``. Providing it allows reuse.
+       
+    Returns
+    -------
+    Ainv : symfem.functions.MatrixFunction
+       Matrix inverse of shape (ndim, ndim).
+
+    """
+    #
+    size = A.shape[0]
+    if size > 3:
+        raise warn("This function is intended for size(M) < 4. ",
+                   "Might get very slow otherwise.")
+    if Adet is None:
+        Adet = A.det()
+    # 
+    if size < 4:
+        Ainv = [[[] for A in range(size)] for A in range(size)]
+    if size == 1:
+        Ainv[0][0] = 1 / Adet
+    elif size == 2:
+        Ainv[0][0], Ainv[1][1] = A[1][1]/Adet, A[0][0]/Adet
+        Ainv[0][1], Ainv[1][0] = -A[0][1]/Adet, -A[1][0]/Adet
+    elif size == 3:
+        #
+        Ainv[0][0] = (A[1][1]*A[2][2] - A[1][2]*A[2][1]) / Adet
+        Ainv[0][1] = -(A[0][1]*A[2][2] - A[0][2]*A[2][1]) / Adet
+        Ainv[0][2] = (A[0][1]*A[1][2] - A[0][2]*A[1][1]) / Adet
+        #
+        Ainv[1][0] = -(A[1][0]*A[2][2] - A[1][2]*A[2][0]) / Adet
+        Ainv[1][1] = (A[0][0]*A[2][2] - A[0][2]*A[2][0] ) / Adet
+        Ainv[1][2] = -(A[0][0]*A[1][2] - A[0][2]*A[1][0]) / Adet
+        #
+        Ainv[2][0] = (A[1][0]*A[2][1] - A[1][1]*A[2][0]) / Adet
+        Ainv[2][1] = -(A[0][0]*A[2][1] - A[0][1]*A[2][0]) / Adet
+        Ainv[2][2] = (A[0][0]*A[1][1] - A[0][1]*A[1][0]) / Adet
+    else:
+        Ainv = Inverse(A.as_sympy()).simplify()
+    return MatrixFunction(Ainv)
+
+def det(M: MatrixFunction) -> MatrixFunction:
+    """
+    Calculate determinant.
+
+    Parameters
+    ----------
+    M : symfem.functions.MatrixFunction
+        matrix. 
+
+    Returns
+    -------
+    det : symfem.functions.ScalarFunction
+        determinant
+    """
+    return M.det()
+
+def mul(M: MatrixFunction,
+        s: Union[float,int,]) -> MatrixFunction:
+    """
+    Multiply each entry with scalar.
+
+    Parameters
+    ----------
+    M : symfem.functions.MatrixFunction
+        matrix. 
+
+    Returns
+    -------
+    M : symfem.functions.ScalarFunction
+        determinant
+    """
+    return M.det()
+
+def from_voigt(M_v: MatrixFunction) -> MatrixFunction:
+    """
+    Convert MatrixFunction M_v of shape (d*(d+1)/2,1) from Voigt notation to 
+    standard matrix notation M resulting in shape (d,d). M is square and 
+    symmetric.
+
+    Parameters
+    ----------
+    M_v : symfem.functions.MatrixFunction
+        matrix in Voigt notation of shape (d*(d+1)/2,1). 
+
+    Returns
+    -------
+    M : symfem.functions.MatrixFunction
+        matrix of shape (d,d)
+    """
+    #
+    d = int((-1+sqrt(1+8*M_v.shape[0]))/2)
+    #
+    M = [[0 for j in range(d)] for i in range(d)]
+    # diagonal
+    for i in range(d):
+        M[i][i] = M_v[i,0]
+    # off-diagonal
+    if d == 2:
+        M[0][1] = M_v[-1,0]
+        M[1][0] = M_v[-1,0]
+    elif d == 3:
+        M[1][2] = M_v[-3,0]
+        M[2][1] = M_v[-3,0]
+        M[0][2] = M_v[-2,0]
+        M[2][0] = M_v[-2,0]
+        M[0][1] = M_v[-1,0]
+        M[1][0] = M_v[-1,0]
+    return MatrixFunction(M)
+
+def to_voigt(M: MatrixFunction) -> MatrixFunction:
     """
     Convert MatrixFunction M of shape (d,d) to Voigt notation resulting in 
-    shape (n,n). M must be square and symmetric.
+    shape (d*(d+1)/2,1). M must be square and symmetric.
 
     Parameters
     ----------
@@ -262,93 +483,41 @@ def to_voigt(M) -> MatrixFunction:
         M_v.append([M[0,1]])
     return MatrixFunction(M_v)
 
-def inverse(A: MatrixFunction,
-            Adet: Union[None, ScalarFunction] = None) -> MatrixFunction:
+def is_voigt(M: MatrixFunction, 
+             ndim: int) -> bool:
     """
-    Return the symbolic inverse of a square matrix using explicit adjugate 
-    formulas. Does not work if dim(A) > 3.
+    Check if MatrixFunction M is notated in Voigt notation.
 
     Parameters
     ----------
-    A : symfem.functions.MatrixFunction
-       square matrix of shape (ndim, ndim).
-   Adet : symfem.functions.ScalarFunction or None, optional
-       determinant of ``A``. Providing it allows reuse.
-       
+    M : symfem.functions.MatrixFunction
+        matrix function. 
+
     Returns
     -------
-    Ainv : symfem.functions.MatrixFunction
-       Matrix inverse of shape (ndim, ndim).
-
+    is_voigt : bool
+        True, if M is notated in Voigt notation.
     """
-    #
-    ndim = A.shape[0]
-    if ndim > 3:
-        raise ValueError("This function only works for square matrices ndim < 4.")
-    if Adet is None:
-        Adet = A.det()
-    # adAungate matrix
-    Ainv = [[[] for A in range(ndim)] for A in range(ndim)]
-    if ndim == 1:
-        Ainv[0][0] = 1 / Adet
-    elif ndim == 2:
-        Ainv[0][0], Ainv[1][1] = A[1][1]/Adet, A[0][0]/Adet
-        Ainv[0][1], Ainv[1][0] = -A[0][1]/Adet, -A[1][0]/Adet
-    elif ndim == 3:
-        #
-        Ainv[0][0] = (A[1][1]*A[2][2] - A[1][2]*A[2][1]) / Adet
-        Ainv[0][1] = -(A[0][1]*A[2][2] - A[0][2]*A[2][1]) / Adet
-        Ainv[0][2] = (A[0][1]*A[1][2] - A[0][2]*A[1][1]) / Adet
-        #
-        Ainv[1][0] = -(A[1][0]*A[2][2] - A[1][2]*A[2][0]) / Adet
-        Ainv[1][1] = (A[0][0]*A[2][2] - A[0][2]*A[2][0] ) / Adet
-        Ainv[1][2] = -(A[0][0]*A[1][2] - A[0][2]*A[1][0]) / Adet
-        #
-        Ainv[2][0] = (A[1][0]*A[2][1] - A[1][1]*A[2][0]) / Adet
-        Ainv[2][1] = -(A[0][0]*A[2][1] - A[0][1]*A[2][0]) / Adet
-        Ainv[2][2] = (A[0][0]*A[1][1] - A[0][1]*A[1][0]) / Adet
-    return MatrixFunction(Ainv)
-
-def trace(A: MatrixFunction) -> ScalarFunction:
+    if (M.shape [1]== 1) or (M.shape[0] == M.shape[1]): 
+        return int(ndim*(ndim+1)/2)==M.shape[0]
+    else:
+        raise ValueError("This shape cannot be a common tensor in Voigt form.")
+        
+def is_square(M: MatrixFunction) -> bool:
     """
-    Return trace of square matrix.
+    Check if MatrixFunction M is a square matrix.
 
     Parameters
     ----------
-    A : symfem.functions.MatrixFunction
-       square matrix of shape (ndim, ndim).
-       
+    M : symfem.functions.MatrixFunction
+        matrix function. 
+
     Returns
     -------
-    trace : symfem.functions.ScalarFunction
-       trace of A.
-
+    is_square : bool
+        True, if M is a square matrixn.
     """
-    #
-    check_square(A)
-    #
-    trace = 0
-    for i in range(A.shape[0]):
-        trace = trace + A[i,i]
-    return trace
-
-def check_square(A: MatrixFunction) -> None:
-    """
-    Check if A is a square matrix.
-
-    Parameters
-    ----------
-    A : symfem.functions.MatrixFunction
-       matrix to be checked.
-       
-    Returns
-    -------
-    None
-
-    """
-    if A.shape[0] != A.shape[1]:
-        raise ValueError("A is not square: ", A.shape)
-    return
+    return M.shape[0] == M.shape[1]
 
 def matrix_equal(A: MatrixFunction, B: MatrixFunction) -> bool:
     """

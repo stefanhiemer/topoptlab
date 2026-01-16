@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 from warnings import warn
 from typing import Any,Dict,List,Tuple,Union
+from itertools import chain
 
 import numpy as np
 from scipy.ndimage import zoom
@@ -217,6 +218,22 @@ def dict_without(dictionary: Dict, keys: List) -> Dict:
         dictionary without given keys 
     """
     return {k: v for k, v in dictionary.items() if k not in keys}
+
+def flatten_lol(lst: List) -> List:
+    """
+    Flatten list of lists.
+    
+    Parameters
+    ----------
+    lst : dict
+        list of lists.
+
+    Returns
+    -------
+    lst_flat : dict
+        flattened list of lists. 
+    """
+    return list(chain.from_iterable(lst))
 
 def map_eltoimg(quant: np.ndarray, 
                 nelx: int, nely: int, 

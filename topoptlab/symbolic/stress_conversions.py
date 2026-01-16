@@ -5,8 +5,9 @@ from sympy import expand,simplify,Expr
 from symfem.functions import ScalarFunction,MatrixFunction
 
 from topoptlab.symbolic.cell import base_cell
-from topoptlab.symbolic.matrix_utils import simplify_matrix, generate_constMatrix
-from topoptlab.symbolic.matrix_utils import inverse
+from topoptlab.symbolic.matrix_utils import simplify_matrix,\
+                                            generate_constMatrix, inverse,\
+                                            is_voigt, from_voigt
 
 def cauchy_to_pk1(sigma: MatrixFunction, 
                   F: MatrixFunction,
@@ -31,6 +32,9 @@ def cauchy_to_pk1(sigma: MatrixFunction,
         first Piola-Kirchhoff stress tensor of shape (ndim,ndim).
 
     """
+    # convert back to matrix form
+    if is_voigt(M=sigma,ndim=F.shape[0]):
+        sigma = from_voigt(M_v=sigma)
     #
     if Fdet is None:
         Fdet = F.det() 
@@ -63,6 +67,9 @@ def cauchy_to_pk2(sigma: MatrixFunction,
         second Piola-Kirchhoff stress tensor of shape (ndim,ndim).
 
     """
+    # convert back to matrix form
+    if is_voigt(sigma):
+        sigma = from_voigt(M_v=sigma)
     #
     if Fdet is None:
         Fdet = F.det()
@@ -154,6 +161,9 @@ def pk2_to_cauchy(S: MatrixFunction,
         Cauchy stress tensor of shape (ndim,ndim).
 
     """
+    # convert back to matrix form
+    if is_voigt(M=S,ndim=F.shape[0]):
+        S = from_voigt(M_v=S)
     #
     if Fdet is None:
         Fdet = F.det() 
@@ -183,5 +193,8 @@ def pk2_to_pk1(S: MatrixFunction,
         first Piola-Kirchhoff stress tensor of shape (ndim,ndim).
 
     """
+    # convert back to matrix form
+    if is_voigt(S):
+        S = from_voigt(M_v=S)
     #
     return simplify_matrix( F@S )

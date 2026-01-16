@@ -2,6 +2,7 @@
 from typing import Dict,List,Union
 from math import floor
 
+from sympy import Rational
 from symfem.functions import VectorFunction,MatrixFunction
 
 from topoptlab.symbolic.cell import base_cell
@@ -99,7 +100,7 @@ def dispgrad_matrix(ndim: int, nd_inds: list,
     """
     Create the matrix to calculate the flattened displacement gradient via
     
-    h = B @ u
+    h = B_h @ u
     
     where u are nodal displacements and h a column vector of length ndim**2. 
     You recover the full deformation gradient by 
@@ -119,7 +120,7 @@ def dispgrad_matrix(ndim: int, nd_inds: list,
 
     Returns
     -------
-    dispgrad_matrix : symfem.functions.Matrixfunction
+    B_h : symfem.functions.Matrixfunction
         matrix to calculate flattened displacement gradient shape 
         (ndim**2 , n_nodes*ndim).
     """
@@ -181,11 +182,14 @@ def disp_grad(ndim: int,
                         isoparam_kws={"element_type": element_type,
                                       "order": order})
     # nodal displacements
-    u = generate_constMatrix(ncol=1, nrow=b.shape[1], name="u")
+    if u is None:
+        u = generate_constMatrix(ncol=1, nrow=b.shape[1], name="u")
+    #
+    h=simplify_matrix(M=b@u)
     if shape=="square":
-        return to_square(v=simplify_matrix(M=b@u), order="C")
+        return to_square(v=h, order="C")
     elif shape=="voigt":
-        return simplify_matrix(M=b@u) 
+        return h
     else:
         raise ValueError("shape can only be one of the followings options: ",
                          "square, voigt")
@@ -228,7 +232,7 @@ def def_grad(ndim: int,
     if shape=="square":
         pass
     elif shape=="voigt":
-        I = MatrixFunction([ I[i%ndim, floor(i/ndim)] for i in range(ndim**2) ])
+        I = MatrixFunction([[I[i%ndim, floor(i/ndim)]] for i in range(ndim**2) ])
     else:
         raise ValueError("shape can only be one of the followings options: ",
                          "square, voigt")
@@ -241,10 +245,11 @@ def def_grad(ndim: int,
     return I + H
 
 def cauchy_strain(ndim: int,
+                  F: Union[None,MatrixFunction] = None,
                   element_type: str = "Lagrange",
                   order: int = 1) ->  MatrixFunction:
     """
-    Symbolically compute Cauchy strain
+    Symbolically compute right Cauchy–Green deformation tensor
     
     C = F.T @ F
 
@@ -252,6 +257,50 @@ def cauchy_strain(ndim: int,
     ----------
     ndim : int
         number of spatial dimensions. Must be between 1 and 3.
+    F : None or symfem.functions.MatrixFunction
+        symbolic deformation gradient of shape (ndim,ndim). If not None, then 
+        all the other arguments are ignored and the strain is calculated with 
+        the provided F.
+    element_type : str
+        type of element.
+    order : int
+        order of element.
+
+    Returns
+    -------
+    C : symfem.MatrixFunction
+        symbolic right Cauchy–Green deformation tensor of shape (ndim,ndim) 
+
+    """
+    #
+    if F.shape[0] == ndim**2 and F.shape[1] == 1:
+        F = to_square(v=F,order="F")
+    #
+    if F is None:
+        F = def_grad(ndim=ndim,
+                     element_type=element_type,
+                     order=order)
+    return simplify_matrix(F.transpose()@F)
+
+def lagrangian_strain(ndim: int,
+                      F: Union[None,MatrixFunction] = None,
+                      element_type: str = "Lagrange",
+                      order: int = 1) ->  MatrixFunction:
+    """
+    Symbolically compute Green-Lagrangian strain tensor:
+        
+        E = 1/2 * ( C - I )
+    
+    I is the identity matrix and C the 
+
+    Parameters
+    ----------
+    ndim : int
+        number of spatial dimensions. Must be between 1 and 3.
+    F : None or symfem.functions.MatrixFunction
+        symbolic deformation gradient of shape (ndim,ndim). If not None, then 
+        all the other arguments are ignored and the strain is calculated with 
+        the provided F.
     element_type : str
         type of element.
     order : int
@@ -264,12 +313,20 @@ def cauchy_strain(ndim: int,
 
     """
     #
-    F = def_grad(ndim=ndim,
-                 element_type=element_type,
-                 order=order)
-    return simplify_matrix(F.transpose()@F)
+    if F.shape[0] == ndim**2 and F.shape[1] == 1:
+        F = to_square(v=F,order="F")
+    #
+    if F is None:
+        F = def_grad(ndim=ndim,
+                     element_type=element_type,
+                     order=order)
+    return (cauchy_strain(ndim=ndim, 
+                         F=F, 
+                         element_type=element_type,
+                         order=order)-eye(ndim)).__mul__(Rational(1,2))
 
 def finger_strain(ndim: int,
+                  F: Union[None,MatrixFunction] = None,
                   element_type: str = "Lagrange",
                   order: int = 1) ->  MatrixFunction:
     """
@@ -281,6 +338,10 @@ def finger_strain(ndim: int,
     ----------
     ndim : int
         number of spatial dimensions. Must be between 1 and 3.
+    F : None or symfem.functions.MatrixFunction
+        symbolic deformation gradient of shape (ndim,ndim). If not None, then 
+        all the other arguments are ignored and the strain is calculated with 
+        the provided F.
     element_type : str
         type of element.
     order : int
@@ -289,20 +350,26 @@ def finger_strain(ndim: int,
     Returns
     -------
     Finger : symfem.MatrixFunction
-        symbolic Finger strain of shape (ndim,ndim) 
+        symbolic Finger strain tensor of shape (ndim,ndim) 
 
     """
     #
+    if F.shape[0] == ndim**2 and F.shape[1] == 1:
+        F = to_square(M=F,order="F")
+    #
     C = cauchy_strain(ndim=ndim,
+                      F=F,
                       element_type=element_type,
                       order=order)
     return simplify_matrix( inverse(C) )
 
 def green_strain(ndim: int,
+                 F: Union[None,MatrixFunction] = None,
                  element_type: str = "Lagrange",
                  order: int = 1) ->  MatrixFunction:
     """
-    Symbolically compute Green strain tensor
+    Symbolically compute the Green strain tensor (left Cauchy–Green deformation 
+    tensor).
     
     B = F @ F.T
 
@@ -310,6 +377,10 @@ def green_strain(ndim: int,
     ----------
     ndim : int
         number of spatial dimensions. Must be between 1 and 3.
+    F : None or symfem.functions.MatrixFunction
+        symbolic deformation gradient of shape (ndim,ndim). If not None, then 
+        all the other arguments are ignored and the strain is calculated with 
+        the provided F.
     element_type : str
         type of element.
     order : int
@@ -322,7 +393,11 @@ def green_strain(ndim: int,
 
     """
     #
+    if F.shape[0] == ndim**2 and F.shape[1] == 1:
+        F = to_square(M=F,order="F")
+    #
     F = def_grad(ndim=ndim,
+                 F=F,
                  element_type=element_type,
                  order=order)
     return simplify_matrix(F@F.transpose())
