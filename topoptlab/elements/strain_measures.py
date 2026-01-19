@@ -84,10 +84,12 @@ def disp_gradient(xi: np.ndarray, eta: np.ndarray,
                   shape_functions_dxi: np.ndarray,
                   zeta: Union[None,np.ndarray] = None, 
                   check_fnc: Union[None,Callable] = None,
-                  all_elems: bool = False, return_detJ: bool = False,
+                  all_elems: bool = False, 
+                  return_detJ: bool = False,
+                  invJ: Union[None,np.ndarray] = None,
                   **kwargs: Any):
     """
-    Return the the B matrix to calculate the flattened displacement gradient h
+    Return the the matrix B to calculate the flattened displacement gradient h
     ('C' ordering)from nodal displacements u:
         
         h = B_h@u
@@ -110,6 +112,9 @@ def disp_gradient(xi: np.ndarray, eta: np.ndarray,
         creating elements etc.
     return_detJ : bool
         if True, return determinant of jacobian.
+    invJ : None or np.ndarray
+        inverse jacobian. If provided and return_detJ is False, uses this for 
+        isoparametric mapping. Careful that the shapes are useable.
         
     Returns
     -------
@@ -127,16 +132,19 @@ def disp_gradient(xi: np.ndarray, eta: np.ndarray,
         xe,xi,eta,zeta = check_fnc(xi=xi,eta=eta,xe=xe,
                                    all_elems=all_elems) 
     # collect inverse jacobians
-    if not return_detJ:
+    if not return_detJ and invJ is None:
         invJ = invjacobian(xi=xi,eta=eta,zeta=zeta,xe=xe,
                            return_det=return_detJ)
+    elif return_detJ and invJ is not None:
+        raise ValueError("The inputs do not make sense. disp_gradient computes",
+                         "detJ as byproduct of inverting J. Please check your inputs. ")
     else:
         invJ,detJ = invjacobian(xi=xi,eta=eta,zeta=zeta,xe=xe,
                                 return_det=return_detJ)
     # helper array to collect shape function derivatives
     gradN = shape_functions_dxi(xi=xi,eta=eta)[None,:,:,:]@invJ.transpose((0,1,3,2))
-    # empty small strain matrix
-    B = np.zeros((invJ.shape[0], int((ndim**2 + ndim) /2), n_nodes*ndim))
+    # empty def. grad. matrix
+    B = np.zeros((invJ.shape[0], ndim**2, n_nodes*ndim))
     # tension components
     for i in np.arange(ndim): 
         for j in np.arange(ndim):

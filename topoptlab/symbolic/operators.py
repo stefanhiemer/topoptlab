@@ -2,14 +2,14 @@
 from typing import Union
 
 from sympy import symbols
-
 from symfem.functions import VectorFunction,MatrixFunction
 from symfem.symbols import x
 
 from topoptlab.symbolic.cell import base_cell 
 from topoptlab.symbolic.matrix_utils import generate_constMatrix,\
                                             generate_FunctMatrix,\
-                                            simplify_matrix,from_vectorfunction
+                                            simplify_matrix,\
+                                            from_vectorfunction,flatten,inverse
 from topoptlab.symbolic.parametric_map import jacobian
 
 def aniso_laplacian(ndim: int, K: Union[None,MatrixFunction] = None,
@@ -48,7 +48,7 @@ def aniso_laplacian(ndim: int, K: Union[None,MatrixFunction] = None,
                                                order=order)
     # anisotropic heat conductivity or equivalent material property
     if K is None:
-        K = generate_constMatrix(col=ndim,row=ndim,
+        K = generate_constMatrix(ncol=ndim,nrow=ndim,
                                  name="k",
                                  symmetric=True)
     #
@@ -130,15 +130,36 @@ def nonlin_laplacian(ndim: int,
         integrand = integrand.subs("phi",values=phi0_interpol)
     return simplify_matrix( (integrand* Jdet).integral(ref,x)) 
 
+def hessian_matrix():
+    
+    return
+
+def hessian(ndim: int, K: Union[None,MatrixFunction] = None,
+            element_type: str = "Lagrange",
+            order: int = 1):
+    # anisotropic heat conductivity or equivalent nonlinear material property
+    # collect things related to isoparametric mapping
+    if element_type:
+        vertices, nd_inds, ref, basis  = base_cell(ndim,
+                                                   element_type=element_type,
+                                                   order=order)
+        Jinv, Jdet = jacobian(ndim=ndim, element_type=element_type, order=order,
+                              return_J=False, return_inv=True, return_det=True)
+    else:
+        basis = generate_FunctMatrix(ncol=1, nrow=5, 
+                                     variables=list(symbols("x y z")[:ndim]),
+                                     name="N")
+        basis = [basis[i,0] for i in range(basis.shape[0])]
+        J = generate_constMatrix(ncol=ndim, nrow=ndim, name="J")
+        Jinv = inverse(J)
+        Jdet = J.det()
+    #
+    N = VectorFunction(basis)
+    gradN = N.grad(ndim)@Jinv.transpose()
+    #
+    hessian = flatten(gradN,order="C").grad(ndim)@Jinv.transpose()
+    print(hessian.shape)
+    return hessian
+
 if __name__ == "__main__":
-    ndim = 2
-    K = generate_constMatrix(ncol=ndim,nrow=ndim,
-                             name="a",
-                             symmetric=True) + \
-        generate_constMatrix(ncol=ndim,nrow=ndim,
-                                 name="b",
-                                 symmetric=True).__mul__(symbols("phi"))
-    print(K,"\n")
-    print(nonlin_laplacian(ndim=ndim,
-                           K=K,
-                           linearization="picard"))
+    hessian(ndim=2,element_type=None)

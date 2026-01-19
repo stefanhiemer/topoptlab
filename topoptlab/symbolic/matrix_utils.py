@@ -211,7 +211,8 @@ def diag(v: Union[List,MatrixFunction]) -> Union[List,MatrixFunction]:
         
         return [v[i,i] for i in range(min(v.shape))]
     
-def trace(M: MatrixFunction) -> ScalarFunction:
+def trace(M: MatrixFunction,
+          mode: str="symfem") -> Union[ScalarFunction]:
     """
     Take the trace of the given matrix `M`.
 
@@ -219,13 +220,19 @@ def trace(M: MatrixFunction) -> ScalarFunction:
     ----------
     M : symfem.functions.MatrixFunction
         matrix M.
+    mode : str
+        if 'symfem' returns symfem.functions.ScalarFunction, else 
+        returns sympy expression
         
     Returns
     -------
     trace : symfem.functions.ScalarFunction
         trace of M.
     """ 
-    return ScalarFunction(Trace(M.as_sympy()).simplify())
+    if mode=="symfem":
+        return ScalarFunction(Trace(M.as_sympy()).simplify())
+    else:
+        return Trace(M.as_sympy()).simplify()
 
 def to_square(v: MatrixFunction, order: str = "F") -> MatrixFunction:
     """
@@ -278,6 +285,32 @@ def to_column(M: MatrixFunction, order: str = "C") -> MatrixFunction:
     elif order == "C":
         v = [[M[floor(i/n),i%m]] for i in range(m*n)]
     return MatrixFunction(v)
+
+def flatten(M: MatrixFunction, order: str = "C") -> VectorFunction:
+    """
+    Flatten MatrixFunction of shape (m,n) to VectorFunction (m*n) either in 
+    'C' or 'F' order analogously to numpy flatten().
+
+    Parameters
+    ----------
+    M : symfem.functions.MatrixFunction
+        matrix of shape (m,n).
+    order : str
+        order of reshaping
+
+    Returns
+    -------
+    v : symfem.functions.VectorFunction
+        flattened matrixto VectorFunction shape (m*n)
+    """
+    m,n = M.shape
+    v = []
+    if order == "F":
+        v = [M[i%m, floor(i/m)] for i in range(m*n)]
+    elif order == "C":
+        v = [M[floor(i/n),i%n] for i in range(m*n)]
+    return VectorFunction(v)
+
 
 def kron(A: MatrixFunction,
          B: MatrixFunction) -> MatrixFunction:

@@ -2,7 +2,8 @@ from sympy import symbols
 
 import pytest
 
-from topoptlab.symbolic.hyperelasticity import calculate_2pk, stvenant_engdensity, stvenant_2pk
+from topoptlab.symbolic.hyperelasticity import calculate_2pk
+from topoptlab.symbolic.stvenant import stvenant_engdensity, stvenant_2pk
 
 @pytest.mark.parametrize('ndim',
                          [(1) ])

@@ -6,11 +6,11 @@ import numpy as np
 from topoptlab.elements.bilinear_quadrilateral import bmatrix
 from topoptlab.fem import get_integrpoints
 
-def _lk_linear_elast_2d(xe: np.ndarray, c: np.ndarray,
-                        quadr_method: str = "gauss-legendre",
-                        t: np.ndarray = np.array([1.]),
-                        nquad: int = 2,
-                        **kwargs: Any) -> np.ndarray:
+def _lk_nonlinear_elast_2d(xe: np.ndarray, c: np.ndarray,
+                           quadr_method: str = "gauss-legendre",
+                           t: np.ndarray = np.array([1.]),
+                           nquad: int = 2,
+                           **kwargs: Any) -> np.ndarray:
     """
     Create element stiffness matrix for 2D linear elasticity with
     bilinear quadrilateral Lagrangian elements.

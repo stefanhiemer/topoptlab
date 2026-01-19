@@ -7,7 +7,7 @@ from symfem.functions import ScalarFunction,MatrixFunction
 from topoptlab.symbolic.cell import base_cell
 from topoptlab.symbolic.matrix_utils import simplify_matrix,\
                                             generate_constMatrix, inverse,\
-                                            is_voigt, from_voigt
+                                            is_voigt, from_voigt, is_square
 
 def cauchy_to_pk1(sigma: MatrixFunction, 
                   F: MatrixFunction,
@@ -32,8 +32,13 @@ def cauchy_to_pk1(sigma: MatrixFunction,
         first Piola-Kirchhoff stress tensor of shape (ndim,ndim).
 
     """
+    #
+    if is_square(M=F):
+        ndim=F.shape[0]
+    else:
+        raise ValueError("F must be square: ", F.shape)
     # convert back to matrix form
-    if is_voigt(M=sigma,ndim=F.shape[0]):
+    if is_voigt(M=sigma,ndim=ndim):
         sigma = from_voigt(M_v=sigma)
     #
     if Fdet is None:
@@ -67,8 +72,13 @@ def cauchy_to_pk2(sigma: MatrixFunction,
         second Piola-Kirchhoff stress tensor of shape (ndim,ndim).
 
     """
+    #
+    if is_square(M=F):
+        ndim=F.shape[0]
+    else:
+        raise ValueError("F must be square: ", F.shape)
     # convert back to matrix form
-    if is_voigt(sigma):
+    if is_voigt(M=sigma,ndim=ndim):
         sigma = from_voigt(M_v=sigma)
     #
     if Fdet is None:
@@ -161,8 +171,13 @@ def pk2_to_cauchy(S: MatrixFunction,
         Cauchy stress tensor of shape (ndim,ndim).
 
     """
+    #
+    if is_square(M=F):
+        ndim=F.shape[0]
+    else:
+        raise ValueError("F must be square: ", F.shape)
     # convert back to matrix form
-    if is_voigt(M=S,ndim=F.shape[0]):
+    if is_voigt(M=S,ndim=ndim):
         S = from_voigt(M_v=S)
     #
     if Fdet is None:
@@ -193,8 +208,13 @@ def pk2_to_pk1(S: MatrixFunction,
         first Piola-Kirchhoff stress tensor of shape (ndim,ndim).
 
     """
+    #
+    if is_square(M=F):
+        ndim=F.shape[0]
+    else:
+        raise ValueError("F must be square: ", F.shape)
     # convert back to matrix form
-    if is_voigt(S):
+    if is_voigt(M=S,ndim=ndim):
         S = from_voigt(M_v=S)
     #
     return simplify_matrix( F@S )

@@ -225,11 +225,43 @@ def shape_functions_dxi(xi: np.ndarray,eta: np.ndarray,
         gradient of shape functions at specified coordinate(s).
 
     """
-    dx = 1/4 * np.column_stack((eta-1, (xi-1),
-                                1-eta, -1-xi,
-                                1+eta, 1+xi,
-                                -1-eta, 1-xi))
-    return dx.reshape(int(np.prod(dx.shape)/8),4,2)
+    return (1/4*np.column_stack((eta-1, (xi-1),
+                                 1-eta, -1-xi,
+                                 1+eta, 1+xi,
+                                 -1-eta, 1-xi))).reshape(-1,4,2)
+
+def shape_functions_hessian(xi: np.ndarray,eta: np.ndarray,
+                            shape: str ="flattened",
+                            **kwargs: Any) -> np.ndarray:
+    """
+    Hessian of shape functions for bilinear quadrilateral Lagrangian element.
+    The derivative is taken with regards to the reference coordinates, not the
+    physical coordinates.
+
+    Parameters
+    ----------
+    xi : float or np.ndarray
+        x coordinate in the reference domain of shape (ncoords).
+    eta : float or np.ndarray
+        y coordinate in the reference domain of shape (ncoords). Coordinates
+        are assumed to be in the reference domain.
+
+    Returns
+    -------
+    hessian : np.ndarray, shape (ncoords,4,2,2)
+        gradient of shape functions at specified coordinate(s).
+
+    """
+    if isinstance(xi, float) and isinstance(eta, float):
+        ncoords = 1
+    else:
+        ncoords = xi.shape[0]
+    #
+    hessian = np.zeros((ncoords, 4, 2, 2), dtype=float)
+    # only mixed second derivatives are nonzero 
+    hessian[:, :, 0, 1] = 0.25 * np.array([+1, -1, +1, -1], dtype=float)[None, :]
+    hessian[:, :, 1, 0] = 0.25 * np.array([+1, -1, +1, -1], dtype=float)[None, :] 
+    return hessian
 
 def jacobian(xi: np.ndarray, eta: np.ndarray, xe: np.ndarray,
              all_elems: bool = False) -> np.ndarray:

@@ -336,6 +336,45 @@ def interpolate(ue: np.ndarray, xi: np.ndarray, eta: np.ndarray,
     u = u.dot(np.tile(np.eye(nnodedof),(nshapef,1)))
     return u
 
+def jacobian(xi: np.ndarray, 
+             eta: np.ndarray, 
+             xe: np.ndarray,
+             shape_functions_dxi: Callable,
+             zeta: Union[None,np.ndarray],
+             all_elems: bool = False) -> np.ndarray:
+    """
+    Jacobian for element.
+
+    Parameters
+    ----------
+    xi : float or np.ndarray
+        x coordinate in the reference domain of shape (ncoords).
+    eta : float or np.ndarray
+        y coordinate in the reference domain of shape (ncoords). Coordinates
+        are assumed to be in the reference domain.
+    xe : np.ndarray
+        coordinates of element nodes shape (nels,n_nodes,ndim). nels must be 
+        either 1, ncoords/n_nodes or the same as ncoords. The two exceptions 
+        are if ncoords = 1 or all_elems is True. Please look at the 
+        definition/function of the shape function for the node ordering.
+    shape_functions_dxi : callable 
+        gradient of shape functions with shape (ncoords,n_nodes,ndim)
+    zeta : float or np.ndarray
+        z coordinate in the reference domain of shape (ncoords). Coordinates
+        are assumed to be in the reference domain.
+    all_elems : bool
+        if True, coordinates are evaluated for all elements. Useful for
+        creating elements etc.
+
+    Returns
+    -------
+    J : np.ndarray, shape (ncoords,2,2) or (nels,2,2)
+        Jacobian.
+
+    """
+    # check coordinates and node data for consistency
+    return shape_functions_dxi(xi=xi,eta=eta,zeta=zeta).transpose([0,2,1]) @ xe
+
 def get_integrpoints(ndim: int, nq: int, 
                      method: str) -> Tuple[np.ndarray,np.ndarray]:
     """
