@@ -296,8 +296,8 @@ def jacobian(xi: np.ndarray, eta: np.ndarray, xe: np.ndarray,
     return shape_functions_dxi(xi=xi,eta=eta).transpose([0,2,1]) @ xe
 
 def invjacobian(xi: np.ndarray, eta: np.ndarray, xe: np.ndarray,
-                all_elems: bool = False, return_det: bool = False
-                ) -> np.ndarray:
+                all_elems: bool = False, return_det: bool = False,
+                **kwargs: Any) -> np.ndarray:
     """
     Inverse Jacobian for bilinear quadrilateral Lagrangian element.
 
@@ -420,7 +420,8 @@ def bmatrix(xi: np.ndarray, eta: np.ndarray, xe: np.ndarray,
 
     """
     # check coordinates and node data for consistency
-    xe,xi,eta,_ = check_inputs(xi=xi,eta=eta,xe=xe,all_elems=all_elems)
+    xe,xi,eta,_ = check_inputs(xi=xi,eta=eta,xe=xe,
+                               all_elems=all_elems)
     # collect inverse jacobians
     if not return_detJ:
         invJ = invjacobian(xi=xi,eta=eta,xe=xe,

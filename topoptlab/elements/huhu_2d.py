@@ -8,6 +8,7 @@ from topoptlab.elements.bilinear_quadrilateral import shape_functions_hessian,in
 from topoptlab.fem import get_integrpoints
 
 def _lk_huhu_2d(xe: np.ndarray, 
+                ue: np.ndarray,
                 a: np.ndarray,
                 kr: np.ndarray,     
                 quadr_method: str = "gauss-legendre",
@@ -29,6 +30,8 @@ def _lk_huhu_2d(xe: np.ndarray,
         coordinates of element nodes. Please look at the
         definition/function of the shape function, then the node ordering is
         clear.
+    ue : np.ndarray,shape (nels,8).
+        nodal displacements.
     a : np.ndarray, shape (nels,1) or
         exponent.
     kr : np.ndarray, shape (nels,1) or
@@ -48,6 +51,8 @@ def _lk_huhu_2d(xe: np.ndarray,
         element stiffness matrix.
 
     """
+    #
+    ndim=2
     #
     if len(xe.shape) == 2:
         xe = xe[None,:,:]
@@ -74,11 +79,13 @@ def _lk_huhu_2d(xe: np.ndarray,
     # collect hessian in ref. space
     hessian = shape_functions_hessian(xi=xi, eta=eta) # (nq,n_basis,2,2)
     # apply isop. map
-    hessian = Jinv.transpose((0,1,3,2))@hessian[None,:,:,:]@Jinv#.transpose((0,1,3,2))
+    hessian = Jinv.transpose((0,1,3,2))[:,:,None,:,:]@hessian[None,:,:,:]@\
+              Jinv[:,:,None,:,:]#.transpose((0,1,3,2))
+    # flatten hessian
+    hessian = hessian.reshape((nel,nq,ndim**2))
     import sys 
     sys.exit()
-    # reshape hessian for vectorfield
-    #
+    # calculate def. grad
     B,detJ = disp_gradient(xi=xi, eta=eta, xe=xe,
                            all_elems=True,
                            return_detJ=True)

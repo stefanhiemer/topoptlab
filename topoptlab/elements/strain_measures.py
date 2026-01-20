@@ -58,8 +58,11 @@ def eng_strain(xi: np.ndarray, eta: np.ndarray,
     else:
         invJ,detJ = invjacobian(xi=xi,eta=eta,zeta=zeta,xe=xe,
                                 return_det=return_detJ)
+    #
     # helper array to collect shape function derivatives
-    gradN = shape_functions_dxi(xi=xi,eta=eta)[None,:,:,:]@invJ.transpose((0,1,3,2))
+    gradN = shape_functions_dxi(xi=xi,
+                                eta=eta,
+                                zeta=zeta)@invJ.transpose((0,2,1))
     # empty small strain matrix
     B = np.zeros((invJ.shape[0], int((ndim**2 + ndim) /2), n_nodes*ndim))
     # tension components
@@ -69,8 +72,8 @@ def eng_strain(xi: np.ndarray, eta: np.ndarray,
     i,j = ndim-2,ndim-1
     for k in range(int((ndim**2 + ndim) /2) - ndim):
         #
-        B[ndim+k][i::ndim] = gradN[:,:,j]
-        B[ndim+k][j::ndim] = gradN[:,:,i]
+        B[:,ndim+k,i::ndim] = gradN[:,:,j]
+        B[:,ndim+k,j::ndim] = gradN[:,:,i]
         #
         i,j = (i+1)%ndim , (j+1)%ndim
     if not return_detJ:
@@ -137,19 +140,41 @@ def disp_gradient(xi: np.ndarray, eta: np.ndarray,
                            return_det=return_detJ)
     elif return_detJ and invJ is not None:
         raise ValueError("The inputs do not make sense. disp_gradient computes",
-                         "detJ as byproduct of inverting J. Please check your inputs. ")
+                         "detJ as byproduct of inverting J and you have already", 
+                         " inverted J. Please also supply detJ. ")
     else:
         invJ,detJ = invjacobian(xi=xi,eta=eta,zeta=zeta,xe=xe,
                                 return_det=return_detJ)
     # helper array to collect shape function derivatives
-    gradN = shape_functions_dxi(xi=xi,eta=eta)[None,:,:,:]@invJ.transpose((0,1,3,2))
+    gradN = shape_functions_dxi(xi=xi,eta=eta,zeta=zeta)@invJ.transpose((0,2,1))
     # empty def. grad. matrix
     B = np.zeros((invJ.shape[0], ndim**2, n_nodes*ndim))
-    # tension components
+    # 
     for i in np.arange(ndim): 
         for j in np.arange(ndim):
-            B[:,i*ndim::(i+1)*ndim,i::ndim] = gradN
+            B[:,i*ndim + j,i::ndim] = gradN[:,:,j]
     if not return_detJ:
         return B
     else:
         return B, detJ
+
+if __name__ == "__main__":
+    
+    from topoptlab.elements.bilinear_quadrilateral import invjacobian,\
+                                                          shape_functions_dxi,\
+                                                          check_inputs,\
+                                                          bmatrix
+    xe = np.array([[[-2.1,-1],[1,-1],[1,1],[-1,1]]])
+    bmat = eng_strain(eta=1.,xi=1.,xe=xe, all_elems=False,
+               invjacobian=invjacobian,
+               shape_functions_dxi=shape_functions_dxi,
+               check_fnc=check_inputs)
+    hmat = disp_gradient(eta=1.,xi=1.,xe=xe, all_elems=False,
+               invjacobian=invjacobian,
+               shape_functions_dxi=shape_functions_dxi,
+               check_fnc=check_inputs)
+    print(bmat.shape)
+    print(hmat.shape)
+    ue=np.array([-2.,0.,-2.,0.,2.,0.,2.,0.])[None,:]
+    print(bmat@ue.T)
+    print(hmat@ue.T)

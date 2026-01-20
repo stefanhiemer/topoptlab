@@ -124,16 +124,14 @@ def dispgrad_matrix(ndim: int, nd_inds: list,
         matrix to calculate flattened displacement gradient shape 
         (ndim**2 , n_nodes*ndim).
     """
-    #
-    nrows = int(ndim**2)
-    ncols = int(ndim * len(nd_inds))
     # compute gradients of basis functions
     Jinv = jacobian(ndim=ndim,
                     return_J=False, return_inv=True, return_det=False,
                     **isoparam_kws)
     gradN_T = (VectorFunction(basis).grad(ndim)@Jinv.transpose()).transpose()
     #
-    dispgrad_matrix = [[0 for j in range(ncols)] for i in range(nrows)]
+    dispgrad_matrix = [[0 for j in range(int(ndim * len(nd_inds)))] \
+                        for i in range(int(ndim**2))]
     # 
     for i in range(ndim):
         for j in range(ndim): 
