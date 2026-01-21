@@ -247,9 +247,9 @@ def cauchy_strain(ndim: int,
                   element_type: str = "Lagrange",
                   order: int = 1) ->  MatrixFunction:
     """
-    Symbolically compute right Cauchy–Green deformation tensor
-    
-    C = F.T @ F
+    Symbolically compute right Cauchy–Green deformation tensor:
+        
+        C = F.T @ F
 
     Parameters
     ----------
@@ -289,7 +289,7 @@ def lagrangian_strain(ndim: int,
         
         E = 1/2 * ( C - I )
     
-    I is the identity matrix and C the 
+    I is the identity matrix and C the Cauchy–Green deformation tensor.
 
     Parameters
     ----------

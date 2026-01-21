@@ -4,11 +4,11 @@ from warnings import warn
 
 import numpy as np
 
-def jacobian(xi: np.ndarray, 
-             eta: np.ndarray, 
+def jacobian(xi: Union[float,np.ndarray], 
+             eta: Union[None,float,np.ndarray], 
+             zeta: Union[None,float,np.ndarray],
              xe: np.ndarray,
              shape_functions_dxi: Callable,
-             zeta: Union[None,np.ndarray],
              all_elems: bool = False,
              **kwargs: Any) -> np.ndarray:
     """
@@ -18,8 +18,11 @@ def jacobian(xi: np.ndarray,
     ----------
     xi : float or np.ndarray
         x coordinate in the reference domain of shape (ncoords).
-    eta : float or np.ndarray
+    eta : None or float or np.ndarray
         y coordinate in the reference domain of shape (ncoords). Coordinates
+        are assumed to be in the reference domain.
+    zeta : None or float or np.ndarray
+        z coordinate in the reference domain of shape (ncoords). Coordinates
         are assumed to be in the reference domain.
     xe : np.ndarray
         coordinates of element nodes shape (nels,n_nodes,ndim). nels must be 
@@ -27,9 +30,6 @@ def jacobian(xi: np.ndarray,
         are if ncoords = 1 or all_elems is True. 
     shape_functions_dxi : callable 
         gradient of shape functions with shape (ncoords,n_nodes,ndim)
-    zeta : float or np.ndarray
-        z coordinate in the reference domain of shape (ncoords). Coordinates
-        are assumed to be in the reference domain.
     all_elems : bool
         if True, coordinates are evaluated for all elements. Useful for
         creating elements etc.
@@ -43,10 +43,11 @@ def jacobian(xi: np.ndarray,
     # check coordinates and node data for consistency
     return shape_functions_dxi(xi=xi,eta=eta,zeta=zeta).transpose([0,2,1]) @ xe
 
-def invjacobian(xe: np.ndarray,
-                xi: Union[None,np.ndarray],
-                eta: Union[None,np.ndarray],
-                zeta: Union[None,np.ndarray],
+def invjacobian(xi: Union[float,np.ndarray], 
+                eta: Union[None,float,np.ndarray], 
+                zeta: Union[None,float,np.ndarray], 
+                xe: np.ndarray,
+                shape_functions_dxi: Callable,
                 all_elems: bool=False,
                 return_det: bool=False):
     """
@@ -54,18 +55,20 @@ def invjacobian(xe: np.ndarray,
 
     Parameters
     ----------
+    xi : float or np.ndarray
+        x coordinate in the reference domain of shape (ncoords).
+    eta : None or float or np.ndarray
+        y coordinate in the reference domain of shape (ncoords). Coordinates
+        are assumed to be in the reference domain.
+    zeta : None or float or np.ndarray
+        z coordinate in the reference domain of shape (ncoords). Coordinates
+        are assumed to be in the reference domain.
     xe : np.ndarray
         coordinates of element nodes shape (nels,nnodes,ndim). nels must be 
         either 1, ncoords/nnodes or the same as ncoords. The two exceptions are 
         if ncoords = 1 or all_elems is True.
-    xi : np.ndarray
-        x coordinate in the reference domain of shape (ncoords).
-    eta : np.ndarray
-        y coordinate in the reference domain of shape (ncoords). Coordinates
-        are assumed to be in the reference domain.
-    zeta : np.ndarray
-        z coordinate in the reference domain of shape (ncoords). Coordinates
-        are assumed to be in the reference domain.
+    shape_functions_dxi : callable 
+        gradient of shape functions with shape (ncoords,n_nodes,ndim)
     all_elems : bool
         if True, coordinates are evaluated for all elements. Useful for
         creating elements etc.
@@ -81,7 +84,10 @@ def invjacobian(xe: np.ndarray,
 
     """
     # jacobian
-    J = jacobian(xi=xi,eta=eta,xe=xe,all_elems=all_elems)
+    J = jacobian(xi=xi,eta=eta,zeta=zeta,
+                 xe=xe,
+                 shape_functions_dxi=shape_functions_dxi,
+                 all_elems=all_elems)
     # determinant
     if eta is None:
         detJ = J[:,0,0]

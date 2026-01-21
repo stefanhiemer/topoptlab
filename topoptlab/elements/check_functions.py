@@ -3,7 +3,7 @@ from typing import Tuple,Any,Union
 
 import numpy as np
 
-def check_inputs(*coords: Union[float, np.ndarray], 
+def check_inputs(*coords: Union[float, np.ndarray,None], 
                  ndim: int,
                  nnodes: int,
                  xe: Union[None,np.ndarray] = None,
@@ -54,13 +54,14 @@ def check_inputs(*coords: Union[float, np.ndarray],
     *coords : tuple
         coordinates, each of shape (n) or None to achieve len(coords)=3.
     """
+    # discard empty coordinates
+    coords = coords[:len(coords)-sum(c is None for c in coords)]
     #
     if ndim > 3:
         raise ValueError("ndim must be <= 3.")
     # check reference coordinates
     if len(coords) != ndim:
-        raise ValueError(
-            f"expected {ndim} coordinates, got {len(coords)}")
+        raise ValueError(f"expected {ndim} coordinates, got {len(coords)}")
     #
     if all(isinstance(c, np.ndarray) for c in coords):
         if any(c.ndim != 1 for c in coords):
@@ -84,7 +85,8 @@ def check_inputs(*coords: Union[float, np.ndarray],
         xe = xe[None,:,:]
     #
     if xe.shape[-2:] != (nnodes, ndim):
-        raise ValueError(f"xe must have shape (nels, {nnodes}, {ndim}) or ({nnodes}, {ndim}).")
+        raise ValueError(f"xe must have shape (nels, {nnodes}, {ndim}) or ", 
+                         f"({nnodes}, {ndim}).")
     # check nels and ncoords for compatibility
     nels = xe.shape[0]
     if not all_elems and all([nels != ncoords,nnodes*nels != ncoords,
