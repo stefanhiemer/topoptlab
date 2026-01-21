@@ -107,7 +107,7 @@ def _lk_huhu_2d(xe: np.ndarray,
     Fdet = np.linalg.det(F)
     #print("Fdet ",Fdet.shape)
     if mode == "newton":
-        finv = np.linalg.inv(F).reshape((nel,nq,1,ndim**2))
+        finv = np.linalg.inv(F).transpose((0,1,3,2)).reshape((nel,nq,1,ndim**2))
         #print("finv ",finv.shape)
         #
         
