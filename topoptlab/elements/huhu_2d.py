@@ -13,7 +13,7 @@ def _lk_huhu_2d(xe: np.ndarray,
                 ue: np.ndarray,
                 exponent: np.ndarray,
                 kr: np.ndarray,
-                mode="newton",
+                mode="picard",
                 quadr_method: str = "gauss-legendre",
                 t: np.ndarray = np.array([1.]),
                 nquad: int = 4,
@@ -105,17 +105,15 @@ def _lk_huhu_2d(xe: np.ndarray,
     F = (B_F@ue[:,None,:,None]).reshape(nel,nq,ndim,ndim) + np.eye(ndim)[None,None,:,:]
     #print("F ",F.shape)
     Fdet = np.linalg.det(F)
+    print(Fdet)
     #print("Fdet ",Fdet.shape)
     if mode == "newton":
         finv = np.linalg.inv(F).transpose((0,1,3,2)).reshape((nel,nq,1,ndim**2))
-        #print("finv ",finv.shape)
-        #
-        
         #
         integral = B_hessian.transpose([0,1,3,2])@B_hessian - \
-                   (exponent[:,None]*Fdet[:,:])[:,:,None,None]*\
+                   ((exponent[:,None]*Fdet[:,:])[:,:,None,None]*\
                    B_hessian.transpose([0,1,3,2])@B_hessian@ue[:,None,:,None]@\
-                   finv[:,:,None,:]@B_F
+                   finv@B_F)
         integral = np.exp(-exponent[:,None]*Fdet[:,:])[:,:,None,None]\
                    *integral
     elif mode == "picard":
@@ -131,10 +129,10 @@ def _lk_huhu_2d(xe: np.ndarray,
     return t[:,None,None] * Ke
 
 if __name__ == "__main__":
-    _lk_huhu_2d(xe = np.array([[[-1,-1],[1,-1],[1,1],[-1,1]],
+    print(_lk_huhu_2d(xe = np.array([[[-1,-1],[1,-1],[1,1],[-1,1]],
                                [[-1,-1],[1,-1],[1,1],[-1,1]]]),
                 ue = np.array([[0.,0.,0.,0.,
-                                0.,0.,0.,0.],
+                                0.,-1.9999,0.,-1.9999],
                                [0.,0.,0.,0.,
-                                0.,0.,0.,0.],]),
-                exponent=1., kr=1.)
+                                0.,-1.9999,0.,-1.9999],]),
+                exponent=6., kr=1e-6))

@@ -249,7 +249,8 @@ def shape_functions_hessian(xi: np.ndarray,eta: np.ndarray,
     Returns
     -------
     hessian : np.ndarray, shape (ncoords,4,2,2)
-        gradient of shape functions at specified coordinate(s).
+        hessian of shape functions per shape function/node at specified 
+        coordinate(s).
 
     """
     if isinstance(xi, float) and isinstance(eta, float):

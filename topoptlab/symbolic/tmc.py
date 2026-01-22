@@ -87,13 +87,14 @@ def neohookean_2pk(F : Union[None,MatrixFunction] = None,
 
     Parameters
     ----------
-    E : None or MatrixFunction
-        Lagrangian strain in Voigt notation. 
-    F : None or symfem.functions.MatrixFunction
-        symbolic deformation gradient of shape (ndim,ndim). If E is None, then 
-        then E is calculated with the provided F.
-    c : None or MatrixFunction
-        stiffness tensor in Voigt notation.  
+    F : None or MatrixFunction
+        Deformation gradient. 
+    h : None or sympy.core.symbol.Symbol or symfem.functions.ScalarFunction
+        first Lame constant.
+    mu : None or sympy.core.symbol.Symbol or symfem.functions.ScalarFunction
+        second constant.
+    Fdet : None or sympy.Expr or ScalarFunction
+        determinant of deformation gradient.  
     ndim : None or int
         number of spatial dimensions. Only needed if the other two arguments 
         are None, otherwise ignored.

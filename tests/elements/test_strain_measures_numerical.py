@@ -6,8 +6,6 @@ import pytest
 
 from topoptlab.elements.strain_measures import infini_strain_matrix  
 
-from topoptlab.elements.bilinear_quadrilateral import invjacobian as \
-                                                      invjacobian_bilin
 from topoptlab.elements.bilinear_quadrilateral import shape_functions_dxi as \
                                                       shape_functions_dxi_bilin
 from topoptlab.elements.bilinear_quadrilateral import bmatrix as \
@@ -23,8 +21,7 @@ def test_consistency_bilinear(xe,xi,eta):
     
     
     bmat_general = infini_strain_matrix(eta=eta,xi=xi,zeta=None,
-                                        xe=xe, all_elems=False,
-                                        invjacobian=invjacobian_bilin,
+                                        xe=xe, all_elems=False, 
                                         shape_functions_dxi=shape_functions_dxi_bilin)
     #
     bmat_quadri = bmatrix_bilin(eta=eta,xi=xi,xe=xe)
@@ -33,8 +30,6 @@ def test_consistency_bilinear(xe,xi,eta):
                     bmat_quadri)
     return
 
-from topoptlab.elements.trilinear_hexahedron import invjacobian as \
-                                                    invjacobian_trilin
 from topoptlab.elements.trilinear_hexahedron import shape_functions_dxi as \
                                                     shape_functions_dxi_trilin
 from topoptlab.elements.trilinear_hexahedron import bmatrix as \
@@ -51,7 +46,6 @@ def test_consistency_trilinear(xe,xi,eta,zeta):
     
     bmat_general = infini_strain_matrix(eta=eta,xi=xi,xe=xe, all_elems=False,
                               zeta=zeta,
-                              invjacobian=invjacobian_trilin,
                               shape_functions_dxi=shape_functions_dxi_trilin)
     #
     bmat_hex = bmatrix_trilin(eta=eta,xi=xi,zeta=zeta,xe=xe)
@@ -116,12 +110,10 @@ def test_eng_strain(xe,xi,eta,zeta,u,eps):
     if zeta is None:
         bmat = infini_strain_matrix(eta=eta,xi=xi,zeta=zeta, 
                                     xe=xe, all_elems=False,
-                                    invjacobian=invjacobian_bilin,
                                     shape_functions_dxi=shape_functions_dxi_bilin)
     else:
         bmat = infini_strain_matrix(eta=eta,xi=xi,xe=xe, all_elems=False,
                           zeta=zeta,
-                          invjacobian=invjacobian_trilin,
                           shape_functions_dxi=shape_functions_dxi_trilin)
     #
     assert_allclose(bmat@u.T,
@@ -194,12 +186,10 @@ def test_disp_grad(xe,xi,eta,zeta,u,eps):
     if zeta is None:
         bmat = dispgrad_matrix(eta=eta,xi=xi,xe=xe, all_elems=False,
                              zeta=zeta,
-                             invjacobian=invjacobian_bilin,
                              shape_functions_dxi=shape_functions_dxi_bilin)
     else:
         bmat = dispgrad_matrix(eta=eta,xi=xi,xe=xe, all_elems=False,
                              zeta=zeta,
-                             invjacobian=invjacobian_trilin,
                              shape_functions_dxi=shape_functions_dxi_trilin)
     #
     assert_allclose(bmat@u.T,
@@ -275,22 +265,18 @@ def test_consistency_lagrangian_strainvar_matrix(xe,xi,eta,zeta,u,eps):
     if zeta is None:
         bmat = infini_strain_matrix(eta=eta,xi=xi,zeta=zeta, 
                                     xe=xe, all_elems=False,
-                                    invjacobian=invjacobian_bilin,
                                     shape_functions_dxi=shape_functions_dxi_bilin)
         smat = lagrangian_strainvar_matrix(eta=eta,xi=xi,zeta=zeta,
                                            F=tile(eye(2),(nel,1,1)),
                                            xe=xe, all_elems=False,
-                                           invjacobian=invjacobian_bilin,
                                            shape_functions_dxi=shape_functions_dxi_bilin)
     else:
         bmat = infini_strain_matrix(eta=eta,xi=xi,zeta=zeta,
                                     xe=xe, all_elems=False,
-                                    invjacobian=invjacobian_trilin,
                                     shape_functions_dxi=shape_functions_dxi_trilin)
         smat = lagrangian_strainvar_matrix(eta=eta,xi=xi,zeta=zeta,
                                            F=tile(eye(3),(nel,1,1)),
                                            xe=xe, all_elems=False,
-                                           invjacobian=invjacobian_trilin,
                                            shape_functions_dxi=shape_functions_dxi_trilin)
     #
     assert_allclose(bmat@u.T,

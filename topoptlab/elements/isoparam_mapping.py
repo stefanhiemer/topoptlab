@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any,Callable,Union
+from typing import Any,Callable,Tuple,Union
 from warnings import warn
 
 import numpy as np
@@ -9,7 +9,6 @@ def jacobian(xi: Union[float,np.ndarray],
              zeta: Union[None,float,np.ndarray],
              xe: np.ndarray,
              shape_functions_dxi: Callable,
-             all_elems: bool = False,
              **kwargs: Any) -> np.ndarray:
     """
     Jacobian for element.
@@ -30,9 +29,6 @@ def jacobian(xi: Union[float,np.ndarray],
         are if ncoords = 1 or all_elems is True. 
     shape_functions_dxi : callable 
         gradient of shape functions with shape (ncoords,n_nodes,ndim)
-    all_elems : bool
-        if True, coordinates are evaluated for all elements. Useful for
-        creating elements etc.
 
     Returns
     -------
@@ -40,8 +36,10 @@ def jacobian(xi: Union[float,np.ndarray],
         Jacobian.
 
     """
-    # check coordinates and node data for consistency
-    return shape_functions_dxi(xi=xi,eta=eta,zeta=zeta).transpose([0,2,1]) @ xe
+    #
+    return shape_functions_dxi(xi=xi,
+                               eta=eta,
+                               zeta=zeta).transpose([0,2,1])@xe
 
 def invjacobian(xi: Union[float,np.ndarray], 
                 eta: Union[None,float,np.ndarray], 
@@ -69,9 +67,6 @@ def invjacobian(xi: Union[float,np.ndarray],
         if ncoords = 1 or all_elems is True.
     shape_functions_dxi : callable 
         gradient of shape functions with shape (ncoords,n_nodes,ndim)
-    all_elems : bool
-        if True, coordinates are evaluated for all elements. Useful for
-        creating elements etc.
     return_det : bool
         if True, return determinant of Jacobian.
 
@@ -86,8 +81,7 @@ def invjacobian(xi: Union[float,np.ndarray],
     # jacobian
     J = jacobian(xi=xi,eta=eta,zeta=zeta,
                  xe=xe,
-                 shape_functions_dxi=shape_functions_dxi,
-                 all_elems=all_elems)
+                 shape_functions_dxi=shape_functions_dxi)
     # determinant
     if eta is None:
         detJ = J[:,0,0]
@@ -126,3 +120,74 @@ def invjacobian(xi: Union[float,np.ndarray],
         return adj/detJ[:,None,None]
     else:
         return adj/detJ[:,None,None], detJ
+
+def _collect_invjacobian(xi: np.ndarray, 
+                         eta: Union[None,np.ndarray], 
+                         zeta: Union[None,np.ndarray], 
+                         xe: np.ndarray,
+                         shape_functions_dxi: Callable,
+                         invjacobian: Union[Callable,np.ndarray] = invjacobian,  
+                         return_detJ: bool = False,
+                         **kwargs: Any) -> Tuple[np.ndarray, 
+                                                Union[None,np.ndarray]]:
+    """
+    Internal helper function to collect the inverse jacobian to construct 
+    different strain measures.
+    
+    
+    Parameters
+    ----------
+    xi : np.ndarray
+        x coordinate in the reference domain of shape (ncoords). Coordinates 
+        are assumed to be in the reference domain.
+    eta : None or np.ndarray
+        y coordinate in the reference domain of shape (ncoords). Coordinates 
+        are assumed to be in the reference domain.
+    zeta : None or np.ndarray
+        z coordinate in the reference domain of shape (ncoords). Coordinates 
+        are assumed to be in the reference domain. 
+    xe : np.ndarray
+        coordinates of element nodes shape (nels,n_nodes,ndim). nels must be 
+        either 1, ncoords/4 or the same as ncoords. The two exceptions are if 
+        ncoords = 1 or all_elems is True. 
+        Please look at the definition/function of the shape function, then the 
+        node ordering is clear.
+    shape_functions_dxi: callable
+        function to calculate the gradient of the shape functions.
+    invjacobian : callable or np.ndarray
+        function to calculate the inverse jacobian for the isoparametric 
+        mapping. 
+    return_detJ : bool
+        if True, return determinant of jacobian. 
+        
+    Returns
+    -------
+    invJ : np.ndarray, 
+        inverse jacobian shape (ncoords,(ndim**2 + ndim)/2,n_nodes*ndim) or 
+        (nels,ndim,ndim).
+    detJ : None or np.ndarray
+           determinant of Jacobian. If return_detJ is False, then detJ is None.
+           shape (ncoords) or (nels)
+        
+    """
+    #
+    if not return_detJ:
+        detJ = None
+    #
+    if not return_detJ and hasattr(invjacobian, '__call__'):
+        invJ = invjacobian(xi=xi,eta=eta,zeta=zeta,
+                           xe=xe,
+                           shape_functions_dxi=shape_functions_dxi,
+                           return_det=return_detJ)
+    elif return_detJ and hasattr(invjacobian, '__call__'):
+        invJ,detJ = invjacobian(xi=xi,eta=eta,zeta=zeta,
+                                xe=xe,
+                                shape_functions_dxi=shape_functions_dxi,
+                                return_det=return_detJ)
+    elif return_detJ and isinstance(invjacobian, np.ndarray):
+        raise ValueError("The inputs do not make sense. disp_gradient computes",
+                         "detJ as byproduct of inverting J and you have already", 
+                         " inverted J. Please also supply detJ. ")
+    elif not return_detJ and isinstance(invjacobian, np.ndarray):
+        invJ = invjacobian
+    return invJ, detJ

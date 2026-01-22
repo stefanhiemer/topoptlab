@@ -1,16 +1,18 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any, Callable, Tuple, Union
+from typing import Any, Callable, Union
 
 import numpy as np
 
 from topoptlab.elements.check_functions import check_inputs
+from topoptlab.elements.isoparam_mapping import invjacobian, \
+                                                _collect_invjacobian
 
 def infini_strain_matrix(xi: np.ndarray, 
                          eta: Union[None,np.ndarray], 
                          zeta: Union[None,np.ndarray], 
                          xe: np.ndarray,
-                         invjacobian: Union[Callable,np.ndarray], 
                          shape_functions_dxi: Union[Callable,np.ndarray],
+                         invjacobian: Union[Callable,np.ndarray] = invjacobian, 
                          all_elems: bool = False, 
                          return_detJ: bool = False,
                          check_fnc: Callable = check_inputs,
@@ -19,7 +21,7 @@ def infini_strain_matrix(xi: np.ndarray,
     Return the the B matrix to calculate the infinitesimal or engineering 
     strain in Voigt notation via from nodal displacements u:
         
-        eps = B@u
+        eps = B_eps @ u
     
     Parameters
     ----------
@@ -38,11 +40,11 @@ def infini_strain_matrix(xi: np.ndarray,
         ncoords = 1 or all_elems is True. 
         Please look at the definition/function of the shape function, then the 
         node ordering is clear.
+    shape_functions_dxi: callable
+        function to calculate the gradient of the shape functions.
     invjacobian : callable or np.ndarray
         function to calculate the inverse jacobian for the isoparametric 
         mapping.
-    shape_functions_dxi: callable or np.ndarray
-        function to calculate the gradient of the shape functions.
     all_elems : bool
         if True, coordinates are evaluated for all elements. Useful for 
         creating elements etc.
@@ -72,6 +74,7 @@ def infini_strain_matrix(xi: np.ndarray,
     invJ,detJ = _collect_invjacobian(xi=xi, 
                                      eta=eta, 
                                      xe=xe,
+                                     shape_functions_dxi=shape_functions_dxi,
                                      invjacobian=invjacobian,  
                                      zeta=zeta, 
                                      return_detJ=return_detJ)
@@ -99,8 +102,8 @@ def dispgrad_matrix(xi: np.ndarray,
                     eta: Union[None,np.ndarray], 
                     zeta: Union[None,np.ndarray], 
                     xe: np.ndarray,
-                    invjacobian: Union[Callable,np.ndarray], 
                     shape_functions_dxi: Union[Callable,np.ndarray],
+                    invjacobian: Union[Callable,np.ndarray] = invjacobian, 
                     all_elems: bool = False, 
                     return_detJ: bool = False,
                     check_fnc: Callable = check_inputs,
@@ -132,12 +135,12 @@ def dispgrad_matrix(xi: np.ndarray,
         ncoords = 1 or all_elems is True. 
         Please look at the definition/function of the shape function, then the 
         node ordering is clear.
+    shape_functions_dxi: callable 
+        function to calculate the gradient of the shape functions.
     invjacobian : callable or np.ndarray
         Either function to calculate the inverse jacobian for the isoparametric 
         mapping or already calculated inverse. If the latter is the case, be 
         careful that the shape is consistent with the all_elems argument.
-    shape_functions_dxi: callable or np.ndarray
-        function to calculate the gradient of the shape functions.
     all_elems : bool
         if True, coordinates are evaluated for all elements. Useful for 
         creating elements etc.
@@ -168,9 +171,10 @@ def dispgrad_matrix(xi: np.ndarray,
     # collect inverse jacobian
     invJ,detJ = _collect_invjacobian(xi=xi, 
                                      eta=eta, 
-                                     zeta=zeta,
                                      xe=xe,
+                                     shape_functions_dxi=shape_functions_dxi,
                                      invjacobian=invjacobian,  
+                                     zeta=zeta, 
                                      return_detJ=return_detJ)
     # collect shape function derivatives and apply isoparametric map
     gradN=shape_functions_dxi(xi=xi,eta=eta,zeta=zeta)@invJ.transpose((0,2,1))
@@ -190,8 +194,8 @@ def lagrangian_strainvar_matrix(xi: np.ndarray,
                                 zeta: Union[None,np.ndarray],
                                 xe: np.ndarray,
                                 F: np.ndarray,
-                                invjacobian: Union[Callable,np.ndarray], 
                                 shape_functions_dxi: Union[Callable,np.ndarray],
+                                invjacobian: Union[Callable,np.ndarray] = invjacobian, 
                                 all_elems: bool = False, 
                                 return_detJ: bool = False,
                                 check_fnc: Callable = check_inputs,
@@ -232,11 +236,11 @@ def lagrangian_strainvar_matrix(xi: np.ndarray,
         node ordering is clear.
     F : None or np.ndarray
         deformation gradient of shape (nel,ndim,ndim)
+    shape_functions_dxi: callable
+        function to calculate the gradient of the shape functions.
     invjacobian : callable or np.ndarray
         function to calculate the inverse jacobian for the isoparametric 
         mapping.
-    shape_functions_dxi: callable or np.ndarray
-        function to calculate the gradient of the shape functions.
     all_elems : bool
         if True, coordinates are evaluated for all elements. Useful for 
         creating elements etc.
@@ -265,10 +269,11 @@ def lagrangian_strainvar_matrix(xi: np.ndarray,
     # collect inverse jacobian
     invJ,detJ = _collect_invjacobian(xi=xi, 
                                      eta=eta, 
-                                     zeta=zeta, 
                                      xe=xe,
+                                     shape_functions_dxi=shape_functions_dxi,
                                      invjacobian=invjacobian,  
-                                     return_detJ=return_detJ) 
+                                     zeta=zeta, 
+                                     return_detJ=return_detJ)
     # collect shape function derivatives and apply isoparametric map
     gradN=shape_functions_dxi(xi=xi,eta=eta,zeta=zeta)@invJ.transpose((0,2,1))
     # empty small strain matrix
@@ -292,91 +297,25 @@ def lagrangian_strainvar_matrix(xi: np.ndarray,
     else:
         return B, detJ
 
-def _collect_invjacobian(xi: np.ndarray, 
-                         eta: Union[None,np.ndarray], 
-                         zeta: Union[None,np.ndarray], 
-                         xe: np.ndarray,
-                         invjacobian: Union[Callable,np.ndarray],  
-                         return_detJ: bool = False,
-                         **kwargs: Any) -> Tuple[np.ndarray, 
-                                                Union[None,np.ndarray]]:
-    """
-    Internal helper function to collect the inverse jacobian to construct 
-    different strain measures.
-    
-    
-    Parameters
-    ----------
-    xi : np.ndarray
-        x coordinate in the reference domain of shape (ncoords). Coordinates 
-        are assumed to be in the reference domain.
-    eta : None or np.ndarray
-        y coordinate in the reference domain of shape (ncoords). Coordinates 
-        are assumed to be in the reference domain.
-    zeta : None or np.ndarray
-        z coordinate in the reference domain of shape (ncoords). Coordinates 
-        are assumed to be in the reference domain. 
-    xe : np.ndarray
-        coordinates of element nodes shape (nels,n_nodes,ndim). nels must be 
-        either 1, ncoords/4 or the same as ncoords. The two exceptions are if 
-        ncoords = 1 or all_elems is True. 
-        Please look at the definition/function of the shape function, then the 
-        node ordering is clear.
-    invjacobian : callable or np.ndarray
-        function to calculate the inverse jacobian for the isoparametric 
-        mapping. 
-    return_detJ : bool
-        if True, return determinant of jacobian. 
-        
-    Returns
-    -------
-    B : np.ndarray, shape (ncoords,(ndim**2 + ndim)/2,n_nodes*ndim) or 
-        (nels,(ndim**2 + ndim)/2,n_nodes*ndim)
-        B matrix.
-    detJ : None or np.ndarray, shape (ncoords) or (nels)
-           determinant of Jacobian. If return_detJ is False, then detJ is None.
-        
-    """
-    #
-    if not return_detJ:
-        detJ = None
-    #
-    if not return_detJ and hasattr(invjacobian, '__call__'):
-        invJ = invjacobian(xi=xi,eta=eta,zeta=zeta,xe=xe,
-                           return_det=return_detJ)
-    elif return_detJ and hasattr(invjacobian, '__call__'):
-        invJ,detJ = invjacobian(xi=xi,eta=eta,zeta=zeta,xe=xe,
-                                return_det=return_detJ)
-    elif return_detJ and isinstance(invjacobian, np.ndarray):
-        raise ValueError("The inputs do not make sense. disp_gradient computes",
-                         "detJ as byproduct of inverting J and you have already", 
-                         " inverted J. Please also supply detJ. ")
-    elif not return_detJ and isinstance(invjacobian, np.ndarray):
-        invJ = invjacobian
-    return invJ, detJ
-
 if __name__ == "__main__":
     
-    from topoptlab.elements.bilinear_quadrilateral import invjacobian,\
-                                                          shape_functions_dxi,\
-                                                          bmatrix
+    from topoptlab.elements.bilinear_quadrilateral import shape_functions_dxi
     xe = np.array([[[-2.1,-1],[1,-1],[1,1],[-1,1]]])
+    
     bmat = infini_strain_matrix(eta=np.array([1.]),
                                 xi=np.array([1.]),
                                 zeta=None,
                                 xe=xe, all_elems=False,
-               invjacobian=invjacobian,
                shape_functions_dxi=shape_functions_dxi,
                check_fnc=check_inputs)
     hmat = dispgrad_matrix(eta=1.,xi=1.,zeta=None,
                            xe=xe, all_elems=False,
-                           invjacobian=invjacobian,
                            shape_functions_dxi=shape_functions_dxi)
     smat = lagrangian_strainvar_matrix(eta=1.,xi=1.,zeta=None,
                                        F=np.eye(2)[None,:,:],
                                        xe=xe, all_elems=False,
-               invjacobian=invjacobian,
-               shape_functions_dxi=shape_functions_dxi)
+               shape_functions_dxi=shape_functions_dxi,
+               check_fnc=check_inputs)
     print(bmat.shape)
     print(hmat.shape)
     print(smat.shape)

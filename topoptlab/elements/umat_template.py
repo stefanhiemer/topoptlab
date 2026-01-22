@@ -39,7 +39,9 @@ def umat_template(stress: np.ndarray,
                                       np.ndarray,np.ndarray, 
                                       float,float]:
     """
-    Functional Python equivalent of an Abaqus/Elmer UMAT.
+    Functional Python equivalent of an Abaqus/Elmer UMAT. This is just a 
+    template and is not intended for use as the fitting solver counterpart 
+    still must be made.
 
     This function represents a single constitutive update at one integration
     point and one Newton iteration. It mirrors the Abaqus UMAT interface, but 
