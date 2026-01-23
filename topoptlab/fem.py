@@ -6,6 +6,7 @@ from itertools import product
 
 import numpy as np
 from scipy.sparse import coo_array,csc_array,sparray
+from scipy.special import roots_jacobi
 
 from cvxopt import spmatrix
 
@@ -337,7 +338,7 @@ def interpolate(ue: np.ndarray, xi: np.ndarray, eta: np.ndarray,
     return u
 
 def get_integrpoints(ndim: int, nq: int, 
-                     method: str) -> Tuple[np.ndarray,np.ndarray]:
+                     method: Union[str,Callable]) -> Tuple[np.ndarray,np.ndarray]:
     """
     Get integration points and weights for numerical quadrature of integrals in
     interval [-1,1].
@@ -350,9 +351,9 @@ def get_integrpoints(ndim: int, nq: int,
         number of integration/quadrature points.
     method : str or callable
         name of quadrature method or function/callable that returns coordinates of
-        quadrature points and weights. Currently only 'gauss-legendre',
-        'gauss-hermite', 'gauss-chebyshev' and 'gauss-laguerre' supported as
-        str.
+        quadrature points and weights. Currently only 'gauss-legendre', 
+        'gauss-lobatto', 'gauss-hermite', 'gauss-chebyshev' and 
+        'gauss-laguerre' are supported.
 
     Returns
     -------
@@ -363,6 +364,14 @@ def get_integrpoints(ndim: int, nq: int,
     """
     if method == "gauss-legendre":
         x,w = np.polynomial.legendre.leggauss(nq)
+    elif method == "gauss-lobatto":
+        x = np.array( [-1.]+[0]*(nq-2)+[1.] )
+        w = np.array( [2./ (nq*(nq-1))]+[0]*(nq-2)+[2./ (nq*(nq-1))] )
+        x[1:-1], w[1:-1] = roots_jacobi(n=nq-2, 
+                                        alpha=1, 
+                                        beta=1,
+                                        mu=False)
+        w[1:-1] = w[1:-1] / (1 - x[1:-1]**2)
     elif method == "gauss-hermite":
         x,w = np.polynomial.hermite.hermgauss(nq)
     elif method == "gauss-chebyshev":

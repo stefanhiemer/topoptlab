@@ -81,16 +81,13 @@ def hessian_matrix(xi: np.ndarray,
                                      invjacobian=invjacobian,  
                                      zeta=zeta, 
                                      return_detJ=return_detJ)
-    #
-    transp = range(Jdet.shape)
-    transp = tuple(transp[:-2]) + tuple([transp[-1]]) + tuple([transp[-2]])
     # collect hessian in ref. space
     B_hessian = shape_functions_hessian(xi=xi, eta=eta, zeta=zeta) 
     # apply isop. map
-    B_hessian = Jdet.transpose(transp)[:,:,None,:,:]@B_hessian[None,:,:,:]@\
+    B_hessian = Jdet.swapaxes(-1,-2)[:,:,None,:,:]@B_hessian[None,:,:,:]@\
                 Jdet[:,:,None,:,:]
     # flatten hessian
     B_hessian = B_hessian.reshape(B_hessian.shape[:3]+tuple([ndim**2]))
-    B_hessian = B_hessian.transpose(transp)
+    B_hessian = B_hessian.swapaxes(-1,-2)
     B_hessian = np.kron(B_hessian,np.eye(ndim))
     return B_hessian

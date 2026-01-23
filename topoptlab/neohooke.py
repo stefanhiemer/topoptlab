@@ -63,15 +63,14 @@ def neohookean_2pk(F : np.ndarray,
         symbolic 2. Piola-Kirchhoff stress (2PK) in Voigt notation.
 
     """
+    #
+    ndim = F.shape[-1]
     # compute determinant if not already done
     if Fdet is None:
         Fdet = np.linalg.det(F)
     #
-    Binv = inverse(green_strain(ndim=ndim,F=F))
-    # first Lame constant 
-    if h is None:
-        h =  Symbol("h")
-    # second Lame constant
-    if mu is None:
-        mu =  Symbol("mu")
-    return Binv.__mul__(h*ln(Fdet)) + (eye(Binv.shape[0])-Binv).__mul__(mu) 
+    B = F@F.swapaxes(-1,-2)
+    #
+    Binv = np.linalg.inv(B) 
+    #
+    return h*np.log(Fdet)*Binv + mu*(np.eye(ndim)-Binv) 
