@@ -1,18 +1,19 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any, Callable
+from typing import Any, Callable, Dict, Tuple
 
 import numpy as np
 
+from topoptlab.utils import from_voigt
+from topoptlab.fem import get_integrpoints 
 from topoptlab.elements.bilinear_quadrilateral import shape_functions_dxi
 from topoptlab.elements.isoparam_mapping import invjacobian
 from topoptlab.elements.strain_measures import dispgrad_matrix,\
                                                lagrangian_strainvar_matrix
-from topoptlab.fem import get_integrpoints
 
 def _lk_nonlinear_elast_2d(xe: np.ndarray,
                            ue: np.ndarray,
-                           const_tensor: Callable,
-                           stress_2pk: Callable,
+                           material_model: Callable,
+                           material_constants: Dict,
                            quadr_method: str = "gauss-legendre",
                            t: np.ndarray = np.array([1.]),
                            nquad: int = 2,
@@ -20,7 +21,11 @@ def _lk_nonlinear_elast_2d(xe: np.ndarray,
     """
     Create element stiffness matrix for 2D nonlinear elasticity with
     bilinear quadrilateral Lagrangian elements in terms of 2. Piola Kirchhoff
-    stress.
+    stress S. Constitutive tensor must be derived by:
+        
+        C_ij = d S_i / d E_j
+        
+    E_j is the Lagrange strain.
 
     Parameters
     ----------
@@ -30,14 +35,14 @@ def _lk_nonlinear_elast_2d(xe: np.ndarray,
         clear.
     ue : np.ndarray,shape (nels,8).
         nodal displacements.
-    const_tensor : np.ndarray or callable
-        constitutive tensor in Voigt notation (same as stiffness tensor in 
-        linear elasticity). Can only be an ndarray for St. Venant material and 
-        then should either be of shape (ndim*(ndim+1)/2) or shape 
-        (nel,ndim*(ndim+1)/2).
-    stress_2pk : callable 
-        2. PK stress  tensor in Voigt notation (same as stiffness tensor in 
-        linear elasticity).
+    material_model: callable
+        returns 2. PK stress tensor and constitutive tensor both in Voigt 
+        notation as function of deformation gradient F (matrix form) and 
+        the material constants provided in the dictionary. Outputs should 
+        have shape (nel,nq,...)
+    material_constants : dict
+        contains the material constants needed to calculate 2. PK stress and 
+        constitutive tensor. Keys must match arguments of material_model.
     quadr_method: str or callable
         name of quadrature method or function/callable that returns coordinates of
         quadrature points and weights. Check function get_integrpoints for
@@ -59,17 +64,13 @@ def _lk_nonlinear_elast_2d(xe: np.ndarray,
         xe = xe[None,:,:]
     nel = xe.shape[0]
     #
-    if not isinstance(const_tensor, np.ndarray): 
-        if len(const_tensor.shape) == 2: 
-            const_tensor = const_tensor[None,:,:]
-    #
     if isinstance(t,float):
         t = np.array([t])
     #
-    x,w=get_integrpoints(ndim=2,nq=nquad,method=quadr_method)
+    x,w=get_integrpoints(ndim=ndim,nq=nquad,method=quadr_method)
     nq =w.shape[0]
     #
-    xi,eta = [_x[:,0] for _x in np.split(x, 2,axis=1)]
+    xi,eta = [_x[:,0] for _x in np.split(x, ndim,axis=1)]
     # calculate displacement gradient 
     B_h,detJ = dispgrad_matrix(xi=xi, eta=eta, zeta=None, xe=xe,
                                shape_functions_dxi=shape_functions_dxi,
@@ -91,30 +92,29 @@ def _lk_nonlinear_elast_2d(xe: np.ndarray,
                                        all_elems=True,
                                        return_detJ=False)
     B_dE = B_dE.reshape(nel, nq,  B_dE.shape[-2], B_dE.shape[-1])
+    # calculate constitutive tensor and 2.PK stress in Voigt notation
+    s,c = material_model(F=F,**material_constants)
     # calculate constitutive tensor
-    if isinstance(const_tensor, callable):
-        c = const_tensor(F)
-    c = np.repeat(c[:,None,:,:],nq,axis=1)
-    # calculate stress in Voigt
-    s = np.repeat(s[:,None,:],nq,axis=1)
-    # convert to 
+    S = np.kron(from_voigt(s),
+                np.eye(ndim))
     # constitutive part
     integral = B_dE.transpose([0,1,3,2])@c@B_dE
     # geometric part
-    integral += B_h.transpose([0,1,3,2])@s@B_h # finish here
+    integral += B_h.transpose([0,1,3,2])@S@B_h # finish here
     # multiply by determinant and quadrature
     Ke = (w[None,:,None,None]*integral*detJ[:,:,None,None]).sum(axis=1)
-    print(Ke.shape)
     # multiply thickness
     return t[:,None,None] * Ke
 
 if __name__ == "__main__":
+    
+    from topoptlab.stvenant import stvenant_matmodel
+    
     _lk_nonlinear_elast_2d(xe = np.array([[[-1,-1],[1,-1],[1,1],[-1,1]],
                                [[-1,-1],[1,-1],[1,1],[-1,1]]]),
-                           c = np.ones((2,3,3)),
-                           s = np.ones((2,3)),
+                           material_constants= {"c": np.ones((2,3,3))},
+                           material_model=stvenant_matmodel,
                            ue = np.array([[0.,0.,0.,0.,
-                                0.,0.,0.,0.],
-                               [0.,0.,0.,0.,
-                                0.,0.,0.,0.],]),
-                           exponent=1., kr=1.)
+                                           0.,0.,0.,0.],
+                                          [0.,0.,0.,0.,
+                                           0.,0.,0.,0.],]))

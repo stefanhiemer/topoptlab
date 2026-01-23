@@ -9,13 +9,13 @@ def convert_to_voigt(A: MatrixFunction) -> MatrixFunction:
 
     Parameters
     ----------
-    A : symfem.functions.MatrixFunction, shape (ndim,ndim)
-        2nd rank tensor
+    A : symfem.functions.MatrixFunction
+        2nd rank tensor shape (ndim,ndim).
 
     Returns
     -------
-    A_v : symfem.functions.MatrixFunction, shape ((ndim**2 + ndim) /2, 1)
-        2nd rank tensor in voigt notation
+    A_v : symfem.functions.MatrixFunction
+        2nd rank tensor in voigt notation shape ((ndim**2 + ndim) /2, 1).
     """
     #
     if isinstance(A,MatrixFunction):
@@ -36,13 +36,14 @@ def convert_from_voigt(A_v: MatrixFunction) -> MatrixFunction:
 
     Parameters
     ----------
-    A_v : symfem.functions.MatrixFunction, shape ((ndim**2 + ndim) /2, 1)
-        2nd rank tensor in Voigt represenation (so a column vector)
+    A_v : symfem.functions.MatrixFunction
+        2nd rank tensor in Voigt represenation (so a column vector) 
+        shape ((ndim**2 + ndim) /2, 1)
 
     Returns
     -------
-    A : symfem.functions.MatrixFunction, shape (ndim,ndim)
-        2nd rank tensor in matrix notation
+    A : symfem.functions.MatrixFunction
+        2nd rank tensor in matrix notation shape (ndim,ndim).
     """
     #
     if isinstance(A_v,MatrixFunction):

@@ -571,3 +571,60 @@ def cholesky_inverse(A: np.ndarray) -> np.ndarray:
                                                  np.eye(A.shape[-1]),
                                                  lower=True),
                                 lower=False)
+
+def from_voigt(A_v: np.ndarray) -> np.ndarray:
+    """
+    Convert 2nd rank tensor into from its Voigt representation to the standard
+    matrix represenation.
+
+    Parameters
+    ----------
+    A_v : np.ndarray
+        2nd rank tensor in Voigt represenation (so a column vector) 
+        shape (...,(ndim**2 + ndim) /2)
+
+    Returns
+    -------
+    A : np.ndarray
+        2nd rank tensor in matrix notation shape (ndim,ndim).
+    """
+    #
+    l = A_v.shape[-1]
+    #
+    if l not in [1,3,6]:
+        raise ValueError("This is not a vector compatible with the assumptions of Voigt representation.")
+    #
+    ndim = int(-1/2 + np.sqrt(1/2+2*l))
+    #
+    inds_v = np.array([[0,5,4],[5,1,3],[4,3,2]],
+                      dtype=int)[:ndim,:ndim]%int((ndim**2 + ndim) /2)
+    row = np.arange(ndim**2)%ndim
+    col = np.floor_divide(np.arange(ndim**2,dtype=int),ndim)
+    #
+    A = np.zeros(A_v.shape[:-1]+tuple([ndim,ndim]))
+    # tension 
+    A[...,row,col] = A_v[...,inds_v.flatten()]
+    return A
+
+def to_voigt(A: np.ndarray) -> np.ndarray:
+    """
+    Convert 2nd rank tensor into from the standard matrix represenation to its 
+    Voigt representation.
+
+    Parameters
+    ----------
+    A : np.ndarray
+        2nd rank tensor in matrix represenation shape (...,ndim, ndim)
+
+    Returns
+    -------
+    A_v : np.ndarray
+        2nd rank tensor in Voigt notation shape (...,(ndim**2 + ndim) /2).
+    """
+    #
+    ndim = A.shape[-1]
+    nv = int((ndim**2 + ndim) /2)
+    #
+    row = np.array([0,1,2][:ndim]+[1,0,0][-(nv-ndim):])
+    col = np.array([0,1,2][:ndim]+[2,2,1][-(nv-ndim):])
+    return A[...,row,col]

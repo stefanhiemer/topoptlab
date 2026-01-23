@@ -296,30 +296,3 @@ def lagrangian_strainvar_matrix(xi: np.ndarray,
         return B
     else:
         return B, detJ
-
-if __name__ == "__main__":
-    
-    from topoptlab.elements.bilinear_quadrilateral import shape_functions_dxi
-    xe = np.array([[[-2.1,-1],[1,-1],[1,1],[-1,1]]])
-    
-    bmat = infini_strain_matrix(eta=np.array([1.]),
-                                xi=np.array([1.]),
-                                zeta=None,
-                                xe=xe, all_elems=False,
-               shape_functions_dxi=shape_functions_dxi,
-               check_fnc=check_inputs)
-    hmat = dispgrad_matrix(eta=1.,xi=1.,zeta=None,
-                           xe=xe, all_elems=False,
-                           shape_functions_dxi=shape_functions_dxi)
-    smat = lagrangian_strainvar_matrix(eta=1.,xi=1.,zeta=None,
-                                       F=np.eye(2)[None,:,:],
-                                       xe=xe, all_elems=False,
-               shape_functions_dxi=shape_functions_dxi,
-               check_fnc=check_inputs)
-    print(bmat.shape)
-    print(hmat.shape)
-    print(smat.shape)
-    ue=np.array([-2.,0.,-2.,0.,2.,0.,2.,0.])[None,:]
-    print(bmat@ue.T)
-    print(hmat@ue.T)
-    print(smat@ue.T)
