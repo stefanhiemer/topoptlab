@@ -6,7 +6,7 @@ import numpy as np
 def isotropic_3d(E:float = 1., 
                  nu:float = 0.3) -> np.ndarray:
     """
-    3D constitutive tensor for isotropic material. 
+    3D constitutive tensor for isotropic Neo-Hooke material. 
     
     Parameters
     ----------

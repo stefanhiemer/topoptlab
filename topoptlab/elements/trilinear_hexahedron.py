@@ -1,9 +1,17 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 from warnings import warn
+from typing import Any,Tuple,Union
 
 import numpy as np
 
-def create_edofMat(nelx,nely,nelz,nnode_dof,dtype=np.int32):
+def create_edofMat(nelx: int,
+                   nely: int,
+                   nelz: int,
+                   nnode_dof: int,
+                   dtype: type = np.int32, 
+                   **kwargs: Any
+                   ) -> Tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,
+                              np.ndarray]:
     """
     Create element degree of freedom matrix for trilinear elements in a regular
     mesh.
@@ -49,7 +57,8 @@ def create_edofMat(nelx,nely,nelz,nnode_dof,dtype=np.int32):
     edofMat = edofMat + np.tile(np.arange(nnode_dof,dtype=dtype),8)[None,:]
     return edofMat, n1, n2, n3, n4
 
-def apply_pbc(edofMat,pbc,nelx,nely,nelz,nnode_dof,
+def apply_pbc(edofMat,
+              pbc,nelx,nely,nelz,nnode_dof,
               dtype=np.int32,**kwargs):
     """
     Convert a given element-degree-of-freedom matrix (edofMat) of a regular 
@@ -297,6 +306,58 @@ def shape_functions_dxi(xi,eta,zeta,**kwargs):
                                 (1-xi)*(1+zeta),
                                 (1-xi)*(1+eta)))
     return dx.reshape(int(np.prod(dx.shape)/24),8,3)
+
+def shape_functions_hessian(xi: Union[float,np.ndarray],
+                            eta: Union[float,np.ndarray],
+                            zeta: Union[float,np.ndarray],
+                            **kwargs: Any) -> np.ndarray:
+    """
+    Hessian of shape functions for trilinear hexahedron Lagrangian element.
+    The derivative is taken with regards to the reference coordinates, not the
+    physical coordinates.
+
+    Parameters
+    ----------
+    xi : float or np.ndarray
+        x coordinate in the reference domain of shape (ncoords).
+    eta : float or np.ndarray
+        y coordinate in the reference domain of shape (ncoords). Coordinates
+        are assumed to be in the reference domain.
+    zeta : float or np.ndarray
+        z coordinate in the reference domain of shape (ncoords). Coordinates
+        are assumed to be in the reference domain.
+
+    Returns
+    -------
+    hessian : np.ndarray, shape (ncoords,8,3,3)
+        hessian of shape functions per shape function/node at specified
+        coordinate(s).
+
+    """
+    if isinstance(xi, float) and isinstance(eta, float) and isinstance(zeta, float):
+        ncoords = 1
+    else:
+        ncoords = xi.shape[0]
+    #
+    hessian = np.zeros((ncoords, 8, 3, 3), dtype=float)
+    # sign factors per node for (1 + s_xi*xi)(1 + s_eta*eta)(1 + s_zeta*zeta)
+    s_xi = np.array([-1, +1, +1, -1, -1, +1, +1, -1], dtype=float)
+    s_eta = np.array([-1, -1, +1, +1, -1, -1, +1, +1], dtype=float)
+    s_zeta = np.array([-1, -1, -1, -1, +1, +1, +1, +1], dtype=float)
+    #
+    if ncoords == 1 and not isinstance(xi, np.ndarray):
+        # scalar inputs: broadcast to 1D arrays for consistent vector ops
+        xi = np.array([xi], dtype=float)
+        eta = np.array([eta], dtype=float)
+        zeta = np.array([zeta], dtype=float)
+    # only mixed second derivatives are nonzero
+    hessian[:, :, 0, 1] = 0.125 * (s_xi * s_eta)[None, :] * (1 + s_zeta[None, :] * zeta[:, None])
+    hessian[:, :, 1, 0] = hessian[:, :, 0, 1]
+    hessian[:, :, 0, 2] = 0.125 * (s_xi * s_zeta)[None, :] * (1 + s_eta[None, :] * eta[:, None])
+    hessian[:, :, 2, 0] = hessian[:, :, 0, 2]
+    hessian[:, :, 1, 2] = 0.125 * (s_eta * s_zeta)[None, :] * (1 + s_xi[None, :] * xi[:, None])
+    hessian[:, :, 2, 1] = hessian[:, :, 1, 2]
+    return hessian
 
 def jacobian(xi,eta,zeta,xe,all_elems=False,**kwargs):
     """

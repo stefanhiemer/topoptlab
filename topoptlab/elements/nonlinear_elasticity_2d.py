@@ -11,8 +11,8 @@ from topoptlab.fem import get_integrpoints
 
 def _lk_nonlinear_elast_2d(xe: np.ndarray,
                            ue: np.ndarray,
-                           c: Callable,
-                           s: Callable,
+                           const_tensor: Callable,
+                           stress_2pk: Callable,
                            quadr_method: str = "gauss-legendre",
                            t: np.ndarray = np.array([1.]),
                            nquad: int = 2,
@@ -30,10 +30,12 @@ def _lk_nonlinear_elast_2d(xe: np.ndarray,
         clear.
     ue : np.ndarray,shape (nels,8).
         nodal displacements.
-    c : callable
+    const_tensor : np.ndarray or callable
         constitutive tensor in Voigt notation (same as stiffness tensor in 
-        linear elasticity).
-    s : callable 
+        linear elasticity). Can only be an ndarray for St. Venant material and 
+        then should either be of shape (ndim*(ndim+1)/2) or shape 
+        (nel,ndim*(ndim+1)/2).
+    stress_2pk : callable 
         2. PK stress  tensor in Voigt notation (same as stiffness tensor in 
         linear elasticity).
     quadr_method: str or callable
@@ -57,8 +59,9 @@ def _lk_nonlinear_elast_2d(xe: np.ndarray,
         xe = xe[None,:,:]
     nel = xe.shape[0]
     #
-    if len(c.shape) == 2:
-        c = c[None,:,:]
+    if not isinstance(const_tensor, np.ndarray): 
+        if len(const_tensor.shape) == 2: 
+            const_tensor = const_tensor[None,:,:]
     #
     if isinstance(t,float):
         t = np.array([t])
@@ -88,9 +91,17 @@ def _lk_nonlinear_elast_2d(xe: np.ndarray,
                                        all_elems=True,
                                        return_detJ=False)
     B_dE = B_dE.reshape(nel, nq,  B_dE.shape[-2], B_dE.shape[-1])
-    #
+    # calculate constitutive tensor
+    if isinstance(const_tensor, callable):
+        c = const_tensor(F)
     c = np.repeat(c[:,None,:,:],nq,axis=1)
+    # calculate stress in Voigt
+    s = np.repeat(s[:,None,:],nq,axis=1)
+    # convert to 
+    # constitutive part
     integral = B_dE.transpose([0,1,3,2])@c@B_dE
+    # geometric part
+    integral += B_h.transpose([0,1,3,2])@s@B_h # finish here
     # multiply by determinant and quadrature
     Ke = (w[None,:,None,None]*integral*detJ[:,:,None,None]).sum(axis=1)
     print(Ke.shape)

@@ -4,11 +4,14 @@ from warnings import warn
 
 import numpy as np
 
+from topoptlab.elements.check_functions import check_inputs
+
 def jacobian(xi: Union[float,np.ndarray], 
              eta: Union[None,float,np.ndarray], 
              zeta: Union[None,float,np.ndarray],
              xe: np.ndarray,
              shape_functions_dxi: Callable,
+             check_fnc: Callable = check_inputs,
              **kwargs: Any) -> np.ndarray:
     """
     Jacobian for element.
@@ -47,7 +50,9 @@ def invjacobian(xi: Union[float,np.ndarray],
                 xe: np.ndarray,
                 shape_functions_dxi: Callable,
                 all_elems: bool=False,
-                return_det: bool=False):
+                return_det: bool=False,
+                check_fnc: Callable = check_inputs,
+                **kwargs: Any):
     """
     Inverse Jacobian for bilinear quadrilateral Lagrangian element.
 
@@ -69,6 +74,8 @@ def invjacobian(xi: Union[float,np.ndarray],
         gradient of shape functions with shape (ncoords,n_nodes,ndim)
     return_det : bool
         if True, return determinant of Jacobian.
+    check_fnc : callable
+        function that checks for type and shape consistency of the inputs.
 
     Returns
     -------
@@ -78,6 +85,14 @@ def invjacobian(xi: Union[float,np.ndarray],
            if return_det is True, determinant of Jacobian.
 
     """
+    #
+    nel, n_nodes, ndim = xe.shape
+    # check coordinates and node data for consistency
+    xe,xi,eta,zeta = check_fnc(xi,eta,zeta,
+                               ndim=ndim,
+                               nnodes=n_nodes,
+                               xe=xe,
+                               all_elems=all_elems)
     # jacobian
     J = jacobian(xi=xi,eta=eta,zeta=zeta,
                  xe=xe,

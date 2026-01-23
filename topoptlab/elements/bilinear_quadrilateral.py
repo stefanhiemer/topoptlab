@@ -231,7 +231,6 @@ def shape_functions_dxi(xi: np.ndarray,eta: np.ndarray,
                                  -1-eta, 1-xi))).reshape(-1,4,2)
 
 def shape_functions_hessian(xi: np.ndarray,eta: np.ndarray,
-                            shape: str ="flattened",
                             **kwargs: Any) -> np.ndarray:
     """
     Hessian of shape functions for bilinear quadrilateral Lagrangian element.
