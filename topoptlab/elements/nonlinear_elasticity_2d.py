@@ -108,13 +108,18 @@ def _lk_nonlinear_elast_2d(xe: np.ndarray,
 
 if __name__ == "__main__":
     
-    from topoptlab.stvenant import stvenant_matmodel
+    from topoptlab.material_models.stvenant import stvenant_matmodel
+    from topoptlab.material_models.neohooke import neohookean_matmodel
     
-    _lk_nonlinear_elast_2d(xe = np.array([[[-1,-1],[1,-1],[1,1],[-1,1]],
+    #
+    nel = 2
+    print(_lk_nonlinear_elast_2d(xe = np.array([[[-1,-1],[1,-1],[1,1],[-1,1]],
                                [[-1,-1],[1,-1],[1,1],[-1,1]]]),
-                           material_constants= {"c": np.ones((2,3,3))},
-                           material_model=stvenant_matmodel,
+                           material_constants= {"c": np.ones((nel,3,3)), 
+                                                "h": np.ones((nel,1)),
+                                                "mu": np.ones((nel,1))},
+                           material_model=neohookean_matmodel,
                            ue = np.array([[0.,0.,0.,0.,
                                            0.,0.,0.,0.],
                                           [0.,0.,0.,0.,
-                                           0.,0.,0.,0.],]))
+                                           0.,0.,0.,0.],])))

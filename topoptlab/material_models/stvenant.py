@@ -36,7 +36,7 @@ def eng_density(F: np.ndarray,
     if E is None:
         #
         E = to_voigt(F.swapaxes(-1,-2) @ F - np.eye(F.shape[-1])\
-                     .reshape( len(F.shape[:-2])*[1] + F.shape[-2:]))
+                     .reshape( len(F.shape[:-2])*tuple([1]) + F.shape[-2:]))/2
     #
     return 1/2 * E.swapaxes(-1,-2)@c@E
 
@@ -71,12 +71,11 @@ def stress_2pk(F: np.ndarray,
     if E is None:
         #
         E = to_voigt(F.swapaxes(-1,-2) @ F - np.eye(F.shape[-1])\
-                     .reshape( len(F.shape[:-2])*[1] + F.shape[-2:]))
+                     .reshape( len(F.shape[:-2])*[1] + F.shape[-2:]))/2
     #
-    return c@E
+    return (c@E[...,None])[...,0]
 
 def consttensor_2pk(F: np.ndarray,
-                    E: Union[None,np.ndarray],
                     c: np.ndarray,
                     **kwargs: Any) -> np.ndarray:
     """
@@ -92,8 +91,6 @@ def consttensor_2pk(F: np.ndarray,
     F : np.ndarray
         deformation gradient in matrix form of shape (...,ndim,ndim). Ignored 
         if E is not None.
-    E : None or np.ndarray
-        Green-Lagrangian strain tensor in Voigt notation (...,ndim*(ndim+1)/2).
     c : np.ndarray
         stiffness tensor in Voigt notation.
     
@@ -103,28 +100,26 @@ def consttensor_2pk(F: np.ndarray,
         constitutive tensor (...,ndim*(ndim+1)/2,ndim*(ndim+1)/2). For this 
         special case, returns a constant.
     """
-    if E is None:
-        shape = F[:-2]
-    if len(c.shape) == 2:
-        return 1
     #
-    return c
+    if len(c.shape) == 2: # assume shape (ndim*(ndim+1)/2,ndim*(ndim+1)/2 
+        return np.tile(c,F.shape[:-2]+tuple([1,1]))
+    elif len(c.shape) == 3: # assume shape (nel,ndim*(ndim+1)/2,ndim*(ndim+1)/2).
+        return np.repeat(c[:,None,:,:],F.shape[1],axis=1)
+    else:
+        return c
 
 def stvenant_matmodel(F: np.ndarray,
-                      E: Union[None,np.ndarray],
                       c: np.ndarray,
                       **kwargs: Any) -> np.ndarray:
     """
     Return 2. Piola Kirchhoff stress (2PK) in Voigt notation and constitutive 
-    tesnor of St. Venant material.
+    tensor of St. Venant material.
     
     Parameters
     ----------
     F : np.ndarray
         deformation gradient in matrix form of shape (...,ndim,ndim). Ignored 
         if E is not None.
-    E : None or np.ndarray
-        Green-Lagrangian strain tensor in Voigt notation (...,ndim*(ndim+1)/2).
     c : np.ndarray
         stiffness tensor in Voigt notation.
     
@@ -137,8 +132,7 @@ def stvenant_matmodel(F: np.ndarray,
         special case, returns a constant.
     """
     #
-    if E is None:
-        #
-        E = to_voigt(F.swapaxes(-1,-2) @ F - np.eye(F.shape[-1])\
-                     .reshape( len(F.shape[:-2])*[1] + F.shape[-2:]))
-    return stress_2pk(F=None,E=E,c=c), consttensor_2pk(F=None,E=E,c=c)
+    E = to_voigt(F.swapaxes(-1,-2) @ F - np.eye(F.shape[-1])\
+                 .reshape( len(F.shape[:-2])*tuple([1]) + F.shape[-2:]))/2
+    const = consttensor_2pk(F=F,c=c)
+    return stress_2pk(F=F,E=E,c=const), const

@@ -571,6 +571,62 @@ def cholesky_inverse(A: np.ndarray) -> np.ndarray:
                                                  np.eye(A.shape[-1]),
                                                  lower=True),
                                 lower=False)
+    
+def safe_inverse(A: np.ndarray,
+                 assume_spd: bool = False,
+                 rcond: float = 1e-12,
+                 allow_pinv: bool = True, 
+                 **kwargs: Any) -> np.ndarray:
+    """
+    "Safely" invert a matrix or batch of matrices.
+
+    Strategy:
+      1) Cholesky (if SPD assumed)
+      2) solve(A, I)
+      3) SVD with cutoff (pseudo-inverse if allowed)
+
+    Parameters
+    ----------
+    A : np.ndarray, shape (k,k) or (n,k,k)
+    assume_spd : bool
+        Try Cholesky first.
+    rcond : float
+        Relative singular value cutoff for SVD.
+    allow_pinv : bool
+        If False, raise on near-singular matrices.
+
+    Returns
+    -------
+    Ainv : np.ndarray
+    """
+
+    # try cholesky
+    if assume_spd:
+        try:
+            return cholesky_inverse(A)
+        except np.linalg.LinAlgError:
+            warn("Cholesky failed; falling back to general inverse.")
+
+    # try direct solve
+    try:
+        return solve_inverse(A)
+    except np.linalg.LinAlgError:
+        warn("Solve failed; falling back to SVD.")
+
+    # SVD fallback
+    U, s, Vt = np.linalg.svd(A, full_matrices=False)
+
+    smax = np.max(s, axis=-1, keepdims=True)
+    cutoff = rcond * smax
+
+    if not allow_pinv and np.any(s <= cutoff):
+        raise ValueError("Matrix is singular or ill-conditioned.")
+
+    warn("Returning (pseudo-)inverse via SVD.")
+
+    s_inv = np.where(s > cutoff, 1.0 / s, 0.0)
+
+    return Vt.swapaxes(-1, -2) * s_inv[..., None, :] @ U.swapaxes(-1, -2)
 
 def from_voigt(A_v: np.ndarray) -> np.ndarray:
     """
@@ -628,3 +684,95 @@ def to_voigt(A: np.ndarray) -> np.ndarray:
     row = np.array([0,1,2][:ndim]+[1,0,0][-(nv-ndim):])
     col = np.array([0,1,2][:ndim]+[2,2,1][-(nv-ndim):])
     return A[...,row,col]
+
+def batch_kron(A: np.ndarray, B: np.ndarray) -> np.ndarray:
+    """
+    Compute the Kronecker product of two matrices acting on the last two axes,
+    while treating all leading axes as batch dimensions.
+    
+    The Kronecker product is formed exclusively over the final two dimensions.
+    All preceding dimensions are interpreted as batch dimensions and are
+    preserved in the output.
+
+    This function is equivalent to::
+
+        np.stack([np.kron(A[i], B[i]) for i in batch_indices])
+
+    but avoids loops and is fully vectorized via einsum.
+
+    Parameters
+    ----------
+    A : np.ndarray, shape (..., d, d)
+        first array of square matrices.
+    B : np.ndarray, shape (..., d, d)
+        second array of square matrices..
+
+    Returns
+    -------
+    M : np.ndarray, shape (..., d*d, d*d)
+        Batched Kronecker product of ``A`` and ``B`` acting on the last two axes.
+    
+
+    """
+    return np.einsum('...ij,...kl->...ikjl', A, B)\
+             .reshape(*A.shape[:-2], A.shape[-2]*B.shape[-2], A.shape[-1]*B.shape[-1])
+
+def voigt_index(i: np.ndarray, 
+                j: np.ndarray, 
+                ndim: int) -> np.ndarray:
+    """
+    Map tensor index pairs (i,j) to Voigt indices for arbitrary dimension.
+
+    Parameters
+    ----------
+    i : int or np.ndarray
+        first tensor index (1-based).
+    j : int or np.ndarray
+        second tensor index (1-based).
+    ndim : int
+        spatial dimension.
+
+    Returns
+    -------
+    alpha : np.ndarray
+        Voigt index/indices (0-based).
+    """
+    i = np.asarray(i)
+    j = np.asarray(j)
+    i_, j_ = np.minimum(i, j), np.maximum(i, j)
+
+    return np.where( i_ == j_, i_,
+                    ndim + i_ * ndim - (i_ * (i_ + 1)) // 2 + (j_ - i_ - 1))
+
+def voigt_pair(alpha: np.ndarray, ndim: int) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Map Voigt indices back to tensor index pairs (i,j), 
+
+    Parameters
+    ----------
+    alpha : int or np.ndarray
+        Voigt index/indices (0-based).
+    ndim : int
+        spatial dimension.
+
+    Returns
+    -------
+    i : np.ndarray
+        first tensor index (0-based).
+    j : np.ndarray
+        second tensor index (0-based).
+    """
+    alpha = np.asarray(alpha)
+
+    pairs = []
+    # diagonals
+    for k in range(ndim):
+        pairs.append((k, k))
+    # upper triangle
+    for i in range(ndim):
+        for j in range(i + 1, ndim):
+            pairs.append((i, j))
+
+    pairs = np.array(pairs, dtype=int)
+    ij = pairs[alpha]
+    return ij[..., 0], ij[..., 1]
