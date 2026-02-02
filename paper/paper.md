@@ -72,9 +72,9 @@ access to low-level implementation details which is necessary for research in
 TO. Examples of standard TO tasks with the need to access low-level data 
 structures are the update of the element stiffness matrices $K_{e}(x)$ 
 based on the design variables $x$, calculation of the sensitivity of the element 
-matrices with respect to the design variables $\frac{\partial K_e}{\partial x}$ 
+matrices with respect to the design variables $\frac{\partial K_e}{\partial x}$, 
 and access to the global stiffness matrix for solving the adjoint problem to 
-derive the gradients. Also common use cases in TO allow shortcuts such as 
+derive the gradients. Also, common use cases in TO allow shortcuts such as 
 regular meshes as ideally the geometry emerges during the optimization process 
 or partial negligence of close to empty elements as preconditioning. 
 
@@ -103,7 +103,7 @@ both standard numerical integration and analytically integrated elements
 generated through *Symfem* [@scroggs2021symfem]. Constrained optimization is 
 supported through the Method of Moving Asymptotes (MMA) [@svanberg1987], the 
 Globally Convergent Method of Moving Asymptotes (GCMMA) [@svanberg2002class] 
-as implemented in [@deetman2024gcmma] as well as the Optimality Criteria 
+as implemented in @deetman2024gcmma, as well as the Optimality Criteria 
 [@andreassen2011efficient; @bendsoe2003topology], while the solution of 
 the system of equations is done via routines offered by *scipy* [@2020SciPy-NMeth], 
 *cvxopt* [@andersen2020cvxopt], and also custom implementations of 
@@ -111,7 +111,7 @@ preconditioners like algebraic multigrid or block-preconditioners. Finally,
 *Topoptlab* offers a number of introductory articles with comments on 
 implementation and contains monolithic scripts that serve as teaching tools as 
 well as an archive for Python translations of important Matlab teaching codes 
-(e.g. [@andreassen2011efficient; @andreassen2014determine]). 
+[e.g., @andreassen2011efficient; @andreassen2014determine]. 
 
 # Acknowledgments
 
