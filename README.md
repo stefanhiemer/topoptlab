@@ -2,6 +2,7 @@
 [![Documentation Status](https://readthedocs.org/projects/topoptlab/badge/?version=latest)](https://topoptlab.readthedocs.io/en/latest/?badge=latest)
 [![PyPI](https://img.shields.io/pypi/v/topoptlab)](https://pypi.org/project/topoptlab/)
 [![CI](https://github.com/stefanhiemer/topoptlab/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/stefanhiemer/topoptlab/actions/workflows/ci.yaml)
+[![DOI](https://joss.theoj.org/papers/10.21105/joss.09105/status.svg)](https://doi.org/10.21105/joss.09105)
 
 This project provides a collection of topology optimization techniques, many of 
 which were originally published MATLAB scripts. The goal is to make these methods 

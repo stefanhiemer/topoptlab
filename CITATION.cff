@@ -1,0 +1,28 @@
+cff-version: "1.2.0"
+authors:
+- family-names: Hiemer
+  given-names: Stefan
+  orcid: "https://orcid.org/0000-0001-6562-4883"
+doi: 10.5281/zenodo.18231035
+message: If you use this software, please cite our article in the
+  Journal of Open Source Software.
+preferred-citation:
+  authors:
+  - family-names: Hiemer
+    given-names: Stefan
+    orcid: "https://orcid.org/0000-0001-6562-4883"
+  date-published: 2026-02-02
+  doi: 10.21105/joss.09105
+  issn: 2475-9066
+  issue: 118
+  journal: Journal of Open Source Software
+  publisher:
+    name: Open Journals
+  start: 9105
+  title: "topoptlab: An Open and Modular Framework for Benchmarking and
+    Research in Topology Optimization"
+  type: article
+  url: "https://joss.theoj.org/papers/10.21105/joss.09105"
+  volume: 11
+title: "topoptlab: An Open and Modular Framework for Benchmarking and
+  Research in Topology Optimization"
