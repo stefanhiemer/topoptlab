@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any,Tuple,Union
+from typing import Any,Union
 
 import numpy as np
 
-from topoptlab.utils import to_voigt,safe_inverse,voigt_pair
+from topoptlab.utils import safe_inverse
+from topoptlab.voigt import to_voigt,voigt_pair
 
 def eng_density(F: np.ndarray,
                 C: Union[None,np.ndarray],

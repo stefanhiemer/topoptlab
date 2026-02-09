@@ -1,13 +1,20 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any,Union
+from typing import Any,Dict,Union
 
-from sympy import ln
+from sympy import ln,exp,simplify
 from sympy.core.symbol import Symbol,Expr
+from symfem.symbols import x
 from symfem.functions import ScalarFunction,MatrixFunction
 
-from topoptlab.symbolic.matrix_utils import generate_constMatrix, is_voigt,\
-                                            to_voigt, trace, inverse, eye
-from topoptlab.symbolic.strain_measures import cauchy_strain,green_strain
+from topoptlab.symbolic.matrix_utils import generate_constMatrix, \
+                                            generate_FunctMatrix, \
+                                            is_voigt,\
+                                            to_voigt, trace, inverse, eye, \
+                                            simplify_matrix
+from topoptlab.symbolic.strain_measures import cauchy_strain,green_strain,def_grad
+from topoptlab.symbolic.operators import hessian_matrix
+from topoptlab.symbolic.cell import base_cell
+from topoptlab.symbolic.parametric_map import jacobian
 
 def neohookean_engdensity(F : Union[None,MatrixFunction] = None,
                           h : Union[None,Symbol,ScalarFunction] = None,
@@ -16,7 +23,7 @@ def neohookean_engdensity(F : Union[None,MatrixFunction] = None,
                           ndim: Union[int,None] = 3, 
                           **kwargs: Any) -> ScalarFunction:
     """
-    Returns elastic energy density for Neo-Hookean material defined as 
+    Return elastic energy density for Neo-Hookean material defined as 
     
         engdensity = h*ln(det(F))**2 + mu*((tr(C)/2 - 3) - ln(det(F))) 
     
@@ -188,12 +195,9 @@ def neohookean_1pk(F : Union[None,MatrixFunction] = None,
     if mu is None:
         mu =  Symbol("mu")
     FinvT = inverse(F.transpose())
-    return FinvT.__mul__(h*ln(Fdet)) + (F-FinvT).__mul__(mu) 
-
-def huhu_engdensity() -> ScalarFunction:
-    
-    return
+    return FinvT.__mul__(h*ln(Fdet)) + (F-FinvT).__mul__(mu)
+        
 
 if __name__ == "__main__":
-    
-    print(neohookean_1pk(ndim=3).shape)
+    #print(neohookean_1pk(ndim=3).shape)
+    #print(huhu_engdensity(ndim=2))

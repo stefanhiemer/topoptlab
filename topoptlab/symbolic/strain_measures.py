@@ -10,7 +10,8 @@ from topoptlab.symbolic.parametric_map import jacobian
 from topoptlab.symbolic.matrix_utils import simplify_matrix, generate_constMatrix
 from topoptlab.symbolic.matrix_utils import eye,to_square,inverse
 
-def small_strain_matrix(ndim: int, nd_inds: List,
+def small_strain_matrix(ndim: int, 
+                        nd_inds: List,
                         basis: List,
                         isoparam_kws: Dict) -> MatrixFunction:
     """
@@ -20,7 +21,9 @@ def small_strain_matrix(ndim: int, nd_inds: List,
     eps = B @ u
     
     where u are nodal displacements and eps_e a column vector of 
-    length (ndim**2 + ndim)/2.
+    length (ndim**2 + ndim)/2. This applies the engineering convention, i. e.
+    the shear components are scaled by a factor of two compared to the small 
+    strain tensor in matrix notation.
 
     Parameters
     ----------
@@ -65,7 +68,9 @@ def eng_strain(ndim: int,
                element_type: str= "Lagrange",
                order: int = 1) -> MatrixFunction:
     """
-    Symbolically compute engineering strain.
+    Symbolically compute engineering strain in engineering convention, i. e.
+    the shear components are scaled by a factor of two compared to the small 
+    strain tensor in matrix notation.
 
     Parameters
     ----------

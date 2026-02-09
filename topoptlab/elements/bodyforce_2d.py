@@ -81,9 +81,9 @@ def lf_bodyforce_2d(b: np.ndarray = np.array([0,-1]),
     b : np.ndarray shape (2)
         body force (e. g. density*gravity_acceleration)
     l : np.ndarray (2)
-        side length of element
+        side length of element.
     t : float
-        thickness of element
+        thickness of element.
 
     Returns
     -------

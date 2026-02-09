@@ -19,11 +19,13 @@ def hessian_matrix(xi: np.ndarray,
                    check_fnc: Callable = check_inputs,
                    **kwargs: Any) -> np.ndarray:
     """
-    Create element stiffness matrix for 2D HuHu regularization with
-    bilinear quadrilateral Lagrangian elements:
+    Create helper matrix to create the flattened Hessian via matrix-vector 
+    multiplication of the nodal displacements u_e:
         
         hessian = B_hessian@u_e
-
+        
+    Recover the Hessian H via reshaping by hessian.reshape((...,ndim,ndim))
+    
     Parameters
     ----------
     xi : np.ndarray
@@ -74,20 +76,24 @@ def hessian_matrix(xi: np.ndarray,
                                xe=xe,
                                all_elems=all_elems)
     # collect inverse jacobian
-    JinvJ,Jdet = _collect_invjacobian(xi=xi, 
-                                     eta=eta, 
-                                     xe=xe,
-                                     shape_functions_dxi=shape_functions_dxi,
-                                     invjacobian=invjacobian,  
-                                     zeta=zeta, 
-                                     return_detJ=return_detJ)
+    Jinv,Jdet = _collect_invjacobian(xi=xi, 
+                                      eta=eta, 
+                                      xe=xe,
+                                      shape_functions_dxi=shape_functions_dxi,
+                                      invjacobian=invjacobian,  
+                                      zeta=zeta, 
+                                      return_detJ=return_detJ)
     # collect hessian in ref. space
     B_hessian = shape_functions_hessian(xi=xi, eta=eta, zeta=zeta) 
     # apply isop. map
-    B_hessian = Jdet.swapaxes(-1,-2)[:,:,None,:,:]@B_hessian[None,:,:,:]@\
-                Jdet[:,:,None,:,:]
+    B_hessian = Jinv.swapaxes(-1,-2)[...,None,:,:]@B_hessian[None,:,:,:]@\
+                Jinv[...,None,:,:]
     # flatten hessian
     B_hessian = B_hessian.reshape(B_hessian.shape[:3]+tuple([ndim**2]))
     B_hessian = B_hessian.swapaxes(-1,-2)
     B_hessian = np.kron(B_hessian,np.eye(ndim))
-    return B_hessian
+    #
+    if not return_detJ:
+        return B_hessian
+    else:
+        return B_hessian, Jdet

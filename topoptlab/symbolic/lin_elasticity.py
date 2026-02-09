@@ -1,12 +1,14 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 from typing import Union
 
-from symfem.symbols import x
+from symfem.symbols import x,t
 from symfem.functions import MatrixFunction
 
 from topoptlab.symbolic.cell import base_cell
 from topoptlab.symbolic.parametric_map import jacobian
-from topoptlab.symbolic.matrix_utils import simplify_matrix, generate_constMatrix
+from topoptlab.symbolic.matrix_utils import simplify_matrix, \
+                                            generate_constMatrix, \
+                                            integrate
 from topoptlab.symbolic.strain_measures import small_strain_matrix
 
 def stiffness_matrix(ndim : int,
@@ -53,7 +55,11 @@ def stiffness_matrix(ndim : int,
     Jdet = jacobian(ndim=ndim, element_type=element_type, order=order,
                     return_J=False, return_inv=False, return_det=True)
     integrand = b.transpose()@c@b * Jdet
-    return simplify_matrix( integrand.integral(ref,x) )
+    return simplify_matrix(M=integrate(M=integrand,
+                                       domain=ref,
+                                       variables=x,
+                                       dummy_vars=t, 
+                                       parallel=None)) #simplify_matrix( integrand.integral(ref,x,t) )
 
 def strainforces(ndim : int,
                  c : Union[None,MatrixFunction], 
@@ -103,5 +109,9 @@ def strainforces(ndim : int,
     Jdet = jacobian(ndim=ndim, element_type=element_type, order=order,
                     return_J=False, return_inv=False, return_det=True)
     integrand = b.transpose()@c@eps * Jdet
-    return simplify_matrix( integrand.integral(ref,x) )
+    return simplify_matrix(M=integrate(M=integrand,
+                                       domain=ref,
+                                       variables=x,
+                                       dummy_vars=t, 
+                                       parallel=None))
 

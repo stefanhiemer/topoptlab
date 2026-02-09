@@ -6,11 +6,11 @@ from symfem.functions import MatrixFunction
 from topoptlab.symbolic.rotation import rotation_matrix 
 from topoptlab.symbolic.matrix_utils import generate_constMatrix, simplify_matrix
 from topoptlab.symbolic.code_conversion import convert_to_code
-from topoptlab.symbolic.voigt import convert_to_voigt
+from topoptlab.symbolic.matrix_utils import to_voigt
 
 if __name__ == "__main__":
     #
-    ndim=3
+    ndim=2
     #
     R = rotation_matrix(ndim=ndim)
     #
@@ -37,12 +37,12 @@ if __name__ == "__main__":
     # rotate tensor
     A_rotated = R.transpose()@A@R
     # rewrite in Voigt notation
-    A_rotated = convert_to_voigt(A_rotated)
+    A_rotated = to_voigt(A_rotated)
     A_rotated = simplify_matrix(A_rotated)
     # number of entries of the Voigt vector
     nv = A_rotated.shape[0]
     # get symbols of A to do a factorization
-    A_symbols = convert_to_voigt(A)
+    A_symbols = to_voigt(A)
     A_symbols = MatrixFunction([[next(iter(A_symbols[i,0].as_sympy().free_symbols))] \
                                 for i in range(nv)])
     # factorize according to entries of A in Voigt order which gives the rotation matrix 

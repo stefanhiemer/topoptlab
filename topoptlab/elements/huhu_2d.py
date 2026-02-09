@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any
+from typing import Any,Union
 
 import numpy as np
 
@@ -11,7 +11,7 @@ from topoptlab.fem import get_integrpoints
 
 def _lk_huhu_2d(xe: np.ndarray, 
                 ue: np.ndarray,
-                exponent: np.ndarray,
+                exponent: Union[None,np.ndarray],
                 kr: np.ndarray,
                 mode="newton",
                 quadr_method: str = "gauss-lobatto",
@@ -22,10 +22,12 @@ def _lk_huhu_2d(xe: np.ndarray,
     Create element stiffness matrix for 2D HuHu regularization with
     bilinear quadrilateral Lagrangian elements:
         
-        eng_dens = kr*exp(-a * det(F)) (Hu)^T Hu
+        eng_dens = kr/2*exp(-a * det(F)) (Hu)^T Hu
     
-    where H is the spatial hessian, F the deformation gradient with the two 
-    parameters a 
+    where H is the spatial hessian, F the deformation gradient with the 
+    regularizations strength kr and exponent a. If A is None, then instead:
+        
+        eng_dens = kr/2*(Hu)^T Hu
 
     Parameters
     ----------
@@ -35,8 +37,9 @@ def _lk_huhu_2d(xe: np.ndarray,
         clear.
     ue : np.ndarray,shape (nels,8).
         nodal displacements.
-    exponent : np.ndarray, shape (nels) or float
-        exponent.
+    exponent : None or np.ndarray
+        exponent with shape (nels), float or None. If None, the exponential 
+        part is ignored.
     kr : np.ndarray, shape (nels) or float
         regularization strength.
     quadr_method: str or callable
@@ -89,32 +92,77 @@ def _lk_huhu_2d(xe: np.ndarray,
     B_hessian = B_hessian.transpose((0,1,3,2))
     # convert to hessian of a vector field
     B_hessian = np.kron(B_hessian,np.eye(ndim))
-    # calculate def. grad
-    B_F = dispgrad_matrix(xi=xi, eta=eta, zeta=None, xe=xe,
-                          shape_functions_dxi=shape_functions_dxi,
-                          invjacobian=invjacobian,
-                          all_elems=True,
-                          return_detJ=False) 
-    B_F = B_F.reshape(nel, nq,  B_F.shape[-2], B_F.shape[-1])
-    F = (B_F@ue[:,None,:,None]).reshape(nel,nq,ndim,ndim) + np.eye(ndim)[None,None,:,:]
-    Fdet = np.linalg.det(F)
-    if mode == "newton":
-        finv = np.linalg.inv(F).transpose((0,1,3,2)).reshape((nel,nq,1,ndim**2))
-        #
-        integral = B_hessian.transpose([0,1,3,2])@B_hessian - \
-                   ((exponent[:,None]*Fdet[:,:])[:,:,None,None]*\
-                   B_hessian.transpose([0,1,3,2])@B_hessian@ue[:,None,:,None]@\
-                   finv@B_F)
-        integral = np.exp(-exponent[:,None]*Fdet[:,:])[:,:,None,None]\
-                   *integral
-    elif mode == "picard":
-        integral = np.exp(-exponent[:,None]*Fdet[:,:])[:,:,None,None]\
-                   *B_hessian.transpose([0,1,3,2])@B_hessian 
+    #
+    if exponent:
+        # calculate def. grad
+        B_F = dispgrad_matrix(xi=xi, eta=eta, zeta=None, xe=xe,
+                              shape_functions_dxi=shape_functions_dxi,
+                              invjacobian=invjacobian,
+                              all_elems=True,
+                              return_detJ=False) 
+        B_F = B_F.reshape(nel, nq,  B_F.shape[-2], B_F.shape[-1])
+        F = (B_F@ue[:,None,:,None]).reshape(nel,nq,ndim,ndim) + np.eye(ndim)[None,None,:,:]
+        Fdet = np.linalg.det(F)
+        if mode == "newton":
+            finv = np.linalg.inv(F).transpose((0,1,3,2)).reshape((nel,nq,1,ndim**2))
+            #
+            integral = B_hessian.transpose([0,1,3,2])@B_hessian - \
+                       ((exponent[:,None]*Fdet[:,:])[:,:,None,None]*\
+                       B_hessian.transpose([0,1,3,2])@B_hessian@ue[:,None,:,None]@\
+                       finv@B_F)
+            integral = np.exp(-exponent[:,None]*Fdet[:,:])[:,:,None,None]\
+                       *integral
+        elif mode == "picard":
+            integral = np.exp(-exponent[:,None]*Fdet[:,:])[:,:,None,None]\
+                       *B_hessian.transpose([0,1,3,2])@B_hessian 
+    else:
+        integral = B_hessian.transpose([0,1,3,2])@B_hessian 
     # multiply by determinant and quadrature
     Ke = (kr[:,None,None,None]*w[None,:,None,None]*integral*detJ[:,:,None,None]\
           ).sum(axis=1)
     # multiply thickness
     return t[:,None,None] * Ke
+
+def lk_huhu_2d(kr: np.ndarray = np.array([0,-1]),
+               l: np.ndarray = np.array([1.,1.]),
+               g: np.ndarray = np.array([0.]),
+               t: float = 1.,
+               **kwargs: Any) -> np.ndarray:
+    """
+    Create element stiffness matrix for 2D HuHu regularization with
+    bilinear quadrilateral Lagrangian elements:
+        
+        eng_dens = kr*exp(-a * det(F)) (Hu)^T Hu
+    
+    where H is the spatial hessian, F the deformation gradient with the 
+    regularizations strength kr and exponent a. If A is None, then instead:
+        
+        eng_dens = kr*(Hu)^T Hu
+
+    Parameters
+    ----------
+    kr : float or np.ndarray 
+        regularization strength.
+    l : np.ndarray (2)
+        side length of element.
+    g : np.ndarray (1)
+        angle of parallelogram.
+    t : float
+        thickness of element.
+        
+    Returns
+    -------
+    Ke : np.ndarray, shape (nels,8,8)
+        element stiffness matrix.
+
+    """ 
+    #
+    tang = np.tan(g[0])
+    # multiply thickness
+    return t*kr*np.array([[0, 0, 0, 0],
+                          [1, -1, 1, -1],
+                          [1, -1, 1, -1],
+                          [-2*tang, 2*tang, -2*tang, 2*tang]]) 
 
 if __name__ == "__main__":
     
@@ -128,8 +176,11 @@ if __name__ == "__main__":
                     0.,0.,
                     0.1,0.2,
                     0.,0.]])
-    np.savetxt("huhu2d.csv", 
-               _lk_huhu_2d(xe=xe,ue=ue,
+    #np.savetxt("huhu2d.csv", 
+    #           _lk_huhu_2d(xe=xe,ue=ue,
+    #                       exponent=None, 
+    #                       kr=1.).flatten(), 
+    #           delimiter=",")
+    print(_lk_huhu_2d(xe=xe,ue=ue,
                            exponent=1., 
-                           kr=1.).flatten(), 
-               delimiter=",")
+                           kr=1.))

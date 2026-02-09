@@ -6,7 +6,7 @@ from topoptlab.symbolic.code_conversion import convert_to_code
 if __name__ == "__main__":
     
     # stiffness matrix isotropic linear elasticity
-    for dim in range(1,3):
+    for dim in range(1,4):
         print(str(dim)+"D")
         print(convert_to_code(stiffness_matrix(c=stifftens_isotropic(ndim=dim,
                                                             plane_stress=True), 

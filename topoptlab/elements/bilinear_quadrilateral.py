@@ -4,9 +4,12 @@ from warnings import warn
 
 import numpy as np
 
-def create_edofMat(nelx: int, nely: int, nnode_dof: int,
-                   dtype: type = np.int32, **kwargs: Any
-                   ) -> Tuple[np.ndarray,np.ndarray,np.ndarray,None,None]:
+def create_edofMat(nelx: int, 
+                   nely: int, 
+                   nnode_dof: int,
+                   dtype: type = np.int32, 
+                   **kwargs: Any) -> Tuple[np.ndarray,np.ndarray,np.ndarray,
+                                           None,None]:
     """
     Create element degree of freedom matrix for bilinear Lagrangian elements in
     a regular mesh.
@@ -44,10 +47,13 @@ def create_edofMat(nelx: int, nely: int, nnode_dof: int,
     edofMat = edofMat + np.tile(np.arange(nnode_dof,dtype=dtype),4)[None,:]
     return edofMat, n1, n2, None, None
 
-def apply_pbc(edofMat: np.ndarray, pbc: Union[List,np.ndarray],
-              nelx: int, nely: int, nnode_dof: int,
-              dtype: type = np.int32, **kwargs: Any
-              ) -> np.ndarray:
+def apply_pbc(edofMat: np.ndarray, 
+              pbc: Union[List,np.ndarray],
+              nelx: int, 
+              nely: int, 
+              nnode_dof: int,
+              dtype: type = np.int32, 
+              **kwargs: Any) -> np.ndarray:
     """
     Convert a given element-degree-of-freedom matrix (edofMat) of a regular
     mesh of first order Lagrangian quadrilateral elements with free
@@ -179,7 +185,8 @@ def check_inputs(xi: Union[float,np.ndarray],
     else:
         return ncoords
 
-def shape_functions(xi: np.ndarray, eta: np.ndarray,
+def shape_functions(xi: np.ndarray, 
+                    eta: np.ndarray,
                     **kwargs: Any) -> np.ndarray:
     """
     Shape functions for bilinear quadrilateral Lagrangian element in reference
@@ -204,7 +211,8 @@ def shape_functions(xi: np.ndarray, eta: np.ndarray,
                                   (1+xi)*(1+eta),
                                   (1-xi)*(1+eta)))
 
-def shape_functions_dxi(xi: np.ndarray,eta: np.ndarray,
+def shape_functions_dxi(xi: np.ndarray,
+                        eta: np.ndarray,
                         **kwargs: Any) -> np.ndarray:
     """
     Gradient of shape functions for bilinear quadrilateral Lagrangian element.
@@ -230,7 +238,8 @@ def shape_functions_dxi(xi: np.ndarray,eta: np.ndarray,
                                  1+eta, 1+xi,
                                  -1-eta, 1-xi))).reshape(-1,4,2)
 
-def shape_functions_hessian(xi: np.ndarray,eta: np.ndarray,
+def shape_functions_hessian(xi: np.ndarray,
+                            eta: np.ndarray,
                             **kwargs: Any) -> np.ndarray:
     """
     Hessian of shape functions for bilinear quadrilateral Lagrangian element.
@@ -263,7 +272,9 @@ def shape_functions_hessian(xi: np.ndarray,eta: np.ndarray,
     hessian[:, :, 1, 0] = 0.25 * np.array([+1, -1, +1, -1], dtype=float)[None, :] 
     return hessian
 
-def jacobian(xi: np.ndarray, eta: np.ndarray, xe: np.ndarray,
+def jacobian(xi: np.ndarray, 
+             eta: np.ndarray, 
+             xe: np.ndarray,
              all_elems: bool = False) -> np.ndarray:
     """
     Jacobian for quadratic bilinear Lagrangian element.
@@ -295,8 +306,11 @@ def jacobian(xi: np.ndarray, eta: np.ndarray, xe: np.ndarray,
     xe,xi,eta,_ = check_inputs(xi=xi,eta=eta,xe=xe,all_elems=all_elems)
     return shape_functions_dxi(xi=xi,eta=eta).transpose([0,2,1]) @ xe
 
-def invjacobian(xi: np.ndarray, eta: np.ndarray, xe: np.ndarray,
-                all_elems: bool = False, return_det: bool = False,
+def invjacobian(xi: np.ndarray, 
+                eta: np.ndarray, 
+                xe: np.ndarray,
+                all_elems: bool = False, 
+                return_det: bool = False,
                 **kwargs: Any) -> np.ndarray:
     """
     Inverse Jacobian for bilinear quadrilateral Lagrangian element.

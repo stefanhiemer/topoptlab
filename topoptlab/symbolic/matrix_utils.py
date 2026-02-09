@@ -2,10 +2,15 @@
 from typing import List, Tuple, Union
 from warnings import warn
 from itertools import product
-from math import floor,sqrt
+from math import floor,sqrt,ceil
+from multiprocessing import Pool, cpu_count
 
-from sympy import symbols, Symbol, Function, Inverse, Trace
+from sympy import symbols, Symbol, Function, Inverse, Trace,\
+                  cse, factor, factor_terms
+from sympy.core.expr import Expr
+from symfem.references import Reference
 from symfem.functions import ScalarFunction,VectorFunction,MatrixFunction
+from symfem.symbols import AxisVariablesNotSingle
 
 from topoptlab.symbolic.utils import is_equal
 
@@ -146,94 +151,6 @@ def generate_FunctMatrix(ncol: int, nrow: int, name: str,
     else:
         return MatrixFunction(M), function_list
 
-def simplify_matrix(M: Union[List,MatrixFunction]) -> MatrixFunction:
-    """
-    simplify element-wise the given MatrixFunction.
-
-    Parameters
-    ----------
-    M : symfem.functions.MatrixFunction or list
-        matrix to be simplified.
-
-    Returns
-    -------
-    M_new : symfem.functions.MatrixFunction
-        simplified matrix.
-    """
-    if isinstance(M, MatrixFunction):
-        nrow,ncol = M.shape[0],M.shape[1]
-    elif isinstance(M, list):
-        nrow,ncol = len(M),len(M[0])
-    M_new = [[0 for j in range(ncol)] for i in range(nrow)]
-    for i,j in product(range(M.shape[0]),range(M.shape[1])):
-        M_new[i][j] = M[i,j].as_sympy().simplify()
-    return MatrixFunction(M_new)
-
-def eye(size: int) -> MatrixFunction:
-    """
-    Return identity matrix of given size.
-
-    Parameters
-    ----------
-    size : int
-        size of identity matrix.
-
-    Returns
-    -------
-    eye : symfem.functions.MatrixFunction
-        identity matrix of shape (size,size).
-    """
-    
-    return MatrixFunction([[0 if i!=j else 1 for j in range(size)] \
-                          for i in range(size)])
-
-def diag(v: Union[List,MatrixFunction]) -> Union[List,MatrixFunction]:
-    """
-    Return diagonal matrix with given diagonal values or extract diagonal
-    values and return as list.
-
-    Parameters
-    ----------
-    v : list or symfem.functions.MatrixFunction
-        values of diagonal or matrix that needs diagonal extracted.
-        
-    Returns
-    -------
-    diag : list or symfem.functions.MatrixFunction
-        diagonal matrix or extracted diagonal as list.
-    """
-    #
-    if isinstance(v, list):
-        size=len(v) 
-        return MatrixFunction([[0 if i!=j else v[i] for j in range(size)] \
-                                for i in range(size)])
-    elif isinstance(v, MatrixFunction):
-        
-        return [v[i,i] for i in range(min(v.shape))]
-    
-def trace(M: MatrixFunction,
-          mode: str="symfem") -> Union[ScalarFunction]:
-    """
-    Take the trace of the given matrix `M`.
-
-    Parameters
-    ----------
-    M : symfem.functions.MatrixFunction
-        matrix M.
-    mode : str
-        if 'symfem' returns symfem.functions.ScalarFunction, else 
-        returns sympy expression
-        
-    Returns
-    -------
-    trace : symfem.functions.ScalarFunction
-        trace of M.
-    """ 
-    if mode=="symfem":
-        return ScalarFunction(Trace(M.as_sympy()).simplify())
-    else:
-        return Trace(M.as_sympy()).simplify()
-
 def to_square(v: MatrixFunction, order: str = "F") -> MatrixFunction:
     """
     Convert MatrixFunction of shape (n**2,1) to (n,n) either in 'C' or 'F'
@@ -311,6 +228,249 @@ def flatten(M: MatrixFunction, order: str = "C") -> VectorFunction:
         v = [M[floor(i/n),i%n] for i in range(m*n)]
     return VectorFunction(v)
 
+def _factor_chunk(exprs):
+    factored = []
+    common_factors = []
+    #
+    for e in exprs:
+        #
+        factored_expr = factor_terms(e)
+        # check if factored_expr is a multiplication, then split
+        if factored_expr.is_Mul:
+            f, r = factored_expr.as_independent(*factored_expr.free_symbols, 
+                                                as_Add=False)
+        else:
+            f, r = 1, factored_expr
+
+        common_factors.append(f)
+        factored.append(r)
+
+    return common_factors, factored
+
+def _simplify_expr(expression: Expr) -> Expr:
+    """
+    Simplify sympy expression.
+
+    Parameters
+    ----------
+    expression : sympy.Expr
+        sympy expression.
+
+    Returns
+    -------
+    expression_simplified : sympy.Expr
+        simplified sympy expression.
+
+    """
+    
+    return expression.simplify()
+
+def simplify_matrix(M: Union[List,MatrixFunction], 
+                    parallel: Union[None,bool] = None) -> MatrixFunction:
+    """
+    Simplify element-wise the given MatrixFunction by first remove common 
+    factors (sympy.factor_terms), simplification of the remaining expression 
+    and subsequent merging. 
+
+    Parameters
+    ----------
+    M : symfem.functions.MatrixFunction or list
+        matrix to be simplified.
+    parallel : None or bool
+        if True, simplification is parallelized via Pool. If None, autmatically 
+        switch to parallelization if entries are larger than 16
+
+    Returns
+    -------
+    M_new : symfem.functions.MatrixFunction
+        simplified matrix.
+    """
+    #
+    if isinstance(M, MatrixFunction):
+        nrow,ncol = M.shape[0],M.shape[1]
+    elif isinstance(M, list):
+        nrow,ncol = len(M),len(M[0])
+    #
+    size = nrow * ncol
+    #
+    if parallel is None and size > 16:
+        parallel = True
+    # list of sympy expressions for common subexpression detection/extraction
+    exprs = [entry.as_sympy() for entry in flatten(M=M,order="C")]
+    #
+    M_new = [[0 for j in range(ncol)] for i in range(nrow)]
+    # parallel chunked common substring detection
+    if parallel:
+        #
+        nchunks = cpu_count()
+        chunk_size = ceil( size/nchunks )
+        #
+        chunks = [exprs[k*chunk_size:(k+1)*chunk_size] for k in range(nchunks) \
+                  if k*chunk_size < size]
+        #
+        with Pool(cpu_count()) as pool:
+            results = pool.map(_factor_chunk, chunks)
+        #
+        common_factors = []
+        reduced = []
+
+        for f, r in results:
+            common_factors.extend(f)
+            reduced.extend(r)
+    else:
+        common_factors, reduced = _factor_chunk(exprs) 
+    # simplify remaining expressions
+    if parallel:
+        #
+        with Pool(processes=cpu_count()) as pool:
+            reduced = pool.map(_simplify_expr, reduced)
+    else:
+        reduced = [e.simplify() for e in reduced]
+    # merge factored and reduced 
+    exprs = [f * r for f, r in zip(common_factors, reduced)]
+    # assemble simplified matrix
+    for row,col in product(range(nrow),range(ncol)):
+        M_new[row][col] = exprs[row*ncol+col]
+    return MatrixFunction(M_new)
+
+def _integrate_entry(args: Tuple) -> Tuple:
+    """
+    Helper function for integrate() that computes the integral of the element 
+    M[i,j] of MatrixFunction M.
+    
+    Parameters
+    ----------
+    args : tuple
+        tuple that contains i, j, M[i,j], domain, vars, and dummy_vars. 
+
+    Returns
+    -------
+    integrated : tuple
+        tuple that contains i, j, M_integrated[i,j], domain, vars, and 
+        dummy_vars.  
+    
+    """
+    i, j, f, domain, variables, dummy_vars = args 
+    return i, j, f.integral(domain, variables, dummy_vars)
+
+def integrate(M: MatrixFunction, 
+              domain: Reference,
+              variables: AxisVariablesNotSingle,
+              dummy_vars: AxisVariablesNotSingle, 
+              parallel: Union[None,bool] = None)-> MatrixFunction:
+    """
+    Compute the integral of the Matrix function element-wise .
+    
+    Parameters
+    ----------
+    M : symfem.functions.MatrixFunction.
+        matrix to be integrated.
+    domain : symfem.references.Reference
+        domain of the integral
+    vars : symfem.symbols.AxisVariablesNotSingle
+        variables to integrate with respect to.
+    dummy_vars :  symfem.symbols.AxisVariablesNotSingle
+        dummy variables to use inside the integral.
+    parallel : None or bool
+        if True, simplification is parallelized via Pool. If None, autmatically 
+        switch to parallelization if entries are larger than 16
+
+    Returns
+    -------
+    M_integrated : symfem.functions.MatrixFunction
+        element-wise integrated matrix.  
+    
+    """
+    #
+    if isinstance(M, MatrixFunction):
+        nrow,ncol = M.shape[0],M.shape[1]
+    else:
+        raise TypeError("M must be symfem.functions.MatrixFunction.")
+    #
+    if parallel is None and nrow*ncol > 16:
+        parallel = True
+    # 
+    if not parallel:
+        return MatrixFunction([[f.integral(domain, 
+                                           variables, 
+                                           dummy_vars) for f in row] \
+                                for row in M._mat])
+    else:
+        # create new empty matrix
+        M_new = [[0 for _ in range(ncol)] for _ in range(nrow)]
+        # write information needed for tasks: row,col, matrix entry, ...
+        tasks = [(i, j, M._mat[i][j], domain, variables, dummy_vars) \
+                 for i in range(nrow) for j in range(ncol)]
+        # integrate in parallel and then write to M_new
+        with Pool(cpu_count()) as pool:
+            for i, j, val in pool.map(_integrate_entry, tasks):
+                M_new[i][j] = val
+        return MatrixFunction(M_new)
+
+def eye(size: int) -> MatrixFunction:
+    """
+    Return identity matrix of given size.
+
+    Parameters
+    ----------
+    size : int
+        size of identity matrix.
+
+    Returns
+    -------
+    eye : symfem.functions.MatrixFunction
+        identity matrix of shape (size,size).
+    """
+    
+    return MatrixFunction([[0 if i!=j else 1 for j in range(size)] \
+                          for i in range(size)])
+
+def diag(v: Union[List,MatrixFunction]) -> Union[List,MatrixFunction]:
+    """
+    Return diagonal matrix with given diagonal values or extract diagonal
+    values and return as list.
+
+    Parameters
+    ----------
+    v : list or symfem.functions.MatrixFunction
+        values of diagonal or matrix that needs diagonal extracted.
+        
+    Returns
+    -------
+    diag : list or symfem.functions.MatrixFunction
+        diagonal matrix or extracted diagonal as list.
+    """
+    #
+    if isinstance(v, list):
+        size=len(v) 
+        return MatrixFunction([[0 if i!=j else v[i] for j in range(size)] \
+                                for i in range(size)])
+    elif isinstance(v, MatrixFunction):
+        
+        return [v[i,i] for i in range(min(v.shape))]
+    
+def trace(M: MatrixFunction,
+          mode: str="symfem") -> Union[ScalarFunction]:
+    """
+    Take the trace of the given matrix `M`.
+
+    Parameters
+    ----------
+    M : symfem.functions.MatrixFunction
+        matrix M.
+    mode : str
+        if 'symfem' returns symfem.functions.ScalarFunction, else 
+        returns sympy expression
+        
+    Returns
+    -------
+    trace : symfem.functions.ScalarFunction
+        trace of M.
+    """ 
+    if mode=="symfem":
+        return ScalarFunction(Trace(M.as_sympy()).simplify())
+    else:
+        return Trace(M.as_sympy()).simplify()
 
 def kron(A: MatrixFunction,
          B: MatrixFunction) -> MatrixFunction:
@@ -449,16 +609,21 @@ def mul(M: MatrixFunction,
     """
     return M.det()
 
-def from_voigt(M_v: MatrixFunction) -> MatrixFunction:
+def from_voigt(M_v: MatrixFunction, 
+               eng_conv: bool = False) -> MatrixFunction:
     """
     Convert MatrixFunction M_v of shape (d*(d+1)/2,1) from Voigt notation to 
     standard matrix notation M resulting in shape (d,d). M is square and 
-    symmetric.
+    symmetric. Applies only to rank 2 tensors right now.
 
     Parameters
     ----------
     M_v : symfem.functions.MatrixFunction
         matrix in Voigt notation of shape (d*(d+1)/2,1). 
+    eng_conv : bool 
+        if True, engineering convention is applied meaning the shear components
+        are scaled by a factor of two in Voigt notation. Usually applies only 
+        to strains.
 
     Returns
     -------
@@ -466,34 +631,46 @@ def from_voigt(M_v: MatrixFunction) -> MatrixFunction:
         matrix of shape (d,d)
     """
     #
-    d = int((-1+sqrt(1+8*M_v.shape[0]))/2)
+    ndim = int((-1+sqrt(1+8*M_v.shape[0]))/2)
     #
-    M = [[0 for j in range(d)] for i in range(d)]
+    M = [[0 for j in range(ndim)] for i in range(ndim)]
     # diagonal
-    for i in range(d):
+    for i in range(ndim):
         M[i][i] = M_v[i,0]
     # off-diagonal
-    if d == 2:
+    if ndim == 2:
         M[0][1] = M_v[-1,0]
         M[1][0] = M_v[-1,0]
-    elif d == 3:
+    elif ndim == 3:
         M[1][2] = M_v[-3,0]
         M[2][1] = M_v[-3,0]
         M[0][2] = M_v[-2,0]
         M[2][0] = M_v[-2,0]
         M[0][1] = M_v[-1,0]
         M[1][0] = M_v[-1,0]
+    # revert the factor 2 scaling
+    if eng_conv:
+        for i in range(ndim):
+            for j in range(i+1,ndim):
+                M[i][j] = M[i][j]/2
+                M[j][i] = M[j][i]/2
     return MatrixFunction(M)
 
-def to_voigt(M: MatrixFunction) -> MatrixFunction:
+def to_voigt(M: MatrixFunction, 
+             eng_conv: bool = False) -> MatrixFunction:
     """
     Convert MatrixFunction M of shape (d,d) to Voigt notation resulting in 
-    shape (d*(d+1)/2,1). M must be square and symmetric.
+    shape (d*(d+1)/2,1). M must be square and symmetric. Applies only to rank 2
+    tensors right now. 
 
     Parameters
     ----------
     M : symfem.functions.MatrixFunction
         matrix of shape (d,d). 
+    eng_conv : bool 
+        if True, engineering convention is applied meaning the shear components
+        are scaled by a factor of two in Voigt notation. Usually applies only 
+        to strains.
 
     Returns
     -------
@@ -501,25 +678,30 @@ def to_voigt(M: MatrixFunction) -> MatrixFunction:
         Voigt vector reshaped to shape (d*(d+1)/2,1)
     """
     #
-    d = M.shape[0]
+    ndim = M.shape[0]
     #
-    if d!=M.shape[1]:
+    if ndim!=M.shape[1]:
         raise ValueError("M must be symmetric: ",M.shape)
     # diagonal
-    M_v = [ [M[i,i]] for i in range(d)]
+    M_v = [ [M[i,i]] for i in range(ndim)]
     #
-    if d == 2:
+    if ndim == 2:
         M_v.append( [M[0,1]] )
-    elif d == 3:
+    elif ndim == 3:
         M_v.append([M[1,2]])
         M_v.append([M[0,2]]) 
         M_v.append([M[0,1]])
+    # apply factor 2 scaling
+    if eng_conv:
+        for i in range(ndim,len(M_v)):
+            M_v[i][0]=2*M_v[i][0]
     return MatrixFunction(M_v)
 
 def is_voigt(M: MatrixFunction, 
              ndim: int) -> bool:
     """
-    Check if MatrixFunction M is notated in Voigt notation.
+    Check if MatrixFunction M is notated in Voigt notation. Applies only to 
+    rank 2 tensors right now.
 
     Parameters
     ----------
