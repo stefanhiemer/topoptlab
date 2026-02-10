@@ -5,8 +5,10 @@ from itertools import product
 from math import floor,sqrt,ceil
 from multiprocessing import Pool, cpu_count
 
+from tqdm import tqdm
+
 from sympy import symbols, Symbol, Function, Inverse, Trace,\
-                  cse, factor, factor_terms
+                  cse, factor, factor_terms, gcd_terms
 from sympy.core.expr import Expr
 from symfem.references import Reference
 from symfem.functions import ScalarFunction,VectorFunction,MatrixFunction
@@ -228,24 +230,103 @@ def flatten(M: MatrixFunction, order: str = "C") -> VectorFunction:
         v = [M[floor(i/n),i%n] for i in range(m*n)]
     return VectorFunction(v)
 
-def _factor_chunk(exprs):
-    factored = []
-    common_factors = []
+def _factor_expr(expression: Expr, 
+                 variables: List) -> Expr:
+    """
+    Factorize sympy expression. Extract the factor containing not the listed 
+    variables.
+
+    Parameters
+    ----------
+    expression : sympy.Expr
+        sympy expression.
+    variables 
+        list of variables which should not appear in the factored out 
+        expression.
+
+    Returns
+    -------
+    factor: sympy.Expr
+        factored out sympy expression.
+    remainder: sympy.Expr
+        remaining sympy expression.
+    """
     #
-    for e in exprs:
+    factored_expr = factor_terms(expression)
+    # check if factored_expr is a multiplication, then split
+    if factored_expr.is_Mul:
+        f, r = factored_expr.as_independent(*factored_expr.free_symbols, 
+                                            as_Add=False)
+    else:
+        f, r = 1, factored_expr
+    return f,r
+
+def factor_matrix(M: Union[List,MatrixFunction],
+                  variables: List,
+                  parallel: Union[None,bool] = None) -> MatrixFunction:
+    """
+    Factor element-wise the given MatrixFunction by first pull out factors not 
+    including the variables, find the greatest common divisor (gcd) and 
+    extract it from the matrix. 
+
+    Parameters
+    ----------
+    M : symfem.functions.MatrixFunction or list
+        matrix to be simplified.
+    parallel : None or bool
+        if True, simplification is parallelized via Pool. If None, autmatically 
+        switch to parallelization if entries are larger than 16
+
+    Returns
+    -------
+    M_new : symfem.functions.MatrixFunction
+        factored matrix.
+    gcd : sympy.Expr
+        greatest common divisor 
+    """
+    #
+    if isinstance(M, MatrixFunction):
+        nrow,ncol = M.shape[0],M.shape[1]
+    elif isinstance(M, list):
+        nrow,ncol = len(M),len(M[0])
+    #
+    size = nrow * ncol
+    #
+    M_new = [[0 for j in range(ncol)] for i in range(nrow)]
+    #
+    if parallel is None and size > 16:
+        parallel = True
+    # list of sympy expressions for common subexpression detection/extraction
+    exprs = [entry.as_sympy() for entry in flatten(M=M,order="C")]
+    #
+    if parallel:
         #
-        factored_expr = factor_terms(e)
-        # check if factored_expr is a multiplication, then split
-        if factored_expr.is_Mul:
-            f, r = factored_expr.as_independent(*factored_expr.free_symbols, 
-                                                as_Add=False)
-        else:
-            f, r = 1, factored_expr
-
-        common_factors.append(f)
-        factored.append(r)
-
-    return common_factors, factored
+        nproc = cpu_count() 
+        chunk_size = ceil(len(exprs) / nproc)
+        #
+        with Pool(processes=cpu_count()) as pool:
+            # pull out factors not including the variables. remainder should be 
+            # mostly just the provided variables
+            factored = list(tqdm(pool.imap(lambda e: factor_terms(e, 
+                                                                  gens=variables),
+                                           exprs),
+                                 total=len(exprs),
+                                 desc="Factoring matrix entries"))
+            # simplify remainder
+            exprs = list(tqdm(pool.imap(lambda fr: (fr[0] / fr[1]).simplify(),
+                                        zip(factored, gcd)),
+                              total=len(factored),
+                              desc="Simplifying remainders"))
+    else:
+        # pull out factors not including the variables. remainder should be 
+        # mostly just the provided variables
+        factored = [factor_terms(e, gens=variables) for e in exprs]
+        # simplify remainder
+        exprs = [(expression/gcd).simplify() for expression in factored]
+    # assemble simplified matrix
+    for row,col in product(range(nrow),range(ncol)):
+        M_new[row][col] = exprs[row*ncol+col]
+    return MatrixFunction(M_new), gcd
 
 def _simplify_expr(expression: Expr) -> Expr:
     """
@@ -299,35 +380,16 @@ def simplify_matrix(M: Union[List,MatrixFunction],
     exprs = [entry.as_sympy() for entry in flatten(M=M,order="C")]
     #
     M_new = [[0 for j in range(ncol)] for i in range(nrow)]
-    # parallel chunked common substring detection
-    if parallel:
-        #
-        nchunks = cpu_count()
-        chunk_size = ceil( size/nchunks )
-        #
-        chunks = [exprs[k*chunk_size:(k+1)*chunk_size] for k in range(nchunks) \
-                  if k*chunk_size < size]
-        #
-        with Pool(cpu_count()) as pool:
-            results = pool.map(_factor_chunk, chunks)
-        #
-        common_factors = []
-        reduced = []
-
-        for f, r in results:
-            common_factors.extend(f)
-            reduced.extend(r)
-    else:
-        common_factors, reduced = _factor_chunk(exprs) 
     # simplify remaining expressions
     if parallel:
-        #
         with Pool(processes=cpu_count()) as pool:
-            reduced = pool.map(_simplify_expr, reduced)
+            exprs = list(tqdm(pool.imap(_simplify_expr, exprs),
+                              total=len(exprs),
+                              desc="Simplifying matrix entries"))
     else:
-        reduced = [e.simplify() for e in reduced]
+        exprs = [e.simplify() for e in exprs]
     # merge factored and reduced 
-    exprs = [f * r for f, r in zip(common_factors, reduced)]
+    #exprs = [f * r for f, r in zip(common_factors, reduced)]
     # assemble simplified matrix
     for row,col in product(range(nrow),range(ncol)):
         M_new[row][col] = exprs[row*ncol+col]
@@ -403,7 +465,9 @@ def integrate(M: MatrixFunction,
                  for i in range(nrow) for j in range(ncol)]
         # integrate in parallel and then write to M_new
         with Pool(cpu_count()) as pool:
-            for i, j, val in pool.map(_integrate_entry, tasks):
+            for i, j, val in tqdm(pool.imap_unordered(_integrate_entry, tasks),
+                                  total=len(tasks),
+                                  desc="Parallel integration of matrix entries"): 
                 M_new[i][j] = val
         return MatrixFunction(M_new)
 

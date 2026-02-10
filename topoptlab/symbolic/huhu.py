@@ -3,14 +3,14 @@ from typing import Any,Dict,Union
 
 from sympy import ln,exp,simplify
 from sympy.core.symbol import Symbol,Expr
-from symfem.symbols import x
+from symfem.symbols import x,t
 from symfem.functions import ScalarFunction,MatrixFunction
 
 from topoptlab.symbolic.matrix_utils import generate_constMatrix, \
                                             generate_FunctMatrix, \
                                             is_voigt,\
                                             to_voigt, trace, inverse, eye, \
-                                            simplify_matrix
+                                            simplify_matrix,integrate
 from topoptlab.symbolic.strain_measures import cauchy_strain,green_strain,def_grad
 from topoptlab.symbolic.operators import hessian_matrix
 from topoptlab.symbolic.cell import base_cell
@@ -24,7 +24,7 @@ def huhu_engdensity(u : Union[None,MatrixFunction],
                     Fdet: Union[None,Expr,ScalarFunction] = None,
                     element_type: str = "Lagrange",
                     order: int = 1,
-                    integrate: bool = True,
+                    do_integral: bool = True,
                     **kwargs: Any) -> ScalarFunction:
     """
     Return elastic energy density for HuHu regularization defined as 
@@ -82,7 +82,7 @@ def huhu_engdensity(u : Union[None,MatrixFunction],
     #
     huhu = ScalarFunction( huhu )
     #
-    if element_type is not None and integrate:
+    if element_type is not None and do_integral:
         huhu = huhu.integral(ref,x) 
     return simplify(huhu)
 
@@ -94,7 +94,7 @@ def huhu_tangent(u : Union[None,MatrixFunction],
                  Fdet: Union[None,Expr,ScalarFunction] = None,
                  element_type: str = "Lagrange",
                  order: int = 1,
-                 integrate: bool = True,
+                 do_integral: bool = True,
                  **kwargs: Any) -> MatrixFunction:
     """
     Return consistent tangent for HuHu regularization defined as 
@@ -146,12 +146,21 @@ def huhu_tangent(u : Union[None,MatrixFunction],
             Fdet = Fdet.as_sympy()
         #
         huhu = exp(-a*simplify(Fdet) )*huhu
+        huhu = simplify_matrix(huhu)
+    print(huhu)
+    import sys 
+    sys.exit()
     #
-    if element_type is not None and integrate:
-        huhu = huhu.integral(ref,x) 
+    if element_type is not None and do_integral:
+        huhu = integrate(M=huhu,
+                         domain=ref,
+                         variables=x,
+                         dummy_vars=t, 
+                         parallel=None) 
     return simplify_matrix(huhu)
 
 if __name__ == "__main__":
     
     #print(neohookean_1pk(ndim=3).shape)
-    print(huhu_tangent(u=None,ndim=2))
+    print(huhu_tangent(u=None,ndim=2,
+          a=Symbol("a")))
