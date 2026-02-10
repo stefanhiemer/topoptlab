@@ -211,8 +211,7 @@ def hessian_matrix(scalarfield: bool,
     hessian = MatrixFunction(hessian)*Jdet
     #
     if element_type is not None and integrate:
-        hessian = hessian.integral(ref,x) 
-    print("before simplification")
+        hessian = hessian.integral(ref,x)
     #
     if not scalarfield:
         return kron( simplify_matrix(hessian),eye(size=ndim))
