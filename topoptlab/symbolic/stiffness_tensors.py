@@ -6,7 +6,8 @@ def stifftens_isotropic(ndim: int,
                         plane_stress: bool = True) -> MatrixFunction:
     """
     stiffness tensor for isotropic material expressed in Terms of Young's
-    modulus `E` and Poisson's ratio ´nu`.
+    modulus `E` and Poisson's ratio ´nu`. (strain shear component 
+    corresponds to engineering shear strain, so the shear entry equals G).
 
     Parameters
     ----------

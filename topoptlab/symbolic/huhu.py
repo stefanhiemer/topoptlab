@@ -49,13 +49,11 @@ def huhu_engdensity(u : Union[None,MatrixFunction],
     # regularization strength
     if kr is None:
         kr =  Symbol("kr")
-    print("Here")
     #
     B_hessian = hessian_matrix(scalarfield=False,ndim=ndim, 
                                integrate=False,
                                element_type=element_type, 
                                order=order)
-    print("Here")
     #
     if u is None:
         u = generate_constMatrix(ncol=1, nrow=B_hessian.shape[1], name="u")
@@ -88,6 +86,7 @@ def huhu_engdensity(u : Union[None,MatrixFunction],
         huhu = huhu.integral(ref,x) 
     return simplify(huhu)
         
+
 
 if __name__ == "__main__":
     

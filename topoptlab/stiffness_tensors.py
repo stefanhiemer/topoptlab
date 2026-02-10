@@ -149,7 +149,9 @@ def isotropic_2d(E: float = 1.,
                  nu: float = 0.3, 
                  plane_stress: bool = True) -> np.ndarray:
     """
-    2D stiffness tensor for isotropic material. 
+    2D stiffness tensor for isotropic material in engineering Voigt convention 
+    (strain shear component corresponds to engineering shear strain, so the 
+     shear entry equals G).
     
     Parameters
     ----------
@@ -175,6 +177,31 @@ def isotropic_2d(E: float = 1.,
                                              [nu,1-nu,0],
                                              [0,0,(1-nu)/2]])
 
+def isotropic_3d(E:float = 1., nu:float = 0.3) -> np.ndarray:
+    """
+    3D stiffness tensor for isotropic material in engineering Voigt convention 
+    (strain shear component corresponds to engineering shear strain, so the 
+     shear entry equals G).
+    
+    Parameters
+    ----------
+    E : float
+        Young's modulus.
+    nu : float
+        Poisson's ratio.
+    
+    Returns
+    -------
+    c : np.ndarray, shape (6,6)
+        stiffness tensor.
+    """
+    return E/((1+nu)*(1-2*nu))*np.array([[1-nu,nu,nu,0,0,0],
+                                         [nu,1-nu,nu,0,0,0],
+                                         [nu,nu,1-nu,0,0,0],
+                                         [0,0,0,(1-nu)/2,0,0],
+                                         [0,0,0,0,(1-nu)/2,0],
+                                         [0,0,0,0,0,(1-nu)/2]])
+
 def orthotropic_2d(Ex: float, Ey: float, 
                    nu_xy: float, G_xy: float,
                    Ez: Union[None,float] = None, 
@@ -184,7 +211,8 @@ def orthotropic_2d(Ex: float, Ey: float,
     """
     2D stiffness tensor for orthotropic material. The indices of the Poisson 
     ratios nu_ij are defined as the direction with the applied strain (i) and 
-    the direction of contraction/expansion j. 
+    the direction of contraction/expansion j. (strain shear component 
+    corresponds to engineering shear strain, so the shear entry equals G).
     
     Parameters
     ----------
@@ -231,7 +259,8 @@ def orthotropic_3d(Ex: float, Ey: float, Ez: float,
     """
     3D stiffness tensor for orthotropic material. The indices of the Poisson 
     ratios nu_ij are defined as the direction with the applied strain (i) and 
-    the direction of contraction/expansion j. 
+    the direction of contraction/expansion j. (strain shear component 
+    corresponds to engineering shear strain, so the shear entry equals G).
     
     Parameters
     ----------
@@ -280,29 +309,6 @@ def orthotropic_3d(Ex: float, Ey: float, Ez: float,
                      [0, 0, 0, G_yz, 0, 0], 
                      [0, 0, 0, 0, G_xz, 0], 
                      [0, 0, 0, 0, 0, G_xy]])
-
-def isotropic_3d(E:float = 1., nu:float = 0.3) -> np.ndarray:
-    """
-    3D stiffness tensor for isotropic material. 
-    
-    Parameters
-    ----------
-    E : float
-        Young's modulus.
-    nu : float
-        Poisson's ratio.
-    
-    Returns
-    -------
-    c : np.ndarray, shape (6,6)
-        stiffness tensor.
-    """
-    return E/((1+nu)*(1-2*nu))*np.array([[1-nu,nu,nu,0,0,0],
-                                         [nu,1-nu,nu,0,0,0],
-                                         [nu,nu,1-nu,0,0,0],
-                                         [0,0,0,(1-nu)/2,0,0],
-                                         [0,0,0,0,(1-nu)/2,0],
-                                         [0,0,0,0,0,(1-nu)/2]])
 
 def octet_trusslattice(E:float, rho:float) -> np.ndarray:
     """

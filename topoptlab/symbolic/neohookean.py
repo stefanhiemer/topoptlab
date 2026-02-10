@@ -199,5 +199,4 @@ def neohookean_1pk(F : Union[None,MatrixFunction] = None,
         
 
 if __name__ == "__main__":
-    #print(neohookean_1pk(ndim=3).shape)
-    #print(huhu_engdensity(ndim=2))
+    print(neohookean_1pk(ndim=2))
