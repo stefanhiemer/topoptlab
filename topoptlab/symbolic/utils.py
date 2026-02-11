@@ -1,7 +1,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
+from typing import List,Union
+from multiprocessing import cpu_count
+
 import numpy as np
 
-from sympy import expand,simplify,Expr
+from sympy import expand, simplify, Expr, collect, Function
 
 def is_equal(expr1: Expr, expr2: Expr)-> bool:
     """
@@ -24,6 +27,60 @@ def is_equal(expr1: Expr, expr2: Expr)-> bool:
     """
     return simplify(expand(expr1 - expr2)) == 0
 
+def split_expression(expression: Expr, 
+                     variables: List,
+                     include_nonlin: bool,
+                     nchunks: Union[None,int]) -> List:
+    """
+    Split expression into common powers of provided variables and merge to n
+    chunks for independent parallel operations on each chunk.
+    
+
+    Parameters
+    ----------
+    expression : Expr
+        sympy expression.
+    variables : list
+        list of sympy variables. 
+    include_nonlin : bool
+        if True, also 
+    nchunks : Union[None,int]
+        number of chunks. If None, number of processors.
+
+    Returns
+    -------
+    chunked_expression : list
+        list of additive sympy expressions whose sum equals `expression`.
+
+    """
+    if isinstance(variables, tuple):
+        variables = list(variables)
+    #
+    if nchunks is None:
+        nchunks = cpu_count()
+    # extract nonlinear functions and treat them as if it were a polynomial 
+    # power of a new variable
+    if include_nonlin:
+        #
+        funcs = [f for f in expression.atoms(Function) \
+                 if f.free_symbols & set(variables)]
+    else:
+        funcs = []
+    # transform expression to list of terms of common powers
+    terms = collect(expression, variables+funcs,
+                    evaluate=False)
+    terms = [terms[key]*key for key in terms.keys()]
+    # determine number of chunks
+    nterms = len(terms)
+    if nterms < nchunks:
+        chunk_size = 1
+    else: 
+        chunk_size = nterms // nchunks
+    #
+    chunks = [sum(terms[i*chunk_size:(i+1)*chunk_size]) \
+              for i in range(nchunks-1)]
+    chunks.append(sum(terms[(nchunks-1)*chunk_size:]))
+    return chunks
 
 rect = np.array([[[-1,-1],[1,-1],[1,1],[-1,1]]])
 hexahedron = np.array([[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
@@ -69,7 +126,6 @@ def argsort_counterclock(coords: np.ndarray,
     #
     coords = np.asarray(coords, float)
     N, ndim = coords.shape
-    #
     # 1D 
     if ndim == 1:
         return coords[np.argsort(coords[:, 0])]
@@ -99,3 +155,35 @@ def argsort_counterclock(coords: np.ndarray,
         return coords[idx]
 
     raise ValueError("Only dimensions 1, 2, 3 are supported.")
+
+if __name__ == "__main__":
+    
+    from sympy import symbols,exp,sin
+
+    # symbols
+    a, x, y = symbols('a x y')
+    
+    # test expression
+    expr = (a*2*x**2*exp(x**2)
+            + 3*x**2*exp(x)*sin(a)
+            + 4*y*sin(x)*exp(a)
+            + 5*exp(x)
+            + 6)
+    
+    # split
+    chunks = split_expression(
+        expression=expr,
+        variables=[x, y],
+        include_nonlin=True,
+        nchunks=2
+    )
+    
+    # check reconstruction
+    reconstructed = sum(chunks)
+    
+    print("Chunks:")
+    for c in chunks:
+        print("  ", c)
+    
+    print("\nReconstruction correct:",
+          simplify(reconstructed - expr) == 0)

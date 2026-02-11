@@ -1,20 +1,21 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 from typing import Any,Dict,Union
 
-from sympy import ln,exp,simplify
+from sympy import ln,exp,simplify,symbols
 from sympy.core.symbol import Symbol,Expr
 from symfem.symbols import x,t
 from symfem.functions import ScalarFunction,MatrixFunction
 
 from topoptlab.symbolic.matrix_utils import generate_constMatrix, \
                                             generate_FunctMatrix, \
-                                            is_voigt,\
-                                            to_voigt, trace, inverse, eye, \
+                                            is_voigt,to_voigt,\
+                                            to_column, trace, inverse, eye, \
                                             simplify_matrix,integrate
-from topoptlab.symbolic.strain_measures import cauchy_strain,green_strain,def_grad
+from topoptlab.symbolic.strain_measures import def_grad, dispgrad_matrix
 from topoptlab.symbolic.operators import hessian_matrix
 from topoptlab.symbolic.cell import base_cell
 from topoptlab.symbolic.parametric_map import jacobian
+from topoptlab.symbolic.scalar_utils import integral
 
 def huhu_engdensity(u : Union[None,MatrixFunction], 
                     ndim: int,
@@ -83,7 +84,12 @@ def huhu_engdensity(u : Union[None,MatrixFunction],
     huhu = ScalarFunction( huhu )
     #
     if element_type is not None and do_integral:
-        huhu = huhu.integral(ref,x) 
+        #huhu = huhu.integral(ref,x) 
+        huhu = integral(scalar_function=huhu, 
+                        domain=ref, 
+                        vars=x, 
+                        dummy_vars=t,
+                        parallel=True)
     return simplify(huhu)
 
 def huhu_tangent(u : Union[None,MatrixFunction], 
@@ -95,6 +101,7 @@ def huhu_tangent(u : Union[None,MatrixFunction],
                  element_type: str = "Lagrange",
                  order: int = 1,
                  do_integral: bool = True,
+                 mode : str = "picard",
                  **kwargs: Any) -> MatrixFunction:
     """
     Return consistent tangent for HuHu regularization defined as 
@@ -127,7 +134,13 @@ def huhu_tangent(u : Union[None,MatrixFunction],
     #
     huhu = simplify_matrix(M=B_hessian.transpose()@B_hessian)
     # exponential
+    print("beofre exponential")
     if a is not None:
+        #
+        if u is None:
+            u = generate_constMatrix(ncol=1, 
+                                     nrow=B_hessian.shape[1], 
+                                     name="u")
         #
         if F is None and element_type is None:
             F = generate_constMatrix(ncol=ndim,
@@ -139,17 +152,29 @@ def huhu_tangent(u : Union[None,MatrixFunction],
                          element_type=element_type,
                          order=order,
                          shape="square")
+        #
+        B_F = dispgrad_matrix(ndim=ndim, 
+                              nd_inds=nd_inds,
+                              basis=basis)
         # 
         if Fdet is None:
             Fdet = F.det().as_sympy()
         elif isinstance(Fdet,ScalarFunction):
             Fdet = Fdet.as_sympy()
         #
+        if mode == "picard":
+            pass
+        elif mode == "newton":
+            Finv = to_column(M=F,order="C").transpose()
+            huhu = huhu - a*Fdet*huhu@u@Finv@B_F
+        else:
+            raise NotImplementedError("Unknown mode: ", mode)
+        #
         huhu = exp(-a*simplify(Fdet) )*huhu
+        print("before simplification.")
         huhu = simplify_matrix(huhu)
-    print(huhu)
-    import sys 
-    sys.exit()
+    #
+    print("before integral")
     #
     if element_type is not None and do_integral:
         huhu = integrate(M=huhu,
@@ -161,6 +186,5 @@ def huhu_tangent(u : Union[None,MatrixFunction],
 
 if __name__ == "__main__":
     
-    #print(neohookean_1pk(ndim=3).shape)
-    print(huhu_tangent(u=None,ndim=2,
-          a=Symbol("a")))
+    print(huhu_engdensity(u=None,ndim=2,
+          a=symbols("a")))

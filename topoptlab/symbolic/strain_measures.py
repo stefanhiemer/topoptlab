@@ -99,7 +99,8 @@ def eng_strain(ndim: int,
     u = generate_constMatrix(1,b.shape[1], "u")
     return simplify_matrix( b@u )
 
-def dispgrad_matrix(ndim: int, nd_inds: list,
+def dispgrad_matrix(ndim: int, 
+                    nd_inds: list,
                     basis: List,
                     isoparam_kws: Dict) -> MatrixFunction:
     """
