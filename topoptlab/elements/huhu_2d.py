@@ -123,7 +123,7 @@ def _lk_huhu_2d(xe: np.ndarray,
     # multiply thickness
     return t[:,None,None] * Ke
 
-def lk_huhu_2d(kr: np.ndarray = np.array([0,-1]),
+def lk_huhu_2d(kr: np.ndarray = np.array(1.),
                l: np.ndarray = np.array([1.,1.]),
                g: np.ndarray = np.array([0.]),
                t: float = 1.,
@@ -157,12 +157,48 @@ def lk_huhu_2d(kr: np.ndarray = np.array([0,-1]),
 
     """ 
     #
-    tang = np.tan(g[0])
     # multiply thickness
-    return t*kr*np.array([[0, 0, 0, 0],
-                          [1, -1, 1, -1],
-                          [1, -1, 1, -1],
-                          [-2*tang, 2*tang, -2*tang, 2*tang]]) 
+    return t*kr*np.column_stack((np.tan(g[0])**2 + 1/2, 0, -np.tan(g[0])**2 - 1/2, 0, np.tan(g[0])**2 + 1/2, 0, -np.tan(g[0])**2 - 1/2, 0,
+                 0, np.tan(g[0])**2 + 1/2, 0, -np.tan(g[0])**2 - 1/2, 0, np.tan(g[0])**2 + 1/2, 0, -np.tan(g[0])**2 - 1/2,
+                 -np.tan(g[0])**2 - 1/2, 0, np.tan(g[0])**2 + 1/2, 0, -np.tan(g[0])**2 - 1/2, 0, np.tan(g[0])**2 + 1/2, 0,
+                 0, -np.tan(g[0])**2 - 1/2, 0, np.tan(g[0])**2 + 1/2, 0, -np.tan(g[0])**2 - 1/2, 0, np.tan(g[0])**2 + 1/2,
+                 np.tan(g[0])**2 + 1/2, 0, -np.tan(g[0])**2 - 1/2, 0, np.tan(g[0])**2 + 1/2, 0, -np.tan(g[0])**2 - 1/2, 0,
+                 0, np.tan(g[0])**2 + 1/2, 0, -np.tan(g[0])**2 - 1/2, 0, np.tan(g[0])**2 + 1/2, 0, -np.tan(g[0])**2 - 1/2,
+                 -np.tan(g[0])**2 - 1/2, 0, np.tan(g[0])**2 + 1/2, 0, -np.tan(g[0])**2 - 1/2, 0, np.tan(g[0])**2 + 1/2, 0,
+                 0, -np.tan(g[0])**2 - 1/2, 0, np.tan(g[0])**2 + 1/2, 0, -np.tan(g[0])**2 - 1/2, 0, np.tan(g[0])**2 + 1/2)).reshape(-1,8,8)
+
+def e_huhu_2d(u: np.ndarray,
+              kr: np.ndarray = np.array([0,-1]),
+              l: np.ndarray = np.array([1.,1.]),
+              g: np.ndarray = np.array([0.]),
+              t: float = 1.,
+              **kwargs: Any) -> np.ndarray:
+    """
+    Calculate elastic energy for 2D HuHu regularization with bilinear 
+    quadrilateral Lagrangian elements:
+        
+        eng_dens = kr * (Hu)^T Hu / 2
+    
+    where H is the spatial hessian, kr the regularizations strength . 
+
+    Parameters
+    ----------
+    kr : float or np.ndarray 
+        regularization strength.
+    l : np.ndarray (2)
+        side length of element.
+    g : np.ndarray (1)
+        angle of parallelogram.
+    t : float
+        thickness of element.
+        
+    Returns
+    -------
+    eng : np.ndarray, shape (nels,1)
+        elastic energy.
+
+    """ 
+    return np.column_stack(((u[:,0] - u[:,2] + u[:,4] - u[:,6])**2*np.tan(g[0])**2/2 + (u[:,0] - u[:,2] + u[:,4] - u[:,6])**2/4 + (u[:,1] - u[:,3] + u[:,5] - u[:,7])**2*np.tan(g[0])**2/2 + (u[:,1] - u[:,3] + u[:,5] - u[:,7])**2/4))
 
 if __name__ == "__main__":
     
@@ -182,5 +218,10 @@ if __name__ == "__main__":
     #                       kr=1.).flatten(), 
     #           delimiter=",")
     print(_lk_huhu_2d(xe=xe,ue=ue,
-                           exponent=1., 
+                           exponent=0., 
                            kr=1.))
+    print(lk_huhu_2d())
+    print(np.isclose(lk_huhu_2d(), 
+                     _lk_huhu_2d(xe=xe,ue=ue,
+                           exponent=0., 
+                           kr=1.)[0:1]))

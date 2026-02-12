@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 from typing import List, Tuple, Union
 
-from sympy import roots,symbols,solve,solve_univariate_inequality
+from sympy import symbols,solve,solve_univariate_inequality
 from symfem import create_element, create_reference
 from symfem.references import Reference
 from symfem.functions import ScalarFunction
@@ -202,12 +202,4 @@ def find_node_coords(basis_funcs: Union[List, ScalarFunction]) -> List:
         for bas_sol in sols:
             for sol in bas_sol:
                 solve_univariate_inequality(-1<=sol,symb) 
-    return sols 
-    
-if __name__=="__main__":
-    
-    lagr = create_element("quadrilateral", 
-                          "Lagrange", 
-                          1)
-    print(lagr.get_basis_functions())
-    print(find_node_coords(lagr.get_basis_functions()))
+    return sols

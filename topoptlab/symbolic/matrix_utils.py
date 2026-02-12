@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import List, Tuple, Union
+from typing import Dict, List, Tuple, Union
 from warnings import warn
 from itertools import product
 from math import floor,sqrt,ceil
@@ -14,11 +14,12 @@ from symfem.references import Reference
 from symfem.functions import ScalarFunction,VectorFunction,MatrixFunction
 from symfem.symbols import AxisVariablesNotSingle
 
-from topoptlab.symbolic.utils import is_equal
+from topoptlab.symbolic.utils import is_equal, take_generic_branch
 
 def generate_constMatrix(ncol: int, nrow: int, name: str,
                          symmetric: bool = False,
-                         return_symbols: bool = False
+                         return_symbols: bool = False, 
+                         assumptions: Dict = {},
                          ) -> Tuple[MatrixFunction, List]:
     """
     Generate matrix full of symbolic constants.
@@ -61,7 +62,7 @@ def generate_constMatrix(ncol: int, nrow: int, name: str,
         elif ncol == 1:
             variables = " ".join([name+str(i) for j in range(1,ncol+1)])
         # create symbols
-        variables = symbols(variables)
+        variables = symbols(variables, **assumptions)
         # convert to list
         if isinstance(variables, Symbol):
             variables = [variables]
@@ -347,7 +348,8 @@ def _simplify_expr(expression: Expr) -> Expr:
     return expression.simplify()
 
 def simplify_matrix(M: Union[List,MatrixFunction], 
-                    parallel: Union[None,bool] = None) -> MatrixFunction:
+                    parallel: Union[None,bool] = None, 
+                    eliminate_piecewise: bool = False) -> MatrixFunction:
     """
     Simplify element-wise the given MatrixFunction by first remove common 
     factors (sympy.factor_terms), simplification of the remaining expression 
@@ -359,7 +361,11 @@ def simplify_matrix(M: Union[List,MatrixFunction],
         matrix to be simplified.
     parallel : None or bool
         if True, simplification is parallelized via Pool. If None, autmatically 
-        switch to parallelization if entries are larger than 16
+        switch to parallelization if entries are larger than 16.
+    eliminate_piecewise : bool 
+        if True, eliminate piecewise definitions heuristically by taking the  
+        branch with the longest condition in terms of its string representation
+        (uses symbolic.utils.take_generic_branch).
 
     Returns
     -------
@@ -388,6 +394,9 @@ def simplify_matrix(M: Union[List,MatrixFunction],
                               desc="Simplifying matrix entries"))
     else:
         exprs = [e.simplify() for e in exprs]
+    #
+    if eliminate_piecewise:
+        [take_generic_branch(e) for e in exprs ]
     # merge factored and reduced 
     #exprs = [f * r for f, r in zip(common_factors, reduced)]
     # assemble simplified matrix

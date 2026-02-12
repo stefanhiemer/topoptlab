@@ -4,7 +4,7 @@ from multiprocessing import cpu_count
 
 import numpy as np
 
-from sympy import expand, simplify, Expr, collect, Function
+from sympy import expand, simplify, Expr, collect, Function, Piecewise
 
 def is_equal(expr1: Expr, expr2: Expr)-> bool:
     """
@@ -82,6 +82,8 @@ def split_expression(expression: Expr,
     chunks.append(sum(terms[(nchunks-1)*chunk_size:]))
     return chunks
 
+
+
 rect = np.array([[[-1,-1],[1,-1],[1,1],[-1,1]]])
 hexahedron = np.array([[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
                         [-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]]])
@@ -155,6 +157,51 @@ def argsort_counterclock(coords: np.ndarray,
         return coords[idx]
 
     raise ValueError("Only dimensions 1, 2, 3 are supported.")
+
+def _choose_branch(piecewise_part) -> Expr:
+    """
+    Eliminate Piecewise heuristically by taking the branch with the longest 
+    condition in terms of its string representation.
+    
+    Parameters
+    ----------
+    expression : Expr
+        sympy expression with Piecewise.
+
+    Returns
+    -------
+    expression_branch : Expr
+        main branch of given expression.
+
+    """
+    # remove trivial condition (condition == True)
+    nontrivial = [(expr,cond) for expr,cond in piecewise_part.args \
+                  if cond != True]
+    # if only trivial exists, return it
+    if not nontrivial:
+        return piecewise_part.args[-1][0]
+    # heuristic criterion: choose branch with longest string representation
+    best = max(nontrivial, key=lambda ec: len(str(ec[1])))
+    return best[0]
+
+def take_generic_branch(expression):
+    """
+    Eliminate piecewise definitions (Piecewise) heuristically by taking the 
+    branch with the longest condition in terms of its string representation.
+    
+    Parameters
+    ----------
+    expression : Expr
+        sympy expression with Piecewise.
+
+    Returns
+    -------
+    expression_branch : Expr
+        main branch of given expression.
+
+    """
+    return expression.replace(lambda e: isinstance(e,Piecewise), 
+                              _choose_branch)
 
 if __name__ == "__main__":
     

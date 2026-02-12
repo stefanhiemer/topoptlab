@@ -27,7 +27,9 @@ def scale_cell(vertices: Tuple) -> MatrixFunction:
     #
     ndim = vertices.shape[1]
     # rotation angles
-    g = generate_constMatrix(ncol=1,nrow=ndim-1,name="g")
+    g = generate_constMatrix(ncol=1,nrow=ndim-1,
+                             name="g", 
+                             assumptions={"nonzero": True})
     # create rotation matrix
     R = [ [0 for j in range(ndim)] for i in range(ndim)]
     for i in range(ndim):
@@ -36,7 +38,9 @@ def scale_cell(vertices: Tuple) -> MatrixFunction:
         R[0][i+1] = tan(g[i][0])
     R = MatrixFunction(R)
     # cell lengths
-    l = generate_constMatrix(ncol=1,nrow=ndim,name="l")
+    l = generate_constMatrix(ncol=1,nrow=ndim,
+                             name="l", 
+                             assumptions={"nonzero": True})
     # create stretch matrix
     S = [ [0 for j in range(ndim)] for i in range(ndim)]
     for i in range(ndim):

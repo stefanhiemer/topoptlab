@@ -19,25 +19,26 @@ from topoptlab.symbolic.scalar_utils import integral
 
 def huhu_engdensity(u : Union[None,MatrixFunction], 
                     ndim: int,
-                    F : Union[None,MatrixFunction] = None,
-                    a : Union[None,Symbol,ScalarFunction] = None,
                     kr : Union[None,Symbol,ScalarFunction] = None,
-                    Fdet: Union[None,Expr,ScalarFunction] = None,
                     element_type: str = "Lagrange",
                     order: int = 1,
                     do_integral: bool = True,
+                    parallel: bool = False,
                     **kwargs: Any) -> ScalarFunction:
     """
     Return elastic energy density for HuHu regularization defined as 
     
-        engdensity = kr/2*exp(-a * det(F)) (H@u)^T H@u 
+        engdensity = kr/2*B_h@u)^T B_h@u 
     
-    where det(F) is the determinant of the deformation gradient, u the nodal 
-    displacements, H the hessian of the shape functions, kr the regularization
-    strength and a an optional exponent. If a is None, then the expression 
-    reduces to 
-    
-        engdensity = kr/2*(H@u)^T H@u  
+    where u are the nodal displacements, B_h the matrix that generates the 
+    flattened hessian h via the matrix vector product 
+        
+        h=B_h@u
+        
+    and kr the regularization strength and a an optional exponent. Often people
+    modify the HuHu regularization with an exponential exp(-a * det(F)). This
+    (to my knowledge) does not stem from a sensible scalar potential, therefor
+    this exponential is not included here.
     
     """
     #
@@ -60,37 +61,17 @@ def huhu_engdensity(u : Union[None,MatrixFunction],
         u = generate_constMatrix(ncol=1, nrow=B_hessian.shape[1], name="u")
     h = simplify_matrix(B_hessian@u)
     huhu = (h.transpose()@h)[0,0].as_sympy()/2
-    # exponential
-    if a is not None:
-        #
-        if F is None and element_type is None:
-            F = generate_constMatrix(ncol=ndim,
-                                     nrow=ndim,
-                                     name="F")
-        elif F is None and element_type is not None:
-            F = def_grad(ndim=ndim,
-                         u=u,
-                         element_type=element_type,
-                         order=order,
-                         shape="square")
-        # 
-        if Fdet is None:
-            Fdet = F.det().as_sympy()
-        elif isinstance(Fdet,ScalarFunction):
-            Fdet = Fdet.as_sympy()
-        #
-        huhu = exp(-a*simplify(Fdet) )*huhu 
     #
     huhu = ScalarFunction( huhu )
     #
     if element_type is not None and do_integral:
         #huhu = huhu.integral(ref,x) 
-        huhu = integral(scalar_function=huhu, 
+        huhu = integral(scalar_function=huhu,
                         domain=ref, 
                         vars=x, 
                         dummy_vars=t,
-                        parallel=True)
-    return simplify(huhu)
+                        parallel=parallel)
+    return ScalarFunction(simplify(huhu._f))
 
 def huhu_tangent(u : Union[None,MatrixFunction], 
                  ndim: int,
@@ -125,7 +106,7 @@ def huhu_tangent(u : Union[None,MatrixFunction],
                               return_J=False, return_inv=True, return_det=True)
     # regularization strength
     if kr is None:
-        kr =  Symbol("kr")
+        kr =  Symbol("kr",nonzero=True)
     #
     B_hessian = hessian_matrix(scalarfield=False,ndim=ndim, 
                                integrate=False,
@@ -134,7 +115,6 @@ def huhu_tangent(u : Union[None,MatrixFunction],
     #
     huhu = simplify_matrix(M=B_hessian.transpose()@B_hessian)
     # exponential
-    print("beofre exponential")
     if a is not None:
         #
         if u is None:
@@ -155,7 +135,8 @@ def huhu_tangent(u : Union[None,MatrixFunction],
         #
         B_F = dispgrad_matrix(ndim=ndim, 
                               nd_inds=nd_inds,
-                              basis=basis)
+                              basis=basis,
+                              isoparam_kws={})
         # 
         if Fdet is None:
             Fdet = F.det().as_sympy()
@@ -171,10 +152,6 @@ def huhu_tangent(u : Union[None,MatrixFunction],
             raise NotImplementedError("Unknown mode: ", mode)
         #
         huhu = exp(-a*simplify(Fdet) )*huhu
-        print("before simplification.")
-        huhu = simplify_matrix(huhu)
-    #
-    print("before integral")
     #
     if element_type is not None and do_integral:
         huhu = integrate(M=huhu,
@@ -182,9 +159,4 @@ def huhu_tangent(u : Union[None,MatrixFunction],
                          variables=x,
                          dummy_vars=t, 
                          parallel=None) 
-    return simplify_matrix(huhu)
-
-if __name__ == "__main__":
-    
-    print(huhu_engdensity(u=None,ndim=2,
-          a=symbols("a")))
+    return simplify_matrix(huhu,eliminate_piecewise=True)

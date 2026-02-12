@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import List
+from typing import List, Tuple
 from io import StringIO
 import sys
 from re import sub
@@ -7,9 +7,13 @@ from re import sub
 from symfem.functions import MatrixFunction
 
 def convert_to_code(matrix: MatrixFunction,
-                    matrices: List = [], vectors: List = [],
-                    np_functions: List = ["cos","sin","tan"],
-                    npndarray: bool = True,
+                    matrices: List = [], 
+                    vectors: List = [],
+                    matrices_ele: List = [], 
+                    vectors_ele: List = [],
+                    np_functions: List = ["cos","sin","tan","exp"],
+                    npndarray: bool = False,
+                    npcolumnstack: bool = True,
                     max_line_length: int = 200) -> str:
     """
     Convert the printed expression by symfem to strings that can be
@@ -28,6 +32,12 @@ def convert_to_code(matrix: MatrixFunction,
     vectors : list
         list of strs with same logic as matrices, but instead c1,c2,etc. are
         converted to c[0],c[1],etc.
+    matrices_ele : list
+        same as matrices, but are defined for each element independently. Only
+        relevant for npcolumn_stack.
+    vectors_ele : list
+        same as vectors, but are defined for each element independently. Only
+        relevant for npcolumn_stack.
     npndarray: bool
         if True, writes the output as numpy ndarray
     max_line_length : int
@@ -44,23 +54,18 @@ def convert_to_code(matrix: MatrixFunction,
     #
     lines = symfemMatrixFunc_to_str(matrxfnc=matrix)
     #
-    first_line = lines.split("],",1)[0]
+    
     #
     if npndarray:
-        #
-        delta = len("np.array("+first_line) - len(first_line)
-        # add np.array
-        lines = "np.array(" + lines
-        lines = lines[:-1] + ")"
-        #
-        # add line break after every comma
-        if len(first_line) > max_line_length:
-            lines = lines.replace(",",",\n"+"".join([" "]*(delta+1)))
-            lines = lines.replace(" [","[")
-        # add line break after every "],"
-        else:
-            lines = lines.replace("],","],\n"+"".join([" "]*delta))
+        lines,delta = to_npndarray(lines=lines, 
+                                   max_line_length=max_line_length)
+    elif npcolumnstack:
+        lines,delta = to_npcolumn_stack(lines=lines, 
+                                        max_line_length=max_line_length, 
+                                        shape=matrix.shape)
     else:
+        #
+        first_line = lines.split("],",1)[0]
         # add line break after every comma
         if len(first_line) > max_line_length:
             lines = lines.replace(",",",\n")
@@ -72,16 +77,109 @@ def convert_to_code(matrix: MatrixFunction,
         lines = lines.replace(npfunc,"np."+npfunc)
     # replace entries ala "c11" with corresponding array entries c[0,0]
     for matrix in matrices:
-        lines = sub(matrix + r'(\d)(\d)',
-              lambda m: matrix +  f'[{int(m.group(1))-1},{int(m.group(2))-1}]',
-              lines)
+        if npndarray:
+            lines = sub(matrix + r'(\d)(\d)',
+                  lambda m: matrix +  f'[{int(m.group(1))-1},{int(m.group(2))-1}]',
+                  lines)
+        elif npcolumnstack:
+            lines = sub(matrix + r'(\d)(\d)',
+                  lambda m: matrix +  f'[:,{int(m.group(1))-1},{int(m.group(2))-1}]',
+                  lines)
+    # replace entries ala "c1" with corresponding array entries c[0]
     for vector in vectors:
-        # replace entries ala "c1" with corresponding array entries c[0]
         lines = sub(vector + r'(\d)',
                     lambda m: vector + f'[{int(m.group(1))-1}]',
                     lines)
+    if npcolumnstack:
+        for vector in vectors_ele:
+            lines = sub(vector + r'(\d)',
+                        lambda m: vector + f'[:,{int(m.group(1))-1}]',
+                        lines)
+        for matrix in matrices:
+            lines = sub(matrix + r'(\d)(\d)',
+                  lambda m: matrix +  f'[:,{int(m.group(1))-1},{int(m.group(2))-1}]',
+                  lines)
     return lines
 
+def to_npndarray(lines: List, 
+                 max_line_length: int) -> Tuple[List,int]:
+    """
+    Convert the collected symfem string output to np.ndarray conform strings
+    and formatting.
+
+    Parameters
+    ----------
+    lines : str
+        collected symfem output.
+    max_line_length : int
+        counts number of length until first "]". If larger than the specified
+        value, line breaks occur at every ",", otherwise at every "],".
+
+    Returns
+    -------
+    lines : str
+        converted lines.
+
+    """
+    #
+    first_line = lines.split("],",1)[0]
+    #
+    delta = len("np.array("+first_line) - len(first_line)
+    # add np.array
+    lines = "np.array(" + lines
+    lines = lines[:-1] + ")"
+    # add line break after every comma
+    if len(first_line) > max_line_length:
+        lines = lines.replace(",",",\n"+"".join([" "]*(delta+1)))
+        lines = lines.replace(" [","[")
+    # add line break after every "],"
+    else:
+        lines = lines.replace("],","],\n"+"".join([" "]*delta))
+    return lines,delta
+
+def to_npcolumn_stack(lines: List, 
+                      max_line_length: int, 
+                      shape: Tuple) -> Tuple[List,int]:
+    """
+    Convert the collected symfem string output to np.column_stack conform 
+    strings and formatting.
+
+    Parameters
+    ----------
+    lines : str
+        collected symfem output.
+    max_line_length : int
+        counts number of length until first "]". If larger than the specified
+        value, line breaks occur at every ",", otherwise at every "],".
+    shape : tuple 
+        shape of elemental matrix.
+        
+    Returns
+    -------
+    lines : str
+        converted lines.
+
+    """
+    #
+    first_line = lines.split("],",1)[0]
+    #
+    delta = len("np.column_stack("+first_line) - len(first_line)
+    # add np.column_stack 
+    lines = "np.column_stack((" + lines
+    lines = lines[:-1] + "))"
+    # add the necessary reshape
+    lines = lines + ".reshape(-1,"+",".join([str(_) for _ in shape])+")"
+    # add line break after every comma
+    if len(first_line) > max_line_length:
+        lines = lines.replace(",",",\n"+"".join([" "]*(delta+1)))
+        lines = lines.replace(" [","[")
+    # add line break after every "],"
+    else:
+        lines = lines.replace("],","],\n"+"".join([" "]*delta))
+    # eliminate brackets for lists
+    lines = lines.replace("[","")
+    lines = lines.replace("]","")
+    return lines,delta
 
 def symfemMatrixFunc_to_str(matrxfnc: MatrixFunction) -> str:
     """

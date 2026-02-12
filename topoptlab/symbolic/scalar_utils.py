@@ -5,7 +5,7 @@ from functools import partial
 
 from tqdm import tqdm
 
-from sympy import Expr,Symbol
+from sympy import Expr,Symbol,sympify
 from symfem.references import Reference
 from symfem.symbols import AxisVariablesNotSingle
 from symfem.functions import Function,ScalarFunction,VectorFunction
@@ -36,20 +36,19 @@ def integral(scalar_function: ScalarFunction,
     jacobian = domain.jacobian()
     #
     if parallel:
-        print("Parallel")
         #
         chunks = split_expression(expression=out,
                                   variables=vars,
                                   include_nonlin=False,
-                                  nchunks=None)
+                                  nchunks=cpu_count())
         #
         args = [(c, vars, dummy_vars, point, jacobian, limits)
                 for c in chunks]
         #
         with Pool(cpu_count()) as pool:
             chunks = list(tqdm(pool.starmap(_integrate_chunk, args),
-                                  total=len(args),
-                                  desc="Parallel integration of chunks"))
+                               total=len(args),
+                               desc="Parallel integration of chunks"))
         final = 0 
         for i in range(len(chunks)):
             final += chunks[i] 
@@ -78,6 +77,8 @@ def _integrate_chunk(expr : Expr,
     Returns:
         The integral
     """
+    #
+    expr = sympify(expr)
     #
     for v, p in zip(vars, orig):
         expr = expr.subs(v, p)
