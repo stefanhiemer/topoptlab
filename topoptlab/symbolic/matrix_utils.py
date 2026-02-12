@@ -8,7 +8,7 @@ from multiprocessing import Pool, cpu_count
 from tqdm import tqdm
 
 from sympy import symbols, Symbol, Function, Inverse, Trace,\
-                  cse, factor, factor_terms, gcd_terms
+                  cse, factor, factor_terms, gcd,is_zero, sympify
 from sympy.core.expr import Expr
 from symfem.references import Reference
 from symfem.functions import ScalarFunction,VectorFunction,MatrixFunction
@@ -253,14 +253,13 @@ def _factor_expr(expression: Expr,
         remaining sympy expression.
     """
     #
-    factored_expr = factor_terms(expression)
-    # check if factored_expr is a multiplication, then split
-    if factored_expr.is_Mul:
-        f, r = factored_expr.as_independent(*factored_expr.free_symbols, 
-                                            as_Add=False)
-    else:
-        f, r = 1, factored_expr
-    return f,r
+    factor, remainder = factor_terms(expression).as_independent(*variables, 
+                                                                as_Add=False)
+    # unfortunately if there is no factor, sympy returns 0. exchange for 1 to 
+    # avoid zero division
+    if is_zero(factor):
+        factor = sympify(1)
+    return factor,remainder
 
 def factor_matrix(M: Union[List,MatrixFunction],
                   variables: List,
@@ -302,32 +301,29 @@ def factor_matrix(M: Union[List,MatrixFunction],
     #
     if parallel:
         #
-        nproc = cpu_count() 
-        chunk_size = ceil(len(exprs) / nproc)
-        #
         with Pool(processes=cpu_count()) as pool:
             # pull out factors not including the variables. remainder should be 
             # mostly just the provided variables
-            factored = list(tqdm(pool.imap(lambda e: factor_terms(e, 
-                                                                  gens=variables),
+            split = list(tqdm(pool.imap(lambda e: _factor_expr(e, 
+                                                          variables=variables),
                                            exprs),
                                  total=len(exprs),
                                  desc="Factoring matrix entries"))
-            # simplify remainder
-            exprs = list(tqdm(pool.imap(lambda fr: (fr[0] / fr[1]).simplify(),
-                                        zip(factored, gcd)),
-                              total=len(factored),
-                              desc="Simplifying remainders"))
     else:
         # pull out factors not including the variables. remainder should be 
         # mostly just the provided variables
-        factored = [factor_terms(e, gens=variables) for e in exprs]
-        # simplify remainder
-        exprs = [(expression/gcd).simplify() for expression in factored]
+        split = [_factor_expr(e, variables=variables) for e in exprs]
+    # extract factors/remainders 
+    factors = [s[0] for s in split]
+    remainders = [s[1] for s in split]
+    # 2- compare factors and extract the greatest common divisor (gcd)
+    common_fac = gcd(*factors)
+    # 3.do factors/common_factor and multiply this to the remainders 
+    exprs = [r*f/common_fac for f,r in zip(factors,remainders)]
     # assemble simplified matrix
     for row,col in product(range(nrow),range(ncol)):
         M_new[row][col] = exprs[row*ncol+col]
-    return MatrixFunction(M_new), gcd
+    return MatrixFunction(M_new), common_fac
 
 def _simplify_expr(expression: Expr) -> Expr:
     """

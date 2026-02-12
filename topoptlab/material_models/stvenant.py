@@ -71,7 +71,8 @@ def stress_2pk(F: np.ndarray,
     if E is None:
         #
         E = to_voigt(F.swapaxes(-1,-2) @ F - np.eye(F.shape[-1])\
-                     .reshape( len(F.shape[:-2])*[1] + F.shape[-2:]))/2
+                     .reshape( len(F.shape[:-2])*[1] + F.shape[-2:]), 
+                     eng_conv=True)/2
     #
     return (c@E[...,None])[...,0]
 
