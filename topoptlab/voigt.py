@@ -76,7 +76,7 @@ def to_voigt(A: np.ndarray,
     A_v = A[...,row,col]
     # apply factor 2 scaling
     if eng_conv:
-        A_v[...,ndim:nv] = 2 * A_v[...,ndim:nv]
+        A_v[...,ndim:] = 2 * A_v[...,ndim:]
     return A_v
 
 def voigt_index(i: np.ndarray, 

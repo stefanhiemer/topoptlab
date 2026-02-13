@@ -36,7 +36,8 @@ def eng_density(F: np.ndarray,
     if E is None:
         #
         E = to_voigt(F.swapaxes(-1,-2) @ F - np.eye(F.shape[-1])\
-                     .reshape( len(F.shape[:-2])*tuple([1]) + F.shape[-2:]))/2
+                     .reshape( len(F.shape[:-2])*tuple([1]) + F.shape[-2:]), 
+                     eng_conv=True)/2
     #
     return 1/2 * E.swapaxes(-1,-2)@c@E
 
@@ -134,6 +135,7 @@ def stvenant_matmodel(F: np.ndarray,
     """
     #
     E = to_voigt(F.swapaxes(-1,-2) @ F - np.eye(F.shape[-1])\
-                 .reshape( len(F.shape[:-2])*tuple([1]) + F.shape[-2:]))/2
+                 .reshape( len(F.shape[:-2])*tuple([1]) + F.shape[-2:]), 
+                 eng_conv=True)/2
     const = consttensor_2pk(F=F,c=c)
     return stress_2pk(F=F,E=E,c=const), const
