@@ -1,9 +1,5 @@
 import numpy as np
-
-from topoptlab.utils import from_voigt,to_voigt,voigt_pair
-
-import numpy as np
-from topoptlab.utils import to_voigt, voigt_pair
+from topoptlab.voigt import to_voigt, voigt_pair
 
 def fd_check(matmodel, F, params, eps=1e-8):
     """
