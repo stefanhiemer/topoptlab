@@ -287,7 +287,7 @@ def lagrangian_strainvar_matrix(xi: np.ndarray,
         inds=[[0],[1]]
     elif ndim==3:
         inds=[[1,0,0],[2,2,1]]
-    for k in range(int((ndim**2 + ndim) /2) - ndim):
+    for k in range(ndim):
         for l in range(int((ndim**2 + ndim) /2) - ndim):
             #
             B[:,ndim+l,k::ndim] = F[:,None,k,inds[0][l]]*gradN[:,:,inds[1][l]]+\
