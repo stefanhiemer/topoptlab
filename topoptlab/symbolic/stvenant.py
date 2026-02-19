@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any,Union
+from typing import Any,Tuple,Union
 
 from symfem.functions import ScalarFunction,MatrixFunction
 
@@ -63,11 +63,11 @@ def stvenant_engdensity(E : Union[None,MatrixFunction] = None,
                                  name="c", symmetric=True) 
     return ScalarFunction( (E.transpose()@c@E / 2)[0,0].as_sympy() )
 
-def stvenant_2pk(E : Union[None,MatrixFunction] =  None,
-                 F : Union[None,MatrixFunction] = None,
-                 c : Union[None,MatrixFunction] = None,
-                 ndim: Union[int,None] = 3, 
-                 **kwargs: Any) -> ScalarFunction:
+def stress_2pk(E : Union[None,MatrixFunction] =  None,
+               F : Union[None,MatrixFunction] = None,
+               c : Union[None,MatrixFunction] = None,
+               ndim: Union[int,None] = 3, 
+               **kwargs: Any) -> ScalarFunction:
     """
     Returns 2. Piola-Kirchhoff stress (2PK) S for St. Venant material defined 
     as 
@@ -120,11 +120,11 @@ def stvenant_2pk(E : Union[None,MatrixFunction] =  None,
                                  symmetric=True)
     return c@E
 
-def stvenant_1pk(F : Union[None,MatrixFunction],
-                 E : Union[None,MatrixFunction] =  None,
-                 c : Union[None,MatrixFunction] = None,
-                 ndim: Union[int,None] = 3, 
-                 **kwargs: Any) -> ScalarFunction:
+def stress_1pk(F : Union[None,MatrixFunction],
+               E : Union[None,MatrixFunction] =  None,
+               c : Union[None,MatrixFunction] = None,
+               ndim: Union[int,None] = 3, 
+               **kwargs: Any) -> ScalarFunction:
     """
     Returns 1. Piola-Kirchhoff stress (1PK) P for St. Venant material defined 
     by converting the expression for the 2PK. This function needs the 
@@ -172,10 +172,10 @@ def stvenant_1pk(F : Union[None,MatrixFunction],
                                  nrow=int((ndim**2 + ndim) /2),
                                  name="c", 
                                  symmetric=True) 
-    return pk2_to_pk1(S=stvenant_2pk(E=E,
-                                     F=F,
-                                     c=c,
-                                     ndim=ndim), 
+    return pk2_to_pk1(S=stress_2pk(E=E,
+                                   F=F,
+                                   c=c,
+                                   ndim=ndim), 
                       F=F) 
 
 def stvenant_cauchy(F : Union[None,MatrixFunction],
@@ -233,8 +233,65 @@ def stvenant_cauchy(F : Union[None,MatrixFunction],
                                  nrow=int((ndim**2 + ndim) /2),
                                  name="c", 
                                  symmetric=True) 
-    return pk2_to_cauchy(S=stvenant_2pk(E=E,
-                                        F=F,
-                                        c=c,
-                                        ndim=ndim), 
+    return pk2_to_cauchy(S=stress_2pk(E=E,
+                                      F=F,
+                                      c=c,
+                                      ndim=ndim), 
                           F=F)
+
+def consttensor_2pk(c : MatrixFunction,
+                    **kwargs: Any) -> MatrixFunction:
+    """
+    Constitutive tensor defined by 2. Piola Kirchhoff stress (2PK) in Voigt 
+    notation of St. Venant material:
+        
+        d S_i / d E_j = c_ij 
+        
+    E is the Green-Lagrangian strain tensor in Voigt notation and c the 
+    stiffness tensor also in Voigt notation.
+    
+    Parameters
+    ----------
+    c : MatrixFunction
+        stiffness tensor in Voigt notation.
+    
+    Returns
+    -------
+    c : np.ndarray
+        constitutive tensor (ndim*(ndim+1)/2,ndim*(ndim+1)/2). For this 
+        special case, returns a constant.
+    """
+    return c
+
+def stvenant_matmodel(F : MatrixFunction,
+                      c : MatrixFunction,
+                      **kwargs : Any) -> Tuple[MatrixFunction, MatrixFunction]:
+    """
+    Return the symbolic 2. Piola Kirchhoff stress (2PK) in Voigt notation and 
+    constitutive tensor of St. Venant material.
+    
+    Parameters
+    ----------
+    F : symfem.functions.MatrixFunction
+        deformation gradient in matrix form of shape (ndim,ndim). 
+    c : symfem.functions.MatrixFunction
+        stiffness tensor in Voigt notation.
+    
+    Returns
+    -------
+    s : symfem.functions.MatrixFunction
+        2. Piola Kirchhoff stress in Voigt notation (..., ndim*(ndim+1)/2).
+    c : symfem.functions.MatrixFunction
+        constitutive tensor (...,ndim*(ndim+1)/2,ndim*(ndim+1)/2). For this 
+        special case, returns a constant.
+    """
+    #
+    #E = to_voigt(F.swapaxes(-1,-2) @ F - eye(F.shape[-1])\
+    #             .reshape( len(F.shape[:-2])*tuple([1]) + F.shape[-2:]), 
+    #             eng_conv=True)/2
+    E = lagrangian_strain(ndim=F.shape[0],
+                          F=F,
+                          element_type="Lagrange",
+                          order=1)
+    const = consttensor_2pk(c=c)
+    return stress_2pk(F=F,E=E,c=const), c

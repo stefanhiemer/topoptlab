@@ -1,18 +1,110 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 from typing import Callable, Dict, List, Union 
 
-from symfem.symbols import x
+from symfem.symbols import x,t
 from symfem.functions import MatrixFunction
 
 from topoptlab.symbolic.cell import base_cell
 from topoptlab.symbolic.parametric_map import jacobian
 from topoptlab.symbolic.matrix_utils import eye, simplify_matrix,\
-                                            inverse, generate_constMatrix,\
+                                            generate_constMatrix,\
                                             generate_FunctMatrix, to_voigt,\
-                                            from_voigt, to_column
-from topoptlab.symbolic.strain_measures import cauchy_strain,dispgrad_matrix, def_grad
+                                            from_voigt, to_column, kron,\
+                                            integrate
+from topoptlab.symbolic.strain_measures import dispgrad_matrix,\
+                                               def_grad, lagrangian_strainvar_matrix
 from topoptlab.symbolic.stress_conversions import cauchy_to_pk1, pk2_to_pk1
 from topoptlab.symbolic.hyperelasticity import stvenant_2pk, stvenant_cauchy
+
+def tangentstiffness_matrix(ndim : int,
+                            u : Union[None,MatrixFunction],
+                            material_model: Union[None,Callable],
+                            material_constants: Dict,
+                            plane_stress : bool = False,
+                            element_type : str ="Lagrange",
+                            order : int = 1) -> MatrixFunction:
+    """
+    Symbolically compute the tangent stiffness matrix for nonlinear elasticity.
+
+    Parameters
+    ----------
+    ndim : int
+        number of spatial dimensions. Must be between 1 and 3.
+    u : None or symfem.functions.MatrixFunction
+        displacements at current iterate.
+    material_model: callable
+        returns 2. PK stress tensor and constitutive tensor both in Voigt 
+        notation as function of deformation gradient F (matrix form) and 
+        the material constants provided in the dictionary. 
+    material_constants : dict
+        contains the material constants needed to calculate 2. PK stress and 
+        constitutive tensor. Keys must match arguments of material_model.
+    plane_stress : bool
+        if True, plane_stress is assumed. Only relevant for 2D.
+    element_type : str
+        type of element.
+    order : int
+        order of element.
+
+    Returns
+    -------
+    Ke : symfem.functions.MatrixFunction
+        symbolic tangent stiffness matrix.
+    fe : symfem.functions.MatrixFunction
+        symbolic internal forces.
+
+    """
+    #
+    vertices, nd_inds, ref, basis = base_cell(ndim)
+    #
+    if u is None:
+        u = generate_constMatrix(ncol=1,
+                                 nrow=len(nd_inds)*ndim,
+                                 name="u")
+    # calculate deformation gradient
+    b_h = dispgrad_matrix(ndim=ndim,
+                          nd_inds=nd_inds,
+                          basis=basis,
+                          isoparam_kws={"element_type": element_type,
+                                        "order": order})
+    F = to_column(b_h@u,order="C")
+    # calculate constitutive tensor and 2. PK stress 
+    if material_model is None:
+        c = generate_constMatrix(ncol=int((ndim**2 + ndim) /2),
+                                 nrow=int((ndim**2 + ndim) /2),
+                                 name="c")
+        s = generate_constMatrix(ncol=int((ndim**2 + ndim) /2),
+                                 nrow=int((ndim**2 + ndim) /2),
+                                 name="s")
+    else:
+        s,c = material_model(F=F,**material_constants)
+    #
+    b_dE = lagrangian_strainvar_matrix(ndim = ndim,
+                                       nd_inds = nd_inds,
+                                       basis = basis,
+                                       F = F,
+                                       isoparam_kws = {"element_type": element_type,
+                                                       "order": order})
+    # create full integral and multiply with determinant
+    Jdet = jacobian(ndim=ndim, element_type=element_type, order=order,
+                    return_J=False, return_inv=False, return_det=True)
+    # internal forces
+    fe = b_dE.transpose()@s
+    fe = simplify_matrix(M=integrate(M=fe,
+                                     domain=ref,
+                                     variables=x,
+                                     dummy_vars=t, 
+                                     parallel=None))
+    # tangent stiffness matrix
+    S = kron(eye(ndim),from_voigt(s, eng_conv=False))
+    Ke = (b_dE.transpose()@c@b_dE + b_h.T@S@b_h)* Jdet
+    Ke = simplify_matrix(M=integrate(M=Ke,
+                                     domain=ref,
+                                     variables=x,
+                                     dummy_vars=t, 
+                                     parallel=None))
+    
+    return Ke, fe
 
 def residual(ndim : int,
              sigma : Union[None,Callable],

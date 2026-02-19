@@ -39,7 +39,7 @@ def stiffness_matrix(ndim : int,
 
     """
     #
-    vertices, nd_inds, ref, basis  = base_cell(ndim)
+    vertices, nd_inds, ref, basis = base_cell(ndim)
     # anisotropic stiffness tensor or equivalent in Voigt notation 
     if c is None:
         c = generate_constMatrix(ncol=int((ndim**2 + ndim) /2),

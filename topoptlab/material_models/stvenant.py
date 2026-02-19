@@ -81,7 +81,8 @@ def consttensor_2pk(F: np.ndarray,
                     c: np.ndarray,
                     **kwargs: Any) -> np.ndarray:
     """
-    2. Piola Kirchhoff stress (2PK) in Voigt notation of St. Venant material:
+    Constitutive tensor defined by 2. Piola Kirchhoff stress (2PK) in Voigt 
+    notation of St. Venant material:
         
         d S_i / d E_j = c_ij 
         

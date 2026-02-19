@@ -201,10 +201,10 @@ def lagrangian_strainvar_matrix(xi: np.ndarray,
                                 check_fnc: Callable = check_inputs,
                                 **kwargs: Any):
     """
-    Return the the B matrix to calculate the variation of the Lagrangian 
+    Return the matrix B_dE to calculate the variation of the Lagrangian 
     strain E in Voigt notation from nodal displacements u:
             
-        var(E) = B_dE@u
+        var(E) = B_dE(F)@u
         
     The Lagrangian strain reads as: 
         
@@ -214,7 +214,7 @@ def lagrangian_strainvar_matrix(xi: np.ndarray,
         
         C = F.T @ F
         
-    where F is the deformation gradinet in matrix notation.
+    where F is the deformation gradient in matrix notation.
     
     
     Parameters
