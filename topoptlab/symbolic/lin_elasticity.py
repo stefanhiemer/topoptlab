@@ -55,11 +55,12 @@ def stiffness_matrix(ndim : int,
     Jdet = jacobian(ndim=ndim, element_type=element_type, order=order,
                     return_J=False, return_inv=False, return_det=True)
     integrand = b.transpose()@c@b * Jdet
-    return simplify_matrix(M=integrate(M=integrand,
-                                       domain=ref,
-                                       variables=x,
-                                       dummy_vars=t, 
-                                       parallel=None)) #simplify_matrix( integrand.integral(ref,x,t) )
+    return simplify_matrix(integrate(M=integrand,
+                                     domain=ref,
+                                     variables=x,
+                                     dummy_vars=t, 
+                                     parallel=None, 
+                                     symmetry=True)) #simplify_matrix( integrand.integral(ref,x,t) )
 
 def strainforces(ndim : int,
                  c : Union[None,MatrixFunction], 
@@ -113,5 +114,6 @@ def strainforces(ndim : int,
                                        domain=ref,
                                        variables=x,
                                        dummy_vars=t, 
-                                       parallel=None))
+                                       parallel=None, 
+                                       symmetry=False))
 

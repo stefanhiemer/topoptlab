@@ -113,7 +113,7 @@ def huhu_tangent(u : Union[None,MatrixFunction],
                                element_type=element_type, 
                                order=order) 
     #
-    huhu = simplify_matrix(M=B_hessian.transpose()@B_hessian)
+    Ke = simplify_matrix(M=B_hessian.transpose()@B_hessian)
     # exponential
     if a is not None:
         #
@@ -145,18 +145,28 @@ def huhu_tangent(u : Union[None,MatrixFunction],
         #
         if mode == "picard":
             pass
-        elif mode == "newton":
+        fe = exp(-a*simplify(Fdet))*Ke@u
+        if mode == "newton":
             Finv = to_column(M=F,order="C").transpose()
-            huhu = huhu - a*Fdet*huhu@u@Finv@B_F
+            Ke = Ke - a*Fdet*Ke@u@Finv@B_F
         else:
             raise NotImplementedError("Unknown mode: ", mode)
         #
-        huhu = exp(-a*simplify(Fdet) )*huhu
+        Ke = exp(-a*simplify(Fdet))*Ke
     #
     if element_type is not None and do_integral:
-        huhu = integrate(M=huhu,
+        Ke = integrate(M=Ke,
                          domain=ref,
                          variables=x,
-                         dummy_vars=t, 
-                         parallel=None) 
-    return simplify_matrix(huhu,eliminate_piecewise=True)
+                         dummy_vars=t,
+                         parallel=None)
+        if a is not None:
+            fe = integrate(M=fe,
+                           domain=ref,
+                           variables=x,
+                           dummy_vars=t,
+                           parallel=None)
+            return Ke, fe
+        else:
+            return Ke
+    return simplify_matrix(Ke,eliminate_piecewise=True)

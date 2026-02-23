@@ -2,13 +2,13 @@
 from typing import Dict, List, Tuple, Union
 from warnings import warn
 from itertools import product
-from math import floor,sqrt,ceil
+from math import floor,sqrt
 from multiprocessing import Pool, cpu_count
 
 from tqdm import tqdm
 
 from sympy import symbols, Symbol, Function, Inverse, Trace,\
-                  cse, factor, factor_terms, gcd,is_zero, sympify
+                  cse, factor, factor_terms, gcd, sympify
 from sympy.core.expr import Expr
 from symfem.references import Reference
 from symfem.functions import ScalarFunction,VectorFunction,MatrixFunction
@@ -257,7 +257,7 @@ def _factor_expr(expression: Expr,
                                                                 as_Add=False)
     # unfortunately if there is no factor, sympy returns 0. exchange for 1 to 
     # avoid zero division
-    if is_zero(factor):
+    if factor.is_zero():
         factor = sympify(1)
     return factor,remainder
 
@@ -340,8 +340,10 @@ def _simplify_expr(expression: Expr) -> Expr:
         simplified sympy expression.
 
     """
-    
-    return expression.simplify()
+    if expression:
+        return expression.simplify()
+    else:
+        return False
 
 def simplify_matrix(M: Union[List,MatrixFunction], 
                     parallel: Union[None,bool] = None, 
@@ -419,12 +421,14 @@ def _integrate_entry(args: Tuple) -> Tuple:
     """
     i, j, f, domain, variables, dummy_vars = args 
     return i, j, f.integral(domain, variables, dummy_vars)
+    
 
 def integrate(M: MatrixFunction, 
               domain: Reference,
               variables: AxisVariablesNotSingle,
               dummy_vars: AxisVariablesNotSingle, 
-              parallel: Union[None,bool] = None)-> MatrixFunction:
+              parallel: Union[None,bool] = None, 
+              symmetry : Union[None,bool] = None)-> MatrixFunction:
     """
     Compute the integral of the Matrix function element-wise .
     
@@ -441,7 +445,10 @@ def integrate(M: MatrixFunction,
     parallel : None or bool
         if True, simplification is parallelized via Pool. If None, autmatically 
         switch to parallelization if entries are larger than 16
-
+    symmetry : None or bool
+        if True, assume M to be symmetric and reduce number of integrations 
+        accordingly and copies entries afterwards. Only applies to square 
+        matrices.
     Returns
     -------
     M_integrated : symfem.functions.MatrixFunction
@@ -454,27 +461,47 @@ def integrate(M: MatrixFunction,
     else:
         raise TypeError("M must be symfem.functions.MatrixFunction.")
     #
+    if symmetry and (nrow != ncol):
+        warn("symmetry only applies to square matrices. Symmetry will be ignored.")
+        symmetry = False
+    #
     if parallel is None and nrow*ncol > 16:
         parallel = True
     # 
+    # create new empty matrix
+    M_new = [[0 for _ in range(ncol)] for _ in range(nrow)]
+    # serial
     if not parallel:
-        return MatrixFunction([[f.integral(domain, 
-                                           variables, 
-                                           dummy_vars) for f in row] \
-                                for row in M._mat])
+        if symmetry:
+            for i in range(nrow): 
+                for j in range(i,ncol): 
+                    val = M[i][j].integral(domain, variables, dummy_vars)
+                    M_new[i][j] = val
+                    if i!=j:
+                        M_new[j][i] = val 
+        else:
+            for i in range(nrow): 
+                for j in range(ncol): 
+                    M_new[i][j] = M[i][j].integral(domain, variables, dummy_vars) 
+                    
     else:
-        # create new empty matrix
-        M_new = [[0 for _ in range(ncol)] for _ in range(nrow)]
         # write information needed for tasks: row,col, matrix entry, ...
-        tasks = [(i, j, M._mat[i][j], domain, variables, dummy_vars) \
-                 for i in range(nrow) for j in range(ncol)]
+        if symmetry:
+            tasks = [(i, j, M._mat[i][j], domain, variables, dummy_vars) \
+                     for i in range(nrow) for j in range(i,ncol)]
+        else:
+            tasks = [(i, j, M._mat[i][j], domain, variables, dummy_vars) \
+                     for i in range(nrow) for j in range(ncol)]
         # integrate in parallel and then write to M_new
         with Pool(cpu_count()) as pool:
             for i, j, val in tqdm(pool.imap_unordered(_integrate_entry, tasks),
                                   total=len(tasks),
                                   desc="Parallel integration of matrix entries"): 
                 M_new[i][j] = val
-        return MatrixFunction(M_new)
+                if symmetry and i!=j:
+                    M_new[j][i] = val
+        #
+    return MatrixFunction(M_new)
 
 def eye(size: int) -> MatrixFunction:
     """

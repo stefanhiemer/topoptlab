@@ -6,6 +6,21 @@ from topoptlab.symbolic.code_conversion import convert_to_code
 from topoptlab.symbolic.operators import aniso_laplacian,nonlin_laplacian
 
 if __name__ == "__main__":
+    
+    # isotropic heat conduction
+    for dim in range(1,4):
+        k = diag( [symbols("k") for i in range(dim)] )
+        print(str(dim)+"D")
+        print(convert_to_code(aniso_laplacian(ndim = dim, K=k),
+                              matrices=["k"],vectors=["l","g"]),"\n")
+
+    # general anisotropic heat conduction
+    for dim in range(1,4):
+        print(str(dim)+"D")
+        print(convert_to_code(aniso_laplacian(ndim = dim),
+                              matrices=["k"],vectors=["l","g"]),"\n")
+    import sys 
+    sys.exit()
     #
     ndim = 2
     K = generate_constMatrix(ncol=ndim,nrow=ndim,
@@ -18,17 +33,4 @@ if __name__ == "__main__":
     print(nonlin_laplacian(ndim=ndim,
                            K=K,
                            linearization="picard"))
-    import sys 
-    sys.exit()
-    # isotropic heat conduction
-    for dim in range(1,4):
-        k = diag( [symbols("k") for i in range(dim)] )
-        print(str(dim)+"D")
-        print(convert_to_code(aniso_laplacian(ndim = dim, K=k),
-                              matrices=["k"],vectors=["l","g"]),"\n")
-        sys.exit()
-    # general anisotropic heat conduction
-    for dim in range(1,4):
-        print(str(dim)+"D")
-        print(convert_to_code(aniso_laplacian(ndim = dim),
-                              matrices=["k"],vectors=["l","g"]),"\n")
+    

@@ -62,7 +62,7 @@ def small_strain_matrix(ndim: int,
         b[ndim+k][j::ndim] = gradN_T[i]
         #
         i,j = (i+1)%ndim , (j+1)%ndim
-    return MatrixFunction(bmatrix)
+    return MatrixFunction(b)
 
 def eng_strain(ndim: int,
                element_type: str= "Lagrange",
@@ -385,23 +385,23 @@ def lagrangian_strainvar_matrix(ndim : int,
     Jinv = jacobian(ndim=ndim,
                     return_J=False, return_inv=True, return_det=False,
                     **isoparam_kws)
-    gradN = VectorFunction(basis).grad(ndim)@Jinv.transpose()
+    gradN_T = (VectorFunction(basis).grad(ndim)@Jinv.transpose()).transpose()
     #
     b = [[0 for j in range(ncols)] for i in range(nrows)]
     # tension
-    for i in range(ndim):
-        b[i][i::ndim] = gradN[i]
+    for i in range(ndim): # row
+        for j in range(ndim): # col
+            b[i][j::ndim] = gradN_T[i].__mul__(F[j,i])
+            #print(b,"\n")
     # shear
-    i,j = ndim-2,ndim-1
-    for k in range(nrows-ndim):
-        #
-        b[ndim+k][i::ndim] = gradN[j]
-        b[ndim+k][j::ndim] = gradN[i]
-        #
-        i,j = (i+1)%ndim , (j+1)%ndim
-    
-    #
-    
+    if ndim==2:
+        inds=[[0],[1]]
+    elif ndim==3:
+        inds=[[1,0,0],[2,2,1]]
+    for i in range(nrows-ndim): # row
+        for j in range(ndim): # col
+            b[ndim+i][j::ndim] = gradN_T[inds[0][i]].__mul__(F[j,inds[1][i]]) +\
+                                 gradN_T[inds[1][i]].__mul__(F[j,inds[0][i]])
     return MatrixFunction(b)
 
 def lagrangian_strainvar(ndim: int,

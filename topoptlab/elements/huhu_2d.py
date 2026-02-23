@@ -103,25 +103,32 @@ def _lk_huhu_2d(xe: np.ndarray,
         B_F = B_F.reshape(nel, nq,  B_F.shape[-2], B_F.shape[-1])
         F = (B_F@ue[:,None,:,None]).reshape(nel,nq,ndim,ndim) + np.eye(ndim)[None,None,:,:]
         Fdet = np.linalg.det(F)
+        # picard part of tangent stiffness matrix
+        if mode in ["picard","newton"]:
+            Ke = np.exp(-exponent[:,None]*Fdet[:,:])[:,:,None,None]\
+                       *B_hessian.transpose([0,1,3,2])@B_hessian
+        # inner forces
+        fe = (Ke@ue[:,None,:,None])[...,0]
+        # other part of tangent stiffness matrix needed for newton
         if mode == "newton":
             finv = np.linalg.inv(F).transpose((0,1,3,2)).reshape((nel,nq,1,ndim**2))
             #
-            integral = B_hessian.transpose([0,1,3,2])@B_hessian - \
-                       ((exponent[:,None]*Fdet[:,:])[:,:,None,None]*\
-                       B_hessian.transpose([0,1,3,2])@B_hessian@ue[:,None,:,None]@\
-                       finv@B_F)
-            integral = np.exp(-exponent[:,None]*Fdet[:,:])[:,:,None,None]\
-                       *integral
-        elif mode == "picard":
-            integral = np.exp(-exponent[:,None]*Fdet[:,:])[:,:,None,None]\
-                       *B_hessian.transpose([0,1,3,2])@B_hessian 
+            Ke = Ke - (np.exp(-exponent[:,None]*Fdet[:,:])[:,:,None,None]*\
+                  (exponent[:,None]*Fdet[:,:])[:,:,None,None]*\
+                   B_hessian.transpose([0,1,3,2])@B_hessian@ue[:,None,:,None]@\
+                   finv@B_F)
     else:
-        integral = B_hessian.transpose([0,1,3,2])@B_hessian 
+        Ke = B_hessian.transpose([0,1,3,2])@B_hessian 
     # multiply by determinant and quadrature
-    Ke = (kr[:,None,None,None]*w[None,:,None,None]*integral*detJ[:,:,None,None]\
+    Ke = (kr[:,None,None,None]*w[None,:,None,None]*Ke*detJ[:,:,None,None]\
           ).sum(axis=1)
     # multiply thickness
-    return t[:,None,None] * Ke
+    if exponent:
+        fe = (kr[:,None,None]*w[None,:,None]*fe*detJ[:,:,None]\
+              ).sum(axis=1)
+        return t[:,None,None] * Ke, t[:,None]*fe 
+    else:
+        return t[:,None,None] * Ke
 
 def lk_huhu_2d(kr: np.ndarray = np.array(1.),
                l: np.ndarray = np.array([1.,1.]),
@@ -219,7 +226,7 @@ if __name__ == "__main__":
     #           delimiter=",")
     print(_lk_huhu_2d(xe=xe,ue=ue,
                            exponent=0., 
-                           kr=1.))
+                           kr=1.)[1])
     print(lk_huhu_2d())
     print(np.isclose(lk_huhu_2d(), 
                      _lk_huhu_2d(xe=xe,ue=ue,

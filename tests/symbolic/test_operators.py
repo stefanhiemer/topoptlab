@@ -16,6 +16,7 @@ def test_anistropiclaplacian(ndim,sol):
     #
     k = diag( [symbols("k") for i in range(ndim)] )
     code = convert_to_code(aniso_laplacian(ndim = ndim, K=k),
-                           matrices=["k"],vectors=["l","g"])
+                           matrices=["k"],vectors=["l","g"], 
+                           npndarray=True,npcolumnstack=False)
     assert sol == code
     return 

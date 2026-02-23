@@ -3,13 +3,14 @@ from typing import Union
 
 from sympy import symbols
 from symfem.functions import VectorFunction,MatrixFunction
-from symfem.symbols import x
+from symfem.symbols import x,t
 
 from topoptlab.symbolic.cell import base_cell 
 from topoptlab.symbolic.matrix_utils import generate_constMatrix,\
                                             generate_FunctMatrix,\
                                             simplify_matrix,kron,eye,\
-                                            from_vectorfunction,flatten,inverse
+                                            from_vectorfunction,flatten,\
+                                            inverse, integrate
 from topoptlab.symbolic.parametric_map import jacobian
 
 def aniso_laplacian(ndim: int, K: Union[None,MatrixFunction] = None,
@@ -57,7 +58,12 @@ def aniso_laplacian(ndim: int, K: Union[None,MatrixFunction] = None,
     gradN = VectorFunction(basis).grad(ndim)@Jinv.transpose()
     #
     integrand = gradN@K@gradN.transpose() * Jdet
-    return simplify_matrix( integrand.integral(ref,x)) 
+    return simplify_matrix(integrate(M=integrand,
+                                     domain=ref,
+                                     variables=x,
+                                     dummy_vars=t, 
+                                     parallel=None, 
+                                     symmetry=True))
 
 def nonlin_laplacian(ndim: int, 
                      K: Union[None,MatrixFunction] = None,

@@ -92,8 +92,8 @@ def consttensor_2pk(F: np.ndarray,
     Parameters
     ----------
     F : np.ndarray
-        deformation gradient in matrix form of shape (...,ndim,ndim). Ignored 
-        if E is not None.
+        deformation gradient in matrix form of shape (...,ndim,ndim). Only 
+        needed to infer shape of the returned c.
     c : np.ndarray
         stiffness tensor in Voigt notation.
     

@@ -10,11 +10,11 @@ from topoptlab.symbolic.matrix_utils import eye, simplify_matrix,\
                                             generate_constMatrix,\
                                             generate_FunctMatrix, to_voigt,\
                                             from_voigt, to_column, kron,\
-                                            integrate
+                                            integrate, to_square
 from topoptlab.symbolic.strain_measures import dispgrad_matrix,\
                                                def_grad, lagrangian_strainvar_matrix
 from topoptlab.symbolic.stress_conversions import cauchy_to_pk1, pk2_to_pk1
-from topoptlab.symbolic.hyperelasticity import stvenant_2pk, stvenant_cauchy
+#from topoptlab.symbolic.hyperelasticity import stvenant_2pk, stvenant_cauchy
 
 def tangentstiffness_matrix(ndim : int,
                             u : Union[None,MatrixFunction],
@@ -67,7 +67,7 @@ def tangentstiffness_matrix(ndim : int,
                           basis=basis,
                           isoparam_kws={"element_type": element_type,
                                         "order": order})
-    F = to_column(b_h@u,order="C")
+    F = to_square(b_h@u,order="C")
     # calculate constitutive tensor and 2. PK stress 
     if material_model is None:
         c = generate_constMatrix(ncol=int((ndim**2 + ndim) /2),
@@ -97,7 +97,7 @@ def tangentstiffness_matrix(ndim : int,
                                      parallel=None))
     # tangent stiffness matrix
     S = kron(eye(ndim),from_voigt(s, eng_conv=False))
-    Ke = (b_dE.transpose()@c@b_dE + b_h.T@S@b_h)* Jdet
+    Ke = (b_dE.transpose()@c@b_dE + b_h.transpose()@S@b_h)* Jdet
     Ke = simplify_matrix(M=integrate(M=Ke,
                                      domain=ref,
                                      variables=x,
@@ -228,7 +228,21 @@ def trial_cauchy(u_symbs,ndim,**kwargs):
     return to_voigt(sigma)
 
 if  __name__ == "__main__":
-    res,symbs = residual(ndim=2,
-                    sigma=stvenant_cauchy,
-                    return_symbols=True)
-    print(linearize(res, symbols=symbs).shape)
+    #res,symbs = residual(ndim=2,
+    #                sigma=stvenant_cauchy,
+    #                return_symbols=True)
+    from topoptlab.symbolic.stvenant import stvenant_matmodel
+    ndim = 2
+    Ke,fe = tangentstiffness_matrix(ndim = ndim,
+                                    u = None,
+                                    material_model = stvenant_matmodel,
+                                    material_constants = {"c": generate_constMatrix(ncol=int((ndim**2 + ndim) /2),
+                                                                                    nrow=int((ndim**2 + ndim) /2),
+                                                                                    name="c")},
+                                    plane_stress = False,
+                                    element_type ="Lagrange",
+                                    order = 1)
+    print(fe)
+    print()
+    print(Ke)
+    #print(linearize(res, symbols=symbs).shape)

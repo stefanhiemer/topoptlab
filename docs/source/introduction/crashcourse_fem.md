@@ -72,7 +72,7 @@ a part of the boundary $\Gamma_N$ to value $\partial u_{N}$
 \nabla u^T \boldsymbol{n} = \partial u_{N} \quad \text{on } \Gamma_{N}
 ```
 We assume that the total boundary $\Gamma$ consists of Dirichlet and Neumann 
-boundaries, i. e. $\Gamma = \Gamma_D \cup Gamma_N$.
+boundaries, i. e. $\Gamma = \Gamma_D \cup \Gamma_N$.
 In solid mechanics, Dirichlet boundary conditions correspond to displacement 
 boundary conditions while in heat conduction or diffusion they correspond to 
 temperature/concentration boundary conditions. Von Neumann boundary conditions 
@@ -185,7 +185,7 @@ where the index $e$ is the element index. So in other words an element is just
 a sub-interval/area/volume of the entire domain. This step is purely geometric 
 and does not yet introduce any approximation as it just rewrites the weak form 
 as a sum of element-wise contributions that via simple summation assemble the 
-global problem. We now move on, how to approximate these integrals to arrive at a continuous, smooth solution.
+global problem. We now move to the approximation of these integrals to arrive at a continuous, smooth solution.
  
 ### Shape Functions and Interpolation
 After splitting the domain into elements, a few things need to be kept in mind: 
