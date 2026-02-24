@@ -1,8 +1,30 @@
 # Nonlinear FEM
+## Introductory Example
+Introductory example with nonlinear system
+```{math}
+\boldsymbol{K}\left(\phi\right) \boldsymbol{\phi}_n = \boldsymbol{f}
+```
+where $\boldsymbol{f}$ is a constant right hand side and $\boldsymbol{\phi}_n$ 
+are the nodal values of the field we seek to solve. It is approximated as 
+previously introduced via the standard interpolation 
+```{math}
+\phi\left(\xi,\eta,\zeta\right) = \boldsymbol{N}^T \boldsymbol{\phi}_n 
+```
+Rewrite to nonlinear residual
+```{math}
+\boldsymbol{K}\left(\phi\right) \boldsymbol{\phi}_n - \boldsymbol{f} = \boldsymbol{r}
+```
+If problem solved $\boldsymbol{r}\approx \boldsymbol{0}$. There is no general 
+method to solve the above problem in closed form meaning we have to retort to
+iterative methods.
+## Newton and Picard iteration
+Start from previous iteration $\boldsymbol{\phi}_{i,n}$ and find new solution 
+by 
+```{math}
+\boldsymbol{K}\left(\phi\left(\right)\right) \boldsymbol{\phi}_{i+1,} - \boldsymbol{f} = \boldsymbol{r}
+```
 
 ## Newton iteration
-
-## Picard iteration
 
 ## Nonlin. Elasticity, stress and strain measures
 
