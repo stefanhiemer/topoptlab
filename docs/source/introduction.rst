@@ -9,5 +9,6 @@ Introduction and Tutorials to Topology Optimization
    introduction/adjoint_analysis
    introduction/meshing
    introduction/crashcourse_fem
+   introduction/nonlin_fem
    introduction/variable-thickness-sheet
    introduction/references

@@ -28,6 +28,7 @@ Submodules
    topoptlab.timestepper
    topoptlab.topology_optimization
    topoptlab.utils
+   topoptlab.voigt
 
 Module contents
 ---------------

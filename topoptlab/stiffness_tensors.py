@@ -151,7 +151,7 @@ def isotropic_2d(E: float = 1.,
     """
     2D stiffness tensor for isotropic material in engineering Voigt convention 
     (strain shear component corresponds to engineering shear strain, so the 
-     shear entry equals G).
+    shear entry equals G).
     
     Parameters
     ----------
@@ -181,7 +181,7 @@ def isotropic_3d(E:float = 1., nu:float = 0.3) -> np.ndarray:
     """
     3D stiffness tensor for isotropic material in engineering Voigt convention 
     (strain shear component corresponds to engineering shear strain, so the 
-     shear entry equals G).
+    shear entry equals G).
     
     Parameters
     ----------
