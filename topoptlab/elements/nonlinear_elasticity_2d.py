@@ -41,7 +41,7 @@ def _lk_nonlinear_elast_2d(xe: np.ndarray,
         returns 2. PK stress tensor and constitutive tensor both in Voigt 
         notation as function of deformation gradient F (matrix form) and 
         the material constants provided in the dictionary. Outputs should 
-        have shape (nel,nq,...)
+        have shape (nel,nq,...).
     material_constants : dict
         contains the material constants needed to calculate 2. PK stress and 
         constitutive tensor. Keys must match arguments of material_model.
@@ -50,9 +50,13 @@ def _lk_nonlinear_elast_2d(xe: np.ndarray,
         quadrature points and weights. Check function get_integrpoints for
         available options.
     t : np.ndarray of shape (nels) or (1)
-        thickness of element
+        thickness of element.
     nquad : int
-        number of quadrature points
+        number of quadrature points.
+    shape_functions_grad : Callable
+        gradients of shape functions of shape (...,4,2).
+    invjac : Callable
+        inverse jacobian of parametric mapping of shape (...,2,2).
         
     Returns
     -------

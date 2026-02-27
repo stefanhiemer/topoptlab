@@ -150,3 +150,39 @@ def test_fromvoigt(ndim):
     assert M == from_voigt(to_voigt(M))
     return
 
+from sympy.abc import x,y,z
+from topoptlab.symbolic.matrix_utils import factor_matrix
+
+@pytest.mark.parametrize('pref,remainder,solution,parallel,symmetry',
+                         [(2*x**3,
+                           [[z**2,y**2+z],[1,x**2+y**2+z**2]],
+                           8*x**3,
+                           False,
+                           False), 
+                          (2*x**3,
+                           [[z**2,y**2+z],
+                            [1,x**2+y**2+z**2]],
+                           8*x**3,
+                           True,
+                           False),
+                          (2*x**3,
+                           [[z**2,1],
+                            [1,x**2+y**2+z**2]],
+                           8*x**3,
+                           True,
+                           True),
+                          (2*x**3,
+                           [[z**2,1],
+                            [1,x**2+y**2+z**2]],
+                           8*x**3,
+                           True,
+                           True)])
+
+def test_factor(pref,remainder,solution,parallel,symmetry):
+    
+    M = MatrixFunction([[pref*expr for expr in row] for row in remainder])
+    remainder, factor = factor_matrix(M=M, variables=[y,z], 
+                                      parallel=parallel, symmetry=symmetry)
+    
+    assert factor == solution
+    return

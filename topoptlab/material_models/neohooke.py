@@ -169,13 +169,9 @@ def consttensor_2pk(F: np.ndarray,
     # convert to Voigt
     ndim = Cinv.shape[-1]
     a, b = np.meshgrid(np.arange(ndim*(ndim+1)//2), np.arange(ndim*(ndim+1)//2), indexing="ij")
-    i,j = voigt_pair(a, ndim); k,l = voigt_pair(b, ndim) 
+    i,j = voigt_pair(a, ndim); k,l = voigt_pair(b, ndim)
     #
-    sf = np.array([1 if i == j else 2
-               for i,j in zip(*voigt_pair(np.arange(int(ndim*(ndim+1)/2)), ndim))])
-    sf = sf.reshape((1,)*len(c.shape[:-4]) + (sf.size, 1))
-    sg = sf.swapaxes(-2, -1)
-    return c[..., i, j, k, l] * sg
+    return c[..., i, j, k, l]
 
 def neohookean_matmodel(F: np.ndarray,
                         h: np.ndarray,

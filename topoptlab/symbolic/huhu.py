@@ -143,12 +143,12 @@ def huhu_tangent(u : Union[None,MatrixFunction],
         elif isinstance(Fdet,ScalarFunction):
             Fdet = Fdet.as_sympy()
         #
-        if mode == "picard":
-            pass
         fe = exp(-a*simplify(Fdet))*Ke@u
         if mode == "newton":
             Finv = to_column(M=F,order="C").transpose()
             Ke = Ke - a*Fdet*Ke@u@Finv@B_F
+        elif mode == "picard":
+            pass
         else:
             raise NotImplementedError("Unknown mode: ", mode)
         #
@@ -156,10 +156,11 @@ def huhu_tangent(u : Union[None,MatrixFunction],
     #
     if element_type is not None and do_integral:
         Ke = integrate(M=Ke,
-                         domain=ref,
-                         variables=x,
-                         dummy_vars=t,
-                         parallel=None)
+                       domain=ref,
+                       variables=x,
+                       dummy_vars=t,
+                       parallel=None, 
+                       symmetry=any([mode=="picard",a is None]))
         if a is not None:
             fe = integrate(M=fe,
                            domain=ref,

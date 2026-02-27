@@ -357,6 +357,7 @@ def shape_functions_hessian(xi: Union[float,np.ndarray],
     hessian[:, :, 2, 0] = hessian[:, :, 0, 2]
     hessian[:, :, 1, 2] = 0.125 * (s_eta * s_zeta)[None, :] * (1 + s_xi[None, :] * xi[:, None])
     hessian[:, :, 2, 1] = hessian[:, :, 1, 2]
+    
     return hessian
 
 def jacobian(xi,eta,zeta,xe,all_elems=False,**kwargs):

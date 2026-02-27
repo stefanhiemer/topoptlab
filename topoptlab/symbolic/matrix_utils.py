@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Dict, List, Tuple, Union
+from typing import Callable, Dict, List, Tuple, Union
 from warnings import warn
 from itertools import product
 from math import floor,sqrt
@@ -8,7 +8,7 @@ from multiprocessing import Pool, cpu_count
 from tqdm import tqdm
 
 from sympy import symbols, Symbol, Function, Inverse, Trace,\
-                  cse, factor, factor_terms, gcd, sympify
+                  cse, factor, factor_terms, gcd, sympify, gcd_terms, Mul, Integer
 from sympy.core.expr import Expr
 from symfem.references import Reference
 from symfem.functions import ScalarFunction,VectorFunction,MatrixFunction
@@ -231,6 +231,114 @@ def flatten(M: MatrixFunction, order: str = "C") -> VectorFunction:
         v = [M[floor(i/n),i%n] for i in range(m*n)]
     return VectorFunction(v)
 
+def _operation_on_entry(args: Tuple) -> Tuple:
+    """
+    Helper for apply_elementwise().
+
+    Parameters
+    ----------
+    args : tuple
+        (i, j, expr, operation, op_args)
+
+    Returns
+    -------
+    tuple
+        (i, j, result)
+    """
+    i, j, expr, operation, op_args = args
+    return i, j, operation(expr, **op_args)
+
+def _apply_elementwise(M: MatrixFunction, 
+                      func : Callable,
+                      op_args : Dict,
+                      return_matrixfunc : bool = True,
+                      parallel: Union[None,bool] = None, 
+                      symmetry : Union[None,bool] = None
+                      ) -> Union[MatrixFunction,List]:
+    """
+    Apply symbolic operation to the Matrix function element-wise.
+    
+    Parameters
+    ----------
+    M : symfem.functions.MatrixFunction.
+        matrix to which operation to be applied to.
+    func : callable
+        function applied to each element.
+    op_args : dict
+        dictionary with keys identical to function arguments.
+    return_matrixfunc : bool
+        if True, returns MatrixFunction which is basically in same spirit as 
+        element-wise operations in numpy. If False returns a list of lists 
+        with identical shapes as the MatrixFunction. Needed if func returns 
+        more than one output.
+    parallel : None or bool
+        if True, operation is parallelized via Pool. If None, autmatically 
+        switch to parallelization if entries are larger than 16
+    symmetry : None or bool
+        if True, assume M to be symmetric and reduce number of function calls 
+        accordingly and copies entries afterwards. Only applies to square 
+        matrices.
+        
+    Returns
+    -------
+    M_integrated : symfem.functions.MatrixFunction
+        element-wise operated on matrix.  
+    
+    """
+    #
+    if isinstance(M, MatrixFunction):
+        nrow,ncol = M.shape[0],M.shape[1]
+    else:
+        raise TypeError("M must be symfem.functions.MatrixFunction.")
+    #
+    if symmetry and (nrow != ncol):
+        warn("symmetry only applies to square matrices. Symmetry will be ignored.")
+        symmetry = False
+    #
+    if parallel is None and nrow*ncol > 16:
+        parallel = True
+    # symfem.MatrixFunctions are immutable. Therefor create new empty matrix 
+    # as list of lists
+    M_new = [[0 for _ in range(ncol)] for _ in range(nrow)]
+    # serial
+    if not parallel:
+        if symmetry:
+            for i in range(nrow): 
+                for j in range(i,ncol): 
+                    val = func(M[i][j],
+                               **op_args)
+                    M_new[i][j] = val
+                    if i!=j:
+                        M_new[j][i] = val 
+        else:
+            for i in range(nrow): 
+                for j in range(ncol): 
+                    M_new[i][j] = func(M[i][j],
+                                       **op_args)
+                    
+    else:
+        # write information needed for tasks
+        if symmetry:
+            tasks = [(i, j, M._mat[i][j], func, op_args)
+                     for i in range(nrow) for j in range(i, ncol)]
+        else:
+            tasks = [(i, j, M._mat[i][j], func, op_args)
+                     for i in range(nrow) for j in range(ncol)]
+        # integrate in parallel and then write to M_new
+        with Pool(cpu_count()) as pool:
+            for i, j, val in tqdm(pool.imap_unordered(_operation_on_entry, 
+                                                      tasks),
+                                  total=len(tasks),
+                                  desc="Parallel integration of matrix entries"): 
+                M_new[i][j] = val
+                if symmetry and i!=j:
+                    M_new[j][i] = val
+        #
+    if return_matrixfunc:
+        return MatrixFunction(M_new)
+    else:
+        return M_new 
+
 def _factor_expr(expression: Expr, 
                  variables: List) -> Expr:
     """
@@ -257,16 +365,19 @@ def _factor_expr(expression: Expr,
                                                                 as_Add=False)
     # unfortunately if there is no factor, sympy returns 0. exchange for 1 to 
     # avoid zero division
-    if factor.is_zero():
+    if factor is None:
+        factor = sympify(1)
+    elif factor == 0:
         factor = sympify(1)
     return factor,remainder
 
-def factor_matrix(M: Union[List,MatrixFunction],
-                  variables: List,
-                  parallel: Union[None,bool] = None) -> MatrixFunction:
+def factor_matrix(M : Union[List,MatrixFunction],
+                  variables : List,
+                  parallel : Union[None,bool] = None, 
+                  symmetry : bool = False) -> MatrixFunction:
     """
     Factor element-wise the given MatrixFunction by first pull out factors not 
-    including the variables, find the greatest common divisor (gcd) and 
+    including the variables, find the greatest common divisor and 
     extract it from the matrix. 
 
     Parameters
@@ -279,9 +390,9 @@ def factor_matrix(M: Union[List,MatrixFunction],
 
     Returns
     -------
-    M_new : symfem.functions.MatrixFunction
-        factored matrix.
-    gcd : sympy.Expr
+    remainder : symfem.functions.MatrixFunction
+        factored-out matrix.
+    factor : sympy.Expr
         greatest common divisor 
     """
     #
@@ -290,36 +401,28 @@ def factor_matrix(M: Union[List,MatrixFunction],
     elif isinstance(M, list):
         nrow,ncol = len(M),len(M[0])
     #
-    size = nrow * ncol
-    #
     M_new = [[0 for j in range(ncol)] for i in range(nrow)]
     #
-    if parallel is None and size > 16:
-        parallel = True
-    # list of sympy expressions for common subexpression detection/extraction
-    exprs = [entry.as_sympy() for entry in flatten(M=M,order="C")]
-    #
-    if parallel:
-        #
-        with Pool(processes=cpu_count()) as pool:
-            # pull out factors not including the variables. remainder should be 
-            # mostly just the provided variables
-            split = list(tqdm(pool.imap(lambda e: _factor_expr(e, 
-                                                          variables=variables),
-                                           exprs),
-                                 total=len(exprs),
-                                 desc="Factoring matrix entries"))
-    else:
-        # pull out factors not including the variables. remainder should be 
-        # mostly just the provided variables
-        split = [_factor_expr(e, variables=variables) for e in exprs]
+    split = _apply_elementwise(M=M, 
+                               func = _factor_expr,
+                               return_matrixfunc=False,
+                               op_args = {"variables": variables},
+                               parallel = parallel, 
+                               symmetry = symmetry)
     # extract factors/remainders 
-    factors = [s[0] for s in split]
-    remainders = [s[1] for s in split]
+    print(split)
+    factors = [split[i][j][0] for i in range(nrow) for j in range(ncol)]
+    remainders = [split[i][j][1] for i in range(nrow) for j in range(ncol)]
     # 2- compare factors and extract the greatest common divisor (gcd)
-    common_fac = gcd(*factors)
+    print(factors)
+    #common_fac = gcd_terms(Mul(*factors))
+    g = factor_terms(sum(factors))
+    common_fac, _ = g.as_independent(*variables, 
+                                     as_Add=False)
+    if common_fac == 0:
+        common_fac = Integer(1)
     # 3.do factors/common_factor and multiply this to the remainders 
-    exprs = [r*f/common_fac for f,r in zip(factors,remainders)]
+    exprs = [r*(f/common_fac) for f,r in zip(factors,remainders)]
     # assemble simplified matrix
     for row,col in product(range(nrow),range(ncol)):
         M_new[row][col] = exprs[row*ncol+col]
@@ -876,4 +979,4 @@ def from_vectorfunction(vectorfunc : VectorFunction) -> MatrixFunction:
         MatrixFunction of shape (v,1).
 
     """
-    return MatrixFunction([[element] for element in vectorfunc]) 
+    return MatrixFunction([[element] for element in vectorfunc])

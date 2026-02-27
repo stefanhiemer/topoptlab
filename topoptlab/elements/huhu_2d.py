@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any,Union
+from typing import Any,Callable,Union
 
 import numpy as np
 
 from topoptlab.elements.strain_measures import dispgrad_matrix
 from topoptlab.elements.bilinear_quadrilateral import shape_functions_dxi,\
-                                                      shape_functions_hessian,\
-                                                      invjacobian
+                                                      shape_functions_hessian#,invjacobian
+from topoptlab.elements.isoparam_mapping import invjacobian
 from topoptlab.fem import get_integrpoints
 
 def _lk_huhu_2d(xe: np.ndarray, 
@@ -17,6 +17,8 @@ def _lk_huhu_2d(xe: np.ndarray,
                 quadr_method: str = "gauss-lobatto",
                 t: np.ndarray = np.array([1.]),
                 nquad: int = 3,
+                shape_functions_grad: Callable = shape_functions_dxi,
+                invjac: Callable = invjacobian, 
                 **kwargs: Any) -> np.ndarray:
     """
     Create element stiffness matrix for 2D HuHu regularization with
@@ -47,9 +49,13 @@ def _lk_huhu_2d(xe: np.ndarray,
         quadrature points and weights. Check function get_integrpoints for
         available options.
     t : np.ndarray of shape (nels) or (1)
-        thickness of element
+        thickness of element.
     nquad : int
-        number of quadrature points
+        number of quadrature points.
+    shape_functions_grad : Callable
+        gradients of shape functions of shape (...,4,2).
+    invjac : Callable
+        inverse jacobian of parametric mapping of shape (...,2,2).
         
     Returns
     -------
@@ -76,10 +82,16 @@ def _lk_huhu_2d(xe: np.ndarray,
     x,w=get_integrpoints(ndim=ndim,nq=nquad,method=quadr_method)
     nq =w.shape[0]
     #
-    xi,eta = [_x[:,0] for _x in np.split(x, ndim,axis=1)]
+    xi,eta,zeta = [_x[:,0] for _x in np.split(x, ndim,axis=1)] + \
+                  (2*[None])[:(3-ndim)]
     # get jacobian for isoparametric map
-    Jinv,detJ = invjacobian(xi=xi,eta=eta,xe=xe,
-                            all_elems=True,return_det=True)
+    Jinv,detJ = invjac(xi=xi,
+                       eta=eta,
+                       zeta=zeta,
+                       xe=xe,
+                       shape_functions_dxi=shape_functions_grad,
+                       all_elems=True,
+                       return_det=True)
     Jinv = Jinv.reshape(nel,nq,ndim,ndim)
     detJ = detJ.reshape(nel,nq)
     # collect hessian in ref. space
@@ -97,7 +109,7 @@ def _lk_huhu_2d(xe: np.ndarray,
         # calculate def. grad
         B_F = dispgrad_matrix(xi=xi, eta=eta, zeta=None, xe=xe,
                               shape_functions_dxi=shape_functions_dxi,
-                              invjacobian=invjacobian,
+                              invjacobian=invjac,
                               all_elems=True,
                               return_detJ=False) 
         B_F = B_F.reshape(nel, nq,  B_F.shape[-2], B_F.shape[-1])
@@ -163,7 +175,6 @@ def lk_huhu_2d(kr: np.ndarray = np.array(1.),
         element stiffness matrix.
 
     """ 
-    #
     # multiply thickness
     return t*kr*np.column_stack((np.tan(g[0])**2 + 1/2, 0, -np.tan(g[0])**2 - 1/2, 0, np.tan(g[0])**2 + 1/2, 0, -np.tan(g[0])**2 - 1/2, 0,
                  0, np.tan(g[0])**2 + 1/2, 0, -np.tan(g[0])**2 - 1/2, 0, np.tan(g[0])**2 + 1/2, 0, -np.tan(g[0])**2 - 1/2,
@@ -219,14 +230,9 @@ if __name__ == "__main__":
                     0.,0.,
                     0.1,0.2,
                     0.,0.]])
-    #np.savetxt("huhu2d.csv", 
-    #           _lk_huhu_2d(xe=xe,ue=ue,
-    #                       exponent=None, 
-    #                       kr=1.).flatten(), 
-    #           delimiter=",")
     print(_lk_huhu_2d(xe=xe,ue=ue,
                            exponent=0., 
-                           kr=1.)[1])
+                           kr=1.)[0])
     print(lk_huhu_2d())
     print(np.isclose(lk_huhu_2d(), 
                      _lk_huhu_2d(xe=xe,ue=ue,
