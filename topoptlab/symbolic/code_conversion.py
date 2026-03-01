@@ -92,7 +92,7 @@ def convert_to_code(matrix: MatrixFunction,
                     lines)
     if npcolumnstack:
         for vector in vectors_ele:
-            lines = sub(vector + r'(\d)',
+            lines = sub(vector + r'(\d+)',
                         lambda m: vector + f'[:,{int(m.group(1))-1}]',
                         lines)
         for matrix in matrices:

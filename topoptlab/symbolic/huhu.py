@@ -10,7 +10,7 @@ from topoptlab.symbolic.matrix_utils import generate_constMatrix, \
                                             generate_FunctMatrix, \
                                             is_voigt,to_voigt,\
                                             to_column, trace, inverse, eye, \
-                                            simplify_matrix,integrate
+                                            simplify_matrix,integrate, factor
 from topoptlab.symbolic.strain_measures import def_grad, dispgrad_matrix
 from topoptlab.symbolic.operators import hessian_matrix
 from topoptlab.symbolic.cell import base_cell
@@ -58,20 +58,21 @@ def huhu_engdensity(u : Union[None,MatrixFunction],
                                order=order)
     #
     if u is None:
-        u = generate_constMatrix(ncol=1, nrow=B_hessian.shape[1], name="u")
+        u = generate_constMatrix(ncol=1, 
+                                 nrow=B_hessian.shape[1], 
+                                 name="u")
     h = simplify_matrix(B_hessian@u)
     huhu = (h.transpose()@h)[0,0].as_sympy()/2
     #
     huhu = ScalarFunction( huhu )
     #
     if element_type is not None and do_integral:
-        #huhu = huhu.integral(ref,x) 
         huhu = integral(scalar_function=huhu,
                         domain=ref, 
                         vars=x, 
                         dummy_vars=t,
                         parallel=parallel)
-    return ScalarFunction(simplify(huhu._f))
+    return ScalarFunction(factor(huhu._f))
 
 def huhu_tangent(u : Union[None,MatrixFunction], 
                  ndim: int,

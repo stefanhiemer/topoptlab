@@ -43,24 +43,32 @@ def base_cell(ndim: int,
         cell_name = "quadrilateral"
     elif ndim == 3:
         cell_name = "hexahedron"
+    # define the edges of the geometric basic body i. e. vertices 
+    if ndim == 1:
+        vertices = ((-1,), (1,))
+    elif ndim == 2:
+        vertices = ((-1, -1), (1, -1), (1, 1), (-1, 1))
+    elif ndim == 3:
+        vertices = ((-1, -1, -1), (1, -1, -1), (1, 1, -1), (-1, 1, -1),
+                    (-1, -1, 1), (1, -1, 1), (1, 1, 1), (-1, 1, 1))
     #
     if order == 1 and element_type=="Lagrange":
         if ndim == 1:
             # define the vertices
-            vertices = ((-1,), (1,))
+            #vertices = ((-1,), (1,))
             # node indices in reference cell of symfem. Check the git to see
             # how the numbering is done.
             nd_inds = [0, 1]
         elif ndim == 2:
             # define the vertices
-            vertices = ((-1, -1), (1, -1), (1, 1), (-1, 1))
+            #vertices = ((-1, -1), (1, -1), (1, 1), (-1, 1))
             # node indices in reference cell of symfem. Check the git to see
             # how the numbering is done.
             nd_inds = [0, 1, 3, 2]
         elif ndim == 3:
             # define the vertices
-            vertices = ((-1, -1, -1), (1, -1, -1), (1, 1, -1), (-1, 1, -1),
-                        (-1, -1, 1), (1, -1, 1), (1, 1, 1), (-1, 1, 1))
+            #vertices = ((-1, -1, -1), (1, -1, -1), (1, 1, -1), (-1, 1, -1),
+            #            (-1, -1, 1), (1, -1, 1), (1, 1, 1), (-1, 1, 1))
             # node indices in reference cell of symfem. Check the git to see
             # how the numbering is done.
             nd_inds = [0, 1, 3, 2,
@@ -68,15 +76,15 @@ def base_cell(ndim: int,
     elif order == 2 and element_type=="Lagrange":
         if ndim == 1:
             # define the vertices
-            vertices = ((-1,), (1,), (0,))
+            #vertices = ((-1,), (1,), (0,))
             # node indices in reference cell of symfem. Check the git to see
             # how the numbering is done.
             nd_inds = [0, 1, 2]
         elif ndim == 2:
             # define the vertices
-            vertices = ((-1, -1), (1, -1), (1, 1), (-1, 1),
-                        (0, -1), (1, 0), (0, 1), (-1, 0),
-                        (0, 0) )
+            #vertices = ((-1, -1), (1, -1), (1, 1), (-1, 1),
+            #            (0, -1), (1, 0), (0, 1), (-1, 0),
+            #            (0, 0) )
             # node indices in reference cell of symfem. Check the git to see
             # how the numbering is done.
             nd_inds = [0, 1, 3, 2,
@@ -84,15 +92,15 @@ def base_cell(ndim: int,
                        8]
         elif ndim == 3:
             # define the vertices
-            vertices = ((-1, -1, -1), (1, -1, -1), (1, 1, -1), (-1, 1, -1),
-                        (-1, -1, 1), (1, -1, 1), (1, 1, 1), (-1, 1, 1),
-                        (0, -1, -1), (1, 0, -1), (0, 1, -1), (-1, 0, -1),
-                        (0, 0, -1),
-                        (-1, -1, 0), (1, -1, 0), (1, 1, 0), (-1, 1, 0),
-                        (0, -1, 0), (1, 0, 0), (0, 1, 0), (-1, 0, 0),
-                        (0, 0, 0),
-                        (0, -1, 1), (1, 0, 1), (0, 1, 1), (-1, 0, 1),
-                        (0, 0, 1))
+            #vertices = ((-1, -1, -1), (1, -1, -1), (1, 1, -1), (-1, 1, -1),
+            #            (-1, -1, 1), (1, -1, 1), (1, 1, 1), (-1, 1, 1),
+            #            (0, -1, -1), (1, 0, -1), (0, 1, -1), (-1, 0, -1),
+            #            (0, 0, -1),
+            #            (-1, -1, 0), (1, -1, 0), (1, 1, 0), (-1, 1, 0),
+            #            (0, -1, 0), (1, 0, 0), (0, 1, 0), (-1, 0, 0),
+            #            (0, 0, 0),
+            #            (0, -1, 1), (1, 0, 1), (0, 1, 1), (-1, 0, 1),
+            #            (0, 0, 1))
             # node indices in reference cell of symfem. Check the git to see
             # how the numbering is done.
             nd_inds = [0, 1, 3, 2,
@@ -107,7 +115,7 @@ def base_cell(ndim: int,
     elif order == 3 and element_type=="Lagrange":
         if ndim == 1:
             # define the vertices
-            vertices = ((-1,), (-1/3,), (1/3,), (1,) )
+            #vertices = ((-1,), (-1/3,), (1/3,), (1,) )
             # node indices in reference cell of symfem. Check the git to see
             # how the numbering is done.
             nd_inds = [1, 2, 0]

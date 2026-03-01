@@ -7,19 +7,20 @@ from topoptlab.symbolic.huhu import huhu_engdensity, huhu_tangent
 
 if __name__ == "__main__":
     #
-    """
     print("Energy density")
-    for dim in range(2,3):
+    for dim in range(3,4):
         print(str(dim)+"D")
         print(convert_to_code(MatrixFunction([[huhu_engdensity(u=None,
-                                                             ndim=dim, 
-                                                             parallel=False)._f]]),
+                                                               order=1,
+                                                               ndim=dim, 
+                                                               parallel=True)._f]]),
                               matrices=[],
                               vectors=["l","g"],
                               vectors_ele=["u"]),
               "\n")
     #
-    """
+    import sys 
+    sys.exit()
     print("Tangent without exponential")
     for dim in range(2,3):
         print(str(dim)+"D")
@@ -39,9 +40,13 @@ if __name__ == "__main__":
                               method="picard")
         print(convert_to_code(Ke,
                               matrices=[],
-                              vectors=["kr","a","l","g"]),"\n")
+                              vectors=["kr",
+                                       "a","l","g"], 
+                              vectors_ele=["u"]),"\n")
     
     #
+    import sys 
+    sys.exit()
     print("Tangent with exponential: Newton iteration")
     for dim in range(2,3):
         print(str(dim)+"D")
@@ -50,4 +55,6 @@ if __name__ == "__main__":
                                            a=symbols("a"), 
                                            do_integral=True, 
                                            mode="newton"),
-                              matrices=[],vectors=["l","g"]),"\n")
+                              matrices=[],
+                              vectors=["l","g"], 
+                              vectors_ele=["u"]),"\n")
