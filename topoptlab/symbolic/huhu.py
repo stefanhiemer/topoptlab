@@ -52,8 +52,8 @@ def huhu_engdensity(u : Union[None,MatrixFunction],
     if kr is None:
         kr =  Symbol("kr")
     #
-    B_hessian = hessian_matrix(scalarfield=False,ndim=ndim, 
-                               integrate=False,
+    B_hessian = hessian_matrix(scalarfield=False,
+                               ndim=ndim, 
                                element_type=element_type, 
                                order=order)
     #
@@ -108,12 +108,13 @@ def huhu_tangent(u : Union[None,MatrixFunction],
     if kr is None:
         kr =  Symbol("kr",nonzero=True)
     #
-    B_hessian = hessian_matrix(scalarfield=False,ndim=ndim, 
-                               integrate=False,
+    B_hessian = hessian_matrix(scalarfield=False,
+                               ndim=ndim, 
                                element_type=element_type, 
                                order=order) 
     #
-    Ke = simplify_matrix(M=B_hessian.transpose()@B_hessian)
+    Ke = simplify_matrix(M=B_hessian.transpose()@B_hessian, 
+                         symmetry=True)
     # exponential
     if a is not None:
         #
@@ -155,14 +156,14 @@ def huhu_tangent(u : Union[None,MatrixFunction],
         Ke = exp(-a*simplify(Fdet))*Ke
     #
     if element_type is not None and do_integral:
-        Ke = integrate(M=Ke,
+        Ke = integrate(M=Ke*Jdet,
                        domain=ref,
                        variables=x,
                        dummy_vars=t,
                        parallel=None, 
                        symmetry=any([mode=="picard",a is None]))
         if a is not None:
-            fe = integrate(M=fe,
+            fe = integrate(M=fe*Jdet,
                            domain=ref,
                            variables=x,
                            dummy_vars=t,
@@ -170,4 +171,6 @@ def huhu_tangent(u : Union[None,MatrixFunction],
             return Ke, fe
         else:
             return Ke
-    return simplify_matrix(Ke,eliminate_piecewise=True)
+    return simplify_matrix(Ke*Jdet,
+                           eliminate_piecewise=True, 
+                           symmetry=any([mode=="picard",a is None]))

@@ -10,10 +10,21 @@ from topoptlab.elements.huhu_3d import _lk_huhu_3d, lk_huhu_3d
 from topoptlab.elements.check_tangents import check_tangent_fd
 
 @pytest.mark.parametrize('xe, kr, l, g',
-                         [(array([[[-1,-1],[1,-1],[1,1],[-1,1]]]),
+                         [(array([[[-2,-1],[2,-1],[2,1],[-2,1]]]),
                            array([1.]),
+                           array([4.,2.]), 
+                           array([0.])),
+                          (array([[[-2,-1,-1],
+                                   [2,-1,-1],
+                                   [2,1,-1],
+                                   [-2,1,-1],
+                                   [-2,-1,1],
+                                   [2,-1,1],
+                                   [2,1,1],
+                                   [-2,1,1]]]), 
                            array([1.]), 
-                           array([0.]))#,(array([[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],  [-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]]]), array([1.]), array([2.,2.,2.]), array([0.,0.]))
+                           array([4.,2.,2.]), 
+                           array([0.,0.]))
                           ,])
 
 def test_linear(xe,kr,l,g):

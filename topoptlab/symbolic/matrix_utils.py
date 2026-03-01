@@ -238,19 +238,20 @@ def _operation_on_entry(args: Tuple) -> Tuple:
     Parameters
     ----------
     args : tuple
-        (i, j, expr, operation, op_args)
+        (i, j, expr, operation, func_args)
 
     Returns
     -------
     tuple
         (i, j, result)
     """
-    i, j, expr, operation, op_args = args
-    return i, j, operation(expr, **op_args)
+    i, j, expr, operation, func_args = args
+    return i, j, operation(expr, **func_args)
 
 def _apply_elementwise(M: MatrixFunction, 
                       func : Callable,
-                      op_args : Dict,
+                      func_args : Dict,
+                      dscr : str,
                       return_matrixfunc : bool = True,
                       parallel: Union[None,bool] = None, 
                       symmetry : Union[None,bool] = None
@@ -264,8 +265,10 @@ def _apply_elementwise(M: MatrixFunction,
         matrix to which operation to be applied to.
     func : callable
         function applied to each element.
-    op_args : dict
+    func_args : dict
         dictionary with keys identical to function arguments.
+    dscr : str 
+        description of function displayed on the progress bar.
     return_matrixfunc : bool
         if True, returns MatrixFunction which is basically in same spirit as 
         element-wise operations in numpy. If False returns a list of lists 
@@ -306,7 +309,7 @@ def _apply_elementwise(M: MatrixFunction,
             for i in range(nrow): 
                 for j in range(i,ncol): 
                     val = func(M[i][j],
-                               **op_args)
+                               **func_args)
                     M_new[i][j] = val
                     if i!=j:
                         M_new[j][i] = val 
@@ -314,22 +317,22 @@ def _apply_elementwise(M: MatrixFunction,
             for i in range(nrow): 
                 for j in range(ncol): 
                     M_new[i][j] = func(M[i][j],
-                                       **op_args)
+                                       **func_args)
                     
     else:
         # write information needed for tasks
         if symmetry:
-            tasks = [(i, j, M._mat[i][j], func, op_args)
+            tasks = [(i, j, M._mat[i][j], func, func_args)
                      for i in range(nrow) for j in range(i, ncol)]
         else:
-            tasks = [(i, j, M._mat[i][j], func, op_args)
+            tasks = [(i, j, M._mat[i][j], func, func_args)
                      for i in range(nrow) for j in range(ncol)]
         # integrate in parallel and then write to M_new
         with Pool(cpu_count()) as pool:
             for i, j, val in tqdm(pool.imap_unordered(_operation_on_entry, 
                                                       tasks),
                                   total=len(tasks),
-                                  desc="Parallel integration of matrix entries"): 
+                                  desc=dscr): 
                 M_new[i][j] = val
                 if symmetry and i!=j:
                     M_new[j][i] = val
@@ -339,8 +342,8 @@ def _apply_elementwise(M: MatrixFunction,
     else:
         return M_new 
 
-def _factor_expr(expression: Expr, 
-                 variables: List) -> Expr:
+def _factor_expr(expression : Expr, 
+                 variables : List) -> Expr:
     """
     Factorize sympy expression. Extract the factor containing not the listed 
     variables.
@@ -369,7 +372,7 @@ def _factor_expr(expression: Expr,
         factor = sympify(1)
     elif factor == 0:
         factor = sympify(1)
-    return factor,remainder
+    return factor, remainder
 
 def factor_matrix(M : Union[List,MatrixFunction],
                   variables : List,
@@ -405,16 +408,15 @@ def factor_matrix(M : Union[List,MatrixFunction],
     #
     split = _apply_elementwise(M=M, 
                                func = _factor_expr,
+                               dscr = "Factoring out MatrixFunction",
                                return_matrixfunc=False,
-                               op_args = {"variables": variables},
+                               func_args = {"variables": variables},
                                parallel = parallel, 
                                symmetry = symmetry)
     # extract factors/remainders 
-    print(split)
     factors = [split[i][j][0] for i in range(nrow) for j in range(ncol)]
     remainders = [split[i][j][1] for i in range(nrow) for j in range(ncol)]
     # 2- compare factors and extract the greatest common divisor (gcd)
-    print(factors)
     #common_fac = gcd_terms(Mul(*factors))
     g = factor_terms(sum(factors))
     common_fac, _ = g.as_independent(*variables, 
@@ -428,29 +430,33 @@ def factor_matrix(M : Union[List,MatrixFunction],
         M_new[row][col] = exprs[row*ncol+col]
     return MatrixFunction(M_new), common_fac
 
-def _simplify_expr(expression: Expr) -> Expr:
+def _simplify_expr(expression: ScalarFunction) -> ScalarFunction:
     """
     Simplify sympy expression.
 
     Parameters
     ----------
-    expression : sympy.Expr
+    expression : ScalarFunction
         sympy expression.
 
     Returns
     -------
-    expression_simplified : sympy.Expr
-        simplified sympy expression.
+    expression_simplified : ScalarFunction
+        simplified ScalarFunction.
 
     """
-    if expression:
-        return expression.simplify()
-    else:
+    if isinstance(expression, ScalarFunction):
+        return ScalarFunction(expression.as_sympy().simplify())
+    elif isinstance(expression,bool) and not expression:
         return False
+    else: 
+        raise TypeError("Wrong type for simplification: ",
+                        type(expression))
 
 def simplify_matrix(M: Union[List,MatrixFunction], 
                     parallel: Union[None,bool] = None, 
-                    eliminate_piecewise: bool = False) -> MatrixFunction:
+                    eliminate_piecewise: bool = False, 
+                    symmetry : bool = False) -> MatrixFunction:
     """
     Simplify element-wise the given MatrixFunction by first remove common 
     factors (sympy.factor_terms), simplification of the remaining expression 
@@ -474,38 +480,22 @@ def simplify_matrix(M: Union[List,MatrixFunction],
         simplified matrix.
     """
     #
-    if isinstance(M, MatrixFunction):
-        nrow,ncol = M.shape[0],M.shape[1]
-    elif isinstance(M, list):
-        nrow,ncol = len(M),len(M[0])
-    #
-    size = nrow * ncol
-    #
-    if parallel is None and size > 16:
-        parallel = True
-    # list of sympy expressions for common subexpression detection/extraction
-    exprs = [entry.as_sympy() for entry in flatten(M=M,order="C")]
-    #
-    M_new = [[0 for j in range(ncol)] for i in range(nrow)]
-    # simplify remaining expressions
-    if parallel:
-        with Pool(processes=cpu_count()) as pool:
-            exprs = list(tqdm(pool.imap(_simplify_expr, exprs),
-                              total=len(exprs),
-                              desc="Simplifying matrix entries"))
-    else:
-        exprs = [e.simplify() for e in exprs]
+    M_new = _apply_elementwise(M=M, 
+                               func = _simplify_expr,
+                               dscr = "Simplifying MatrixFunction.",
+                               return_matrixfunc=False,
+                               func_args = {},
+                               parallel = parallel, 
+                               symmetry = symmetry)
     #
     if eliminate_piecewise:
-        [take_generic_branch(e) for e in exprs ]
+        M_new = [[take_generic_branch(M_new[i][j]) for j in range(M.shape[1])]for i in range(M.shape[0])]
     # merge factored and reduced 
     #exprs = [f * r for f, r in zip(common_factors, reduced)]
     # assemble simplified matrix
-    for row,col in product(range(nrow),range(ncol)):
-        M_new[row][col] = exprs[row*ncol+col]
     return MatrixFunction(M_new)
 
-def _integrate_entry(args: Tuple) -> Tuple:
+def _integrate_entry(f, domain, variables, dummy_vars) -> Tuple:
     """
     Helper function for integrate() that computes the integral of the element 
     M[i,j] of MatrixFunction M.
@@ -522,8 +512,7 @@ def _integrate_entry(args: Tuple) -> Tuple:
         dummy_vars.  
     
     """
-    i, j, f, domain, variables, dummy_vars = args 
-    return i, j, f.integral(domain, variables, dummy_vars)
+    return f.integral(domain, variables, dummy_vars)
     
 
 def integrate(M: MatrixFunction, 
@@ -558,52 +547,15 @@ def integrate(M: MatrixFunction,
         element-wise integrated matrix.  
     
     """
-    #
-    if isinstance(M, MatrixFunction):
-        nrow,ncol = M.shape[0],M.shape[1]
-    else:
-        raise TypeError("M must be symfem.functions.MatrixFunction.")
-    #
-    if symmetry and (nrow != ncol):
-        warn("symmetry only applies to square matrices. Symmetry will be ignored.")
-        symmetry = False
-    #
-    if parallel is None and nrow*ncol > 16:
-        parallel = True
-    # 
-    # create new empty matrix
-    M_new = [[0 for _ in range(ncol)] for _ in range(nrow)]
-    # serial
-    if not parallel:
-        if symmetry:
-            for i in range(nrow): 
-                for j in range(i,ncol): 
-                    val = M[i][j].integral(domain, variables, dummy_vars)
-                    M_new[i][j] = val
-                    if i!=j:
-                        M_new[j][i] = val 
-        else:
-            for i in range(nrow): 
-                for j in range(ncol): 
-                    M_new[i][j] = M[i][j].integral(domain, variables, dummy_vars) 
-                    
-    else:
-        # write information needed for tasks: row,col, matrix entry, ...
-        if symmetry:
-            tasks = [(i, j, M._mat[i][j], domain, variables, dummy_vars) \
-                     for i in range(nrow) for j in range(i,ncol)]
-        else:
-            tasks = [(i, j, M._mat[i][j], domain, variables, dummy_vars) \
-                     for i in range(nrow) for j in range(ncol)]
-        # integrate in parallel and then write to M_new
-        with Pool(cpu_count()) as pool:
-            for i, j, val in tqdm(pool.imap_unordered(_integrate_entry, tasks),
-                                  total=len(tasks),
-                                  desc="Parallel integration of matrix entries"): 
-                M_new[i][j] = val
-                if symmetry and i!=j:
-                    M_new[j][i] = val
-        #
+    M_new = _apply_elementwise(M=M, 
+                               func = _integrate_entry,
+                               dscr = "Integration MatrixFunction.",
+                               return_matrixfunc=False,
+                               func_args = {"domain": domain, 
+                                            "variables": variables, 
+                                            "dummy_vars": dummy_vars},
+                               parallel = parallel, 
+                               symmetry = symmetry)
     return MatrixFunction(M_new)
 
 def eye(size: int) -> MatrixFunction:

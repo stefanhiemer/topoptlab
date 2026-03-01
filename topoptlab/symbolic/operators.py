@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 from typing import Union
+from math import floor
 
 from sympy import symbols
 from symfem.functions import VectorFunction,MatrixFunction
@@ -136,56 +137,35 @@ def nonlin_laplacian(ndim: int,
         integrand = integrand.subs("phi",values=phi0_interpol)
     return simplify_matrix( (integrand* Jdet).integral(ref,x))
 
-def hessian_matrix(scalarfield: bool, 
-                   ndim: int, 
-                   integrate: bool = False,
-                   element_type: str = "Lagrange",
-                   order: int = 1) -> MatrixFunction:
+def hessian_matrix(scalarfield : bool, 
+                   ndim : int, 
+                   integrate : bool = False,
+                   element_type : str = "Lagrange",
+                   order : int = 1) -> MatrixFunction:
     """
     Create helper matrix to create the flattened Hessian via matrix-vector 
     multiplication of the nodal displacements u_e:
         
         hessian = B_hessian@u_e
         
-    Recover the Hessian H via reshaping by hessian.reshape((...,ndim,ndim))
+    Recover the Hessian H via reshaping by hessian.reshape((ndim,ndim))
     
     Parameters
     ----------
-    xi : np.ndarray
-        x coordinate in the reference domain of shape (ncoords). Coordinates 
-        are assumed to be in the reference domain.
-    eta : None or np.ndarray
-        y coordinate in the reference domain of shape (ncoords). Coordinates 
-        are assumed to be in the reference domain. 
-    zeta : None or np.ndarray
-        z coordinate in the reference domain of shape (ncoords). Coordinates 
-        are assumed to be in the reference domain.
-    xe : np.ndarray
-        coordinates of element nodes shape (nels,n_nodes,ndim). nels must be 
-        either 1, ncoords/4 or the same as ncoords. The two exceptions are if 
-        ncoords = 1 or all_elems is True. 
-        Please look at the definition/function of the shape function, then the 
-        node ordering is clear.
-    shape_functions_dxi: callable
-        function to calculate the gradient of the shape functions.
-    shape_functions_hessian: callable
-        function to calculate hessian of shape functions per shape 
-        function/node at specified coordinate(s).
-    invjacobian : callable or np.ndarray
-        function to calculate the inverse jacobian for the isoparametric 
-        mapping.
-    all_elems : bool
-        if True, coordinates are evaluated for all elements. Useful for 
-        creating elements etc.
-    return_detJ : bool
-        if True, return determinant of jacobian.
-    check_fnc : callable
-        function that checks for type and shape consistency of the inputs.
+    scalar_field : bool
+        if True, scalarfield is assumed. Otherwise vectorfield with ndim 
+        components.
+    ndim : int 
+        number of spatial dimensions
+    element_type : str
+        type of element.
+    order : int
+        order of element.
         
     Returns
     -------
-    B_hessian : np.ndarray, shape (nels,ndim**3,nnodes*ndim)
-        element stiffness matrix.
+    B_hessian : np.ndarray, shape (ndim**3,nnodes*ndim)
+        matrix to create hessian matrix.
 
     """
     # anisotropic heat conductivity or equivalent nonlinear material property
@@ -205,21 +185,23 @@ def hessian_matrix(scalarfield: bool,
         Jinv = inverse(J)
         Jdet = J.det()
     #
-    n = len(basis)
+    n_nodes = len(basis)
     #
     N = VectorFunction(basis)
-    gradN = N.grad(ndim)@Jinv.transpose()
+    gradN = N.grad(ndim)#@Jinv.transpose()
     #
-    hessian = flatten(flatten(gradN,order="C").grad(ndim)@Jinv.transpose())
-    #
-    hessian = [[hessian[col*n+row] for col in range(n)] for row in \
-                range(ndim**2) ]
-    hessian = MatrixFunction(hessian)*Jdet
+    hessian = []
+    for i in range(n_nodes):
+        hessian.append(Jinv.transpose()@gradN[i].grad(ndim)@Jinv)
+    hessian = [[hessian[j][floor(i/ndim),i%ndim] for j in range(n_nodes)] \
+               for i in range(ndim**2)]
+    hessian = MatrixFunction(hessian)
     #
     if element_type is not None and integrate:
-        hessian = hessian.integral(ref,x)
+        hessian = (hessian*Jdet).integral(ref,x)
     #
     if not scalarfield:
         return kron( simplify_matrix(hessian),eye(size=ndim))
     else:
         return simplify_matrix( hessian )
+    
