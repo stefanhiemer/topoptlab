@@ -6,7 +6,8 @@ import numpy as np
 
 from sympy import expand, simplify, Expr, collect, Function, Piecewise
 
-def is_equal(expr1: Expr, expr2: Expr)-> bool:
+def is_equal(expr1: Expr, 
+             expr2: Expr)-> bool:
     """
     Return True if two SymPy expressions are algebraically identical.
 

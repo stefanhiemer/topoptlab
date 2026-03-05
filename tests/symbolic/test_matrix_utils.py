@@ -186,3 +186,51 @@ def test_factor(pref,remainder,solution,parallel,symmetry):
     
     assert factor == solution
     return
+
+from symfem.symbols import x,t
+from symfem import create_element, create_reference
+
+from topoptlab.symbolic.matrix_utils import flatten,integrate
+
+@pytest.mark.parametrize('el,shape,order,ndim,mode,symmetry,parallel',
+                         [("Lagrange","triangle",1,2,"vector",False,False), 
+                          ("Lagrange","triangle",1,2,"matrix",False,False), 
+                          ("Lagrange","triangle",1,2,"matrix",True,False),
+                          ("Lagrange","triangle",1,2,"vector",False,True),
+                          ("Lagrange","triangle",1,2,"matrix",False,True), 
+                          ("Lagrange","triangle",1,2,"matrix",True,True)])
+
+def test_integrate(el,shape,order,ndim,mode, 
+                   symmetry,parallel):
+    """
+    Integrate shape functions N if vectorfunction, if matrixfunc 
+    integrate N@N.T.
+    """
+    # define the vertices
+    vertice = (0, 0), (1, 0), (0, 1)
+    # create a Lagrange element
+    element = create_element(shape, el, order)
+    # create a reference cell with these vertices: this will be used
+    # to compute the integral over the triangle
+    ref = create_reference(shape, vertices=vertice)
+    # map the basis functions to the cell and apply gradient
+    N = MatrixFunction( [[bfunc] for bfunc in element.map_to_cell(vertice)])
+    #
+    if mode == "vector":
+        integrand = flatten(N) 
+    elif mode == "matrix":
+        integrand = N@N.transpose()
+    #
+    sol = integrand.integral(ref,x)
+    # actual
+    actual = integrate(M=integrand, 
+                       domain=ref, 
+                       variables=x, 
+                       dummy_vars=t, 
+                       parallel=parallel)
+    #
+    print(actual)
+    print()
+    print(sol)
+    assert actual == sol
+    return

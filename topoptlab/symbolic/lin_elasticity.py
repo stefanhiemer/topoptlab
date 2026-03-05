@@ -60,7 +60,8 @@ def stiffness_matrix(ndim : int,
                                      variables=x,
                                      dummy_vars=t, 
                                      parallel=None, 
-                                     symmetry=True)) #simplify_matrix( integrand.integral(ref,x,t) )
+                                     symmetry=True), 
+                           symmetry=True) #simplify_matrix( integrand.integral(ref,x,t) )
 
 def strainforces(ndim : int,
                  c : Union[None,MatrixFunction], 
