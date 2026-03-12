@@ -7,7 +7,7 @@ name = "topoptlab"
 description = "topology optimization for testing and demonstration uses."
 readme = "README.md"
 authors = [
-    { name = "Stefan Hiemer", email = "stefan.hiemer@unimi.it" },
+    { name = "Stefan Hiemer", email = "stefan.hiemer@fau.de" },
 ]
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",

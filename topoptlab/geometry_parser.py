@@ -3,6 +3,58 @@ from warnings import warn
 
 import gmsh
 
+import gmsh
+import sys
+
+inp = sys.argv[1]      # CAD file (e.g. step/iges/brep)
+out = sys.argv[2]      # output mesh name
+etype = sys.argv[3]    # tri | quad | tet | hex
+
+def mesh_cadfile(cad_file : str,
+                 output_file : str, 
+                 etype : str) -> None:
+    """
+    Mesh a given CAD file. 
+
+    Parameters
+    ----------
+    cad_file : str
+        file name or path to the cad file.
+    output_file : str
+        file name or path to mesh file.
+    etype : str
+        DESCRIPTION.
+
+    Returns
+    -------
+    None
+        DESCRIPTION.
+
+    """
+    #
+    gmsh.initialize()
+    #
+    gmsh.open(cad_file)
+    #
+    if etype in ["tri","quad"]: 
+        dim = 2 
+    else: 
+        dim = 3
+    #
+    if etype == "quad":
+        gmsh.option.setNumber("Mesh.RecombineAll", 1)
+    if etype == "hex":
+        gmsh.option.setNumber("Mesh.RecombineAll", 1)
+        gmsh.option.setNumber("Mesh.Recombine3DAll", 1)
+    #
+    gmsh.model.mesh.generate(dim)
+    gmsh.write(output_file)
+    #
+    gmsh.finalize()
+    return
+
+
+
 def parse_cad_and_mesh(file: str, 
                        mesh_dim: int = 3, 
                        mesh_file: str = "output.msh",
