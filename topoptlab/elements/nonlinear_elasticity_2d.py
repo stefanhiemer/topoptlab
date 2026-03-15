@@ -62,6 +62,8 @@ def _lk_nonlinear_elast_2d(xe: np.ndarray,
     -------
     Ke : np.ndarray, shape (nels,8,8)
         element stiffness matrix.
+    fe : np.ndarray, shape (nels,8,1)
+        element internal force vector.
 
     """
     #
