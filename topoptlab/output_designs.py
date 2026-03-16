@@ -43,7 +43,7 @@ def export_vtk(filename: str,
                u_bw: Union[None,np.ndarray] = None,
                f_bw: Union[None,np.ndarray] = None,
                xTilde: Union[None,np.ndarray] = None,
-               elem_size=None,
+               elem_size: Union[None,float, np.ndarray] = None,
                volfrac: Union[None,float] = None) -> None:
     """
     Export design to a vtk file for visualisation e. g. with Paraview.
@@ -59,7 +59,7 @@ def export_vtk(filename: str,
     xPhys : np.ndarray
         densities used to scale the material properties.
     nelz : int
-        number of elements in y direction.
+        number of elements in z direction.
     x : np.ndarray, optional
         interemdiary densities as (usually) returned by the optimizer.
     u : np.ndarray, optional
@@ -75,7 +75,7 @@ def export_vtk(filename: str,
     xTilde : np.ndarray, optional
         interemdiary densities by the density filter. So far they only occur 
         if Haeviside projections are used. The default is None.
-    elem_size : np.ndarray
+    elem_size : np.ndarray, float
         element size.
     volfrac : float, optional
         volume fraction. If not None, then also a thresholded designed is 
@@ -107,16 +107,12 @@ def export_vtk(filename: str,
 
     # Apply the physical spacing by element size
     if elem_size is not None:
-        elem_size = np.asarray(elem_size, dtype=float)
-        if points.shape[1] == 2:
-            lx, ly = float(elem_size[0]), float(elem_size[1])
-            points[:, 0] *= lx
-            points[:, 1] *= ly
+        ndim = points.shape[1]
+        if isinstance(elem_size, float):
+            elem_size = np.full(ndim, elem_size, dtype=float)
         else:
-            lx, ly, lz = float(elem_size[0]), float(elem_size[1]), float(elem_size[2])
-            points[:, 0] *= lx
-            points[:, 1] *= ly
-            points[:, 2] *= lz
+            elem_size = np.asarray(elem_size, dtype=float)
+        points = points * elem_size[None, :]
     # insert data for nodes
     node_data = {}
     if not u is None:
