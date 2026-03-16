@@ -43,6 +43,7 @@ def export_vtk(filename: str,
                u_bw: Union[None,np.ndarray] = None,
                f_bw: Union[None,np.ndarray] = None,
                xTilde: Union[None,np.ndarray] = None,
+               elem_size=None,
                volfrac: Union[None,float] = None) -> None:
     """
     Export design to a vtk file for visualisation e. g. with Paraview.
@@ -74,6 +75,8 @@ def export_vtk(filename: str,
     xTilde : np.ndarray, optional
         interemdiary densities by the density filter. So far they only occur 
         if Haeviside projections are used. The default is None.
+    elem_size : np.ndarray
+        element size.
     volfrac : float, optional
         volume fraction. If not None, then also a thresholded designed is 
         stored. The default is None.
@@ -101,6 +104,19 @@ def export_vtk(filename: str,
         _z = np.repeat(zcoords,(nelx+1)*(nely+1))
         #
         points = np.column_stack((_x,_y,_z)) 
+
+    # Apply the physical spacing by element size
+    if elem_size is not None:
+        elem_size = np.asarray(elem_size, dtype=float)
+        if points.shape[1] == 2:
+            lx, ly = float(elem_size[0]), float(elem_size[1])
+            points[:, 0] *= lx
+            points[:, 1] *= ly
+        else:
+            lx, ly, lz = float(elem_size[0]), float(elem_size[1]), float(elem_size[2])
+            points[:, 0] *= lx
+            points[:, 1] *= ly
+            points[:, 2] *= lz
     # insert data for nodes
     node_data = {}
     if not u is None:
