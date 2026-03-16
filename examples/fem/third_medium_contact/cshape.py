@@ -30,6 +30,7 @@ def Cshape(nelx, nely, nelz=None,
            Emax=0.1e3, Emin=1e-6, nu=0.3,
            lin_solver="cvxopt-cholmod", preconditioner=None,
            assembly_mode="full", l=1.,
+           newton_maxit= 100, nsteps=100, rtol=1e-6, 
            file="Cshape",export=True):
     """
     Run a finite element simulation on a regular grid to validate third medium contact (TMC).
@@ -66,7 +67,15 @@ def Cshape(nelx, nely, nelz=None,
         whether full or only lower triangle of linear system / matrix is 
         created.
     l : float or tuple of length (ndim) or np.ndarray of shape (ndim)
-        side lengths of each element
+        side lengths of each element.
+    newton_maxit : int
+        maximum newton iterations.
+    newton_maxit : int
+        maximum newton iterations.
+    nsteps : int
+        load steps.
+    rtol : float
+        FEM solution relative tolerance.
     file : str
         name of output files
     export : bool
@@ -132,11 +141,6 @@ def Cshape(nelx, nely, nelz=None,
 
     # thickness of 2D elements in z direction 
     thickness = 1.0
-    # Nonlinear solver settings
-    newton_maxit= 100
-    nsteps=100
-    rtol=1e-6
-    
     # SIMP interpolation of Young's modulus
     Emin = Emax*kv
     E = Emin + (xPhys ** penal) * (Emax - Emin)
@@ -258,7 +262,7 @@ def Cshape(nelx, nely, nelz=None,
             raise RuntimeError(f"Newton failed at step {step}/{nsteps}, last ||r||={rrNorm:.3e}")
         if export:
             export_vtk(filename=f"{file}_it{step:04d}", nelx=nelx, nely=nely, nelz=None, xPhys=xPhys, u=u, f=f,elem_size=l)
-    return
+    return u
 
 
 if __name__ == "__main__":
