@@ -31,7 +31,7 @@ def Cshape(nelx, nely, nelz=None,
            lin_solver="cvxopt-cholmod", preconditioner=None,
            assembly_mode="full", l=1.,
            newton_maxit= 100, nsteps=100, rtol=1e-6, 
-           file="Cshape",export=True):
+           file="Cshape",export=False):
     """
     Run a finite element simulation on a regular grid to validate third medium contact (TMC).
     Details of the equations, parameters, please refer to:
@@ -68,8 +68,6 @@ def Cshape(nelx, nely, nelz=None,
         created.
     l : float or tuple of length (ndim) or np.ndarray of shape (ndim)
         side lengths of each element.
-    newton_maxit : int
-        maximum newton iterations.
     newton_maxit : int
         maximum newton iterations.
     nsteps : int
@@ -269,7 +267,10 @@ if __name__ == "__main__":
     nelx = 82     # 2 elements are for the void on the right as the same in the ref. paper
     nely = 40
     nelz = None
-    elem_size=1.0/nelx
+    nsteps = 100
+    newton_maxit = 100 
+    rtol = 1e-6
+    export = True
 
     import sys
     if len(sys.argv) > 1:
@@ -277,6 +278,16 @@ if __name__ == "__main__":
     if len(sys.argv) > 2:
         nely = int(sys.argv[2])
     if len(sys.argv) > 3:
-        nelz = int(sys.argv[3])
-
-    Cshape(nelx=nelx, nely=nely, nelz=nelz, l=elem_size)
+        nsteps = int(sys.argv[3])
+    if len(sys.argv) > 4:
+        newton_maxit = int(sys.argv[4])
+    if len(sys.argv) > 5:
+        rtol = float(sys.argv[5])
+    if len(sys.argv) > 6:
+        export = bool(int(sys.argv[6]))
+    
+    elem_size=1.0/nelx
+    u = Cshape(nelx=nelx, nely=nely, nelz=nelz, l=elem_size, nsteps=nsteps, 
+           newton_maxit = newton_maxit, rtol = rtol, export=export)
+    # for tests
+    np.savetxt("third_medium_contact_u.csv", u, delimiter=",")
