@@ -21,7 +21,8 @@ class MatrixFilter(TOFilter):
                  nelx: int, 
                  nely: int, 
                  rmin: float,
-                 nelz: Union[int, None] = None, 
+                 nelz: Union[int, None] = None,
+                 pbc: Union[bool,List,np.ndarray] = False,
                  **kwargs: Any) -> None:
         """
         Assemble matrix-based filter from "Efficient topology optimization in 
@@ -37,6 +38,9 @@ class MatrixFilter(TOFilter):
             cutoff radius for the filter.
         nelz : int or None
             number of elements in z direction.
+        pbc : bool, list or np.ndarray 
+            flag for periodic boundary conditions.
+        
         
         Returns
         -------
@@ -46,7 +50,8 @@ class MatrixFilter(TOFilter):
         self.H, self.Hs = assemble_matrix_filter(nelx=nelx, 
                                                  nely=nely, 
                                                  nelz=nelz,
-                                                 rmin=rmin)
+                                                 rmin=rmin, 
+                                                 pbc=pbc)
         
     def apply_filter(self, x: np.ndarray) -> np.ndarray:
         """
