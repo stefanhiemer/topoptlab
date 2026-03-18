@@ -299,3 +299,5 @@ if __name__ == "__main__":
     elem_size=1.0/nelx
     u = Cshape(nelx=nelx, nely=nely, nelz=nelz, l=elem_size, nsteps=nsteps, 
            newton_maxit = newton_maxit, rtol = rtol, export=export)
+    # for tests
+    np.savetxt("third_medium_contact_u.csv", u, delimiter=",")
