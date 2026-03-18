@@ -341,17 +341,18 @@ def main(nelx: int, nely: int,
     elif isinstance(ft, list):
         ft = [ft_obj(nelx=nelx,nely=nely,nelz=nelz,rmin=rmin,**filter_kw) \
               for ft_obj in ft]
-    elif filter_mode == "convolution" and ndim == 2:
-        invmapping = partial(map_imgtoel,
-                             nelx=nelx,nely=nely)
-    elif filter_mode == "convolution" and ndim == 3:
-        invmapping = partial(map_voxeltoel,
-                             nelx=nelx,nely=nely,nelz=nelz)
     # Filter: Build (and assemble) the index+data vectors for the coo matrix format
     elif filter_mode == "matrix":
         H,Hs = assemble_matrix_filter(nelx=nelx,nely=nely,nelz=nelz,
                                       rmin=rmin,ndim=ndim)
     elif filter_mode == "convolution":
+        
+        if ndim == 2:
+            invmapping = partial(map_imgtoel,
+                                 nelx=nelx,nely=nely)
+        elif ndim == 3:
+            invmapping = partial(map_voxeltoel,
+                                 nelx=nelx,nely=nely,nelz=nelz)
         h,hs = assemble_convolution_filter(nelx=nelx,nely=nely,nelz=nelz,
                                            rmin=rmin,
                                            mapping=mapping,
@@ -362,6 +363,8 @@ def main(nelx: int, nely: int,
                                           n1=n1,n2=n2,n3=n3,n4=n4)
         # LU decomposition. returns a function for solving, not the matrices
         lu_solve = factorized(KF)
+    else:
+        raise ValueError(f"Unknown filter. ft: {ft} filter_mode {filter_mode}")
     # BC's and support
     u,f,fixed,free,springs = bcs(nelx=nelx,nely=nely,nelz=nelz,
                                  ndof=ndof)
@@ -544,7 +547,7 @@ def main(nelx: int, nely: int,
                                  Hs) / np.maximum(0.001, x)
             #dobj[:] = H @ (dc*x) / Hs / np.maximum(0.001, x)
         elif ft == 0 and filter_mode == "convolution":
-            dobj[:] = invmapping( convolve(mapping(dobj),
+            dobj[:] = invmapping( convolve(mapping(x*dobj),
                                            weights=h, axes=(0,1,2)[:ndim],
                                            mode="constant",
                                            cval=0.0)) / hs / np.maximum(0.001, x)

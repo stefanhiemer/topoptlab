@@ -175,7 +175,7 @@ def isotropic_2d(E: float = 1.,
     else: 
         return E/((1+nu)*(1-2*nu))*np.array([[1-nu,nu,0],
                                              [nu,1-nu,0],
-                                             [0,0,(1-nu)/2]])
+                                             [0,0,(1-2*nu)/2]])
 
 def isotropic_3d(E:float = 1., nu:float = 0.3) -> np.ndarray:
     """

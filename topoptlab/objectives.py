@@ -114,7 +114,8 @@ def compliance_squarederror(xPhys: np.ndarray,
 
 def volume(xPhys: np.ndarray, 
            **kwargs: Any) -> Tuple[float,np.ndarray,bool]:
-    raise NotImplementedError()
+    """
+    """
     return xPhys.sum(axis=0)
 
 def var_maximization(u: np.ndarray, 
@@ -200,16 +201,51 @@ def var_squarederror(u: np.ndarray,
     rhs_adj[mask,0] = (-2)*(u[mask,i]-u0) / u0.shape[0]
     return obj, rhs_adj , False
 
-def inverse_homogenization_maximization(u: np.ndarray, 
-                                        u0: np.ndarray, 
-                                        edofMat: np.ndarray, 
-                                        i: int, 
-                                        KE: np.ndarray,
-                                        cellVolume: float, 
-                                        xPhys: np.ndarray,
-                                        Amax, Amin, penal,
+def _inverse_homogenization(u: np.ndarray, 
+                            u0: np.ndarray, 
+                            edofMat: np.ndarray, 
+                            i: int, 
+                            KE: np.ndarray,
+                            cellVolume: float, 
+                            xPhys: np.ndarray,
+                            Amax, Amin, penal,
                                         results, obj,
                                         **kwargs):
+    """
+    Update objective and gradient for stiffness maximization / compliance
+    minimization. 
+
+    Parameters
+    ----------
+    xPhys : np.ndarray
+        SIMP densities of shape (nel).
+    u : np.ndarray
+        state variable (displacement, temperature) of shape (ndof).
+    KE : np.ndarray
+        element stiffness matrix of shape (nedof).
+    edofMat : np.ndarray shape (nel,nedof)
+        element degree of freedom matrix
+    i : int
+        index of the problem. i-th problem is used to compute the objective
+        function.
+    matinterpol : callable 
+        callable for material interpolation. Default is SIMP (simp).
+    matinterpol_kw : callable 
+        dictionary containing the arguments for the material interpolation.
+    obj : float
+        objective function.
+
+    Returns
+    -------
+    obj : float
+        updated objective function.
+    rhs_adj : np.ndarray
+        right hand side of the adjoint problem. if problem is self adjoint,
+        this is already the solution to the self-adjoint problem.
+    selfadjoint : bool, True
+        obj. is selfadjoint, so no adjoint problem has to be solved
+
+    """
     #
     warn("Untested and probably not correct.")
     #

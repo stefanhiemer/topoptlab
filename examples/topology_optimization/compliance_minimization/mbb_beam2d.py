@@ -44,7 +44,9 @@ if __name__ == "__main__":
     #
     x,obj = main(nelx=nelx, nely=nely, volfrac=volfrac, 
                  matinterpol_kw={"eps":1e-9, "penal": penal},
-                 rmin=rmin, ft=ft, filter_mode="matrix",
+                 rmin=rmin, 
+                 ft=ft, 
+                 filter_mode="convolution",
                  optimizer="oc",
                  assembly_mode="full",
                  nouteriter=2000,

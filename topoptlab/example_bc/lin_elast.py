@@ -810,3 +810,62 @@ def singlenode(nelx: int, nely: int,
     else:
         fixed = dofs[:int(ndof/((nelx*nely*nelz)))]
     return u,f,fixed,np.setdiff1d(dofs,fixed),None
+
+def cshape2d(nelx: int, nely: int,
+                   ndof: int, 
+                   **kwargs: Any
+                   ) -> Tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,None]:
+    """
+    C-shape BCs:
+      - clamp left edge: fix ux,uy for all nodes at x=0
+      - apply downward force on a short segment of the TOP edge near the right side
+        using trapezoidal end-weights (end nodes get half)
+    Returns
+    -------
+    u : np.ndarray
+        array of zeros for state variable (displacement, temperature) to be
+        filled of shape (ndof).
+    f : np.ndarray
+        array of zeros for state flow variables (forces, flow).
+    fixed : np.ndarray
+        indices of fixed dofs (nfixed).
+    free : np.ndarray
+        indices of free dofs (ndofs - nfixed).
+    springs : None
+        example has no springs.
+
+    """
+    if nely%2 !=0:
+        raise ValueError("This example works only for nely equal to an even number.")
+    # All global dof indices
+    dofs = np.arange(ndof)
+    # Initialize displacement and force vectors
+    f = np.zeros((ndof, 1))
+    u = np.zeros((ndof, 1))
+    # wall thickness in solid part
+    wall_thk = nely // 5
+    # loaded DOFs on top edge near the right side
+    # The two rightmost element columns are bypassed because they are void
+    ix0 = nelx - wall_thk - 2       # 2 means 'bypass the 2 void elements' 
+    ix1 = nelx - 2
+    ixs = np.arange(ix0, ix1 + 1, dtype=np.int64)
+    # Node ids along the top edge segment
+    top_nodes = ixs * (nely + 1)
+    # y-dofs
+    ld = 2 * top_nodes + 1         
+    
+    # Applied downward force
+    modulus = 100.0
+    p = 3e-4 * modulus          # same scaling as in the reference paper
+    thickness = 1.0
+    # Trapezoidal nodal weights: end nodes receive half load
+    w = np.ones(ld.size, dtype=float)
+    w[0] *= 0.5
+    w[-1] *= 0.5
+    f[ld, 0] = -(p * thickness) * (w / w.sum())
+    # print("Total Fy:", float(f[1::2].sum()))
+    # fix the left edge in both x and y directions
+    fixed = [np.arange(0,(nely+1)*2)]
+    fixed = np.hstack(fixed)
+    return u,f,fixed,np.setdiff1d(dofs,fixed),None
+
