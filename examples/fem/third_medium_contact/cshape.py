@@ -23,15 +23,24 @@ from topoptlab.elements.huhu_2d import _lk_huhu_2d
 # output final design to a Paraview readable format
 from topoptlab.output_designs import export_vtk
 
-
 # MAIN DRIVER
-def Cshape(nelx, nely, nelz=None,
-           xPhys=None, penal=3, 
-           Emax=0.1e3, Emin=1e-6, nu=0.3,
-           lin_solver="cvxopt-cholmod", preconditioner=None,
-           assembly_mode="full", l=1.,
-           newton_maxit= 100, nsteps=100, rtol=1e-6, 
-           file="Cshape",export=False):
+def Cshape(nelx, 
+           nely, 
+           nelz=None,
+           xPhys=None, 
+           penal=3, 
+           Emax=0.1e3, 
+           Emin=1e-6, 
+           nu=0.3,
+           lin_solver="cvxopt-cholmod", 
+           preconditioner=None,
+           assembly_mode="full", 
+           l=1.,
+           newton_maxit= 100, 
+           nsteps=100, 
+           rtol=1e-6, 
+           file="Cshape",
+           export=False):
     """
     Run a finite element simulation on a regular grid to validate third medium contact (TMC).
     Details of the equations, parameters, please refer to:
@@ -264,14 +273,15 @@ def Cshape(nelx, nely, nelz=None,
 
 
 if __name__ == "__main__":
+    #
     nelx = 82     # 2 elements are for the void on the right as the same in the ref. paper
     nely = 40
     nelz = None
     nsteps = 100
     newton_maxit = 100 
     rtol = 1e-6
-    export = True
-
+    export = False
+    #
     import sys
     if len(sys.argv) > 1:
         nelx = int(sys.argv[1])
@@ -289,5 +299,3 @@ if __name__ == "__main__":
     elem_size=1.0/nelx
     u = Cshape(nelx=nelx, nely=nely, nelz=nelz, l=elem_size, nsteps=nsteps, 
            newton_maxit = newton_maxit, rtol = rtol, export=export)
-    # for tests
-    np.savetxt("third_medium_contact_u.csv", u, delimiter=",")
