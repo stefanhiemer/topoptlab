@@ -123,7 +123,8 @@ class ConvolutionFilter(TOFilter):
                                         cval=0.0)) / self.hs
 
 def assemble_convolution_filter(nelx: int, nely: int, rmin: float,
-                                mapping: Callable, invmapping: Callable,
+                                mapping: Callable, 
+                                invmapping: Callable,
                                 nelz: Union[int, None] = None,
                                 **kwargs: Any) -> Tuple[np.ndarray,np.ndarray]:
     """
@@ -178,6 +179,8 @@ def assemble_convolution_filter(nelx: int, nely: int, rmin: float,
     # normalization constants
     hs = invmapping(convolve(mapping(np.ones(n ,dtype=np.float64)),
                              kernel,
+                             axes=(0,1) if nelz is None else (0,1,2),
                              mode="constant",
                              cval=0))
+    
     return kernel,hs[:,None]
