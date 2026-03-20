@@ -2,8 +2,8 @@
 import numpy as np
 from scipy.optimize import rosen, rosen_der
 
-from topoptlab.optimizer.gradient_descent import barzilai_borwein,gradient_descent
-from topoptlab.optimizer.mma_utils import mma_defaultkws,update_mma
+from topoptlab.optimizer.stepsize import constant,barzilai_borwein_short
+from topoptlab.optimizer.gradient_descent import gradient_descent
 from topoptlab.accelerators import anderson,diis
 
 def demonstrate_diis(nvars=3,q=5,q0=20,
@@ -58,10 +58,13 @@ def demonstrate_diis(nvars=3,q=5,q0=20,
         obj = rosen(x)
         dobj[:] = rosen_der(x)
         #
-        x = gradient_descent(x=x, dobj=dobj, 
-                             stepsize=1.75e-3,
-                             xmin=-1.5, xmax=1.5,
-                             el_flags=None, move=0.1)
+        x = gradient_descent(x=x, 
+                             dobj=dobj, 
+                             stepsize_func=constant,
+                             stepsize_kw={"step_size": 1.75e-3},
+                             xmin=-1.5, 
+                             xmax=1.5,
+                             move=0.1)
         dobjold[:] = dobj
         #
         if ((i-q0) % q) == 0 and i >= q0:
@@ -140,10 +143,13 @@ def demonstrate_anderson(nvars=3,accel_freq=5,accel_start=20,
         obj = rosen(x)
         dobj[:] = rosen_der(x)
         #
-        x = gradient_descent(x=x, dobj=dobj, 
-                             stepsize=1.75e-3,
-                             xmin=-1.5, xmax=1.5,
-                             el_flags=None, move=0.1)
+        x = gradient_descent(x=x, 
+                             dobj=dobj, 
+                             stepsize_func=constant,
+                             stepsize_kw={"step_size": 1.75e-3},
+                             xmin=-1.5, 
+                             xmax=1.5,
+                             move=0.1)
         dobjold[:] = dobj
         #
         if ((i-accel_start) % accel_freq) == 0 and i >= accel_start:
@@ -204,10 +210,13 @@ def demonstrate_gradient_descent(nvars=3,
         obj = rosen(x)
         dobj[:] = rosen_der(x)
         #
-        x = gradient_descent(x=x, dobj=dobj, 
-                             stepsize=1.425e-3,
-                             xmin=-1.5, xmax=1.5,
-                             el_flags=None, move=0.1)
+        x = gradient_descent(x=x, 
+                             dobj=dobj, 
+                             stepsize_func=constant,
+                             stepsize_kw={"step_size":1.425e-3},
+                             xmin=-1.5, 
+                             xmax=1.5,
+                             move=0.1)
         dobjold[:] = dobj
         #
         xhist.append(x)
@@ -263,11 +272,14 @@ def demonstrate_barzilai_borwein(nvars=3,
         xhist.pop(0)
         xhist.append(x[:])
         #
-        x = barzilai_borwein(x=x, dobj=dobj, 
-                             xold=xhist[0], dobjold=dobjold,
-                             xmin=-1.5, xmax=1.5, 
-                             step_mode = "long",
-                             el_flags=None, move=1e-1)
+        x = gradient_descent(x=x, 
+                             dobj=dobj, 
+                             xold=xhist[0], 
+                             dobjold=dobjold,
+                             xmin=-1.5, 
+                             xmax=1.5, 
+                             stepsize_func=barzilai_borwein_short,
+                             move=1e-1)
         dobjold[:] = dobj
         #
         change = np.abs(x - xhist[-1]).max()
