@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any
+from typing import Any, Union
 
 import numpy as np
 
@@ -29,7 +29,7 @@ def constant(step_size: float,
 def barzilai_borwein_stabilized(x: np.ndarray, 
                                 fgrad: np.ndarray, 
                                 xold: np.ndarray, 
-                                fgradold: np.ndarray,
+                                fgradold: Union[None,np.ndarray],
                                 **kwargs: Any
                                 ) -> float:
     """
@@ -58,11 +58,14 @@ def barzilai_borwein_stabilized(x: np.ndarray,
         stabilized Barzilai-Borwein step size.
 
     """
-    # calculate step size
-    dx = x-xold
-    dg = fgrad-fgradold
-    return np.minimum(dx.dot(dx) / dx.dot(dg), 
-                       np.sqrt( dx.dot(dx) ))
+    if fgradold is None:
+        return 1e-6
+    else:
+        # calculate step size
+        dx = x-xold
+        dg = fgrad-fgradold
+        return np.minimum(dx.dot(dx) / dx.dot(dg), 
+                           np.sqrt( dx.dot(dx) ))
 
 def barzilai_borwein_long(x: np.ndarray, 
                           fgrad: np.ndarray, 
@@ -97,10 +100,13 @@ def barzilai_borwein_long(x: np.ndarray,
         long Barzilai-Borwein step size.
 
     """
-    # calculate step size
-    dx = x-xold
-    dg = fgrad-fgradold
-    return dx.dot(dx) / dx.dot(dg)
+    if fgradold is None:
+        return 1e-5
+    else:
+        # calculate step size
+        dx = x-xold
+        dg = fgrad-fgradold
+        return dx.dot(dx) / dx.dot(dg)
 
 def barzilai_borwein_short(x: np.ndarray, 
                            fgrad: np.ndarray, 
@@ -135,7 +141,10 @@ def barzilai_borwein_short(x: np.ndarray,
         short Barzilai-Borwein step size.
 
     """
-    # calculate step size
-    dx = x-xold
-    dg = fgrad-fgradold
-    return dx.dot(dg) / dg.dot(dg)
+    if fgradold is None:
+        return 1e-5
+    else:
+        # calculate step size
+        dx = x-xold
+        dg = fgrad-fgradold
+        return dx.dot(dg) / dg.dot(dg)

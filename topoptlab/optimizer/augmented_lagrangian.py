@@ -4,7 +4,7 @@ from typing import Any, Callable, Tuple, Union
 import numpy as np
 
 from topoptlab.optimizer.gradient_descent import gradient_descent
-from topoptlab.optimizer.stepsize import barzilai_borwein_short
+from topoptlab.optimizer.stepsize import barzilai_borwein_long
 
 
 def alm_first_order(x: np.ndarray,
@@ -20,7 +20,7 @@ def alm_first_order(x: np.ndarray,
                     xmin: Union[float, np.ndarray],
                     xmax: Union[float, np.ndarray],
                     rho: float,
-                    stepsize_func: Callable = barzilai_borwein_short,
+                    stepsize_func: Callable = barzilai_borwein_long,
                     move: float = 0.1,
                     **kwargs: Any, 
                     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -76,13 +76,13 @@ def alm_first_order(x: np.ndarray,
         objective gradient.
     ceq : np.ndarray, shape (meq,)
         Equality-constraint values at the current iteration.
-    dceq : np.ndarray, shape (meq, n)
+    dceq : np.ndarray, shape (n,meq)
         jacobian of the equality constraints with respect to the design
         variables. Row ``i`` contains the gradient of constraint ``ceq[i]``.
     cineq : np.ndarray, shape (mineq,)
         inequality-constraint values at the current iteration. Feasible values
         satisfy ``cineq <= 0`` componentwise.
-    dcineq : np.ndarray, shape (mineq, n)
+    dcineq : np.ndarray, shape (n,mineq)
         jacobian of the inequality constraints with respect to the design
         variables. Row ``i`` contains the gradient of constraint ``cineq[i]``.
     lameq : np.ndarray, shape (meq,)
@@ -116,13 +116,13 @@ def alm_first_order(x: np.ndarray,
     # update design variables
     xnew = gradient_descent(x=x,
                             dobj=fgrad\
-                                 + dceq.T.dot(lam + rho * ceq)\
-                                 + dcineq.T.dot(mu + rho * cineq),
+                                 + dceq.dot(lam + rho * ceq)[:,0]\
+                                 + dcineq.dot(mu + rho * cineq)[:,0],
                             xold=xold,
                             dobjold=fgradold,
                             xmin=xmin,
                             xmax=xmax,
                             stepsize_func=stepsize_func,
                             move=move)
-
+    #
     return xnew, lam + rho * ceq, np.maximum(0.0, mu + rho * cineq)

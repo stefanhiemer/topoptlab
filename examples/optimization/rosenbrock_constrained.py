@@ -4,8 +4,143 @@ import warnings
 import numpy as np
 from scipy.optimize import rosen, rosen_der
 
+from topoptlab.optimizer.augmented_lagrangian import alm_first_order
 from topoptlab.optimizer.mma_utils import mma_defaultkws,gcmma_defaultkws
 from mmapy import mmasub,gcmmasub, kktcheck, asymp, concheck, raaupdate
+
+
+def demonstrate_alm(nvars=3,
+                    verbose=False,
+                    maxiter=2000,
+                    start_constrained=False,
+                    rho0=1.0,
+                    rho_scale=2.0,
+                    eta_rho=0.5):
+    """
+    Demonstrate the use of the first-order augmented-Lagrangian method on the
+    Rosenbrock function on the interval [-1.5, 1.5] with the equality
+    constraint
+
+        sum(x_i^2) / nvars - 1 = 0.
+
+    The constrained problem is
+
+        minimize    rosen(x)
+        subject to  (x**2).sum()/nvars - 1 = 0
+                    -1.5 <= x_i <= 1.5.
+
+    Parameters
+    ----------
+    nvars : int, optional
+        Number of design variables.
+    verbose : bool, optional
+        Whether to print iteration information.
+    maxiter : int, optional
+        Maximum number of outer iterations.
+    start_constrained : bool, optional
+        If True, project the initial guess onto the equality constraint.
+    rho0 : float, optional
+        Initial penalty parameter.
+    rho_scale : float, optional
+        Multiplicative factor used when increasing the penalty parameter.
+    eta_rho : float, optional
+        Threshold for deciding whether the equality-constraint violation has
+        decreased sufficiently. If not, ``rho`` is increased.
+
+    Returns
+    -------
+    x : np.ndarray, shape (nvars, 1)
+        Final design variables.
+    fgrad : np.ndarray, shape (nvars, 1)
+        Final objective gradient.
+    lam : np.ndarray, shape (1, 1)
+        Final equality multiplier.
+    niter : int
+        Number of iterations performed.
+
+    Notes
+    -----
+    This demonstration uses one equality constraint and no inequality
+    constraints. Empty arrays are passed for the inequality terms in order to
+    match the interface of ``alm_first_order``.
+    """
+    #
+    np.random.seed(1)
+    #
+    x = np.random.rand(nvars, 1)
+    if start_constrained:
+        x *= np.sqrt(nvars / (x**2).sum())
+
+    xold = x.copy()
+    xnew = np.zeros(x.shape)
+    fgradold = None
+
+    lam = np.zeros((1, 1))
+    mu = np.zeros((0, 1))
+
+    xmin = -1.5 * np.ones((nvars, 1))
+    xmax = 1.5 * np.ones((nvars, 1))
+
+    rho = rho0
+    move = 1e-2
+
+    for i in range(maxiter):
+        #
+        obj = rosen(x)
+        fgrad = rosen_der(x)
+        # equality constraint: (x^2).sum()/nvars - 1 = 0
+        ceq = np.array([[(x**2).sum() / nvars - 1.]])
+        dceq = (2. / nvars) * x
+        # no inequality constraints in this example
+        cineq = np.zeros((0, 1))
+        dcineq = np.zeros((nvars,0))
+        #
+        xnew, lam[:], _ = alm_first_order(x=x[:,0],
+                                          fgrad=fgrad[:,0],
+                                          xold=xold[:,0],
+                                          fgradold=fgradold,
+                                          ceq=ceq,
+                                          dceq=dceq,
+                                          cineq=cineq,
+                                          dcineq=dcineq,
+                                          lam=lam,
+                                          mu=mu,
+                                          xmin=xmin[:,0],
+                                          xmax=xmax[:,0],
+                                          rho=rho,
+                                          move=move)
+        #
+        xold[:] = x
+        x[:,0] = xnew
+        #
+        fgradold = fgrad[:,0]\
+                   + dceq.dot(lam + rho * ceq)[:,0]\
+                   + dcineq.dot(mu + rho * cineq)[:,0]
+        #
+        change = np.abs(x - xold).max()
+        #
+        if verbose:
+            print("it.: {0:4d}, obj.: {1:.10f}, ceq.: {2:.10f}, "
+                  "rho: {3:.4e}, ch.: {4:.10f}, lam: {5:.10f}".format(
+                    i + 1,
+                    obj,
+                    ceq,
+                    rho,
+                    change,
+                    lam[0, 0],
+                )
+            )
+        #
+        if change <= 1e-7:
+            break
+    print("Augmented Lagrangian Method")
+    print("final x: ", x[:, 0])
+    print("final gradient: ", fgrad[:, 0])
+    print("constraint vs ideal: ", (x**2).sum(), nvars)
+    print("final lambda: ", float(lam[0, 0]))
+    print("after {0} iterations".format(i + 1))
+
+    return x, fgrad, lam, i + 1
 
 def demonstrate_gcmma(nvars=3,
                       eqconstr_version=2,
@@ -197,8 +332,9 @@ def demonstrate_gcmma(nvars=3,
         if verbose:
             print("it.: {0} obj.: {1:.10f}, constr.: {2:.10f}, ch.: {3:.10f}, kktnorm.: {4:.10f}".format(
                   int(i+1), obj[0], (x**2).sum()-nvars , change, kktnorm))
-        if change <= 1e-9:
+        if change <= 1e-7:
             break
+    print("Globally Convergent MMA")
     print("final x: ", x[:,0])
     print("final gradient: ", dobj[:,0])
     print("constraint vs ideal: ", (x**2).sum(), nvars )
@@ -282,8 +418,9 @@ def demonstrate_mma(nvars=3,
         if verbose:
             print("it.: {0} obj.: {1:.10f}, constr.: {2:.10f}, ch.: {3:.10f}".format(
                   int(i+1), obj[0], (x**2).sum()-nvars, change))
-        if change <= 1e-9:
+        if change <= 1e-7:
             break
+    print("MMA")
     print("final x: ", x[:,0])
     print("final gradient: ", dobj[:,0])
     print("constraint vs ideal: ", (x**2).sum(), nvars )
@@ -294,7 +431,7 @@ if __name__ == "__main__":
 
     #
     verbose = False
-    maxiter = 1e3
+    maxiter = int(2e5)
     #
     import sys
     if len(sys.argv)>1:
@@ -302,5 +439,6 @@ if __name__ == "__main__":
     if len(sys.argv)>2:
         maxiter = int(sys.argv[2])
     #
-    demonstrate_mma(verbose=verbose, maxiter=maxiter)
-    demonstrate_gcmma(verbose=verbose, maxiter=maxiter)
+    demonstrate_alm(verbose=verbose, maxiter=maxiter)
+    #demonstrate_mma(verbose=verbose, maxiter=maxiter)
+    #demonstrate_gcmma(verbose=verbose, maxiter=maxiter)

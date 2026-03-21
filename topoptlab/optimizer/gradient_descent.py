@@ -53,7 +53,7 @@ def gradient_descent(x: np.ndarray,
                           fgradold=dobjold,
                           **stepsize_kw)
     #
-    if np.isclose(alpha, 0.) or np.isinf(alpha):
+    if np.isclose(alpha, 0.) or np.isinf(alpha) or np.isnan(alpha):
         raise ValueError("No step size could be found: ",alpha)
     #
     xnew = x-alpha*dobj
