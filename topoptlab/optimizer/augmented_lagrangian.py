@@ -4,7 +4,7 @@ from typing import Any, Callable, Tuple, Union
 import numpy as np
 
 from topoptlab.optimizer.gradient_descent import gradient_descent
-from topoptlab.optimizer.stepsize import barzilai_borwein_long
+from topoptlab.optimizer.stepsize import barzilai_borwein_short
 
 
 def alm_first_order(x: np.ndarray,
@@ -20,7 +20,7 @@ def alm_first_order(x: np.ndarray,
                     xmin: Union[float, np.ndarray],
                     xmax: Union[float, np.ndarray],
                     rho: float,
-                    stepsize_func: Callable = barzilai_borwein_long,
+                    stepsize_func: Callable = barzilai_borwein_short,
                     move: float = 0.1,
                     **kwargs: Any, 
                     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
