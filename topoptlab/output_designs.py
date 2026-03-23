@@ -82,7 +82,7 @@ def export_vtk(filename: str,
         volume fraction. If not None, then also a thresholded designed is 
         stored. The default is None.
     stress_vm : np.ndarray, optional
-        Von-Mises stress.
+        von Mises stress.
 
     Returns
     -------
