@@ -5,7 +5,7 @@ import numpy as np
 import gmsh
 from topoptlab.geometry_parser import mesh_cadfile, cad_to_mesh, mesh_to_xe
 
-def create_testmesh(N: np.ndarray = np.ndarray([12,4,2]),
+def create_testmesh(N: np.ndarray = np.array([12,4,2]),
                     L: Union[None,np.ndarray] = None, 
                     mesh_file: Union[None,str] = None, 
                     gui: bool = False) -> None:
@@ -32,6 +32,8 @@ def create_testmesh(N: np.ndarray = np.ndarray([12,4,2]),
     
     #
     dim = N.shape[0]
+    print(N)
+    print(dim)
     #
     if L is None:
         L = N.copy()-1
@@ -52,9 +54,9 @@ def create_testmesh(N: np.ndarray = np.ndarray([12,4,2]),
         for c in curves:
             xmin, ymin, _, xmax, ymax, _ = gmsh.model.getBoundingBox(1, c)
             if abs(ymax - ymin) < 1e-6: 
-                gmsh.model.mesh.setTransfiniteCurve(c, N[0] + 1)
+                gmsh.model.mesh.setTransfiniteCurve(c, N[0])
             elif abs(xmax - xmin) < 1e-6: 
-                gmsh.model.mesh.setTransfiniteCurve(c, N[1] + 1)
+                gmsh.model.mesh.setTransfiniteCurve(c, N[1])
         # structured transfinite mesh
         gmsh.model.mesh.setTransfiniteSurface(tag)
         # quadrilateral elements instead of triangles
@@ -81,11 +83,11 @@ def create_testmesh(N: np.ndarray = np.ndarray([12,4,2]),
             dz = zmax - zmin
             #
             if dx > dy and dx > dz:
-                gmsh.model.mesh.setTransfiniteCurve(c, N[0] + 1)
+                gmsh.model.mesh.setTransfiniteCurve(c, N[0])
             elif dy > dx and dy > dz:
-                gmsh.model.mesh.setTransfiniteCurve(c, N[1] + 1)
+                gmsh.model.mesh.setTransfiniteCurve(c, N[1])
             else:
-                gmsh.model.mesh.setTransfiniteCurve(c, N[2] + 1)
+                gmsh.model.mesh.setTransfiniteCurve(c, N[2])
         # set all boundary faces transfinite/recombined
         for sdim, stag in surfaces:
             gmsh.model.mesh.setTransfiniteSurface(stag)
@@ -157,11 +159,12 @@ def create_testcad(L: np.ndarray,
 
 if __name__ == "__main__":
     #
-    L = np.array([12,4])
-    gui=True
+    N = np.array([12,4])
+    L = N-1
+    gui=False
     #
-    create_testcad(L=L, 
-                   gui=gui)
+    #create_testcad(L=L, 
+    #               gui=gui)
     #cad_to_mesh(file="mesh-{0}.step".format(L.shape[0]),
     #            mesh_dim = L.shape[0], 
     #            mesh_file = "mesh-{0}.msh".format(L.shape[0]),
@@ -171,8 +174,9 @@ if __name__ == "__main__":
     #            check_hex = True,
     #            show_gui = gui)
     
-    mesh_cadfile(cad_file="mesh-{0}.step".format(L.shape[0]), 
-                 output_file="mesh-{0}.msh".format(L.shape[0]), 
-                 etype="quad",
-                 show_gui=gui)
+    #mesh_cadfile(cad_file="mesh-{0}.step".format(L.shape[0]), 
+    #             output_file="mesh-{0}.msh".format(L.shape[0]), 
+    #             etype="quad",
+    #             show_gui=gui)
+    create_testmesh(N = N)
     print(mesh_to_xe("mesh-{0}.msh".format(L.shape[0])))

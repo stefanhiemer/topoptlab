@@ -54,29 +54,76 @@ def mesh_cadfile(cad_file : str,
     return
 
 def mesh_to_xe(meshfile: str) -> np.ndarray:
-    #
+    """
+    Read a Gmsh mesh file and return element coordinates, node coordinates,
+    and element indices grouped by physical group. The mesh must contain 
+    exactly one element type in the topological dimension inferred from the 
+    node coordinates.
+
+    Parameters
+    ----------
+    meshfile : str
+        Path to the mesh file readable by Gmsh.
+
+    Returns
+    -------
+    xe : np.ndarray
+        Element coordinates with shape ``(nel, n_nodes, ndim)``.
+    coords : np.ndarray
+        Array of all node coordinates with shape ``(n_nodes, 3)``.
+    phys_groups : dict[str, np.ndarray]
+        Mapping from physical-group name to the element indices belonging to
+        that group. If a group has no name, ``group_<tag>`` is used.
+    """
+    # start gmsh
     gmsh.initialize()
-    #
+    # read file
     gmsh.open(meshfile)
-    #
-    nodeTags, coords, _ = gmsh.model.mesh.getNodes()
+    # get nodes and node coordinates
+    nodeTags, coords, nodeParams = gmsh.model.mesh.getNodes()
     coords = np.asarray(coords).reshape(-1, 3)
+    # infer dimensionality of mesh
     dim = 3 - np.sum(np.all(np.isclose(coords,0),axis=0))
-    id2i = {tag: i for i, tag in enumerate(nodeTags)}
-    #
-    elemTypes, _, elemNodeTags = gmsh.model.mesh.getElements(dim)
-    used = [(et, conn) for et, conn in zip(elemTypes, elemNodeTags) if len(conn) > 0]
-    if len(used) != 1:
+    # get element information
+    eltypes, eltags, elnodetags = gmsh.model.mesh.getElements(dim)
+    # check if multiple element types used. if yes, raise error
+    if len(eltypes) != 1:
         gmsh.finalize()
-        raise RuntimeError("Mesh must contain exactly one element type in the chosen dimension")
-    #
-    etype, conn = used[0]
-    name, edim, order, n_nodes, _, _ = gmsh.model.mesh.getElementProperties(etype)
-    conn = np.asarray(conn).reshape(-1, n_nodes)
-    xe = coords[[id2i[t] for t in conn.ravel()], :edim].reshape(-1, n_nodes, edim)
+        raise RuntimeError("mesh must contain exactly one element type in the chosen dimension")
+    #  
+    _, _, _, n_nodes, _, _ = gmsh.model.mesh.getElementProperties(eltypes[0])
+    # find node indices corresponding to the elements node tags
+    perm = np.argsort(nodeTags)
+    pos = np.searchsorted(nodeTags[perm], elnodetags)
+    # create element-wise node coordinates
+    xe = coords[perm[pos], :dim].reshape(-1, n_nodes, dim)
+    # map global element tags -> element index
+    eltags = np.asarray(eltags[0])
+    perm_el = np.argsort(eltags)
+    sorted_eltags = eltags[perm_el]    
+    # loop over physical groups
+    phys_groups = {}
+    for dim_pg, tag_pg in gmsh.model.getPhysicalGroups():
+        # 
+        if dim_pg != dim:
+            continue
+        #
+        name = gmsh.model.getPhysicalName(dim_pg, tag_pg) or f"group_{tag_pg}"
+        # loop entities of phys. group
+        idx = []
+        for ent_tag in gmsh.model.getEntitiesForPhysicalGroup(dim_pg, tag_pg):
+            eltypes_ent, eltags_ent, _ = gmsh.model.mesh.getElements(dim_pg, ent_tag)
+            # empty entity
+            if len(eltypes_ent) == 0:
+                continue
+            tags_ent = np.asarray(eltags_ent[0])
+            pos = np.searchsorted(sorted_eltags, tags_ent)
+            idx.extend(perm_el[pos])
+    
+        phys_groups[name] = np.asarray(idx, dtype=int)
     #
     gmsh.finalize()
-    return xe
+    return xe, coords, phys_groups
 
 def cad_to_mesh(file: str, 
                 mesh_dim: int = 3, 
