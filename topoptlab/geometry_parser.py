@@ -1,27 +1,24 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 from warnings import warn 
 
-import gmsh
+import numpy as np
 
 import gmsh
-import sys
-
-inp = sys.argv[1]      # CAD file (e.g. step/iges/brep)
-out = sys.argv[2]      # output mesh name
-etype = sys.argv[3]    # tri | quad | tet | hex
 
 def mesh_cadfile(cad_file : str,
                  output_file : str, 
-                 etype : str) -> None:
+                 etype : str, 
+                 show_gui: bool = False) -> None:
     """
-    Mesh a given CAD file. 
+    Mesh a given CAD file (usually step format, but whatever gmsh can read
+    should work). 
 
     Parameters
     ----------
     cad_file : str
-        file name or path to the cad file.
+        path to the cad file.
     output_file : str
-        file name or path to mesh file.
+        path to mesh file.
     etype : str
         DESCRIPTION.
 
@@ -49,20 +46,46 @@ def mesh_cadfile(cad_file : str,
     #
     gmsh.model.mesh.generate(dim)
     gmsh.write(output_file)
+    # launch GUI
+    if show_gui:
+        gmsh.fltk.run()
     #
     gmsh.finalize()
     return
 
+def mesh_to_xe(meshfile: str) -> np.ndarray:
+    #
+    gmsh.initialize()
+    #
+    gmsh.open(meshfile)
+    #
+    nodeTags, coords, _ = gmsh.model.mesh.getNodes()
+    coords = np.asarray(coords).reshape(-1, 3)
+    dim = 3 - np.sum(np.all(np.isclose(coords,0),axis=0))
+    id2i = {tag: i for i, tag in enumerate(nodeTags)}
+    #
+    elemTypes, _, elemNodeTags = gmsh.model.mesh.getElements(dim)
+    used = [(et, conn) for et, conn in zip(elemTypes, elemNodeTags) if len(conn) > 0]
+    if len(used) != 1:
+        gmsh.finalize()
+        raise RuntimeError("Mesh must contain exactly one element type in the chosen dimension")
+    #
+    etype, conn = used[0]
+    name, edim, order, n_nodes, _, _ = gmsh.model.mesh.getElementProperties(etype)
+    conn = np.asarray(conn).reshape(-1, n_nodes)
+    xe = coords[[id2i[t] for t in conn.ravel()], :edim].reshape(-1, n_nodes, edim)
+    #
+    gmsh.finalize()
+    return xe
 
-
-def parse_cad_and_mesh(file: str, 
-                       mesh_dim: int = 3, 
-                       mesh_file: str = "output.msh",
-                       transfinite_transform: bool = True,
-                       npoints: int = 10, 
-                       check_rect: bool = True,
-                       check_hex: bool = True,
-                       show_gui: bool = False) -> None:
+def cad_to_mesh(file: str, 
+                mesh_dim: int = 3, 
+                mesh_file: str = "output.msh",
+                transfinite_transform: bool = True,
+                npoints: int = 10, 
+                check_rect: bool = True,
+                check_hex: bool = True,
+                show_gui: bool = False) -> None:
     """
     Take a CAD file (so far only STEP tested) and mesh it with GMSH with 
     quadrilateral or hexahedral elements. The mesh is then written to the 
@@ -118,8 +141,8 @@ def parse_cad_and_mesh(file: str,
                     gmsh.model.mesh.setTransfiniteVolume(v[1])
             except Exception as e:
                 print(f"Could not apply transfinite to volume {v[1]}: {e}")
-        # create hexahedral volumes instead of tetrahedral
-        gmsh.model.mesh.setRecombine(3, v[1])
+            # create hexahedral volumes instead of tetrahedral
+            gmsh.model.mesh.setRecombine(3, v[1])
     # create physical groups
     surfaces = gmsh.model.getEntities(dim=2)
     for s in surfaces:

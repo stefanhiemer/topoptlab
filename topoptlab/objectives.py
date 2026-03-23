@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any, Callable, Dict, Tuple
+from typing import Any, Callable, Dict, Tuple, Union
 from warnings import warn
 
 import numpy as np
@@ -52,7 +52,7 @@ def compliance(xPhys: np.ndarray,
     obj += (matinterpol(xPhys,**matinterpol_kw)[:,0]*ce).sum()
     #dc = (-1) * matinterpol_dx(xPhys,**matinterpol_kw)*ce
     #return obj, dc, True #
-    return obj,-u, True
+    return obj,-u[:,i], True
 
 def compliance_squarederror(xPhys: np.ndarray, 
                             u: np.ndarray, 
@@ -113,10 +113,11 @@ def compliance_squarederror(xPhys: np.ndarray,
     return obj, -u * (c-c0), True 
 
 def volume(xPhys: np.ndarray, 
+           el_vols: Union[float,np.ndarray],
            **kwargs: Any) -> Tuple[float,np.ndarray,bool]:
     """
     """
-    return xPhys.sum(axis=0)
+    return (xPhys*el_vols).sum(axis=0)
 
 def var_maximization(u: np.ndarray, 
                      l: np.ndarray, 
@@ -205,6 +206,7 @@ def _inverse_homogenization(u: np.ndarray,
                             u0: np.ndarray, 
                             edofMat: np.ndarray, 
                             i: int, 
+                            j: int,
                             KE: np.ndarray,
                             cellVolume: float, 
                             xPhys: np.ndarray,
@@ -226,6 +228,9 @@ def _inverse_homogenization(u: np.ndarray,
     edofMat : np.ndarray shape (nel,nedof)
         element degree of freedom matrix
     i : int
+        index of the problem. i-th problem is used to compute the objective
+        function.
+    j : int
         index of the problem. i-th problem is used to compute the objective
         function.
     matinterpol : callable 

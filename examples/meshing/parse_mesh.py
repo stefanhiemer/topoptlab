@@ -1,22 +1,40 @@
 from typing import Union
 
-from numpy import arange,array,column_stack,prod
-from numpy.testing import assert_almost_equal
+import numpy as np
 
-import pytest
+import gmsh
+from topoptlab.geometry_parser import mesh_cadfile, cad_to_mesh, mesh_to_xe
 
-from topoptlab.utils import map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel
-
-def create_testfile(N: array = array([12,4,2]),
-                    L: Union[None,array] = None, 
+def create_testmesh(N: np.ndarray = np.ndarray([12,4,2]),
+                    L: Union[None,np.ndarray] = None, 
                     mesh_file: Union[None,str] = None, 
                     gui: bool = False) -> None:
-    import gmsh
+    """
+    Create a simple mesh file of a box for testing.
+
+    Parameters
+    ----------
+    N : np.ndarray
+        number of elements in each direction.
+    L : None or np.ndarray
+        length in each direction. If None, 
+    mesh_file : None or str
+        path to mesh file. If None, simply called 'mesh-{dim}.msh'.
+    gui : bool
+        show the gmsh GUI to inspect the mesh.
+
+    Returns
+    -------
+    None
+        DESCRIPTION.
+
+    """
+    
     #
     dim = N.shape[0]
     #
     if L is None:
-        L = N.copy()
+        L = N.copy()-1
     # 
     if mesh_file is None:
         mesh_file = f"mesh-{dim}.msh"
@@ -76,6 +94,7 @@ def create_testfile(N: array = array([12,4,2]),
         gmsh.model.mesh.setTransfiniteVolume(tag)
         gmsh.model.mesh.setRecombine(3, tag)
     else:
+        gmsh.finalize()
         raise ValueError("dim must be 2 or 3")
     # mesh
     gmsh.model.mesh.generate(dim)
@@ -88,7 +107,72 @@ def create_testfile(N: array = array([12,4,2]),
     gmsh.finalize()
     return
     
+def create_testcad(L: np.ndarray, 
+                   cad_file: Union[None,str] = None, 
+                   gui: bool = False) -> None:
+    """
+    Create a simple step file of a box for testing.
+
+    Parameters
+    ----------
+    L : None or np.ndarray
+        length in each direction. If None, 
+    cad_file : None or str
+        path to mesh file. If None, simply called 'mesh-{dim}.step'.
+    gui : bool
+        show the gmsh GUI to inspect the geometry.
+
+    Returns
+    -------
+    None
+        DESCRIPTION.
+
+    """
+    #
+    dim = L.shape[0]
+    # 
+    if cad_file is None:
+        cad_file = f"mesh-{dim}.step"
+    # 
+    gmsh.initialize()
+    gmsh.model.add("rect_or_box")
+    if dim == 2:
+        # create rectangle
+        gmsh.model.occ.addRectangle(0.0, 0.0, 0.0, L[0], L[1])
+    elif dim == 3:
+        # create box
+        gmsh.model.occ.addBox(0.0, 0.0, 0.0, L[0], L[1], L[2])
+    else:
+        gmsh.finalize()
+        raise ValueError("dim must be 2 or 3")
+    gmsh.model.occ.synchronize()
+    gmsh.write(cad_file)
+
+    # launch GUI
+    if gui:
+        gmsh.fltk.run()
+    # close file
+    gmsh.finalize()
+    return
 
 if __name__ == "__main__":
+    #
+    L = np.array([12,4])
+    gui=True
+    #
+    create_testcad(L=L, 
+                   gui=gui)
+    #cad_to_mesh(file="mesh-{0}.step".format(L.shape[0]),
+    #            mesh_dim = L.shape[0], 
+    #            mesh_file = "mesh-{0}.msh".format(L.shape[0]),
+    #            transfinite_transform = True,
+    #            npoints = 10, 
+    #            check_rect = True,
+    #            check_hex = True,
+    #            show_gui = gui)
     
-    create_testfile(gui=True)
+    mesh_cadfile(cad_file="mesh-{0}.step".format(L.shape[0]), 
+                 output_file="mesh-{0}.msh".format(L.shape[0]), 
+                 etype="quad",
+                 show_gui=gui)
+    print(mesh_to_xe("mesh-{0}.msh".format(L.shape[0])))

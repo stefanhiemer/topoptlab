@@ -462,9 +462,12 @@ def main(nelx: int, nely: int,
             dobj[:] = 0.
             for i in np.arange(f.shape[1]):
                 # obj. value, selfadjoint variables, self adjoint flag
-                obj,rhs_adj,self_adj = obj_func(obj=obj, i=i,
-                                                xPhys=xPhys,u=u,
-                                                KE=KE, edofMat=edofMat,
+                obj,rhs_adj,self_adj = obj_func(obj=obj, 
+                                                i=i,
+                                                xPhys=xPhys,
+                                                u=u,
+                                                KE=KE, 
+                                                edofMat=edofMat,
                                                 Kes=Kes,
                                                 matinterpol=matinterpol,
                                                 matinterpol_kw=matinterpol_kw,
