@@ -44,7 +44,8 @@ def export_vtk(filename: str,
                f_bw: Union[None,np.ndarray] = None,
                xTilde: Union[None,np.ndarray] = None,
                elem_size: Union[None,float, np.ndarray] = None,
-               volfrac: Union[None,float] = None) -> None:
+               volfrac: Union[None,float] = None,
+               stress_vm: Union[None,float, np.ndarray] = None) -> None:
     """
     Export design to a vtk file for visualisation e. g. with Paraview.
 
@@ -80,6 +81,8 @@ def export_vtk(filename: str,
     volfrac : float, optional
         volume fraction. If not None, then also a thresholded designed is 
         stored. The default is None.
+    stress_vm : np.ndarray, optional
+        Von-Mises stress.
 
     Returns
     -------
@@ -160,6 +163,8 @@ def export_vtk(filename: str,
         el_data.update({"xTilde": [xTilde]})
     if volfrac is not None:
         el_data.update({"xThresh": [threshold(xPhys,volfrac)]})
+    if stress_vm is not None:
+        el_data["stress_vm"] = [np.asarray(stress_vm, dtype=float)]
     #
     if nelz is None:
         Mesh(points,
