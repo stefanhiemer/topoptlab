@@ -297,3 +297,54 @@ def inverse_homogenization_control(u, u0, edofMat, i, KE,
     obj = (results["CH"][i,:] - CH0[i,:]).sum()**2 + \
           (results["CH"][i:,:] - CH0[i,:]).sum()**2
     return obj, dobj, True
+
+def stress_pnorm(u,i, edofMat,B,C_es, stress_pnorm,dvm,dstress_pnorm_dvm,
+                   obj, **kwargs):
+    """
+    Aggregated relaxed von Mises stress objective.
+
+    Parameters
+    ----------
+    u : ndarray of shape (ndof, nload)
+        Global displacement field.
+    i : int
+        index of the problem. i-th problem is used to compute the objective
+        function.
+    edofMat : ndarray of shape (ne, ndof_el)
+        Element degree-of-freedom connectivity matrix.
+    B : ndarray of shape (ne, nvoigt, ndof_el)
+        Element strain-displacement matrix.
+    C_es : ndarray of shape (ne, nvoigt, nvoigt)
+        Interpolated constitutive matrix for each element.
+    stress_pnorm : float
+        Aggregated relaxed stress objective value.
+    dvm : ndarray of shape (ne, nvoigt)
+        Derivative of elemental von Mises stress with respect to the
+        elemental stress vector: 
+            dvm[e, :] = d(stress_vm,e) / d(stress_e)
+    dstress_pnorm_dvm : ndarray of shape (ne, 1)
+        Derivative of the pnorm stress objective with respect to the
+        elemental von Mises stress:
+        
+            dstress_pnorm_dvm[e] = d(stress_pnorm) / d(stress_vm,e)
+    obj : float
+        Accumulated objective value.
+    **kwargs : dict
+        Unused extra arguments for compatibility with the optimization driver.
+    Returns
+    -------
+    obj : float
+        Updated objective value.
+    rhs_adj : ndarray of shape (ndof, 1)
+        Adjoint right-hand side associated with the stress objective.
+    selfadjoint : bool
+        Always False. The stress p-norm objective is not treated as
+        self-adjoint in this implementation.
+    """
+    obj += stress_pnorm
+    Ct_dvm = np.einsum('eji,ej->ei', C_es, dvm, optimize=True)
+    dJ_du_e = np.einsum('ei,eij->ej', Ct_dvm, B, optimize=True)
+    dJ_du_e *= dstress_pnorm_dvm
+    rhs_adj = np.zeros((u.shape[0], 1), dtype=u.dtype)
+    np.add.at(rhs_adj[:, 0], edofMat, -dJ_du_e)
+    return obj, rhs_adj, False
