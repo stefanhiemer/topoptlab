@@ -823,7 +823,7 @@ if __name__ == "__main__":
          nouteriter=nouteriter,
          export=export,write_log=write_log)
     # for tests
-    # np.savetxt("stress_lbracket_u_bw.csv", u_bw, delimiter=",")
-    # np.savetxt("stress_lbracket_rhs_adj.csv", rhs_adj, delimiter=",")
+    np.savetxt("stress_lbracket_u_bw.csv", u_bw, delimiter=",")
+    np.savetxt("stress_lbracket_rhs_adj.csv", rhs_adj, delimiter=",")
     
 
