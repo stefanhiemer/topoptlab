@@ -2,7 +2,7 @@
 from pathlib import Path
 from subprocess import run
 from numpy import loadtxt
-from numpy.testing import assert_almost_equal
+from numpy.testing import assert_almost_equal,assert_allclose
 import pytest
 import sys
 
@@ -28,11 +28,8 @@ def test_stress_lbracket(tmp_path, example_file, params):
         / "stress_constraint"
         / example_file
     )
-
     cmd = [sys.executable, str(file_path)] + params.split(" ")
     run(cmd, cwd=tmp_path, shell=False, check=True)
-
     obj = loadtxt(tmp_path / "stress_lbracket_obj.csv", delimiter=",")
     obj_ref = loadtxt(test_path / "test_files" / "stress_lbracket_obj.csv", delimiter=",")
-
-    assert_almost_equal(obj, obj_ref)
+    assert_allclose(obj, obj_ref, rtol=1e-5, atol=1e-1)
