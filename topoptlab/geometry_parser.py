@@ -104,9 +104,6 @@ def mesh_to_xe(meshfile: str) -> np.ndarray:
     # loop over physical groups
     phys_groups = {}
     for dim_pg, tag_pg in gmsh.model.getPhysicalGroups():
-        # 
-        if dim_pg != dim:
-            continue
         #
         name = gmsh.model.getPhysicalName(dim_pg, tag_pg) or f"group_{tag_pg}"
         # loop entities of phys. group
