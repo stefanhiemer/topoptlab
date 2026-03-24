@@ -32,10 +32,7 @@ def test_stress_lbracket(tmp_path, example_file, params):
     cmd = [sys.executable, str(file_path)] + params.split(" ")
     run(cmd, cwd=tmp_path, shell=False, check=True)
 
-    obj = loadtxt(tmp_path / "stress_lbracket_obj.csv", delimiter=",")[:, None]
-    obj_ref = loadtxt(
-        test_path / "test_files" / "stress_lbracket_obj.csv",
-        delimiter=",",
-    )[:, None]
+    obj = loadtxt(tmp_path / "stress_lbracket_obj.csv", delimiter=",")
+    obj_ref = loadtxt(test_path / "test_files" / "stress_lbracket_obj.csv", delimiter=",")
 
     assert_almost_equal(obj, obj_ref)
