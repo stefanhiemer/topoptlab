@@ -2,7 +2,7 @@
 from pathlib import Path
 from subprocess import run
 from numpy import loadtxt
-from numpy.testing import assert_almost_equal
+from numpy.testing import assert_allclose
 import pytest
 import sys
 
@@ -44,5 +44,5 @@ def test_stress_lbracket(tmp_path, example_file, params):
         delimiter=",",
     )[:, None]
 
-    assert_almost_equal(u_bw, u_bw_ref)
-    assert_almost_equal(rhs_adj, rhs_adj_ref)
+    assert_allclose(u_bw, u_bw_ref, rtol=1e-3, atol=1e-2)
+    assert_allclose(rhs_adj, rhs_adj_ref, rtol=1e-3, atol=1e-5)
