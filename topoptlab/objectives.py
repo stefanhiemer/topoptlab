@@ -298,10 +298,23 @@ def inverse_homogenization_control(u, u0, edofMat, i, KE,
           (results["CH"][i:,:] - CH0[i,:]).sum()**2
     return obj, dobj, True
 
-def stress_pnorm(u,i, edofMat,B,C_es, stress_pnorm,dvm,dstress_pnorm_dvm,
-                   obj, **kwargs):
+def stress_pnorm(u: np.ndarray,
+                 i: int,
+                 edofMat: np.ndarray,
+                 B: np.ndarray,
+                 C_es: np.ndarray,
+                 xPhys: np.ndarray,
+                 stress_vm: np.ndarray,
+                 dsvm: np.ndarray,
+                 penal_sig: float,
+                 Pnorm: float,
+                 obj: float,
+                 **kwargs: Any) -> Tuple[float, np.ndarray, bool]:
     """
     Aggregated relaxed von Mises stress objective.
+    The relaxed stress is defined as
+
+        sigma_re = sigma_vm / xPhys^penal_sig
 
     Parameters
     ----------
@@ -316,17 +329,17 @@ def stress_pnorm(u,i, edofMat,B,C_es, stress_pnorm,dvm,dstress_pnorm_dvm,
         Element strain-displacement matrix.
     C_es : ndarray of shape (ne, nvoigt, nvoigt)
         Interpolated constitutive matrix for each element.
-    stress_pnorm : float
-        Aggregated relaxed stress objective value.
-    dvm : ndarray of shape (ne, nvoigt)
-        Derivative of elemental von Mises stress with respect to the
-        elemental stress vector: 
-            dvm[e, :] = d(stress_vm,e) / d(stress_e)
-    dstress_pnorm_dvm : ndarray of shape (ne, 1)
-        Derivative of the pnorm stress objective with respect to the
-        elemental von Mises stress:
-        
-            dstress_pnorm_dvm[e] = d(stress_pnorm) / d(stress_vm,e)
+    xPhys : np.ndarray, shape (ne, 1)
+        Physical density field.
+    stress_vm : np.ndarray, shape (ne, 1)
+        Element-wise von Mises stress.
+    dsvm : np.ndarray, shape (ne, nvoigt)
+        Derivative of the elemental von Mises stress with respect to the
+        elemental stress vector,dsvm = d(stress_vm) / d(stress)
+    penal_sig : float
+        Penalization exponent used in the relaxed stress measure.
+    Pnorm : float
+        Exponent used for p-norm aggregation.
     obj : float
         Accumulated objective value.
     **kwargs : dict
@@ -341,10 +354,18 @@ def stress_pnorm(u,i, edofMat,B,C_es, stress_pnorm,dvm,dstress_pnorm_dvm,
         Always False. The stress p-norm objective is not treated as
         self-adjoint in this implementation.
     """
+    n = xPhys.shape[0]
+    xPhys_s = np.maximum(xPhys, 1e-12)  
+    stress_re = stress_vm / (xPhys_s ** penal_sig)  
+    sP = stress_re ** Pnorm      
+    mean_sP = np.mean(sP)              
+    stress_pnorm = mean_sP ** (1.0 / Pnorm)     
+    coeff = (1.0 / n) * (mean_sP ** (1.0 / Pnorm - 1.0))
+    dstress_pnorm_dvm = coeff * (stress_re ** (Pnorm - 1.0)) / (xPhys_s ** penal_sig) 
     obj += stress_pnorm
-    Ct_dvm = np.einsum('eji,ej->ei', C_es, dvm, optimize=True)
-    dJ_du_e = np.einsum('ei,eij->ej', Ct_dvm, B, optimize=True)
-    dJ_du_e *= dstress_pnorm_dvm
+    Ct_dvm = np.einsum('eji,ej->ei', C_es, dsvm, optimize=True)
+    dJ_du = np.einsum('ei,eij->ej', Ct_dvm, B, optimize=True)
+    dJ_du *= dstress_pnorm_dvm
     rhs_adj = np.zeros((u.shape[0], 1), dtype=u.dtype)
-    np.add.at(rhs_adj[:, 0], edofMat, -dJ_du_e)
+    np.add.at(rhs_adj[:, 0], edofMat, -dJ_du)
     return obj, rhs_adj, False
