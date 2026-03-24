@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-3.0-or-later
+a# SPDX-License-Identifier: GPL-3.0-or-later
 from typing import Callable, Dict
 from functools import partial
 import logging
@@ -11,22 +11,20 @@ from matplotlib.colors import Normalize
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 # functions to create filters
-from topoptlab.filter.convolution_filter import assemble_convolution_filter
-from topoptlab.filter.helmholtz_filter import assemble_helmholtz_filter
 from topoptlab.filter.matrix_filter import assemble_matrix_filter
 from topoptlab.filter.haeviside_projection import find_eta
 # default application case that provides boundary conditions, etc.
 from topoptlab.example_bc.lin_elast import Lbracket
-
 # set up finite element problem
 from topoptlab.fem import create_matrixinds
 from topoptlab.elements.bilinear_quadrilateral import create_edofMat as create_edofMat2d
-from topoptlab.elements.bilinear_quadrilateral import bmatrix as bmatrixt2d
 from topoptlab.elements.trilinear_hexahedron import create_edofMat as create_edofMat3d
-from topoptlab.elements.trilinear_hexahedron import bmatrix as bmatrixt3d
+from topoptlab.elements.strain_measures import infini_strain_matrix
+from topoptlab.elements.bilinear_quadrilateral import shape_functions_dxi
+from topoptlab.elements.stress_measures import von_mises_stress
+from topoptlab.elements.stress_measures import dsvm_ds
 # different elements/physics
 from topoptlab.stiffness_tensors import isotropic_2d,isotropic_3d
-from topoptlab.stiffness_tensors import orthotropic_2d,orthotropic_3d
 from topoptlab.elements.linear_elasticity_2d import _lf_strain_2d,lk_linear_elast_aniso_2d
 from topoptlab.elements.linear_elasticity_3d import _lf_strain_3d,lk_linear_elast_aniso_3d
 from topoptlab.elements.bodyforce_2d import lf_bodyforce_2d
@@ -39,7 +37,7 @@ from topoptlab.solve_linsystem import solve_lin
 # constrained optimizers
 from topoptlab.optimizer.optimality_criterion import oc_top88,oc_mechanism,oc_generalized
 from topoptlab.optimizer.mma_utils import update_mma,mma_defaultkws,gcmma_defaultkws
-from topoptlab.objectives import var_maximization,compliance,stress_pnorm
+from topoptlab.objectives import stress_pnorm
 # output final design to a Paraview readable format
 from topoptlab.output_designs import export_vtk,threshold
 # map element data to img/voxel
@@ -51,19 +49,18 @@ from topoptlab.draw_functions import spring, hinged_support
 
 # MAIN DRIVER
 def main(nelx, nely, volfrac, penal, rmin, ft,
-         eps=1e-9, nu=0.3,
-         Eratio = 0.05,
+         Emax=1, nu=0.3,
          filter_mode="matrix",
          lin_solver="cvxopt-cholmod", preconditioner=None,
          assembly_mode="full",
          body_forces_kw={},
          bcs=Lbracket, l=1.,
-         obj_func=var_maximization, obj_kw={},
+         obj_func=stress_pnorm, obj_kw={},
          el_flags=None,
          optimizer="mma", optimizer_kw = None,
          Pnorm=10,
          penal_sig=0.5,             
-         nouteriter=1000,ninneriter=15,
+         nouteriter=2000,ninneriter=15,
          file="lbracket",
          matinterpol: Callable = ramp,
          matinterpol_dx: Callable = ramp_dx,
@@ -160,7 +157,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         # check if log file exists and if True delete
         to_log = init_logging(logfile=file)
         #
-        to_log(f"a Lbracket to validate stress constraint with optimizer {optimizer}")
+        to_log(f"a Lbracket to validate stress minimization with optimizer {optimizer}")
         to_log(f"number of spatial dimensions: {ndim}")
         if ndim == 2:
             to_log(f"elements: {nelx} x {nely}")
@@ -207,9 +204,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                           [-1.,1.]]])/2 * np.ones((n,1,1))
         xi  = np.array([0.0])
         etaa = np.array([0.0])
-        B, detJ = bmatrixt2d(xi=xi, eta=etaa, xe=xe, all_elems=True, return_detJ=True)
-        if np.any(detJ <= 0.0):
-            raise ValueError("Inverted/degenerate element.")
+        B = infini_strain_matrix(xi=xi, eta=etaa, xe=xe, zeta= None, all_elems=True, shape_functions_dxi=shape_functions_dxi)
     elif ndim == 3:
         xe = l*np.array([[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
                           [-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]]])/2 \
@@ -217,16 +212,12 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         xi  = np.array([0.0])
         etaa = np.array([0.0])
         zeta = np.array([0.0])
-        B, detJ = bmatrixt3d(xi=xi, eta=etaa, zeta=zeta, xe=xe, all_elems=True, return_detJ=True)
-        if np.any(detJ <= 0.0):
-            raise ValueError("Inverted/degenerate element.")
-    Emax = 1.
+        B = infini_strain_matrix(xi=xi, eta=etaa, zeta=zeta, xe=xe, all_elems=True, shape_functions_dxi=shape_functions_dxi)
     if ndim ==2:
         # stiffness tensor
         cs = [isotropic_2d(E=Emax, nu=nu) \
               for i in np.arange(int(nely))]
         cs = np.tile(np.stack(cs),(nelx,1,1))
-
     if ndim ==3:
         # stiffness tensor
         cs = [isotropic_3d(E=Emax, nu=nu) \
@@ -255,13 +246,6 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             optimizer_kw["upp"]  = np.ones(nvars)           
             if ft == 5:
                 optimizer_kw["move"] = 0.05
-        elif optimizer == "gcmma":
-            # gcmma needs results of the two previous iterations
-            nhistory = 2
-            xhist = [x.copy(),x.copy()]
-            #
-            if optimizer_kw is None:
-                optimizer_kw = gcmma_defaultkws(x.shape[0],ft=ft,n_constr=1)
         else:
             raise ValueError("Unknown optimizer: ", optimizer)
     # handle element element flags
@@ -380,17 +364,6 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     if filter_mode == "matrix":
         H,Hs = assemble_matrix_filter(nelx=nelx,nely=nely,nelz=nelz,
                                       rmin=rmin,ndim=ndim)
-    elif filter_mode == "convolution":
-        H,Hs = assemble_convolution_filter(nelx=nelx,nely=nely,nelz=nelz,
-                                           rmin=rmin,
-                                           mapping=mapping,
-                                           invmapping=invmapping)
-    elif filter_mode == "helmholtz" and ft in [0,1]:
-        KF,TF = assemble_helmholtz_filter(nelx=nelx,nely=nely,nelz=nelz,
-                                          rmin=rmin,
-                                          n1=n1,n2=n2,n3=n3,n4=n4)
-        # LU decomposition. returns a function for solving, not the matrices
-        lu_solve = factorized(KF)
     # BC's and support
     u,f,fixed,free,springs = bcs(nelx=nelx,nely=nely,nelz=nelz,
                                  ndof=ndof)
@@ -475,56 +448,20 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                 strain = np.einsum('eij,ej->ei', B, ue, optimize=True)
                 # element stress
                 stress = np.einsum('eij,ej->ei', C_es, strain, optimize=True)
-                # von Mises stress
-                if ndim == 2:
-                    sxx = stress[:, 0]
-                    syy = stress[:, 1]
-                    sxy = stress[:, 2]
-                    stress_vm = np.sqrt(sxx**2 - sxx*syy + syy**2 + 3.0*sxy**2)[:, None]
-                else:
-                    sxx = stress[:, 0]
-                    syy = stress[:, 1]
-                    szz = stress[:, 2]
-                    syz = stress[:, 3]
-                    sxz = stress[:, 4]
-                    sxy = stress[:, 5]
-                    stress_vm = np.sqrt(
-                        0.5 * ((sxx - syy)**2
-                            + (syy - szz)**2
-                            + (szz - sxx)**2)
-                        + 3.0 * (syz**2 + sxz**2 + sxy**2)
-                    )[:, None]
-                xPhys_s = np.maximum(xPhys, 1e-12)  
-                stress_re = stress_vm / (xPhys_s ** penal_sig)  
-                sP = stress_re ** Pnorm      
-                mean_sP = np.mean(sP)              
-                stress_pnorm = mean_sP ** (1.0 / Pnorm)     
-                coeff = (1.0 / n) * (mean_sP ** (1.0 / Pnorm - 1.0))
-                dstress_pnorm_dvm = coeff * (stress_re ** (Pnorm - 1.0)) / (xPhys_s ** penal_sig) 
-                
-                dvm = np.zeros_like(stress)
-                if ndim == 2:
-                    dvm[:, 0] = (2.0 * sxx - syy) / (2.0 * stress_vm[:, 0])
-                    dvm[:, 1] = (2.0 * syy - sxx) / (2.0 * stress_vm[:, 0])
-                    dvm[:, 2] = 3.0 * sxy / stress_vm[:, 0]
-
-                else:
-                    dvm[:, 0] = (2.0 * sxx - syy - szz) / (2.0 * stress_vm[:, 0])
-                    dvm[:, 1] = (2.0 * syy - szz - sxx) / (2.0 * stress_vm[:, 0])
-                    dvm[:, 2] = (2.0 * szz - sxx - syy) / (2.0 * stress_vm[:, 0])
-                    dvm[:, 3] = 3.0 * syz / stress_vm[:, 0]
-                    dvm[:, 4] = 3.0 * sxz / stress_vm[:, 0]
-                    dvm[:, 5] = 3.0 * sxy / stress_vm[:, 0]
+                # von Mises stress and derivative
+                stress_vm = von_mises_stress(stress=stress, ndim=ndim)
+                dsvm = dsvm_ds(stress=stress,stress_vm=stress_vm,ndim=ndim)
                 obj, rhs_adj, self_adj = obj_func(
                     u=u,
                     i=i,              
                     edofMat=edofMat,
                     B=B,
                     C_es=C_es,
-                    stress_pnorm = stress_pnorm,
+                    xPhys=xPhys,
                     stress_vm=stress_vm,
-                    dvm=dvm,
-                    dstress_pnorm_dvm=dstress_pnorm_dvm,
+                    dsvm=dsvm,
+                    penal_sig=penal_sig,
+                    Pnorm=Pnorm,
                     obj=obj,
                     **obj_kw
                 )
@@ -649,7 +586,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             x[:] = np.asarray(xmma, dtype=float).reshape(nvars, 1) 
             xhist.pop(0); xhist.append(x.copy())
             optimizer_kw["low"] = low; optimizer_kw["upp"] = upp
-            print(f"fval: {constrs}, max_violation: {np.maximum(constrs,0).max():.3e}")    
+            # print(f"fval: {constrs}, max_violation: {np.maximum(constrs,0).max():.3e}")    
 
         if debug:
             print("Post Density Update: it.: {0}, med. x.: {1:.10f}, med. xTilde: {2:.10f}, med. xPhys: {3:.10f}".format(
@@ -661,14 +598,6 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             xTilde[:] = np.asarray(H*x/Hs)
             xPhys[:] = xTilde         
             #xPhys[:] = H @ x / Hs
-        elif ft == 1 and filter_mode == "convolution":
-            xPhys[:] = invmapping(convolve(mapping(x),
-                                  h,
-                                  mode="constant",
-                                  cval=0)) / hs
-        elif ft == 1 and filter_mode == "helmholtz":
-            # xPhys[:] = TF.T @ lu_solve(TF@x)
-            xPhys[:] = lu_solve(TF @ x)
         elif ft in [5] and filter_mode == "matrix":
             xTilde[:] = np.asarray(H*x/Hs)
             xBase = xTilde.copy()
@@ -718,7 +647,6 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                 to_log(f"Parameter beta increased to {beta}")
         elif (ft == 5) and (beta >= 256) and (change < 0.01):
             break
-     
     #
     if display:
         plt.show()
@@ -768,58 +696,21 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     # element stress
     stress = np.einsum('eij,ej->ei', C_es, strain, optimize=True)
     # von Mises stress
-    if ndim == 2:
-        sxx = stress[:, 0]
-        syy = stress[:, 1]
-        sxy = stress[:, 2]
-        stress_vm = np.sqrt(sxx**2 - sxx*syy + syy**2 + 3.0*sxy**2)[:, None]
-    else:
-        sxx = stress[:, 0]
-        syy = stress[:, 1]
-        szz = stress[:, 2]
-        syz = stress[:, 3]
-        sxz = stress[:, 4]
-        sxy = stress[:, 5]
-        stress_vm = np.sqrt(
-            0.5 * ((sxx - syy)**2
-                + (syy - szz)**2
-                + (szz - sxx)**2)
-            + 3.0 * (syz**2 + sxz**2 + sxy**2)
-        )[:, None]
-    xPhys_s = np.maximum(xThresh, 1e-12)   # (ne,1)
-    stress_re = stress_vm / (xPhys_s ** penal_sig)         # (ne,1)
-    sP = stress_re ** Pnorm                                     # (ne,1)
-    mean_sP = np.mean(sP)                                       # scalar
-    stress_pnorm = mean_sP ** (1.0 / Pnorm)                      # scalar
-    coeff = (1.0 / n) * (mean_sP ** (1.0 / Pnorm - 1.0))
-    dstress_pnorm_dvm = coeff * (stress_re ** (Pnorm - 1.0)) / (xPhys_s ** penal_sig)   # (ne,1)
-    
-    dvm = np.zeros_like(stress)
-    vm_safe = np.maximum(stress_vm[:, 0], 1e-14)
-    if ndim == 2:
-        dvm[:, 0] = (2.0 * sxx - syy) / (2.0 * vm_safe)
-        dvm[:, 1] = (2.0 * syy - sxx) / (2.0 * vm_safe)
-        dvm[:, 2] = 3.0 * sxy / vm_safe
-    else:
-        dvm[:, 0] = (2.0 * sxx - syy - szz) / (2.0 * vm_safe)
-        dvm[:, 1] = (2.0 * syy - szz - sxx) / (2.0 * vm_safe)
-        dvm[:, 2] = (2.0 * szz - sxx - syy) / (2.0 * vm_safe)
-        dvm[:, 3] = 3.0 * syz / vm_safe
-        dvm[:, 4] = 3.0 * sxz / vm_safe
-        dvm[:, 5] = 3.0 * sxy / vm_safe
-
-    obj=0.
+    stress_vm = von_mises_stress(stress=stress, ndim=ndim)
+    dsvm = dsvm_ds(stress=stress,stress_vm=stress_vm,ndim=ndim)
+    obj=0.                  
     obj, rhs_adj, self_adj = obj_func(
                     u=u_bw,
                     i=0,              
                     edofMat=edofMat,
                     B=B,
                     C_es=C_es,
-                    stress_pnorm = stress_pnorm,
+                    xPhys=xThresh,
                     stress_vm=stress_vm,
-                    dvm=dvm,
-                    dstress_pnorm_dvm=dstress_pnorm_dvm,
-                    obj=0,
+                    dsvm=dsvm,
+                    penal_sig=penal_sig,
+                    Pnorm=Pnorm,
+                    obj=obj,
                     **obj_kw
                 )
     #
@@ -835,7 +726,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             stress_vm=stress_vm,
             u=u_bw, f=f+f_body,
             volfrac=volfrac) 
-    return x, obj
+    return u_bw, rhs_adj
 
 def sketch(save=False):
     """
@@ -895,6 +786,10 @@ if __name__ == "__main__":
     penal=3
     ft=5 # ft==0 -> sens, ft==1 -> dens
     elem_size=1.0
+    nouteriter=2000
+    export=True
+    write_log=True
+    display=True
     import sys
     if len(sys.argv)>1: nelx   =int(sys.argv[1])
     if len(sys.argv)>2: nely   =int(sys.argv[2])
@@ -902,6 +797,10 @@ if __name__ == "__main__":
     if len(sys.argv)>4: rmin   =float(sys.argv[4])
     if len(sys.argv)>5: penal  =float(sys.argv[5])
     if len(sys.argv)>6: ft     =int(sys.argv[6])
+    if len(sys.argv)>7: nouteriter =int(sys.argv[7])
+    if len(sys.argv) > 8: export = bool(int(sys.argv[8]))
+    if len(sys.argv) > 9: write_log = bool(int(sys.argv[9]))
+    if len(sys.argv) > 10: display = bool(int(sys.argv[10]))
     #
     if nelz is None:
         bcs=Lbracket
@@ -909,18 +808,22 @@ if __name__ == "__main__":
         raise ValueError("Only for 2D validation")
     # assume nelx = nely = 100
     el_flags = np.zeros(nelx*nely, dtype=np.int32)
-
     xs = np.arange(41, nelx, dtype=int)   
     ys = np.arange(0, 60, dtype=int)   
     idx = (xs[:, None] * nely+ ys[None, :]).astype(int).ravel()
     el_flags[idx] = 1
 
-    main(nelx=nelx,nely=nely,volfrac=volfrac,penal=penal,rmin=rmin,ft=ft,
+    u_bw, rhs_adj = main(nelx=nelx,nely=nely,volfrac=volfrac,penal=penal,rmin=rmin,ft=ft,
          obj_func=stress_pnorm,
          body_forces_kw={"density_coupled": np.array([0,-1e-7])},
          el_flags = el_flags,
-         display=True,
+         display=display,
          bcs=bcs,
-         file='aLbracket',export=True,write_log=True)
+         file='aLbracket',
+         nouteriter=nouteriter,
+         export=export,write_log=write_log)
+    # for tests
+    # np.savetxt("stress_lbracket_u_bw.csv", u_bw, delimiter=",")
+    # np.savetxt("stress_lbracket_rhs_adj.csv", rhs_adj, delimiter=",")
     
 
