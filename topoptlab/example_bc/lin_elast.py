@@ -873,8 +873,9 @@ def Lbracket(nelx: int, nely: int,
            ndof: int, **kwargs: Any
            ) -> Tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,None]:
     """
-    This is the bcs for a lbracket.
-
+    This is the bcs for a lbracket. Details please refer to: 
+    Le, Chau, et al. "Stress-based topology optimization for continua." 
+    Structural and Multidisciplinary Optimization 41.4 (2010): 605-620.
     Parameters
     ----------
     nelx : int
@@ -909,11 +910,8 @@ def Lbracket(nelx: int, nely: int,
     xdof = 2 * ((nely+1) * xs)      
     ydof = xdof + 1              
     fixed = np.hstack((xdof,ydof)) 
-    # force pushing down at 6 nodes (100, 40)
-    f[2*(nelx*(nely+1)+60)+1,0] = -0.5
-    f[2*((nelx-1)*(nely+1)+60)+1,0] = -0.5
-    f[2*((nelx-2)*(nely+1)+60)+1,0] = -0.5
-    f[2*((nelx-3)*(nely+1)+60)+1,0] = -0.5
-    f[2*((nelx-4)*(nely+1)+60)+1,0] = -0.5
-    f[2*((nelx-5)*(nely+1)+60)+1,0] = -0.5
+    # force pushing down at 6 nodes
+    x_range = np.arange(nelx - 5, nelx + 1)
+    y_load = 2 * (x_range * (nely + 1) + 60) + 1
+    f[y_load, 0] = -0.5
     return u,f,fixed,np.setdiff1d(dofs,fixed),None
