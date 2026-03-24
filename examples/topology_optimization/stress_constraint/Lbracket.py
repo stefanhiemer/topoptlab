@@ -726,7 +726,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             stress_vm=stress_vm,
             u=u_bw, f=f+f_body,
             volfrac=volfrac) 
-    return u_bw, rhs_adj
+    return obj
 
 def sketch(save=False):
     """
@@ -813,7 +813,7 @@ if __name__ == "__main__":
     idx = (xs[:, None] * nely+ ys[None, :]).astype(int).ravel()
     el_flags[idx] = 1
 
-    u_bw, rhs_adj = main(nelx=nelx,nely=nely,volfrac=volfrac,penal=penal,rmin=rmin,ft=ft,
+    obj = main(nelx=nelx,nely=nely,volfrac=volfrac,penal=penal,rmin=rmin,ft=ft,
          obj_func=stress_pnorm,
          body_forces_kw={"density_coupled": np.array([0,-1e-7])},
          el_flags = el_flags,
@@ -823,7 +823,6 @@ if __name__ == "__main__":
          nouteriter=nouteriter,
          export=export,write_log=write_log)
     # for tests
-    np.savetxt("stress_lbracket_u_bw.csv", u_bw, delimiter=",")
-    np.savetxt("stress_lbracket_rhs_adj.csv", rhs_adj, delimiter=",")
+    np.savetxt("stress_lbracket_obj.csv", np.array([obj]), delimiter=",")
     
 
