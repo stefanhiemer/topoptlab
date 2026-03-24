@@ -10,7 +10,7 @@ import sys
 @pytest.mark.parametrize(
     "example_file, params",
     [
-        ("lbracket.py", "60 60 0.3 5.0 3 5 9 0 0 0"),
+        ("Lbracket.py", "60 60 0.3 5.0 3 5 9 0 0 0"),
     ],
 )
 def test_stress_lbracket(tmp_path, example_file, params):
