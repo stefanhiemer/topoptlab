@@ -13,6 +13,34 @@ def alm_lagrangian(obj: float,
                    lam: np.ndarray,
                    mu: np.ndarray,
                    rho: float) -> float:
+    """
+    Augmented Lagrangian
+        
+        L_a = f(x) 
+              + lam.T@ceq + rho/2*lam.T@(ceq**2) 
+              + mu.T@cineq + rho/2*mu.T@(cineq**2)
+
+    Parameters
+    ----------
+    obj : float
+        objective f.
+    ceq : np.ndarray
+        values of equality constraints (if fulfilled equal to zero).
+    cineq : np.ndarray
+        values of inequality constraints (if fulfilled equal or smaller zero).
+    lam : np.ndarray
+        Lagrangian multipliers for eq. constraints.
+    mu : np.ndarray
+        Lagrangian multipliers for ineq. constraints.
+    rho : float
+        penalty parameter.
+
+    Returns
+    -------
+    L_a : float
+        augmented Lagrangian.
+
+    """
     
     return obj +\
            (lam*ceq).sum() + (mu*cineq).sum() +\
@@ -53,8 +81,8 @@ def alm_first_order(x: np.ndarray,
     which is augmented by a penalty term to
         
         L_a = f(x) 
-              + lam.T@ceq + rho*lam.T@(ceq**2) 
-                  + mu.T@cineq + rho*mu.T@(cineq**2)
+              + lam.T@ceq + rho/2*lam.T@(ceq**2) 
+              + mu.T@cineq + rho/2*mu.T@(cineq**2)
     
     It uses a first-order primal step based on the gradient of the augmented
     Lagrangian, followed by standard multiplier updates.

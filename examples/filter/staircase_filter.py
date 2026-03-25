@@ -1,10 +1,21 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 import numpy as np
+from scipy.special import hyp2f1
 import matplotlib.pyplot as plt
 
 from topoptlab.filter.haeviside_projection import find_eta, eta_projection
 
+def staircase1(x : np.ndarray, 
+              eps : float = 1.05, 
+              freq: float = 10.) -> np.ndarray:
+    
+    return x - 0.5 + (1/np.pi) * np.arctan2(np.sin(2*np.pi*freq*x), 
+                                            eps - np.cos(2*np.pi*freq*x))
 
+def staircase2(x : np.ndarray, 
+               nsteps: float = 10.) -> np.ndarray:
+    steps = np.linspace(0,1,nsteps+2)[1:-1]
+    return 
 
 if __name__ == "__main__":
     #
@@ -14,23 +25,13 @@ if __name__ == "__main__":
     # 
     x = np.linspace(0,1,1001)[:,None]
     #
-    
-    #
-    x_eta = eta_projection(xTilde=x,
-                           eta=find_eta(xTilde=x,
-                                        beta=beta,
-                                        eta0=0.5,volfrac=volfrac),
-                           beta=beta)
     #
     fig, ax = plt.subplots()
     # original
     ax.plot(x,x,label="x")
     # plot volume conservation
-    ax.plot(x,eta_projection(xTilde=x,
-                           eta=find_eta(xTilde=x,
-                                        beta=beta,
-                                        eta0=0.5,volfrac=volfrac),
-                           beta=beta),
+    ax.plot(x,
+            staircase2(x),
             label="eta")
     ax.legend()
     plt.show()

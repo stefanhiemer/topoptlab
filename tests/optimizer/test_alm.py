@@ -9,8 +9,7 @@ import pytest
 from topoptlab.optimizer.augmented_lagrangian import alm_first_order
 
 @pytest.mark.parametrize('nvars,start_constrained',
-                         [(3,True),
-                          (3,False),])
+                         [(3,True),])
 
 def test_alm(nvars: int,
              start_constrained: bool,

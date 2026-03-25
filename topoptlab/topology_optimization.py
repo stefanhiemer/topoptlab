@@ -480,7 +480,7 @@ def main(nelx: int, nely: int,
                 # calculate derivatives, else use analytical solution
                 if self_adj:
                     #dobj[:] += rhs_adj
-                    adj[free,i] = rhs_adj[free,i]
+                    adj[free,i] = rhs_adj[free,0]
                 else:
                     adj[free,i:i+1],_,_ = solve_lin(K, 
                                            rhs=rhs_adj[free,i:i+1],

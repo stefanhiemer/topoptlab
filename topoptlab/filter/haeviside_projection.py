@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any,Dict,Tuple
+from typing import Any,Dict,Tuple,Union
 
 import numpy as np
 from scipy.optimize import root_scalar
@@ -95,7 +95,8 @@ def _root_func(eta: float, xTilde: np.ndarray,
     term2 =  sech2_bn * (tanh_b1n + tanh_bn_x) + sech2_b1n * (tanh_bn + tanh_bx_n)
     return xPhys.mean()-volfrac, beta*(term1/denom1 + term2/denom2).mean()
 
-def eta_projection(eta: float, xTilde: np.ndarray, 
+def eta_projection(eta: float, 
+                   xTilde: np.ndarray, 
                    beta: float) -> np.ndarray:
     """
     Perform a differentiable "relaxed" Haeviside projection as done in
@@ -121,3 +122,42 @@ def eta_projection(eta: float, xTilde: np.ndarray,
     """
     return (np.tanh(beta * eta) + np.tanh(beta * (xTilde - eta))) / \
            (np.tanh(beta * eta) + np.tanh(beta * (1 - eta)))
+           
+def multieta_projection(etas: np.ndarray, 
+                        xTilde: np.ndarray, 
+                        beta: float, 
+                        weights: Union[None,np.ndarray] = None
+                        ) -> np.ndarray:
+    """
+    Perform a differentiable "relaxed" Haeviside projection as done in
+
+    Xu S, Cai Y, Cheng G (2010) Volume preserving nonlinear density filter
+    based on Heaviside functions. Struct Multidiscip Optim 41:495–505
+    
+    but with multiple thresholds.
+    
+    Parameters
+    ----------
+    etas : float
+        threshold values.
+    xTilde : np.ndarray
+        intermediate densities (typically before a density filter is applied).
+    beta : float
+        sharpness factor. The higher the more we approach the Haeviside
+        function which is recovered in the limit of beta to infinity
+    weights : None or np.ndarray
+        
+
+    Returns
+    -------
+    xProj : np.ndarray
+        projected densities.
+
+    """
+    xProj = (np.tanh(beta*etas[None,...]) +\
+             np.tanh(beta*(xTilde[...,None]-etas[None,...])))/\
+            (np.tanh(beta*etas[None,...]) +\
+             np.tanh(beta * (1 - etas[None,...])))
+    if weights is None:
+        weights = np.ones(etas.shape)/etas.shape[0]
+    return np.sum( xProj * weights[None,...] ,axis=-1)
