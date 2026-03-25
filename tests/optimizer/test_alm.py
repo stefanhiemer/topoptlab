@@ -9,7 +9,8 @@ import pytest
 from topoptlab.optimizer.augmented_lagrangian import alm_first_order
 
 @pytest.mark.parametrize('nvars,start_constrained',
-                         [(3,True),])
+                         [(3,True),
+                          (3,False),])
 
 def test_alm(nvars: int,
              start_constrained: bool,
@@ -92,7 +93,7 @@ def test_alm(nvars: int,
                                           rho=rho,
                                           move=move)
         # 
-        if abs(ceq) < abs(ceqold):
+        if abs(ceq) > abs(ceqold):
             rho = rho * rho_scale
         #
         xold[:] = x

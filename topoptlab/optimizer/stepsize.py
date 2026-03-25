@@ -147,6 +147,8 @@ def barzilai_borwein_short(x: np.ndarray,
         # calculate step size
         dx = x-xold
         dg = fgrad-fgradold
+        print(dx)
+        print(dg)
         return dx.dot(dg) / dg.dot(dg)
 
 def check_wolfe_conditions(f_prev: float,

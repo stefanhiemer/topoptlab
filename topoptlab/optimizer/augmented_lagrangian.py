@@ -1,11 +1,22 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any, Callable, Tuple, Union
+from typing import Any, Callable, Dict, Tuple, Union
 
 import numpy as np
 
 from topoptlab.optimizer.gradient_descent import gradient_descent
 from topoptlab.optimizer.stepsize import barzilai_borwein_short
 
+
+def alm_lagrangian(obj: float, 
+                   ceq: np.ndarray,
+                   cineq: np.ndarray,
+                   lam: np.ndarray,
+                   mu: np.ndarray,
+                   rho: float) -> float:
+    
+    return obj +\
+           (lam*ceq).sum() + (mu*cineq).sum() +\
+           rho/2 *((ceq**2).sum()+(cineq**2).sum())
 
 def alm_first_order(x: np.ndarray,
                     fgrad: np.ndarray,
@@ -21,6 +32,7 @@ def alm_first_order(x: np.ndarray,
                     xmax: Union[float, np.ndarray],
                     rho: float,
                     stepsize_func: Callable = barzilai_borwein_short,
+                    stepsize_kw: Dict = {},
                     move: float = 0.1,
                     **kwargs: Any, 
                     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -59,7 +71,7 @@ def alm_first_order(x: np.ndarray,
         
     whereas the equality multipliers by
 
-        lam_new = lam + rho * cineq.
+        lam_new = lam + rho * ceq.
 
     Parameters
     ----------
@@ -97,6 +109,9 @@ def alm_first_order(x: np.ndarray,
         augmented-Lagrangian penalty parameter.
     stepsize_func : Callable, optional
         function used to determine the primal step size.
+    stepsize_kw : dict
+        dictionary containing arguments for the stepsize_func. x, dobj and its 
+        older versions are automatically provided.
     move : float, optional
         maximum change allowed in each design variable.
     **kwargs : Any
@@ -123,6 +138,7 @@ def alm_first_order(x: np.ndarray,
                             xmin=xmin,
                             xmax=xmax,
                             stepsize_func=stepsize_func,
+                            stepsize_kw=stepsize_kw,
                             move=move)
     #
-    return xnew, lam + rho * ceq, np.maximum(0.0, mu + rho * cineq)
+    return xnew, lam + rho * ceq, np.maximum(0., mu + rho * cineq)
