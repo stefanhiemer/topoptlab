@@ -118,8 +118,6 @@ class DensityFilter(TOFilter):
         
         Parameters
         ----------
-        x_filtered : np.ndarray
-            filtered design variables.
         dx_filtered : np.ndarray
             sensitivities with respect to filtered design variables.
             

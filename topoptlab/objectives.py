@@ -52,7 +52,7 @@ def compliance(xPhys: np.ndarray,
     obj += (matinterpol(xPhys,**matinterpol_kw)[:,0]*ce).sum()
     #dc = (-1) * matinterpol_dx(xPhys,**matinterpol_kw)*ce
     #return obj, dc, True #
-    return obj,-u[:,i], True
+    return obj,-u[:,i:i+1], True
 
 def compliance_squarederror(xPhys: np.ndarray, 
                             u: np.ndarray, 

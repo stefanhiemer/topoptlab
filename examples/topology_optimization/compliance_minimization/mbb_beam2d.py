@@ -2,6 +2,8 @@
 from topoptlab.topology_optimization import main
 from topoptlab.example_bc.lin_elast import mbb_2d
 from topoptlab.accelerators import anderson
+from topoptlab.filter.filter import TOFilter 
+from topoptlab.filter.density_filter import DensityFilter
 import numpy as np
 
 if __name__ == "__main__":
@@ -42,11 +44,11 @@ if __name__ == "__main__":
     if len(sys.argv)>9:
         write_log = bool(int(sys.argv[9]))
     #
-    x,obj = main(nelx=nelx, nely=nely, volfrac=volfrac, 
+    main(nelx=nelx, nely=nely, volfrac=volfrac, 
                  matinterpol_kw={"eps":1e-9, "penal": penal},
                  rmin=rmin, 
                  ft=ft, 
-                 filter_mode="convolution",
+                 filter_mode="matrix",
                  optimizer="oc",
                  assembly_mode="full",
                  nouteriter=2000,

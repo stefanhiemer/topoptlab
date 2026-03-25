@@ -53,7 +53,8 @@ class MatrixFilter(TOFilter):
                                                  rmin=rmin, 
                                                  pbc=pbc)
         
-    def apply_filter(self, x: np.ndarray) -> np.ndarray:
+    def apply_filter(self, x: np.ndarray, 
+                     **kwargs: Any) -> np.ndarray:
         """
         Apply filter to the (intermediate) design variables x:
             
@@ -70,9 +71,11 @@ class MatrixFilter(TOFilter):
             filtered design variables.
 
         """
-        return np.asarray(self.H*(x/self.Hs))
+        return np.asarray(self.H*x/self.Hs)
         
-    def apply_filter_dx(self, dx_filtered: np.ndarray) -> np.ndarray:
+    def apply_filter_dx(self, 
+                        dx_filtered: np.ndarray, 
+                        **kwargs: Any) -> np.ndarray:
         """
         Apply filter to the sensitivities with respect to filtered variables 
         x_filtered using the chain rule assuming
@@ -97,7 +100,23 @@ class MatrixFilter(TOFilter):
             design sensitivities with respect to un-filtered design variables.
         """
         return np.asarray(self.H*(dx_filtered/self.Hs))
-
+    
+    @property
+    def vol_conserv(self) -> bool:
+        """
+        Set self.vol_conserv to False as filter is not necessarily volume 
+        conserving. 
+        
+        Parameters
+        ----------
+        None.
+            
+        Returns
+        -------
+        False
+        """
+        return False
+    
 def assemble_matrix_filter(nelx: int, nely: int, 
                            rmin: Union[float,List,np.ndarray],
                            nelz: Union[int, None] = None,

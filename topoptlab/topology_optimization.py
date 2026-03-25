@@ -189,13 +189,16 @@ def main(nelx: int, nely: int,
             log.info(f"volfrac: {volfrac} rmin: {rmin}") # penal: {penal}")
         else:
             log.info(f"rmin: {rmin}")#  penal: {penal}")
-        log.info("filter: " + ["Sensitivity based",
-                             "Density based",
-                             "Haeviside Guest",
-                             "Haeviside complement Sigmund 2007",
-                             "Haeviside eta projection",
-                             "Volume Preserving eta projection",
-                             "No filter"][ft])
+        if isinstance(ft, int):
+            log.info("filter: " + ["Sensitivity based",
+                                 "Density based",
+                                 "Haeviside Guest",
+                                 "Haeviside complement Sigmund 2007",
+                                 "Haeviside eta projection",
+                                 "Volume Preserving eta projection",
+                                 "No filter"][ft])
+        else:
+            log.info("filter: custom")
         log.info(f"filter mode: {filter_mode}")
     else:
         # check if log file exists and if True delete
@@ -336,7 +339,7 @@ def main(nelx: int, nely: int,
         mapping = partial(map_eltovoxel,
                           nelx=nelx,nely=nely,nelz=nelz)
     # prepare functions to invert this mapping if we use the convolution filter
-    if isinstance(ft, TOFilter):
+    if not isinstance(ft, (int,list)) and issubclass(ft, TOFilter):
         ft = [ft(nelx=nelx,nely=nely,nelz=nelz,rmin=rmin,**filter_kw)]
     elif isinstance(ft, list):
         ft = [ft_obj(nelx=nelx,nely=nely,nelz=nelz,rmin=rmin,**filter_kw) \
@@ -507,7 +510,7 @@ def main(nelx: int, nely: int,
                     dobj[:,0] -= simp_dx(xPhys=xPhys, eps=0., penal=1.)[:,0]*\
                                          np.dot(adj[edofMat,i],fe_dens[:,i])
                 #
-                log.debug("[DEBUG] FEM: it.: {0}, problem: {1}, min. u: {2:.10f}, med. u: {3:.10f}, max. u: {4:.10f}".format(
+                log.debug("FEM: it.: {0}, problem: {1}, min. u: {2:.10f}, med. u: {3:.10f}, max. u: {4:.10f}".format(
                            loop,i,np.min(u[:,i]),np.median(u[:,i]),np.max(u[:,i])))
         # optimizer is unknown.
         else:
@@ -522,29 +525,22 @@ def main(nelx: int, nely: int,
             elif optimizer in ["oc","ocm","ocg"]:
                 dconstrs[:,0] = np.ones(x.shape[0])
         #
-        log.debug("[DEBUG] Pre-Sensitivity Filter: it.: {0}, dobj: {1:.10f}, dv: {2:.10f}".format(
-                  loop, np.max(dobj), np.min(dconstrs)))
-        # Sensitivity filtering:
+        log.debug("Pre-Sensitivity Filter: it.: {0}, min(dobj): {1:.10f}, max(dobj): {2:.10f}, dv: {3:.10f}".format(
+                  loop, 
+                  np.min(dobj), np.max(dobj), 
+                  np.min(dconstrs)))
+        # sensitivity filtering
         if isinstance(ft, list):
             dobj[:] = ft[-1].apply_filter_dx(x_filtered=xPhys,
-                                    dx_filtered=dobj)
+                                             dx_filtered=dobj)
             dconstrs[:] = ft[-1].apply_filter_dx(x_filtered=xPhys,
                                                  dx_filtered=dconstrs)
             if len(ft) > 1:
-                for i in range(len(ft)-1,-1,-1):
+                for i in range(len(ft)-2,-1,-1):
                     dobj[:] = ft[-1].apply_filter_dx(x_filtered=xTilde[i],
                                                      dx_filtered=dobj)
                     dconstrs[:] = ft[-1].apply_filter_dx(x_filtered=xTilde[i],
                                                          dx_filtered=dconstrs)
-                
-        if isinstance(ft, list):
-            if len(ft) > 1:
-                xTilde[0] = ft[-1].apply_filter(x=x,rmin=rmin)
-                for i in range(1,len(ft)-1):
-                    ft[i].apply_filter(x=xTilde[i-1],rmin=rmin)
-                xPhys = ft[-1].apply_filter(x=xTilde[-1],rmin=rmin)
-            else:
-                xPhys = ft[0].apply_filter(x=x,rmin=rmin)
         elif ft == 0 and filter_mode == "matrix":
             dobj[:] = np.asarray(H@(x*dobj) /
                                  Hs) / np.maximum(0.001, x)
@@ -573,9 +569,13 @@ def main(nelx: int, nely: int,
             dconstrs[:] = TF.T @ lu_solve(TF@dconstrs)
         elif ft == -1:
             pass 
+        else:
+            raise ValueError("No filter applied. ft: ", ft)
         #
-        log.debug("[DEBUG] Post-Sensitivity Filter: it.: {0}, max. dobj: {1:.10f}, min. dv: {2:.10f}".format(
-                  loop, np.max(dobj), np.min(dconstrs)))
+        log.debug("Pre-Sensitivity Filter: it.: {0}, min(dobj): {1:.10f}, max(dobj): {2:.10f}, dv: {3:.10f}".format(
+                  loop, 
+                  np.min(dobj), np.max(dobj), 
+                  np.min(dconstrs)))
         # density update by optimizer
         # optimality criteria
         if optimizer=="oc":
@@ -609,8 +609,8 @@ def main(nelx: int, nely: int,
             optimizer_kw["upp"] = upp
             x = xmma.copy()
         #
-        log.debug("[DEBUG] Post Density Update: it.: {0}, med. x.: {1:.10f}, med. xPhys: {2:.10f}".format(
-                   loop, np.median(x),np.median(xPhys)))
+        log.debug("Post Density Update: it.: {0}, med(x): {1:.10f}, mean(x): {2:.10f}, med(xPhys): {3:.10f}".format(
+                   loop, np.median(x),np.mean(x), np.median(xPhys)))
         # mixing
         if ((loop-accelerator_kw["accel_start"])%accelerator_kw["accel_freq"])==0 \
             and loop >= accelerator_kw["accel_start"] and \
@@ -626,17 +626,17 @@ def main(nelx: int, nely: int,
         if len(xhist)> max_history+1:
             xhist = xhist[-max_history-1:]
         #
-        log.debug("[DEBUG] Post Mixing Update: it.: {0}, med. x.: {1:.10f}, med. xPhys: {2:.10f}".format(
+        log.debug("Post Mixing Update: it.: {0}, med. x.: {1:.10f}, med. xPhys: {2:.10f}".format(
                   loop, np.median(x),np.median(xPhys)))
         # Filter design variables
         if isinstance(ft, list):
             if len(ft) > 1:
-                xTilde[0] = ft[-1].apply_filter(x=x,rmin=rmin)
+                xTilde[0] = ft[0].apply_filter(x=x,rmin=rmin)
                 for i in range(1,len(ft)-1):
-                    ft[i].apply_filter(x=xTilde[i-1],rmin=rmin)
+                    xTilde[i] = ft[i].apply_filter(x=xTilde[i-1],rmin=rmin)
                 xPhys = ft[-1].apply_filter(x=xTilde[-1],rmin=rmin)
             else:
-                xPhys = ft[0].apply_filter(x=x,rmin=rmin)
+                xPhys = ft[0].apply_filter(x=x)
         elif ft == 0:
             xPhys[:] = x
         elif ft == 1 and filter_mode == "matrix":
@@ -651,7 +651,7 @@ def main(nelx: int, nely: int,
         elif ft == -1:
             xPhys[:]  = x
         #
-        log.debug("[DEBUG] Post Density Filter: it.: {0}, med. x.: {1:.10f}, med. xPhys: {2:.10f}".format(
+        log.debug("Post Density Filter: it.: {0}, med. x.: {1:.10f}, med. xPhys: {2:.10f}".format(
                   loop, np.median(x),np.median(xPhys)))
         # compute the change by the inf. norm
         change = np.abs(xhist[-1] - xhist[-2]).max()

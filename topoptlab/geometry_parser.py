@@ -53,7 +53,7 @@ def mesh_cadfile(cad_file : str,
     gmsh.finalize()
     return
 
-def mesh_to_xe(meshfile: str) -> np.ndarray:
+def read_mesh(meshfile: str) -> np.ndarray:
     """
     Read a Gmsh mesh file and return element coordinates, node coordinates,
     and element indices grouped by physical group. The mesh must contain 

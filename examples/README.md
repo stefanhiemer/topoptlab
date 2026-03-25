@@ -25,6 +25,10 @@ Here filters are compared to understand/illustrate what they do.
 
 Demonstrates different solvers for linear systems. 
 
+### `meshing`
+
+Demonstrates functions for creating and reading meshes. 
+
 ### `optimization`
 
 Contains simple demonstration of the (constrained) optimizers in topoptlab on

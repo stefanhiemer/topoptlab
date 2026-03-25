@@ -3,7 +3,7 @@ from typing import Union
 import numpy as np
 
 import gmsh
-from topoptlab.geometry_parser import mesh_cadfile, cad_to_mesh, mesh_to_xe
+from topoptlab.geometry_parser import mesh_cadfile, cad_to_mesh, read_mesh_
 
 def create_testmesh_physgroups(N: np.ndarray = np.array([12, 4, 2]),
                                L: Union[None, np.ndarray] = None,
@@ -263,7 +263,7 @@ if __name__ == "__main__":
     #             etype="quad",
     #             show_gui=gui)
     create_testmesh_physgroups(N = N, gui=True)
-    xe, coords, phys_groups = mesh_to_xe("mesh-{0}.msh".format(L.shape[0]))
+    xe, coords, phys_groups = read_mesh("mesh-{0}.msh".format(L.shape[0]))
     for group in phys_groups:
         print(group)
         print(xe[phys_groups[group]].min(axis=(0,1)))
