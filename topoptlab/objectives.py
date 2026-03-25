@@ -298,6 +298,7 @@ def inverse_homogenization_control(u, u0, edofMat, i, KE,
           (results["CH"][i:,:] - CH0[i,:]).sum()**2
     return obj, dobj, True
 
+
 def stress_pnorm(u: np.ndarray,
                  i: int,
                  edofMat: np.ndarray,
@@ -309,12 +310,20 @@ def stress_pnorm(u: np.ndarray,
                  penal_sig: float,
                  Pnorm: float,
                  obj: float,
-                 **kwargs: Any) -> Tuple[float, np.ndarray, bool]:
+                    scale: np.ndarray,
+                 dscale: np.ndarray,
+                 cs: np.ndarray,
+                 strain: np.ndarray,
+                 **kwargs: Any) -> Tuple[float, np.ndarray, np.ndarray, bool]:
     """
     Aggregated relaxed von Mises stress objective.
     The relaxed stress is defined as
 
-        sigma_re = sigma_vm / xPhys^penal_sig
+        stress_re = stress_vm / (xPhys_s ** penal_sig)
+
+    and the global p-norm objective is
+
+        J = ( (1/n) * sum stress_re**Pnorm )**(1/Pnorm)
 
     Parameters
     ----------
@@ -342,6 +351,17 @@ def stress_pnorm(u: np.ndarray,
         Exponent used for p-norm aggregation.
     obj : float
         Accumulated objective value.
+    scale : ndarray of shape (ne, 1)
+        Interpolated material scaling factor for each element. This argument is
+        passed for interface consistency and possible downstream use. It is not
+        explicitly used in the present implementation.
+    dscale : ndarray of shape (ne, 1)
+        Derivative of the interpolation factor with respect to the physical
+        density field,
+    cs : ndarray of shape (ne, nvoigt, nvoigt)
+        Base constitutive tensor for each element before density interpolation.
+    strain : ndarray of shape (ne, nvoigt)
+        Element strain vector in Voigt notation for each element.
     **kwargs : dict
         Unused extra arguments for compatibility with the optimization driver.
     Returns
@@ -355,17 +375,43 @@ def stress_pnorm(u: np.ndarray,
         self-adjoint in this implementation.
     """
     n = xPhys.shape[0]
-    xPhys_s = np.maximum(xPhys, 1e-12)  
+    xPhys_s = np.maximum(xPhys, 1e-8)  
+    # xPhys_s = xPhys 
     stress_re = stress_vm / (xPhys_s ** penal_sig)  
+    # p-norm aggregation of the relaxed stresses.
     sP = stress_re ** Pnorm      
     mean_sP = np.mean(sP)              
-    stress_pnorm = mean_sP ** (1.0 / Pnorm)     
+    stress_pnorm = mean_sP ** (1.0 / Pnorm)  
+
+    # Derivative of the p-norm objective with respect to the relaxed stress.   
     coeff = (1.0 / n) * (mean_sP ** (1.0 / Pnorm - 1.0))
-    dstress_pnorm_dvm = coeff * (stress_re ** (Pnorm - 1.0)) / (xPhys_s ** penal_sig) 
+    ds_p_ds_re = coeff * (stress_re**(Pnorm - 1.0))
+    
+    # Explicit derivative of the p-norm stress with respect to xPhys.
+    # A mask is used to suppress the contribution exactly at very small
+    # densities where clipping is active.
+    # ds_p_dxPhys = ds_p_ds_re * (-penal_sig * stress_vm / (xPhys_s**(penal_sig + 1)))
+    mask = (xPhys > 1e-8).astype(xPhys.dtype)
+    ds_p_dxPhys = ds_p_ds_re * (-penal_sig * stress_vm / (xPhys_s ** (penal_sig + 1))) * mask
+
+    # Additional direct contribution through the density dependence of the
+    # stress tensor:
+    #   stress = C_es : strain
+    # and thus
+    #   d(stress_vm)/dxPhys = dsvm : (dC_es/dxPhys : strain)
+    dC_esdx = dscale[:, 0][:, None, None] * cs
+    dsvm_dx = np.einsum('ei,eij,ej->e', dsvm, dC_esdx, strain, optimize=True)[:, None]
+    ds_p_dxPhys += (ds_p_ds_re / (xPhys_s ** penal_sig)) * dsvm_dx
+
     obj += stress_pnorm
-    Ct_dvm = np.einsum('eji,ej->ei', C_es, dsvm, optimize=True)
-    dJ_du = np.einsum('ei,eij->ej', Ct_dvm, B, optimize=True)
-    dJ_du *= dstress_pnorm_dvm
+    # Derivative of relaxed stress to the elemental stress vector.
+    ds_re_d_s = dsvm / (xPhys_s ** penal_sig)  
+    # Element-wise derivative of the objective with respect to the element
+    # displacement vector:
+    #   dJ/du_e = (dJ/ds_re) * (ds_re/dsigma) * (dsigma/dstrain) * (dstrain/du_e)
+    #           = ds_p_ds_re * ds_re_d_s * C_es * B
+    ds_p_du = np.einsum('ei,eij,ejk->ek', ds_re_d_s, C_es, B, optimize=True)   # (ne, ndof_el)
+    ds_p_du *= ds_p_ds_re
     rhs_adj = np.zeros((u.shape[0], 1), dtype=u.dtype)
-    np.add.at(rhs_adj[:, 0], edofMat, -dJ_du)
-    return obj, rhs_adj, False
+    np.add.at(rhs_adj[:, 0], edofMat,- ds_p_du)
+    return obj, rhs_adj, ds_p_dxPhys, False

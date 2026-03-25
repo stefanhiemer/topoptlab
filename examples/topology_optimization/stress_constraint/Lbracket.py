@@ -48,7 +48,8 @@ from topoptlab.log_utils import EmptyLogger,init_logging
 from topoptlab.draw_functions import spring, hinged_support
 
 # MAIN DRIVER
-def main(nelx, nely, volfrac, penal, rmin, ft,
+def main(nelx, nely, nelz,
+         volfrac, penal, rmin, ft,
          Emax=1, nu=0.3,
          filter_mode="matrix",
          lin_solver="cvxopt-cholmod", preconditioner=None,
@@ -58,13 +59,13 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
          obj_func=stress_pnorm, obj_kw={},
          el_flags=None,
          optimizer="mma", optimizer_kw = None,
-         Pnorm=10,
-         penal_sig=0.5,             
+         Pnorm=8,
+         penal_sig=0.6,             
          nouteriter=2000,ninneriter=15,
          file="lbracket",
-         matinterpol: Callable = ramp,
-         matinterpol_dx: Callable = ramp_dx,
-         matinterpol_kw: Dict = {"eps": 1e-9, "penal": 3.},
+         matinterpol: Callable = simp,
+         matinterpol_dx: Callable = simp_dx,
+         matinterpol_kw: Dict = {"eps": 1e-6, "penal": 3.},
          display=False,export=False,write_log=False,
          debug=0):
     """
@@ -142,9 +143,6 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
 
     Returns
     -------
-    x : ndarray of shape (n, 1)
-        Final design variable field.
-
     obj : float
         Final objective value evaluated on the thresholded design.
 
@@ -176,7 +174,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                              "No filter"][ft])
         to_log(f"filter mode: {filter_mode}")
     else:
-        log = EmptyLogger()
+        to_log = EmptyLogger()
     # total number of design variables/elements
     if ndim == 2:
         n = nelx * nely
@@ -386,6 +384,87 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                        labelleft=False)
         ax.axis("off")
         fig.show()
+
+
+
+
+    # def eval_obj_from_xPhys(xPhys_in: np.ndarray):
+    #     xPhys_in = np.asarray(xPhys_in, dtype=float).reshape(n, 1)
+
+    #     scale_in = matinterpol(xPhys=xPhys_in, **matinterpol_kw)
+    #     dscale_in = matinterpol_dx(xPhys=xPhys_in, **matinterpol_kw)
+    #     Kes_in = KE * scale_in[:, :, None]
+
+    #     if assembly_mode == "full":
+    #         sK_in = Kes_in.reshape(np.prod(Kes_in.shape))
+    #     elif assembly_mode == "symmetry":
+    #         sK_in = Kes_in[:, assm_indcs[0], assm_indcs[1]].reshape(n * ndof * (ndof + 1))
+    #     else:
+    #         raise ValueError(f"Unsupported assembly_mode: {assembly_mode}")
+
+    #     K_in = assemble_matrix(
+    #         sK=sK_in, iK=iK, jK=jK,
+    #         ndof=ndof, solver=lin_solver,
+    #         springs=springs
+    #     )
+
+    #     f_body_in = np.zeros(f.shape)
+    #     for bodyforce in body_forces_kw.keys():
+    #         if "strain_uniform" in body_forces_kw.keys():
+    #             fes = fe_strain[None, :, :] * scale_in[:, :, None]
+    #             np.add.at(f_body_in, edofMat, fes)
+
+    #         if "density_coupled" in body_forces_kw.keys():
+    #             fes = fe_dens[None, :, :] * simp(
+    #                 xPhys=xPhys_in, eps=0., penal=1.
+    #             )[:, :, None]
+    #             np.add.at(f_body_in, edofMat, fes)
+
+    #     rhs_in = f + f_body_in
+    #     K_in = apply_bc(K=K_in, solver=lin_solver, free=free, fixed=fixed)
+
+    #     u_in = np.zeros_like(u)
+    #     u_in[free, :], _, _ = solve_lin(
+    #         K=K_in, rhs=rhs_in[free],
+    #         solver=lin_solver,
+    #         preconditioner=preconditioner
+    #     )
+
+    #     obj_in = 0.0
+    #     for ii in np.arange(f.shape[1]):
+    #         ue_in = u_in[edofMat, ii]
+    #         C_es_in = scale_in[:, :, None] * cs
+    #         strain_in = np.einsum('eij,ej->ei', B, ue_in, optimize=True)
+    #         stress_in = np.einsum('eij,ej->ei', C_es_in, strain_in, optimize=True)
+
+    #         stress_vm_in = von_mises_stress(stress=stress_in, ndim=ndim)
+    #         dsvm_in = dsvm_ds(stress=stress_in, stress_vm=stress_vm_in, ndim=ndim)
+
+    #         obj_in, _, _, _ = obj_func(
+    #             u=u_in,
+    #             i=ii,
+    #             edofMat=edofMat,
+    #             B=B,
+    #             C_es=C_es_in,
+    #             xPhys=xPhys_in,
+    #             stress_vm=stress_vm_in,
+    #             dsvm=dsvm_in,
+    #             penal_sig=penal_sig,
+    #             Pnorm=Pnorm,
+    #             obj=obj_in,
+    #             scale=scale_in,
+    #             dscale=dscale_in,
+    #             cs=cs,
+    #             strain=strain_in,
+    #             **obj_kw
+    #         )
+
+    #     return float(obj_in)
+    
+
+
+
+
     # optimization loop
     loopbeta = 0
     for loop in np.arange(nouteriter):
@@ -423,7 +502,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                               edofMat,
                               fes)
                 if "density_coupled" in body_forces_kw.keys():
-                    fes = fe_dens[None,:,:]*ramp(xPhys=xPhys, eps=0., penal=0.)[:,:,None]
+                    fes = fe_dens[None,:,:]*simp(xPhys=xPhys, eps=0., penal=1.)[:,:,None]
                     np.add.at(f_body,
                               edofMat,
                               fes)
@@ -451,7 +530,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                 # von Mises stress and derivative
                 stress_vm = von_mises_stress(stress=stress, ndim=ndim)
                 dsvm = dsvm_ds(stress=stress,stress_vm=stress_vm,ndim=ndim)
-                obj, rhs_adj, self_adj = obj_func(
+                obj, rhs_adj, dobj_direct,self_adj = obj_func(
                     u=u,
                     i=i,              
                     edofMat=edofMat,
@@ -463,6 +542,10 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                     penal_sig=penal_sig,
                     Pnorm=Pnorm,
                     obj=obj,
+                    scale=scale,
+                    dscale=dscale,
+                    cs=cs,
+                    strain=strain,
                     **obj_kw
                 )
                 # update sensitivity for quantities that need a small offset to
@@ -484,6 +567,8 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                 # update sensitivity for quantities that need a small offset to
                 # avoid degeneracy of the FE problem
                 # standard contribution of element stiffness/conductivity
+                # add explicit term
+                dobj[:, 0] += dobj_direct[:, 0]
                 dobj_offset = np.matvec(KE,u[edofMat,i])
                 # thermal expansion
                 # dobj_offset[:] -= fTe[:,:,0]
@@ -497,12 +582,46 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                 # update sensitivity for quantities that do not need a small
                 # offset to avoid degeneracy of the FE problem
                 if "density_coupled" in body_forces_kw.keys():
-                    dobj[:,0] -= ramp_dx(xPhys=xPhys, eps=0., penal=0.)[:,0]*\
+                    dobj[:,0] -= simp_dx(xPhys=xPhys, eps=0., penal=1.)[:,0]*\
                                     np.dot(lamU[edofMat,i],fe_dens[:,i]) 
                 if debug:
                     print("FEM: it.: {0}, problem: {1}, min. u: {2:.10f}, med. u: {3:.10f}, max. u: {4:.10f}".format(
                            loop,i,np.min(u[:,i]),np.median(u[:,i]),np.max(u[:,i])))
-        
+
+
+
+
+
+
+
+
+        # print("\nFD check of dobj w.r.t. xPhys (before filter/projection)")
+
+        # grad_an = dobj[:, 0].copy()
+        # test_ids = np.array([0, n//4, n//2, 3*n//4, n-1], dtype=int)
+        # test_ids = np.unique(np.clip(test_ids, 0, n-1))
+
+        # h = 1e-6
+        # for e in test_ids:
+        #     xP = xPhys.copy()
+        #     xM = xPhys.copy()
+
+        #     xP[e, 0] = min(1.0, xP[e, 0] + h)
+        #     xM[e, 0] = max(0.0, xM[e, 0] - h)
+
+        #     fp = eval_obj_from_xPhys(xP)
+        #     fm = eval_obj_from_xPhys(xM)
+
+        #     grad_fd = (fp - fm) / (xP[e, 0] - xM[e, 0])
+        #     den = max(1e-12, abs(grad_fd), abs(grad_an[e]))
+        #     err_rel = abs(grad_fd - grad_an[e]) / den
+
+        #     print(
+        #         f"e={e:6d}  "
+        #         f"an={grad_an[e]: .6e}  "
+        #         f"fd={grad_fd: .6e}  "
+        #         f"rel={err_rel: .3e}"
+        #     )
         if loop == 0:
             if export:
                 export_vtk(
@@ -518,7 +637,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         constr_list = []
         vol_up = xPhys.mean() - volfrac - 1e-5
         vol_lo = volfrac - xPhys.mean() - 1e-5
-        constr_list.extend([vol_up, vol_lo])
+        constr_list.extend([vol_up,vol_lo])
         constrs = np.asarray(constr_list, dtype=float).ravel()
 
         dconstr = np.zeros((n, n_constr), dtype=float)
@@ -674,7 +793,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                       edofMat,
                       fes)
         if "density_coupled" in body_forces_kw.keys():
-            fes = fe_dens[None,:,:]*ramp(xPhys=xThresh, eps=0., penal=0.)[:,:,None]
+            fes = fe_dens[None,:,:]*simp(xPhys=xThresh, eps=0., penal=1.)[:,:,None]
             np.add.at(f_body,
                       edofMat,
                       fes)
@@ -698,22 +817,29 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     # von Mises stress
     stress_vm = von_mises_stress(stress=stress, ndim=ndim)
     dsvm = dsvm_ds(stress=stress,stress_vm=stress_vm,ndim=ndim)
-    obj=0.                  
-    obj, rhs_adj, self_adj = obj_func(
-                    u=u_bw,
-                    i=0,              
-                    edofMat=edofMat,
-                    B=B,
-                    C_es=C_es,
-                    xPhys=xThresh,
-                    stress_vm=stress_vm,
-                    dsvm=dsvm,
-                    penal_sig=penal_sig,
-                    Pnorm=Pnorm,
-                    obj=obj,
-                    **obj_kw
-                )
-    #
+    
+    dscale = matinterpol_dx(xPhys=xThresh, **matinterpol_kw)
+
+    obj = 0.
+    obj, rhs_adj, dobj_direct, self_adj = obj_func(
+        u=u_bw,
+        i=0,
+        edofMat=edofMat,
+        B=B,
+        C_es=C_es,
+        xPhys=xThresh,
+        stress_vm=stress_vm,
+        dsvm=dsvm,
+        penal_sig=penal_sig,
+        Pnorm=Pnorm,
+        obj=obj,
+        scale=scale,
+        dscale=dscale,
+        cs=cs,
+        strain=strain,
+        **obj_kw
+    )
+        #
     if write_log:
         to_log("final.: obj.: {0:.10f} vol.: {1:.10f}".format(obj, xThresh.mean()))
     #
@@ -782,9 +908,9 @@ if __name__ == "__main__":
     nely=nelx
     nelz=None
     volfrac=0.3
-    rmin=0.05*nelx
+    rmin=0.06*nelx
     penal=3
-    ft=5 # ft==0 -> sens, ft==1 -> dens
+    ft=1 # ft==0 -> sens, ft==1 -> dens
     elem_size=1.0
     nouteriter=2000
     export=True
@@ -813,7 +939,7 @@ if __name__ == "__main__":
     idx = (xs[:, None] * nely+ ys[None, :]).astype(int).ravel()
     el_flags[idx] = 1
 
-    obj = main(nelx=nelx,nely=nely,volfrac=volfrac,penal=penal,rmin=rmin,ft=ft,
+    obj = main(nelx=nelx,nely=nely,nelz=nelz,volfrac=volfrac,penal=penal,rmin=rmin,ft=ft,
          obj_func=stress_pnorm,
          body_forces_kw={"density_coupled": np.array([0,-1e-7])},
          el_flags = el_flags,
