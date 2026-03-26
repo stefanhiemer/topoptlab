@@ -298,7 +298,6 @@ def inverse_homogenization_control(u, u0, edofMat, i, KE,
           (results["CH"][i:,:] - CH0[i,:]).sum()**2
     return obj, dobj, True
 
-
 def stress_pnorm(u: np.ndarray,
                  i: int,
                  edofMat: np.ndarray,
@@ -310,7 +309,6 @@ def stress_pnorm(u: np.ndarray,
                  penal_sig: float,
                  Pnorm: float,
                  obj: float,
-                    scale: np.ndarray,
                  dscale: np.ndarray,
                  cs: np.ndarray,
                  strain: np.ndarray,
@@ -351,10 +349,6 @@ def stress_pnorm(u: np.ndarray,
         Exponent used for p-norm aggregation.
     obj : float
         Accumulated objective value.
-    scale : ndarray of shape (ne, 1)
-        Interpolated material scaling factor for each element. This argument is
-        passed for interface consistency and possible downstream use. It is not
-        explicitly used in the present implementation.
     dscale : ndarray of shape (ne, 1)
         Derivative of the interpolation factor with respect to the physical
         density field,
