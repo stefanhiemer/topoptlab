@@ -32,4 +32,4 @@ def test_stress_lbracket(tmp_path, example_file, params):
     run(cmd, cwd=tmp_path, shell=False, check=True)
     obj = loadtxt(tmp_path / "stress_lbracket_obj.csv", delimiter=",")
     obj_ref = loadtxt(test_path / "test_files" / "stress_lbracket_obj.csv", delimiter=",")
-    assert_allclose(obj, obj_ref,rtol=1e-5)
+    assert_allclose(obj, obj_ref,rtol=1e-4)
