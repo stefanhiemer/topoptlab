@@ -37,7 +37,7 @@ from topoptlab.solve_linsystem import solve_lin
 # constrained optimizers
 from topoptlab.optimizer.optimality_criterion import oc_top88,oc_mechanism,oc_generalized
 from topoptlab.optimizer.mma_utils import update_mma,mma_defaultkws,gcmma_defaultkws
-from topoptlab.objectives import stress_pnorm
+from topoptlab.objectives import stress_pnorm,compliance
 # output final design to a Paraview readable format
 from topoptlab.output_designs import export_vtk,threshold
 # map element data to img/voxel
@@ -48,36 +48,41 @@ from topoptlab.log_utils import EmptyLogger,init_logging
 from topoptlab.draw_functions import spring, hinged_support
 
 # MAIN DRIVER
-def main(nelx, nely, nelz,
-         volfrac, penal, rmin, ft,
-         Emax=1, nu=0.3,
-         filter_mode="matrix",
-         lin_solver="cvxopt-cholmod", preconditioner=None,
-         assembly_mode="full",
-         body_forces_kw={},
-         bcs=Lbracket, l=1.,
-         obj_func=stress_pnorm, obj_kw={},
-         el_flags=None,
-         optimizer="mma", optimizer_kw = None,
-         Pnorm=8,
-         penal_sig=0.6,             
-         nouteriter=2000,ninneriter=15,
-         file="lbracket",
-         matinterpol: Callable = simp,
-         matinterpol_dx: Callable = simp_dx,
-         matinterpol_kw: Dict = {"eps": 1e-6, "penal": 3.},
-         display=False,export=False,write_log=False,
-         debug=0):
+def main(nelx: int, nely: int, nelz: int | None,
+        volfrac: float, penal: float, rmin: float, ft: int,
+        Emax: float = 1.0, nu: float = 0.3,
+        filter_mode: str = "matrix", lin_solver: str = "cvxopt-cholmod",
+        preconditioner: str | None = None,
+        assembly_mode: str = "full", body_forces_kw: Dict | None = None,
+        bcs: Callable = Lbracket, l: float | np.ndarray = 1.0,
+        obj_func: Callable = stress_pnorm, obj_kw={},         
+        el_flags: np.ndarray | None = None,
+        optimizer: str = "mma", optimizer_kw: Dict | None = None,
+        Pnorm: float = 10, penal_sig: float = 0.5,
+        use_stress_constraint: bool = False,stress_allow: float = 0.45,
+        nouteriter: int = 2000, ninneriter: int = 15,
+        file: str = "lbracket",
+        matinterpol: Callable = simp, matinterpol_dx: Callable = simp_dx,
+        matinterpol_kw: Dict = {"eps": 1e-6, "penal": 3.},
+        display: bool = False, export: bool = False,
+        write_log: bool = False,
+        debug: int = 0) -> float:
     """
-    Run topology optimization for stress minimization 
-    using an pnorm relaxed von Mises stress objective.
-
+    Run topology optimization with compliance minimization under 
+    stress constraint using an pnorm relaxed von Mises stress objective.
+    Details please refer to: 
+    Le, Chau, et al. "Stress-based topology optimization for continua." 
+    Structural and Multidisciplinary Optimization 41.4 (2010): 605-620.
+    Parameters
     Parameters
     ----------
     nelx : int
         number of elements in x direction.
     nely : int
         number of elements in y direction.
+    nelz : int or None
+        Number of elements in the z direction. If ``None``, a 2D problem is
+        solved. Otherwise, a 3D problem is assumed.
     volfrac : float
         volume fraction.
     penal : float
@@ -88,64 +93,79 @@ def main(nelx, nely, nelz,
     ft : int
         integer flag for the filter. 0 sensitivity filtering,
         1 density filtering, -1 no filter.
-    nelz : int or None
-        number of elements in z direction. If None, simulation is 2d.
-    filter_mode : str
-        indicates how filtering is done. Possible values are "matrix" or
-        "helmholtz". If "matrix", then density/sensitivity filters are
-        implemented via a sparse matrix and applied by multiplying
-        said matrix with the densities/sensitivities.
-    solver : str
-        solver for linear systems. Check function lin solve for available
-        options.
-    preconditioner : str or None
-        preconditioner for linear systems.
-    assembly_mode : str
-        whether full or only lower triangle of linear system / matrix is
-        created.
-    bcs : str or callable
-        returns the boundary conditions.
-    l : float or tuple of length (ndim) or np.ndarray of shape (ndim)
-        lengths of each element
-    obj_func : callable
-        objective function. Should update the objective value, the rhs of the
-        the adjoint problem (currently only for stationary lin. problems) and
-        a flag indicating whether the objective is self adjoint.
-    obj_kw : dict
-        keywords needed for the objective function. E. g. for a compliant
-        mechanism and maximization of the displacement it would be the
-        indicator array for output nodes. Check the objective for the necessary
-        entries.
-    el_flags : np.ndarray or None
-        array of flags/integers that switch behaviour of specific elements.
-        Currently 1 marks the element as passive (zero at all times), while 2
-        marks it as active (1 at all time).
-    optimizer: str
-        solver options which are "oc", "mma" and "gcmma" for the optimality
-        criteria method, the method of moving asymptotes and the globally
-        covergent method of moving asymptotes.
-    optimizer_kw : dict
-        dictionary with parameters for optimizer.
-    nouteriter: int
-        number of TO iterations
-    ninneriter: int
-        number of iterations for GCMMA
-    display : bool
-        if True, plot design evolution to screen
-    file : str
-        name of output files
-    export : bool
-        if True, export design as vtk file.
-    write_log : bool
-        if True, write a log file and display results to command line.
-    debug : bool
-        if True, print extra output for debugging.
-
+    Emax : float, optional
+        Young's modulus of the solid material.
+    nu : float, optional
+        Poisson ratio.
+    filter_mode : str, optional
+        Filter implementation. Typically ``"matrix"``.
+    lin_solver : str, optional
+        Linear solver used for the finite element system.
+    preconditioner : str or None, optional
+        Preconditioner passed to the linear solver.
+    assembly_mode : str, optional
+        Matrix assembly mode. Usually ``"full"``. Other options depend on the
+        FEM backend implementation.
+    body_forces_kw : dict, optional
+        Dictionary describing additional element load contributions. Supported
+        keys include:
+        - ``"strain_uniform"`` for strain-induced loads
+        - ``"density_coupled"`` for density-dependent body forces
+    bcs : callable, optional
+        Boundary condition generator. It must return displacement array,
+        external force array, fixed dofs, free dofs, and spring data.
+    l : float or array_like, optional
+        Element size. A scalar is broadcast to all spatial directions.
+    obj_func : callable, optional
+        Objective function callback. It must return the updated objective value,
+        adjoint right-hand side, and a flag indicating whether the objective is
+        self-adjoint.
+    obj_kw : dict, optional
+        Additional keyword arguments passed to ``obj_func``.
+    el_flags : np.ndarray or None, optional
+        Element activity flags.
+    optimizer : str, optional
+        Optimization algorithm. Supported values are ``"oc"``, ``"ocm"``,
+        ``"ocg"``, ``"mma"``, and possibly ``"gcmma"`` if enabled in the
+        surrounding implementation.
+    optimizer_kw : dict or None, optional
+        Additional optimizer settings. If ``None``, default values are created.
+    Pnorm : float, optional
+        Exponent used in the aggregated stress p-norm constraint.
+    penal_sig : float, optional
+        Stress relaxation exponent used in the stress aggregation model.
+    use_stress_constraint : bool, optional
+        If True, add a global stress constraint based on the relaxed p-norm
+        of the element von Mises stress.
+    stress_allow : float, optional
+        Allowable stress used to normalize the stress constraint.
+    nouteriter : int, optional
+        Maximum number of outer topology optimization iterations.
+    ninneriter : int, optional
+        Number of inner iterations for algorithms that require them, such as
+        GCMMA.
+    file : str, optional
+        Base name used for log and export files.
+    matinterpol : callable, optional
+        Material interpolation law that maps physical densities to stiffness
+        scaling factors.
+    matinterpol_dx : callable, optional
+        Derivative of ``matinterpol`` with respect to the physical density.
+    matinterpol_kw : dict, optional
+        Additional keyword arguments passed to ``matinterpol`` and
+        ``matinterpol_dx``.
+    display : bool, optional
+        If True, show the design evolution during optimization.
+    export : bool, optional
+        If True, export intermediate and final results to VTK.
+    write_log : bool, optional
+        If True, write iteration history to a log file and print progress.
+    debug : int or bool, optional
+        Debug flag. If enabled, print additional diagnostic information.
     Returns
     -------
     obj : float
         Final objective value evaluated on the thresholded design.
-
     """
     if nelz is None:
         ndim = 2
@@ -225,8 +245,8 @@ def main(nelx, nely, nelz,
     dobj = np.zeros((n, 1),order="F")
     dv = np.ones((n, 1),order="F")
     # initialize solver
-    # upper and lower volume constr 
-    n_constr = 2
+    # upper, lower volume constr or stress constraint
+    n_constr = 2 + int(use_stress_constraint)  
     if optimizer_kw is None:
         if optimizer in ["oc","ocm","ocg"]:
             # must be initialized to use the NGuyen/Paulino OC approach
@@ -337,8 +357,6 @@ def main(nelx, nely, nelz,
         if len([key for key in body_forces_kw.keys() \
                 if key not in ["density_coupled","strain_uniform"]]):
             raise NotImplementedError("One type of bodyforce/source has not yet been implemented.")
-    
-    
     # Construct the index pointers for the coo format
     iK,jK = create_matrixinds(edofMat=edofMat,mode=assembly_mode)
     if assembly_mode == "lower":
@@ -351,13 +369,6 @@ def main(nelx, nely, nelz,
     elif ndim == 3:
         mapping = partial(map_eltovoxel,
                           nelx=nelx,nely=nely,nelz=nelz)
-    # prepare functions to invert this mapping if we use the convolution filter
-    if filter_mode == "convolution" and ndim == 2:
-        invmapping = partial(map_imgtoel,
-                             nelx=nelx,nely=nely)
-    elif filter_mode == "convolution" and ndim == 3:
-        invmapping = partial(map_voxeltoel,
-                             nelx=nelx,nely=nely,nelz=nelz)
     # Filter: Build (and assemble) the index+data vectors for the coo matrix format
     if filter_mode == "matrix":
         H,Hs = assemble_matrix_filter(nelx=nelx,nely=nely,nelz=nelz,
@@ -365,7 +376,6 @@ def main(nelx, nely, nelz,
     # BC's and support
     u,f,fixed,free,springs = bcs(nelx=nelx,nely=nely,nelz=nelz,
                                  ndof=ndof)
-    f0 = None
     if display:
         # Initialize plot and plot the initial design
         plt.ion()  # Ensure that redrawing is possible
@@ -384,87 +394,9 @@ def main(nelx, nely, nelz,
                        labelleft=False)
         ax.axis("off")
         fig.show()
-
-
-
-
-    # def eval_obj_from_xPhys(xPhys_in: np.ndarray):
-    #     xPhys_in = np.asarray(xPhys_in, dtype=float).reshape(n, 1)
-
-    #     scale_in = matinterpol(xPhys=xPhys_in, **matinterpol_kw)
-    #     dscale_in = matinterpol_dx(xPhys=xPhys_in, **matinterpol_kw)
-    #     Kes_in = KE * scale_in[:, :, None]
-
-    #     if assembly_mode == "full":
-    #         sK_in = Kes_in.reshape(np.prod(Kes_in.shape))
-    #     elif assembly_mode == "symmetry":
-    #         sK_in = Kes_in[:, assm_indcs[0], assm_indcs[1]].reshape(n * ndof * (ndof + 1))
-    #     else:
-    #         raise ValueError(f"Unsupported assembly_mode: {assembly_mode}")
-
-    #     K_in = assemble_matrix(
-    #         sK=sK_in, iK=iK, jK=jK,
-    #         ndof=ndof, solver=lin_solver,
-    #         springs=springs
-    #     )
-
-    #     f_body_in = np.zeros(f.shape)
-    #     for bodyforce in body_forces_kw.keys():
-    #         if "strain_uniform" in body_forces_kw.keys():
-    #             fes = fe_strain[None, :, :] * scale_in[:, :, None]
-    #             np.add.at(f_body_in, edofMat, fes)
-
-    #         if "density_coupled" in body_forces_kw.keys():
-    #             fes = fe_dens[None, :, :] * simp(
-    #                 xPhys=xPhys_in, eps=0., penal=1.
-    #             )[:, :, None]
-    #             np.add.at(f_body_in, edofMat, fes)
-
-    #     rhs_in = f + f_body_in
-    #     K_in = apply_bc(K=K_in, solver=lin_solver, free=free, fixed=fixed)
-
-    #     u_in = np.zeros_like(u)
-    #     u_in[free, :], _, _ = solve_lin(
-    #         K=K_in, rhs=rhs_in[free],
-    #         solver=lin_solver,
-    #         preconditioner=preconditioner
-    #     )
-
-    #     obj_in = 0.0
-    #     for ii in np.arange(f.shape[1]):
-    #         ue_in = u_in[edofMat, ii]
-    #         C_es_in = scale_in[:, :, None] * cs
-    #         strain_in = np.einsum('eij,ej->ei', B, ue_in, optimize=True)
-    #         stress_in = np.einsum('eij,ej->ei', C_es_in, strain_in, optimize=True)
-
-    #         stress_vm_in = von_mises_stress(stress=stress_in, ndim=ndim)
-    #         dsvm_in = dsvm_ds(stress=stress_in, stress_vm=stress_vm_in, ndim=ndim)
-
-    #         obj_in, _, _, _ = obj_func(
-    #             u=u_in,
-    #             i=ii,
-    #             edofMat=edofMat,
-    #             B=B,
-    #             C_es=C_es_in,
-    #             xPhys=xPhys_in,
-    #             stress_vm=stress_vm_in,
-    #             dsvm=dsvm_in,
-    #             penal_sig=penal_sig,
-    #             Pnorm=Pnorm,
-    #             obj=obj_in,
-    #             scale=scale_in,
-    #             dscale=dscale_in,
-    #             cs=cs,
-    #             strain=strain_in,
-    #             **obj_kw
-    #         )
-
-    #     return float(obj_in)
-    
-
-
-
-
+    dconstr_stress_dx = np.zeros((n, 1), order="F")
+    constr_stress = 0.0
+    c_stress = None
     # optimization loop
     loopbeta = 0
     for loop in np.arange(nouteriter):
@@ -519,35 +451,14 @@ def main(nelx, nely, nelz,
             obj = 0
             dobj[:] = 0.
             for i in np.arange(f.shape[1]):
-
-                ue = u[edofMat, i]
-                # interpolated constitutive tensor
-                C_es = scale[:, :, None] * cs
-                # element strain
-                strain = np.einsum('eij,ej->ei', B, ue, optimize=True)
-                # element stress
-                stress = np.einsum('eij,ej->ei', C_es, strain, optimize=True)
-                # von Mises stress and derivative
-                stress_vm = von_mises_stress(stress=stress, ndim=ndim)
-                dsvm = dsvm_ds(stress=stress,stress_vm=stress_vm,ndim=ndim)
-                obj, rhs_adj, dobj_direct,self_adj = obj_func(
-                    u=u,
-                    i=i,              
-                    edofMat=edofMat,
-                    B=B,
-                    C_es=C_es,
-                    xPhys=xPhys,
-                    stress_vm=stress_vm,
-                    dsvm=dsvm,
-                    penal_sig=penal_sig,
-                    Pnorm=Pnorm,
-                    obj=obj,
-                    scale=scale,
-                    dscale=dscale,
-                    cs=cs,
-                    strain=strain,
-                    **obj_kw
-                )
+                # obj. value, selfadjoint variables, self adjoint flag
+                obj,rhs_adj,self_adj = obj_func(obj=obj, i=i,
+                                                xPhys=xPhys,u=u,
+                                                KE=KE, edofMat=edofMat,
+                                                Kes=Kes,
+                                                matinterpol=matinterpol,
+                                                matinterpol_kw=matinterpol_kw,
+                                                **obj_kw)
                 # update sensitivity for quantities that need a small offset to
                 # avoid degeneracy of the FE problem
                 #"""
@@ -568,16 +479,10 @@ def main(nelx, nely, nelz,
                 # avoid degeneracy of the FE problem
                 # standard contribution of element stiffness/conductivity
                 # add explicit term
-                dobj[:, 0] += dobj_direct[:, 0]
                 dobj_offset = np.matvec(KE,u[edofMat,i])
-                # thermal expansion
-                # dobj_offset[:] -= fTe[:,:,0]
                 # contribution due to force induced by strain
                 if "strain_uniform" in body_forces_kw.keys():
                     dobj_offset -= fe_strain[None,:,i]
-                #
-                if f0 is not None:
-                    dobj_offset -= f0[None,:,i]
                 dobj[:,0] += (dscale*lamU[edofMat,i]*dobj_offset).sum(axis=1)
                 # update sensitivity for quantities that do not need a small
                 # offset to avoid degeneracy of the FE problem
@@ -587,41 +492,64 @@ def main(nelx, nely, nelz,
                 if debug:
                     print("FEM: it.: {0}, problem: {1}, min. u: {2:.10f}, med. u: {3:.10f}, max. u: {4:.10f}".format(
                            loop,i,np.min(u[:,i]),np.median(u[:,i]),np.max(u[:,i])))
+        
+        ue = u[edofMat, 0]
+        # interpolated constitutive tensor
+        C_es = scale[:, :, None] * cs
+        # element strain
+        strain = np.einsum('eij,ej->ei', B, ue, optimize=True)
+        # element stress
+        stress = np.einsum('eij,ej->ei', C_es, strain, optimize=True)
+        # von Mises stress and derivative
+        stress_vm = von_mises_stress(stress=stress, ndim=ndim)
 
+        if use_stress_constraint:
+            i=0
+            dsvm = dsvm_ds(stress=stress,stress_vm=stress_vm,ndim=ndim)
+            stress_p, rhs_adj, dsP_dx,_ = stress_pnorm(
+                u=u,
+                i=i,              
+                edofMat=edofMat,
+                B=B,
+                C_es=C_es,
+                xPhys=xPhys,
+                stress_vm=stress_vm,
+                dsvm=dsvm,
+                penal_sig=penal_sig,
+                Pnorm=Pnorm,
+                obj=0,
+                dscale=dscale,
+                cs=cs,
+                strain=strain,
+                **obj_kw
+            )
+            lamU = np.zeros(f.shape)
+            lamU[free],_,_ = solve_lin(K, rhs=rhs_adj[free],
+                                    solver=lin_solver, P=precond,
+                                    preconditioner = preconditioner)
+            dconstr_stress_dx[:, 0] = dsP_dx[:, 0]
+            dobj_offset = np.matvec(KE,u[edofMat,i])
+            # contribution due to force induced by strain
+            if "strain_uniform" in body_forces_kw.keys():
+                dobj_offset -= fe_strain[None,:,i]
+            dconstr_stress_dx[:,0] += (dscale*lamU[edofMat,i]*dobj_offset).sum(axis=1)
+            # update sensitivity for quantities that do not need a small
+            # offset to avoid degeneracy of the FE problem
+            if "density_coupled" in body_forces_kw.keys():
+                dconstr_stress_dx[:,0] -= simp_dx(xPhys=xPhys, eps=0., penal=1.)[:,0]*\
+                                np.dot(lamU[edofMat,i],fe_dens[:,i]) 
+            
+            # c_stress is used to detect the max stress, details please refer to the paper
+            stress_vm_max  = float(np.max(stress_vm))
+            alpha_c = 0.85
+            c_target = stress_vm_max / stress_p
+            if c_stress is None:
+                c_stress = c_target
+            else:
+                c_stress = alpha_c * c_stress + (1.0 - alpha_c) * c_target
+            dconstr_stress_dx = c_stress * dconstr_stress_dx / stress_allow
+            constr_stress = c_stress * stress_p / stress_allow - 1.0
 
-
-
-
-
-
-
-        # print("\nFD check of dobj w.r.t. xPhys (before filter/projection)")
-
-        # grad_an = dobj[:, 0].copy()
-        # test_ids = np.array([0, n//4, n//2, 3*n//4, n-1], dtype=int)
-        # test_ids = np.unique(np.clip(test_ids, 0, n-1))
-
-        # h = 1e-6
-        # for e in test_ids:
-        #     xP = xPhys.copy()
-        #     xM = xPhys.copy()
-
-        #     xP[e, 0] = min(1.0, xP[e, 0] + h)
-        #     xM[e, 0] = max(0.0, xM[e, 0] - h)
-
-        #     fp = eval_obj_from_xPhys(xP)
-        #     fm = eval_obj_from_xPhys(xM)
-
-        #     grad_fd = (fp - fm) / (xP[e, 0] - xM[e, 0])
-        #     den = max(1e-12, abs(grad_fd), abs(grad_an[e]))
-        #     err_rel = abs(grad_fd - grad_an[e]) / den
-
-        #     print(
-        #         f"e={e:6d}  "
-        #         f"an={grad_an[e]: .6e}  "
-        #         f"fd={grad_fd: .6e}  "
-        #         f"rel={err_rel: .3e}"
-        #     )
         if loop == 0:
             if export:
                 export_vtk(
@@ -638,18 +566,22 @@ def main(nelx, nely, nelz,
         vol_up = xPhys.mean() - volfrac - 1e-5
         vol_lo = volfrac - xPhys.mean() - 1e-5
         constr_list.extend([vol_up,vol_lo])
+        if use_stress_constraint:
+            constr_list.append(float(constr_stress))
         constrs = np.asarray(constr_list, dtype=float).ravel()
 
         dconstr = np.zeros((n, n_constr), dtype=float)
         col = 0
         dconstr[:n, col] =  1.0 / n; col += 1      # vol upper
         dconstr[:n, col] = -1.0 / n; col += 1      # vol lower
+        if use_stress_constraint:
+            dconstr[:n, col] = dconstr_stress_dx[:, 0]
+            col += 1
         # Sensitivity filtering:
         if ft == 0 and filter_mode == "matrix":
             dobj[:] = np.asarray(H@(x*dobj) /
                                  Hs) / np.maximum(0.001, x)
             #dobj[:] = H @ (dc*x) / Hs / np.maximum(0.001, x)
-
         elif ft == 1 and filter_mode == "matrix":
             dobj[:] = np.asarray(H*(dobj/Hs))
             for j in range(col):
@@ -706,7 +638,6 @@ def main(nelx, nely, nelz,
             xhist.pop(0); xhist.append(x.copy())
             optimizer_kw["low"] = low; optimizer_kw["upp"] = upp
             # print(f"fval: {constrs}, max_violation: {np.maximum(constrs,0).max():.3e}")    
-
         if debug:
             print("Post Density Update: it.: {0}, med. x.: {1:.10f}, med. xTilde: {2:.10f}, med. xPhys: {3:.10f}".format(
                    loop, np.median(x),np.median(xTilde),np.median(xPhys)))
@@ -755,7 +686,7 @@ def main(nelx, nely, nelz,
             to_log("it.: {0} obj.: {1:.10f} vol.: {2:.10f} ch: {3:.10f}".format(
                          loop+1, obj, xPhys.mean(), change))
         # convergence check
-        if change < 0.01 and beta is None and loop >1000:
+        if change < 0.01 and beta is None and loop >500:
             break
         # parameter continuation for beta in volume projection
         elif (ft == 5) and (beta < 256) and \
@@ -821,24 +752,13 @@ def main(nelx, nely, nelz,
     dscale = matinterpol_dx(xPhys=xThresh, **matinterpol_kw)
 
     obj = 0.
-    obj, rhs_adj, dobj_direct, self_adj = obj_func(
-        u=u_bw,
-        i=0,
-        edofMat=edofMat,
-        B=B,
-        C_es=C_es,
-        xPhys=xThresh,
-        stress_vm=stress_vm,
-        dsvm=dsvm,
-        penal_sig=penal_sig,
-        Pnorm=Pnorm,
-        obj=obj,
-        scale=scale,
-        dscale=dscale,
-        cs=cs,
-        strain=strain,
-        **obj_kw
-    )
+    obj,rhs_adj,self_adj = obj_func(obj=obj, i=0,
+                                    xPhys=xThresh,u=u_bw,
+                                    KE=KE, edofMat=edofMat,
+                                    Kes=Kes,
+                                    matinterpol=matinterpol,
+                                    matinterpol_kw=matinterpol_kw,
+                                    **obj_kw)
         #
     if write_log:
         to_log("final.: obj.: {0:.10f} vol.: {1:.10f}".format(obj, xThresh.mean()))
@@ -908,7 +828,7 @@ if __name__ == "__main__":
     nely=nelx
     nelz=None
     volfrac=0.3
-    rmin=0.06*nelx
+    rmin=0.05*nelx
     penal=3
     ft=1 # ft==0 -> sens, ft==1 -> dens
     elem_size=1.0
@@ -916,6 +836,7 @@ if __name__ == "__main__":
     export=True
     write_log=True
     display=True
+    use_stress_constraint = True
     import sys
     if len(sys.argv)>1: nelx   =int(sys.argv[1])
     if len(sys.argv)>2: nely   =int(sys.argv[2])
@@ -940,13 +861,14 @@ if __name__ == "__main__":
     el_flags[idx] = 1
 
     obj = main(nelx=nelx,nely=nely,nelz=nelz,volfrac=volfrac,penal=penal,rmin=rmin,ft=ft,
-         obj_func=stress_pnorm,
+         obj_func=compliance,
          body_forces_kw={"density_coupled": np.array([0,-1e-7])},
          el_flags = el_flags,
          display=display,
          bcs=bcs,
          file='aLbracket',
          nouteriter=nouteriter,
+         use_stress_constraint=use_stress_constraint,
          export=export,write_log=write_log)
     # for tests
     np.savetxt("stress_lbracket_obj.csv", np.array([obj]), delimiter=",")
