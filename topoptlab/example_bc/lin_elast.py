@@ -869,6 +869,7 @@ def cshape2d(nelx: int, nely: int,
     fixed = np.hstack(fixed)
     return u,f,fixed,np.setdiff1d(dofs,fixed),None
 
+
 def Lbracket(nelx: int, nely: int,
            ndof: int, **kwargs: Any
            ) -> Tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,None]:
@@ -913,5 +914,5 @@ def Lbracket(nelx: int, nely: int,
     # force pushing down at 6 nodes
     x_range = np.arange(nelx - 5, nelx + 1)
     y_load = 2 * (x_range * (nely + 1) + 60) + 1
-    f[y_load, 0] = -0.5
+    f[y_load, 0] = -0.5/3
     return u,f,fixed,np.setdiff1d(dofs,fixed),None
