@@ -48,7 +48,7 @@ def compliance(xPhys: np.ndarray,
         obj. is selfadjoint, so no adjoint problem has to be solved
 
     """
-    ce = (np.dot(u[edofMat,i], KE) * u[edofMat,i]).sum(1)
+    ce = (((KE @ u[edofMat,i][:,:,None])[:,:,0]) * u[edofMat,i]).sum(1) if KE.ndim == 3 else (np.dot(u[edofMat,i], KE) * u[edofMat,i]).sum(1)
     obj += (matinterpol(xPhys,**matinterpol_kw)[:,0]*ce).sum()
     #dc = (-1) * matinterpol_dx(xPhys,**matinterpol_kw)*ce
     #return obj, dc, True #
