@@ -869,3 +869,50 @@ def cshape2d(nelx: int, nely: int,
     fixed = np.hstack(fixed)
     return u,f,fixed,np.setdiff1d(dofs,fixed),None
 
+
+def Lbracket(nelx: int, nely: int,
+           ndof: int, **kwargs: Any
+           ) -> Tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,None]:
+    """
+    This is the bcs for a lbracket. Details please refer to: 
+    Le, Chau, et al. "Stress-based topology optimization for continua." 
+    Structural and Multidisciplinary Optimization 41.4 (2010): 605-620.
+    Parameters
+    ----------
+    nelx : int
+        number of elements in x direction.
+    nely : int
+        number of elements in y direction.
+    ndof : int
+        number of degrees of freedom.
+
+    Returns
+    -------
+    u : np.ndarray
+        array of zeros for state variable (displacement, temperature) to be
+        filled of shape (ndof).
+    f : np.ndarray
+        array of zeros for state flow variables (forces, flow).
+    fixed : np.ndarray
+        indices of fixed dofs (nfixed).
+    free : np.ndarray
+        indices of free dofs (ndofs - nfixed).
+    springs : None
+        example has no springs.
+
+    """
+    #
+    dofs = np.arange(ndof)
+    # Solution and RHS vectors
+    f = np.zeros((ndof, 1))
+    u = np.zeros((ndof, 1))
+    # fix the top edge, when x from 0 to 40
+    xs   = np.arange(0, 41)
+    xdof = 2 * ((nely+1) * xs)      
+    ydof = xdof + 1              
+    fixed = np.hstack((xdof,ydof)) 
+    # force pushing down at 6 nodes
+    x_range = np.arange(nelx - 5, nelx + 1)
+    y_load = 2 * (x_range * (nely + 1) + 60) + 1
+    f[y_load, 0] = -0.5/3
+    return u,f,fixed,np.setdiff1d(dofs,fixed),None

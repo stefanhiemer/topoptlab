@@ -231,7 +231,7 @@ def orthotropic_2d(Ex: float, Ey: float,
         Only needed for plain strain.
     nu_yz : float or None
         Poisson's ratio for tension in y and contraction/expansion z direction.
-        Only needed for plain strain.
+        Only needed for plane strain.
     
     Returns
     -------
