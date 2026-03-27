@@ -70,68 +70,65 @@ def fem_tensiletest(nelx, nely, nelz=None,
     #
     if nelz is None:
         ndim = 2
+        lk = lk_linear_elast_2d
+        create_edofMat = create_edofMat2d
+        bc = tensiletest_2d
     else:
         ndim = 3
+        lk = lk_linear_elast_3d
+        create_edofMat = create_edofMat3d
+        bc = tensiletest_3d
     # 
     if isinstance(l,float):
         l = np.array( [l for i in np.arange(ndim)])
     # total number of design variables/elements
-    if ndim == 2:
-        n = nelx * nely
-    elif ndim == 3:
-        n = nelx * nely * nelz
+    n = np.array([nelx,nely,nelz][:ndim])
     #
     if xPhys is None:
-        xPhys = np.ones(n, dtype=float,order='F')
+        xPhys = np.ones(np.prod(n).astype(int), 
+                        dtype=float, order='F')
     # get element stiffness matrix and element of freedom matrix
-    if ndim == 2:
-        KE = lk_linear_elast_2d(E=1.0, nu=nu, l=l)
-        # infer nodal degrees of freedom assuming that we have 4/8 nodes in 2/3
-        nd_ndof = int(KE.shape[0]/4)
-        # number of degrees of freedom
-        ndof = (nelx+1)*(nely+1)*nd_ndof
-        # element degree of freedom matrix plus some helper indices
-        edofMat, n1, n2, n3, n4 = create_edofMat2d(nelx=nelx,nely=nely,
-                                                   nnode_dof=nd_ndof)
-    elif ndim == 3:
-        KE = lk_linear_elast_3d(E=1.0, nu=nu,l=l)
-        # infer nodal degrees of freedom assuming that we have 4/8 nodes in 2/3
-        nd_ndof = int(KE.shape[0]/8)
-        # number of degrees of freedom
-        ndof = (nelx+1)*(nely+1)*(nelz+1)*nd_ndof
-        # element degree of freedom matrix plus some helper indices
-        edofMat, n1, n2, n3, n4 = create_edofMat3d(nelx=nelx,nely=nely,
-                                                   nelz=nelz,
-                                                   nnode_dof=nd_ndof)
+    KE = lk(E=1.0, nu=nu, l=l)
+    # infer nodal degrees of freedom assuming that we have 4/8 nodes in 2/3
+    nd_ndof = int(KE.shape[0]/2**ndim)
+    # number of degrees of freedom
+    ndof = np.prod(n+1)*nd_ndof
+    # element degree of freedom matrix plus some helper indices
+    edofMat, n1, n2, n3, n4 = create_edofMat(nelx=nelx,
+                                             nely=nely,
+                                             nelz=nelz,
+                                             nnode_dof=nd_ndof)
     # Construct the index pointers for the coo format
-    iK,jK = create_matrixinds(edofMat,mode=assembly_mode)
+    iK,jK = create_matrixinds(edofMat,
+                              mode=assembly_mode)
     # BC's and support
-    if ndim==2:
-        u,f,fixed,free,_ = tensiletest_2d(nelx=nelx,nely=nely,nelz=nelz,
-                                          ndof=ndof)
-    elif ndim==3:
-        u,f,fixed,free,_ = tensiletest_3d(nelx=nelx,nely=nely,nelz=nelz,
-                                          ndof=ndof)
+    u,f,fixed,free,_ = bc(nelx=nelx,
+                          nely=nely,
+                          nelz=nelz,
+                          ndof=ndof)
     # interpolate material properties
-    E = (Emin+(xPhys)** penal*(Emax-Emin))
+    E_scaled = (Emin+(xPhys)** penal*(Emax-Emin))
     # entries of stiffness matrix
     if assembly_mode == "full":
-        sK = (KE.flatten()[:,None]*E).flatten(order='F')
+        sK = (KE.flatten()[:,None]*E_scaled).flatten(order='F')
     #
-    KE = assemble_matrix(sK=sK,iK=iK,jK=jK,
-                         ndof=ndof,solver=lin_solver,
+    KE = assemble_matrix(sK=sK,
+                         iK=iK,
+                         jK=jK,
+                         ndof=ndof,
+                         solver=lin_solver,
                          springs=None)
     # assemble completely
     rhs = f
     # apply boundary conditions to matrix
-    KE = apply_bc(K=KE,solver=lin_solver,
+    KE = apply_bc(K=KE,
+                  solver=lin_solver,
                  free=free,fixed=fixed)
     # solve linear system. fact is a factorization and precond a preconditioner
-    u[free, :], fact, precond, = solve_lin(K=KE, rhs=rhs[free], 
+    u[free, :], fact, precond, = solve_lin(K=KE, 
+                                           rhs=rhs[free], 
                                            solver=lin_solver,
                                            preconditioner=preconditioner)
-    if isinstance(l,float):
-        l = tuple([l])*ndim
     if ndim == 2:
         sigma = f.max()*(nely+1)/l[1]
         print("sigma: ", sigma)
@@ -151,15 +148,18 @@ def fem_tensiletest(nelx, nely, nelz=None,
     #
     if export:
         export_vtk(filename=file,
-                   nelx=nelx,nely=nely,nelz=nelz,
+                   nelx=nelx,
+                   nely=nely,
+                   nelz=nelz,
+                   elem_size=l,
                    xPhys=xPhys,
                    u=u,f=f)
     return
 
 if __name__ == "__main__":
     #
-    nelx = 100
-    nely = 100
+    nelx = 10
+    nely = 10
     nelz = None
     #
     import sys

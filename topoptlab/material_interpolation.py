@@ -3,7 +3,9 @@ from typing import Any,Callable,Dict
 
 import numpy as np
 
-def simp(xPhys: np.ndarray, eps: np.ndarray, penal: float,
+def simp(xPhys: np.ndarray, 
+         eps: np.ndarray, 
+         penal: float,
          **kwargs: Any) -> np.ndarray:
     """
     Return scale factor for the modified SIMP method by
@@ -31,7 +33,9 @@ def simp(xPhys: np.ndarray, eps: np.ndarray, penal: float,
     """
     return eps+(1-eps)*xPhys**penal
 
-def simp_dx(xPhys: np.ndarray, eps: np.ndarray, penal: float,
+def simp_dx(xPhys: np.ndarray, 
+            eps: np.ndarray, 
+            penal: float,
             **kwargs: Any) -> np.ndarray:
     """
     Return the derivative of the scale factor for the modified SIMP method
@@ -61,7 +65,9 @@ def simp_dx(xPhys: np.ndarray, eps: np.ndarray, penal: float,
     """
     return penal * (1-eps) * xPhys**(penal-1)
 
-def ramp(xPhys: np.ndarray, eps: np.ndarray, penal: float,
+def ramp(xPhys: np.ndarray, 
+         eps: np.ndarray, 
+         penal: float,
          **kwargs: Any) -> np.ndarray:
     """
     Return scale factor for the RAMP method:
@@ -89,7 +95,9 @@ def ramp(xPhys: np.ndarray, eps: np.ndarray, penal: float,
     """
     return eps+(1-eps)*xPhys/(1+penal*(1-xPhys))
 
-def ramp_dx(xPhys: np.ndarray, eps: np.ndarray, penal: float,
+def ramp_dx(xPhys: np.ndarray, 
+            eps: np.ndarray, 
+            penal: float,
             **kwargs: Any) -> np.ndarray:
     """
     Return the derivative of the scale factor for the RAMP method:
@@ -117,8 +125,10 @@ def ramp_dx(xPhys: np.ndarray, eps: np.ndarray, penal: float,
     """
     return (1+penal)*(1+penal*(1-xPhys))**(-2)
 
-def bound_interpol(xPhys: np.ndarray, w: float,
-                   bd_low: Callable, bd_upp: Callable,
+def bound_interpol(xPhys: np.ndarray, 
+                   w: float,
+                   bd_low: Callable, 
+                   bd_upp: Callable,
                    bd_kws: Dict,
                    **kwargs: Any) -> np.ndarray:
     """
@@ -156,8 +166,10 @@ def bound_interpol(xPhys: np.ndarray, w: float,
     """
     return (1-w)*bd_low(x=xPhys,**bd_kws) + w*bd_upp(x=xPhys,**bd_kws)
 
-def bound_interpol_dx(xPhys: np.ndarray, w: float,
-                      bd_low_dx: Callable, bd_upp_dx: Callable,
+def bound_interpol_dx(xPhys: np.ndarray, 
+                      w: float,
+                      bd_low_dx: Callable, 
+                      bd_upp_dx: Callable,
                       bd_kws: Dict,
                       **kwargs: Any) -> np.ndarray:
     """
@@ -187,9 +199,12 @@ def bound_interpol_dx(xPhys: np.ndarray, w: float,
     """
     return (1-w)*bd_low_dx(x=xPhys,**bd_kws) + w*bd_upp_dx(x=xPhys,**bd_kws)
 
-def heatexpcoeff_binary_iso(xPhys: np.ndarray, K: np.ndarray,
-                            Kmin: float, Kmax: float,
-                            amin: float, amax: float) -> np.ndarray:
+def heatexpcoeff_binary_iso(xPhys: np.ndarray, 
+                            K: np.ndarray,
+                            Kmin: float, 
+                            Kmax: float,
+                            amin: float, 
+                            amax: float) -> np.ndarray:
     """
     Return the linear heatexpansion coefficient of a composite consisting of two
     isotropic substances. Taken from Eq. 2.26 of
@@ -228,9 +243,12 @@ def heatexpcoeff_binary_iso(xPhys: np.ndarray, K: np.ndarray,
            (1/K - (1-xPhys)/Kmin - xPhys/Kmax )
 
 def heatexpcoeff_binary_iso_dx(xPhys: np.ndarray, 
-                               K: np.ndarray, dKdx: np.ndarray,
-                               Kmin: float, Kmax: float,
-                               amin: float, amax:float) -> np.ndarray:
+                               K: np.ndarray, 
+                               dKdx: np.ndarray,
+                               Kmin: float, 
+                               Kmax: float,
+                               amin: float, 
+                               amax:float) -> np.ndarray:
     """
     Return the derivative of the linear heatexpansion coefficient of a
     composite consisting of two isotropic substances.

@@ -326,7 +326,8 @@ def main(nelx: int, nely: int,
                 if key not in ["density_coupled","strain_uniform"]]):
             raise NotImplementedError("One type of bodyforce/source has not yet been implemented.")
     # Construct the index pointers for the coo format
-    iK,jK = create_matrixinds(edofMat=edofMat, mode=assembly_mode)
+    iK,jK = create_matrixinds(edofMat=edofMat, 
+                              mode=assembly_mode)
     if assembly_mode == "lower":
         assm_indcs = np.column_stack(np.tril_indices_from(KE))
         assm_indcs = assm_indcs[np.lexsort( (assm_indcs[:,0],assm_indcs[:,1]) )]
@@ -426,7 +427,9 @@ def main(nelx: int, nely: int,
                 # provides a view onto the original Kes array instead of a copy
                 sK = Kes.reshape(np.prod(Kes.shape))
             elif assembly_mode == "lower":
-                sK = Kes[:,assm_indcs[:,0],assm_indcs[:,1]].reshape( n*int(KE.shape[-1]/2*(KE.shape[-1]+1)))
+                sK = Kes[:,
+                         assm_indcs[:,0],
+                         assm_indcs[:,1]].reshape(n*int(KE.shape[-1]/2*(KE.shape[-1]+1)))
             ### Setup and solve FE problem
             # assemble system matrix
             K = assemble_matrix(sK=sK,iK=iK,jK=jK,
