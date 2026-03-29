@@ -4,7 +4,8 @@ from typing import Any, Tuple, Union
 import numpy as np
 from scipy.sparse import csc_array
 
-def bdf_coefficients(k: int) -> np.ndarray:
+def bdf_coefficients(k: int, 
+                     **kwargs: Any) -> np.ndarray:
     """
     Get coefficients for backward differentiation formula BDF. Shamelessly 
     copied from Elmer Solver manual. Also check the formula there to 
@@ -31,9 +32,13 @@ def bdf_coefficients(k: int) -> np.ndarray:
                      [60/137,300/137,-300/137,200/137,-75/137,12/137],
                      [60/147,360/147,-450/147,400/147,-225/147,72/147,-10/147]])[k-1]
 
-def backward_diff(M: csc_array, K: csc_array,
-                  f: np.ndarray, phi: np.ndarray, 
-                  h: float, order: int) -> Tuple[csc_array,np.ndarray]:
+def backward_diff(M: csc_array, 
+                  K: csc_array,
+                  f: np.ndarray, 
+                  phi: np.ndarray, 
+                  h: float, 
+                  order: int, 
+                  **kwargs: Any) -> Tuple[csc_array,np.ndarray]:
     """
     Return left hand side (matrix) and right hand side for one timestep 
     evolution of the backward difference. We assume the generic PDE of first 
@@ -78,7 +83,8 @@ def backward_diff(M: csc_array, K: csc_array,
     coeffs = bdf_coefficients(k=order)
     return M/h + coeffs[0]*K, coeffs[0]*f + M/h @ (coeffs[1:] * phi[-1:-order-1:-1]).sum(axis=1)
 
-def bossak_init(alpha: float = -0.05, **kwargs: Any) -> Tuple[float,float]:
+def bossak_init(alpha: float = -0.05, 
+                **kwargs: Any) -> Tuple[float,float]:
     """
     Calculate parameters beta and gamma for the Bossak method:
         
@@ -104,12 +110,18 @@ def bossak_init(alpha: float = -0.05, **kwargs: Any) -> Tuple[float,float]:
     
     return 1/4 * (1-alpha)**2, 1/2 - alpha
 
-def bossak(M: csc_array, B: csc_array, K: csc_array,
-           f: np.ndarray, phi: np.ndarray,
-           h: float, beta : float, gamma : float, 
+def bossak(M: csc_array, 
+           B: csc_array, 
+           K: csc_array,
+           f: np.ndarray, 
+           phi: np.ndarray,
+           h: float, 
+           beta : float, 
+           gamma : float, 
            alpha : float = -0.05,
            a: Union[None,np.ndarray] = None,
-           v: Union[None,np.ndarray] = None) -> Tuple[csc_array,np.ndarray]:
+           v: Union[None,np.ndarray] = None, 
+           **kwargs: Any) -> Tuple[csc_array,np.ndarray]:
     """
     Return left hand side (matrix) and right hand side for one timestep 
     evolution of the Bossak methd. We assume the generic PDE of second 
@@ -178,10 +190,15 @@ def bossak(M: csc_array, B: csc_array, K: csc_array,
     rhs += B@( gamma / (beta*h) * phi + (gamma/beta - 1) * v + (1- gamma/(2*beta))*h*a )
     return lhs, rhs
 
-def bossak_update_derivatives(phi: np.ndarray, phi_old: np.ndarray, 
-                              v: np.ndarray, a: np.ndarray,
-                              alpha: float, beta: float, gamma: float, 
-                              h: float) -> Tuple[np.ndarray,np.ndarray]:
+def bossak_update_derivatives(phi: np.ndarray, 
+                              phi_old: np.ndarray, 
+                              v: np.ndarray, 
+                              a: np.ndarray,
+                              alpha: float, 
+                              beta: float, 
+                              gamma: float, 
+                              h: float, 
+                              **kwargs: Any) -> Tuple[np.ndarray,np.ndarray]:
     """
     Update first and second order derivative (in time) of phi after the phi 
     of the new timestep has been found:

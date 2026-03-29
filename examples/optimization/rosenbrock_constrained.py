@@ -1,4 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
+from typing import Tuple
+
 import numpy as np
 from scipy.optimize import rosen, rosen_der
 
@@ -7,14 +9,16 @@ from topoptlab.optimizer.stepsize import constant,barzilai_borwein_short,barzila
 from topoptlab.optimizer.mma_utils import mma_defaultkws,gcmma_defaultkws
 from mmapy import mmasub,gcmmasub, kktcheck, asymp, concheck, raaupdate
 
-def demonstrate_alm_line(nvars=3,
-                         verbose=False,
-                         maxiter=2000,
-                         maxinnerit=5,
-                         start_constrained=True,
-                         rho=1e0, 
-                         rho_scale=2, 
-                         eps_eq=1e-8):
+def demonstrate_alm_line(nvars: int = 3,
+                         verbose: bool = False,
+                         maxiter: int = 2000,
+                         maxinnerit: int = 5,
+                         start_constrained: bool = True,
+                         rho: float = 1e0, 
+                         rho_scale: int = 1.05, 
+                         eps_eq: float = 1e-8) -> Tuple[np.ndarray,
+                                                        np.ndarray, 
+                                                        np.ndarray]:
     """
     Demonstrate the first-order augmented-Lagrangian method together with inner
     iterations for line search the Rosenbrock function on the interval 
@@ -82,9 +86,11 @@ def demonstrate_alm_line(nvars=3,
     ceq = np.array([(x**2).sum() / nvars - 1.])
     ceqold = np.ones(ceq.shape) * np.inf
     dceq = (2. / nvars) * x
+    dceqold = dceq.copy()
     # no inequality constraints in this example
     cineq = np.zeros((0, 1))
     dcineq = np.zeros((nvars,0))
+    dcineqold = dcineq.copy()
     #
     lagr = alm_lagrangian(obj=obj, 
                           ceq=ceq,
@@ -94,7 +100,7 @@ def demonstrate_alm_line(nvars=3,
                           rho=rho)
     if verbose:
         print("it.: {0}, obj.: {1:.10f}, lagr.: {2:.10f}, ceq.: {3:.10f}, "
-              "rho: {4:.4e}, ch.: {5:.10f}".format(
+              "rho: {4:.4e}, ch.: {5:.5f}".format(
                 0,
                 obj,
                 lagr,
@@ -103,12 +109,7 @@ def demonstrate_alm_line(nvars=3,
                 0.))
     for i in range(maxiter):
         #
-        step_size = barzilai_borwein_long(x=x[:,0], 
-                                           fgrad=fgrad[:,0]\
-                                                 + dceq.dot(lam + rho * ceq)[:,0]\
-                                                 + dcineq.dot(mu + rho * cineq)[:,0], 
-                                           xold=xold[:,0], 
-                                           fgradold=fgradold)
+        step_size = move
         # inner iterations for line search
         for j in range(maxinnerit):
             #
@@ -116,13 +117,15 @@ def demonstrate_alm_line(nvars=3,
                 raise RuntimeError("line search failed.")
             # trial update design variables
             xnew[:,0], lam_new, mu_new = alm_first_order(x=x[:,0],
-                                               fgrad=fgrad[:,0],
+                                               fgrad=fgrad,
                                                xold=xold[:,0],
                                                fgradold=fgradold,
                                                ceq=ceq,
                                                dceq=dceq,
+                                               dceqold=dceqold,
                                                cineq=cineq,
                                                dcineq=dcineq,
+                                               dcineqold=dcineqold,
                                                lam=lam,
                                                mu=mu,
                                                xmin=xmin[:,0],
@@ -149,7 +152,7 @@ def demonstrate_alm_line(nvars=3,
             #
             if verbose and False:
                 print("inner it.: {0}, obj.: {1:.10f}, lagr.: {2:.10f}, ceq.: {3:.10f}, "
-                      "rho: {4:.4e}, ch.: {5:.10f}".format(
+                      "rho: {4:.4e}, ch.: {5:.4f}".format(
                         j+1,
                         obj_new,
                         lagr_new,
@@ -165,9 +168,9 @@ def demonstrate_alm_line(nvars=3,
             step_size=step_size * 3/4
         # store variables for memory/comparison
         xold[:] = x
-        fgradold = fgrad[:,0]\
-                   + dceq.dot(lam + rho * ceq)[:,0]\
-                   + dcineq.dot(mu + rho * cineq)[:,0]
+        fgradold = fgrad.copy()
+        dceqold = dceq.copy()
+        dcineqold = dcineq.copy()
         lam = lam_new.copy()
         mu = mu_new.copy()
         # update 
@@ -185,7 +188,7 @@ def demonstrate_alm_line(nvars=3,
         #
         if verbose:
             print("it.: {0}, obj.: {1:.10f}, lagr.: {2:.10f}, ceq.: {3:.10f}, "
-                  "rho: {4:.4e}, ch.: {5:.10f}".format(
+                  "rho: {4:.4e}, ch.: {5:.4f}".format(
                     i + 1,
                     obj,
                     lagr,
@@ -630,7 +633,7 @@ if __name__ == "__main__":
 
     #
     verbose = True
-    maxiter = int(1e2)
+    maxiter = int(1e3)
     #
     import sys
     if len(sys.argv)>1:

@@ -52,8 +52,10 @@ def alm_first_order(x: np.ndarray,
                     fgradold: np.ndarray,
                     ceq: np.ndarray,
                     dceq: np.ndarray,
+                    dceqold: np.ndarray,
                     cineq: np.ndarray,
                     dcineq: np.ndarray,
+                    dcineqold: np.ndarray,
                     lam: np.ndarray,
                     mu: np.ndarray,
                     xmin: Union[float, np.ndarray],
@@ -119,12 +121,18 @@ def alm_first_order(x: np.ndarray,
     dceq : np.ndarray, shape (n,meq)
         jacobian of the equality constraints with respect to the design
         variables. Row ``i`` contains the gradient of constraint ``ceq[i]``.
+    dceqold : np.ndarray, shape (n,meq)
+        old jacobian of the equality constraints with respect to the design
+        variables.
     cineq : np.ndarray, shape (mineq,)
         inequality-constraint values at the current iteration. Feasible values
         satisfy ``cineq <= 0`` componentwise.
     dcineq : np.ndarray, shape (n,mineq)
         jacobian of the inequality constraints with respect to the design
         variables. Row ``i`` contains the gradient of constraint ``cineq[i]``.
+    dcineqold : np.ndarray, shape (n,meq)
+        old jacobian of the inequality constraints with respect to the design
+        variables.
     lameq : np.ndarray, shape (meq,)
         current Lagrange multipliers for the equality constraints.
     lamineq : np.ndarray, shape (mineq,)
@@ -156,13 +164,19 @@ def alm_first_order(x: np.ndarray,
         updated Lagrange multipliers for the inequality constraints.
 
     """
+    if fgradold is not None:
+        dobjold = np.squeeze(fgradold)\
+                + dceqold.dot(lam + rho * ceq)[:,0]\
+                + dcineqold.dot(mu + rho * cineq)[:,0]
+    else:
+        dobjold = None
     # update design variables
     xnew = gradient_descent(x=x,
-                            dobj=fgrad\
+                            dobj=np.squeeze(fgrad)\
                                  + dceq.dot(lam + rho * ceq)[:,0]\
                                  + dcineq.dot(mu + rho * cineq)[:,0],
                             xold=xold,
-                            dobjold=fgradold,
+                            dobjold=dobjold,
                             xmin=xmin,
                             xmax=xmax,
                             stepsize_func=stepsize_func,
