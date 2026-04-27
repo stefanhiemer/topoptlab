@@ -191,7 +191,6 @@ def neohookean_matmodel(F: np.ndarray,
     mu : np.ndarray
         second Lame constant.
     
-    
     Returns
     -------
     s : np.ndarray

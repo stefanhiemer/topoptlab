@@ -256,6 +256,8 @@ def cauchy_strain(ndim: int,
     Symbolically compute right Cauchy–Green deformation tensor:
         
         C = F.T @ F
+        
+    C is the Cauchy–Green deformation tensor.
 
     Parameters
     ----------
@@ -312,8 +314,8 @@ def lagrangian_strain(ndim: int,
 
     Returns
     -------
-    C : symfem.MatrixFunction
-        symbolic Cauchy strain of shape (ndim,ndim) 
+    E : symfem.MatrixFunction
+        symbolic Green-Lagrangian strain tensor of shape (ndim,ndim) 
 
     """
     #
@@ -453,9 +455,9 @@ def finger_strain(ndim: int,
                   element_type: str = "Lagrange",
                   order: int = 1) ->  MatrixFunction:
     """
-    Symbolically compute Finger strain tensor
-    
-    Finger = inv(C)
+    Symbolically compute Finger strain tensor:
+        
+        Finger = inv(C)
 
     Parameters
     ----------

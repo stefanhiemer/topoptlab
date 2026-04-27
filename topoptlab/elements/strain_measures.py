@@ -3,6 +3,7 @@ from typing import Any, Callable, Union
 
 import numpy as np
 
+from topoptlab.utils import safe_inverse
 from topoptlab.elements.check_functions import check_inputs
 from topoptlab.elements.isoparam_mapping import invjacobian, \
                                                 _collect_invjacobian
@@ -296,3 +297,64 @@ def lagrangian_strainvar_matrix(xi: np.ndarray,
         return B
     else:
         return B, detJ
+
+def cauchy_strain(F: np.ndarray) -> np.ndarray:
+    """
+    Compute right Cauchy–Green deformation tensor:
+        
+        C = F.T @ F
+
+    Parameters
+    ----------
+    F : np.ndarray
+        deformation gradient of shape (...,ndim,ndim).
+
+    Returns
+    -------
+    C : np.ndarray
+        right Cauchy–Green deformation tensor of shape (...,ndim,ndim) 
+
+    """
+    return F.swapaxes(-1,-2)@F
+
+def lagrangian_strain(F: np.ndarray) -> np.ndarray:
+    """
+    Compute Green-Lagrangian strain tensor:
+        
+        E = 1/2 * ( C - I )
+    
+    I is the identity matrix and C the Cauchy–Green deformation tensor.
+
+    Parameters
+    ----------
+    F : np.ndarray
+        deformation gradient of shape (...,ndim,ndim).
+
+    Returns
+    -------
+    E : np.ndarray
+        Green-Lagrangian strain tensor of shape (...,ndim,ndim) 
+
+    """
+    return 1/2 * ( - np.eye(F.shape[-1]))
+
+def finger_strain(F: np.ndarray) -> np.ndarray:
+    """
+    Compute Finger strain tensor:
+        
+        Finger = inv(C)
+    
+    C is the Cauchy–Green deformation tensor.
+
+    Parameters
+    ----------
+    F : np.ndarray
+        deformation gradient of shape (...,ndim,ndim).
+
+    Returns
+    -------
+    Finger : np.ndarray
+        Finger strain tensor of shape (...,ndim,ndim) 
+
+    """
+    return safe_inverse(A=cauchy_strain(F=F))
