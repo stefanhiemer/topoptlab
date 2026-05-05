@@ -5,6 +5,60 @@ from warnings import warn
 import numpy as np
 from scipy.linalg import lstsq
 
+def _quasinewton_pairs(x: np.ndarray,
+                       xhist: List[np.ndarray],
+                        g: np.ndarray,
+                       ghist: List[np.ndarray],
+                       max_history: int
+                       ) -> Tuple[np.ndarray,np.ndarray]:
+    """
+    Build quasi-Newton curvature pairs from a finite history of iterates and
+    gradients given the current iterate x_[k] and gradient g_[k] together
+    with their histories. Build the difference pairs
+
+        s_[i] = x_[i+1] - x_[i]
+        y_[i] = g_[i+1] - g_[i]
+
+    are assembled into the matrices
+
+        S = [s_[k-m], ..., s_[k-1]]
+        Y = [y_[k-m], ..., y_[k-1]]
+
+    where m = min(k, max_history). The pairs satisfy the secant condition
+
+        Y[:, i] ≈ H @ S[:, i]
+
+    and ca be used to build quasi-Newton approximations of the Hessian or 
+    its inverse, e.g. in L-BFGS or SR1 updates.
+
+    Parameters
+    ----------
+    x : np.ndarray, shape (n,)
+        current iterate x_[k].
+    xhist : list of np.ndarray
+        history of past iterates. The last element is x_[k-1].
+    g : np.ndarray, shape (n,)
+        current gradient g_[k].
+    ghist : list of np.ndarray
+        history of past gradients. The last element is g_[k-1].
+    max_history : int
+        maximum number of pairs to retain.
+
+    Returns
+    -------
+    S : np.ndarray, shape (n, m)
+        difference matrix.
+    Y : np.ndarray, shape (n, m)
+        Gradient difference matrix.
+    """
+    if len(xhist) < 1 or len(ghist) < 1:
+        raise ValueError("Need at least one past iterate and gradient.")
+    #
+    X = np.column_stack(xhist[-max_history:] + [x])
+    G = np.column_stack(ghist[-max_history:] + [g])
+    #
+    return X[:, 1:] - X[:, :-1], G[:, 1:] - G[:, :-1]
+
 def anderson(x: np.ndarray, 
              xhist: List, max_history: int,
              damp: float = 0.9,
@@ -13,36 +67,36 @@ def anderson(x: np.ndarray,
     Anderson acceleration to achieve convergence acceleration. It assumes 
     that the numerical process resembles a fixed point iteration
     
-    x_[i+1] = f(x_[i])
+        x_[i+1] = f(x_[i])
     
     that we seek to accelerate to achieve the solution 
     
-    f(x)-x = 0.
+        f(x)-x = 0.
     
-    We assume that we have the current iterate x_[i+1] available and a history 
-    of q+1 iterates as well. We define the incremental matrix
+    We assume that we have the current iterate x_[k+1] available and a history 
+    of previous iterates as well. In particular, the last entry of the history 
+    is x_[k]. We define the incremental matrix
     
-    dX = [x_[k-m+1] - x_[k-m], ... , x_[k] - x_[k-1]],
+        dX = [x_[k-m+1] - x_[k-m], ... , x_[k] - x_[k-1]],
     
     the residual
     
-    r_[i] = x_[i+1] - x[i]
+        r_[i] = x_[i+1] - x_[i]
     
     and the incremental residual matrix
     
-    dR = [r_[k-m] ... r_[k]]
+        dR = [r_[k-m+1] - r_[k-m], ... , r_[k] - r_[k-1]].
     
     To accelerate we find the gamma that minimizes 
     
-    ||dR@gamma - r_[k]||_[2]
+        ||dR@gamma - r_[k]||_[2]
     
     and find the updated x_[k+1]
     
-    x_[k+1] = x_[k+1] - (dX + damp*dRx)@gamma
+        x_[k+1] = x_[k] + damp*r_[k] - (dX + damp*dR)@gamma
     
-    where damp is a damping parameter between zero and one. 
-    
-    For details check the wikipedia article or 
+    where damp is a damping parameter between zero and one. For details check the 
+    wikipedia article or 
     
     Pratapa, Phanisri P., Phanish Suryanarayana, and John E. Pask. "Anderson 
     acceleration of the Jacobi iterative method: An efficient alternative to 
@@ -52,9 +106,9 @@ def anderson(x: np.ndarray,
     Parameters
     ----------
     x : np.ndarray (n)
-        current iterate
+        current fixed point iterate x_[k+1] = f(x_[k])
     xhist : list
-        history of iterations. The last element of the list
+        history of iterations. The last element of the list is x_[k].
     max_history : int
         maximum number of past results used for the current update.
     damp : float
@@ -65,6 +119,10 @@ def anderson(x: np.ndarray,
     x : np.ndarray
         updated iterate.
     """
+    if len(xhist) == 0: 
+        raise ValueError("xhist is empty.")
+    elif max_history <= 1:
+        raise ValueError("max_history <= 1 cannot be used for a sensible Anderson acceleration.")
     # assemble to adequate matrix
     X = np.column_stack(xhist[-max_history:]+[x])
     R = X[:,1:] - X[:,:-1]

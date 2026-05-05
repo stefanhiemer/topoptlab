@@ -15,10 +15,10 @@ def alm_lagrangian(obj: float,
                    rho: float) -> float:
     """
     Augmented Lagrangian
-        
-        L_a = f(x) 
-              + lam.T@ceq + rho/2*lam.T@(ceq**2) 
-              + mu.T@cineq + rho/2*mu.T@(cineq**2)
+            
+        L_a = f(x)
+              + lam.T @ ceq + rho/2 * (ceq**2).sum()
+              + 1/(2*rho) * (max(0, mu + rho*cineq)**2).sum() - (mu**2).sum())
 
     Parameters
     ----------
@@ -42,9 +42,9 @@ def alm_lagrangian(obj: float,
 
     """
     
-    return obj +\
-           (lam*ceq).sum() + (mu*cineq).sum() +\
-           rho/2 *((ceq**2).sum()+(cineq**2).sum())
+    return obj\
+           + (lam * ceq).sum() + 0.5 * rho * (ceq**2).sum()\
+           + 0.5 / rho * ((np.maximum(0.0, mu + rho * cineq)**2).sum() - (mu**2).sum())
 
 def alm_first_order(x: np.ndarray,
                     fgrad: np.ndarray,
@@ -82,9 +82,9 @@ def alm_first_order(x: np.ndarray,
         
     which is augmented by a penalty term to
         
-        L_a = f(x) 
-              + lam.T@ceq + rho/2*lam.T@(ceq**2) 
-              + mu.T@cineq + rho/2*mu.T@(cineq**2)
+        L_a = f(x)
+              + lam.T @ ceq + rho/2 * (ceq**2).sum()
+              + 1/(2*rho) * max(0, mu + rho*cineq)**2).sum() - (mu**2).sum()
     
     It uses a first-order primal step based on the gradient of the augmented
     Lagrangian, followed by standard multiplier updates.
@@ -93,7 +93,7 @@ def alm_first_order(x: np.ndarray,
 
         grad_x L_a = fgrad
                      + dceq.T @ (lam + rho * ceq)
-                     + dcineq.T @ (mu + rho * max(cineq, 0)).
+                     + + dcineq.T @ maximum(0, mu + rho * cineq).
 
     The inequality multipliers are updated by 
 
@@ -167,14 +167,14 @@ def alm_first_order(x: np.ndarray,
     if fgradold is not None:
         dobjold = np.squeeze(fgradold)\
                 + dceqold.dot(lam + rho * ceq)[:,0]\
-                + dcineqold.dot(mu + rho * cineq)[:,0]
+                + dcineqold.dot(np.maximum(0., mu + rho*cineq))[:,0]
     else:
         dobjold = None
     # update design variables
     xnew = gradient_descent(x=x,
                             dobj=np.squeeze(fgrad)\
                                  + dceq.dot(lam + rho * ceq)[:,0]\
-                                 + dcineq.dot(mu + rho * cineq)[:,0],
+                                 + dcineq.dot(np.maximum(0., mu + rho*cineq))[:,0],
                             xold=xold,
                             dobjold=dobjold,
                             xmin=xmin,
