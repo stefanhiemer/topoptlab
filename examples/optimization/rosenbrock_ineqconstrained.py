@@ -292,12 +292,6 @@ def demonstrate_alm(nvars=3,
     xmax = 1.5 * np.ones((nvars, 1))
     #
     move = 1e-2
-    # equality constraint: (x^2).sum()/nvars - 1 = 0
-    dceq = (2. / nvars) * x
-    dceqold = dceq.copy()
-    # no inequality constraints in this example
-    dcineq = np.zeros((nvars, 0))
-    dcineqold = dcineq.copy()
     #
     for i in range(maxiter):
         #
@@ -308,7 +302,7 @@ def demonstrate_alm(nvars=3,
         dceq = (2. / nvars) * x
         # no inequality constraints in this example
         cineq = np.zeros((0, 1))
-        dcineq = np.zeros((nvars, 0))
+        dcineq = np.zeros((nvars,0))
         #
         xnew, lam[:], _ = alm_first_order(x=x[:,0],
                                           fgrad=fgrad[:,0],
@@ -316,10 +310,8 @@ def demonstrate_alm(nvars=3,
                                           fgradold=fgradold,
                                           ceq=ceq,
                                           dceq=dceq,
-                                          dceqold=dceqold,
                                           cineq=cineq,
                                           dcineq=dcineq,
-                                          dcineqold=dcineqold,
                                           lam=lam,
                                           mu=mu,
                                           xmin=xmin[:,0],
@@ -335,9 +327,7 @@ def demonstrate_alm(nvars=3,
         fgradold = fgrad[:,0]\
                    + dceq.dot(lam + rho * ceq)[:,0]\
                    + dcineq.dot(mu + rho * cineq)[:,0]
-        ceqold = ceq
-        dceqold = dceq.copy()
-        dcineqold = dcineq.copy()
+        ceqold = ceq 
         #
         x[:,0] = xnew
         #
@@ -663,6 +653,5 @@ if __name__ == "__main__":
         maxiter = int(sys.argv[2])
     #
     demonstrate_alm_line(verbose=verbose, maxiter=maxiter, start_constrained = constrained)
-    #demonstrate_alm(verbose=verbose, maxiter=maxiter, start_constrained = constrained)
     #demonstrate_mma(verbose=verbose, maxiter=maxiter, start_constrained = constrained)
     #demonstrate_gcmma(verbose=verbose, maxiter=maxiter, start_constrained = constrained)
