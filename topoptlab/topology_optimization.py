@@ -240,11 +240,11 @@ def main(nelx: int, nely: int,
     # intermediate filter variables
     if isinstance(ft, list):
         xTilde = []
-        for i in range(len(ft)):
+        for i in range(len(ft) - 1):
             key = f" xTilde-{i}"
             if initialguess_keys is None or key not in initialguess_keys:
                 xTilde.append(x.copy())
-            else: 
+            else:
                 xTilde.append(initial_guess[key])
     # initialize arrays for gradients
     dobj = np.zeros( x.shape,order="F")
@@ -709,7 +709,6 @@ def main(nelx: int, nely: int,
             xPhys[:] = TF.T @ lu_solve(TF@x)
         elif ft == -1:
             xPhys[:]  = x
-        print(xPhys)
         #
         log.debug("Post Density Filter: it.: {0}, med. x.: {1:.10f}, med. xPhys: {2:.10f}".format(
                   loop, np.median(x),np.median(xPhys)))
@@ -738,9 +737,11 @@ def main(nelx: int, nely: int,
              "beta" in filter_kw.keys() and \
              filter_kw["beta"] >= filter_kw["beta_limit"]:
             break
-        elif change < 0.01 and \
-             "beta" in filter_kw.keys():
+        elif "beta" in filter_kw.keys() and \
+             filter_kw["beta"] < filter_kw["beta_limit"] and\
+             (change < 0.01 or filter_kw["beta_loop"] >= filter_kw["beta_update"]):
             filter_kw["beta"] = filter_kw["beta"]*filter_kw["beta_scale"]
+            filter_kw["beta_loop"] = 0
             log.info("beta increased.: {0: .1f}".format(filter_kw["beta"]))
     #
     if output_kw["export"]:

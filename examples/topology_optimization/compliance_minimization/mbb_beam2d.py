@@ -55,7 +55,7 @@ if __name__ == "__main__":
                  ft=ft, 
                  filter_kw={},
                  filter_mode="matrix",
-                 optimizer="mma",
+                 optimizer="oc",
                  assembly_mode="full",
                  nouteriter=2000,
                  bcs=mbb_2d,

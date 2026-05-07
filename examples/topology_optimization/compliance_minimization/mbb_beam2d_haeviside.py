@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 from topoptlab.topology_optimization import main
+from topoptlab.optimizer.mma_utils import mma_defaultkws
 from topoptlab.example_bc.lin_elast import mbb_2d
 from topoptlab.accelerators import anderson
 from topoptlab.filter.filter import TOFilter 
@@ -8,15 +9,16 @@ from topoptlab.filter.sensitivity_filter import SensitivityFilter
 from topoptlab.filter.haeviside_projectors import HaevisideProjectorGuest2004,\
                                                   HaevisideProjectorSigmund2007,\
                                                   EtaProjectorXu2010
+                                                    
                                                   
 import numpy as np
 
 if __name__ == "__main__":
     # Default input parameters
-    nelx = 6
+    nelx = 120
     nely = int(nelx/3)
     volfrac = 0.5
-    rmin = 1.5  # 5.4
+    rmin = 4.8  # 5.4
     penal = 3.0
     ft = [DensityFilter, 
           EtaProjectorXu2010] # ft==0 -> sens, ft==1 -> dens
@@ -50,17 +52,23 @@ if __name__ == "__main__":
     if len(sys.argv)>9:
         write_log = bool(int(sys.argv[9]))
     #
+    optimizer_kw = mma_defaultkws(n=nelx*nely, 
+                                  n_constr=1)
+    optimizer_kw["move"] = 0.05
+    optimizer_kw["asyincr"] = 1.05
+    #
     main(nelx=nelx, nely=nely, volfrac=volfrac, 
                  matinterpol_kw={"eps":1e-9, "penal": penal},
                  rmin=rmin, 
                  ft=ft, 
+                 l = 0.5,
                  filter_kw={"beta": 1,
                             "beta_scale": 2,
-                            "beta_limit": 512,
+                            "beta_limit": 64,
                             "beta_update": 50, 
                             "volfrac": volfrac},
                  filter_mode="matrix",
-                 optimizer="mma",
+                 optimizer="mma", optimizer_kw=optimizer_kw,
                  assembly_mode="full",
                  nouteriter=2000,
                  bcs=mbb_2d,

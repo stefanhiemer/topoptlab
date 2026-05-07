@@ -86,37 +86,37 @@ class HaevisideProjectorGuest2004(TOFilter):
         """
         return 1 - np.exp(-beta*x) + x*np.exp(-beta)
     
-    def apply_filter_dx(self, 
-                        x_filtered : np.ndarray, 
+    def apply_filter_dx(self,
+                        x : np.ndarray,
                         dx_filtered : np.ndarray,
                         beta : float,
                         **kwargs: Any) -> np.ndarray:
         """
-        Apply filter to the sensitivities with respect to filtered variables 
-        x_filtered using the chain rule assuming 
-        
-            x_filtered = 1 - exp(-beta x) + x exp(-beta) 
-        
-        to get the sensitivities with respect to the (unfiltered) design 
+        Apply filter to the sensitivities with respect to filtered variables
+        x_filtered using the chain rule assuming
+
+            x_filtered = 1 - exp(-beta x) + x exp(-beta)
+
+        to get the sensitivities with respect to the (unfiltered) design
         variables or in the case of many filters intermediate design variables:
-            
-            dx = beta*np.exp(-beta*x_filtered) + np.exp(-beta)
-        
+
+            dx = dx_filtered * (beta*exp(-beta*x) + exp(-beta))
+
         Parameters
         ----------
-        x_filtered : np.ndarray
-            filtered design variables.
+        x : np.ndarray
+            unfiltered design variables.
         dx_filtered : np.ndarray
             sensitivities with respect to filtered design variables.
         beta : float
             projection strength.
-            
+
         Returns
         -------
         dx : np.ndarray
             design sensitivities with respect to un-filtered design variables.
         """
-        return ( beta*np.exp(-beta*x_filtered) + np.exp(-beta) )*dx_filtered
+        return dx_filtered * (beta*np.exp(-beta*x) + np.exp(-beta))
     
     @property
     def vol_conserv(self) -> bool:
@@ -231,37 +231,37 @@ class HaevisideProjectorSigmund2007(TOFilter):
         """
         return np.exp(beta*(x-1)) - (1-x)*np.exp(-beta)
     
-    def apply_filter_dx(self, 
-                        x_filtered : np.ndarray, 
+    def apply_filter_dx(self,
+                        x : np.ndarray,
                         dx_filtered : np.ndarray,
                         beta : float,
                         **kwargs: Any) -> np.ndarray:
         """
-        Apply filter to the sensitivities with respect to filtered variables 
-        x_filtered using the chain rule assuming 
-        
+        Apply filter to the sensitivities with respect to filtered variables
+        x_filtered using the chain rule assuming
+
             x_filtered = np.exp(beta*(x-1)) - (1-x)*np.exp(-beta)
-        
-        to get the sensitivities with respect to the (unfiltered) design 
+
+        to get the sensitivities with respect to the (unfiltered) design
         variables or in the case of many filters intermediate design variables:
-            
-            dx = beta*np.exp(-beta*x_filtered) + np.exp(-beta)
-        
+
+            dx = dx_filtered * (beta*exp(beta*(x-1)) + exp(-beta))
+
         Parameters
         ----------
-        x_filtered : np.ndarray
-            filtered design variables.
+        x : np.ndarray
+            unfiltered design variables.
         dx_filtered : np.ndarray
             sensitivities with respect to filtered design variables.
         beta : float
             projection strength.
-            
+
         Returns
         -------
         dx : np.ndarray
             design sensitivities with respect to un-filtered design variables.
         """
-        return np.exp(beta*(x_filtered-1)) * beta + np.exp(-beta)*dx_filtered
+        return dx_filtered * (np.exp(beta*(x-1)) * beta + np.exp(-beta))
     
     @property
     def vol_conserv(self) -> bool:
