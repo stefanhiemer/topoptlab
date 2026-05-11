@@ -2,6 +2,7 @@
 from typing import Callable, Dict, List, Tuple, Union
 from functools import partial
 from cProfile import Profile
+import inspect
 #
 import numpy as np
 from scipy.sparse.linalg import factorized
@@ -9,7 +10,7 @@ from scipy.ndimage import convolve
 #
 from matplotlib.colors import Normalize
 import matplotlib.pyplot as plt
-# functions to create filters
+# functions to create filters 
 from topoptlab.filter.filter import TOFilter 
 from topoptlab.filter.convolution_filter import assemble_convolution_filter
 from topoptlab.filter.helmholtz_filter import assemble_helmholtz_filter
@@ -40,14 +41,68 @@ from topoptlab.utils import map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel,
                             default_outputkw,check_output_kw,check_optimizer_kw
 # logging related stuff
 from topoptlab.log_utils import EmptyLogger,SimpleLogger
+from topoptlab.convergence_criteria import max_design_change
+from topoptlab.param_continuation import run_continuation
 #
 from mmapy import mmasub
 
+def update_history(xhist: List, x: np.ndarray,
+                   xPhys_hist: Union[None, List], xPhys: np.ndarray,
+                   obj_hist: Union[None, List], obj: float,
+                   constrs_hist: Union[None, List], constrs: np.ndarray,
+                   max_history: int) -> None:
+    """
+    Append current iterate to history lists and prune to max_history+1 entries.
+
+    Parameters
+    ----------
+    xhist : list of np.ndarray
+        history of design iterates.
+    x : np.ndarray
+        current design iterate.
+    xPhys_hist : None or list of np.ndarray
+        history of physical densities, or None if not tracked.
+    xPhys : np.ndarray
+        current physical densities.
+    obj_hist : None or list of float
+        history of objective values, or None if not tracked.
+    obj : float
+        current objective value.
+    constrs_hist : None or list of np.ndarray
+        history of constraint vectors, or None if not tracked.
+    constrs : np.ndarray
+        current constraint vector.
+    max_history : int
+        maximum number of iterates to retain.
+
+    Returns
+    -------
+    None
+    """
+    # append history
+    xhist.append(x.copy())
+    if xPhys_hist is not None:
+        xPhys_hist.append(xPhys.copy())
+    if obj_hist is not None:
+        obj_hist.append(obj)
+    if constrs_hist is not None:
+        constrs_hist.append(constrs.copy())
+    # prune history
+    if len(xhist) > max_history+1:
+        del xhist[:len(xhist)-max_history-1]
+    if xPhys_hist is not None and len(xPhys_hist) > max_history+1:
+        del xPhys_hist[:len(xPhys_hist)-max_history-1]
+    if obj_hist is not None and len(obj_hist) > max_history+1:
+        del obj_hist[:len(obj_hist)-max_history-1]
+    if constrs_hist is not None and len(constrs_hist) > max_history+1:
+        del constrs_hist[:len(constrs_hist)-max_history-1]
+    return
+
 # MAIN DRIVER
-def main(nelx: int, nely: int, 
+def main(nelx: int, nely: int,
          volfrac: float, #penal: float, 
          rmin: float, 
-         ft: int = 1,
+         ft: [int,TOFilter,List[TOFilter]] = 1,
          filter_kw: Union[Dict,List] = {},
          simulation_kw: Dict = {"grid": "regular",
                                 "element order": 1,
@@ -76,6 +131,9 @@ def main(nelx: int, nely: int,
                                  "accel_start": 20,
                                  "max_history": 0,
                                  "accelerator": None},
+         convergence_kw: Dict = {"conv_tol": 1e-2,
+                                 "change_func": max_design_change},
+         continuation_kw: Union[None, Dict] = None,
          nouteriter: int = 2000, ninneriter: int = 15,
          output_kw: Dict = default_outputkw()) -> Tuple[np.ndarray,float]:
     """
@@ -95,7 +153,7 @@ def main(nelx: int, nely: int,
     rmin : float
         cutoff radius for the filter. Only elements within the element-center
         to element center distance are used for filtering.
-    ft : int
+    ft : int or TOFilter or list
         integer flag for the filter. 0 sensitivity filtering,
         1 density filtering, -1 no filter.
     nelz : int or None
@@ -155,9 +213,52 @@ def main(nelx: int, nely: int,
         number of TO iterations
     ninneriter : int
         number of inner iterations for GCMMA.
+    convergence_kw : dict
+        dictionary controlling convergence. Supported keys are:
+
+        - ``conv_tol`` (float): tolerance on the change metric below which
+          convergence is declared. Default 1e-1.
+        - ``change_func`` (callable or None): function with signature
+          ``change_func(x, xhist) -> float`` that computes the scalar change
+          metric each iteration. If None, the default
+          ``np.abs(xhist[-1] - xhist[-2]).max()`` (inf-norm of the update) is
+          used.
+    continuation_kw : None or dict
+        dictionary controlling parameter continuation between stages. If None,
+        the loop terminates as soon as ``convergence_kw["conv_tol"]`` is
+        reached. Otherwise must contain two parallel lists:
+
+        - ``"funcs"`` : list of callables, each with signature
+          ``f(hist, change, loop, filter_kw, conv_tol, continuation_kw) -> bool``.
+        - ``"func_kws"`` : list of dicts, one per function, holding the
+          private keyword arguments for that function. Each dict is passed
+          as ``continuation_kw`` to the corresponding callable and may be
+          mutated in-place to maintain per-function state across iterations.
+
+        The loop continues as long as at least one function returns True;
+        it terminates only when all return False.
     output_kw : dict
-        dictionary containing output options.
-        
+        dictionary controlling output and logging. Missing keys are filled
+        from ``default_outputkw()``. Recognised keys:
+
+        - ``"file"``         : str  — base name for log and VTK output files
+          (default ``"topopt"``).
+        - ``"display"``      : bool — if True, the physical density field is
+          plotted to screen each iteration (default True).
+        - ``"export"``       : bool — if True, the final design is exported to
+          a VTK file via ``export_vtk`` (default True).
+        - ``"write_log"``    : bool — if True, a ``SimpleLogger`` writing to
+          ``<file>.log`` is created; otherwise an ``EmptyLogger`` is used
+          (default True).
+        - ``"verbosity"``    : int  — verbosity level passed to
+          ``SimpleLogger``; higher values produce more output (default 20).
+        - ``"profile"``      : bool — if True, ``cProfile`` is enabled for
+          the optimisation loop and results are printed on exit (default
+          False).
+        - ``"output_movie"`` : bool — if True, each iteration is exported as
+          a separate VTK file named ``<file>_<iter>.vtk``, suitable for
+          assembling a movie (default False).
+
     Returns
     -------
     None.
@@ -246,6 +347,8 @@ def main(nelx: int, nely: int,
                 xTilde.append(x.copy())
             else:
                 xTilde.append(initial_guess[key])
+    else:
+        xTilde = None
     # initialize arrays for gradients
     dobj = np.zeros( x.shape,order="F")
     # initialize constraints
@@ -431,23 +534,34 @@ def main(nelx: int, nely: int,
     #
     if output_kw["output_movie"]:
         output_kw["mov_ndigits"] = len(str(nouteriter))
-    # initialize iteration history
-    if max_history and accelerator_kw is None:
-        xhist = [x.copy() for i in np.arange(max_history)]
-    elif max_history >= accelerator_kw["max_history"]:
-        xhist = [x.copy() for i in np.arange(max_history)]
-    elif max_history < accelerator_kw["max_history"]:
-        xhist = [x.copy() for i in np.arange(accelerator_kw["max_history"])]
+    # initialize iteration history by copying initial guesses
+    max_history = int(np.maximum(max_history,
+                                 accelerator_kw.get("max_history", 0)))
+    # check if history of xPhys is needed
+    _cont_params = [inspect.signature(f).parameters
+                    for f in (continuation_kw["funcs"]
+                              if continuation_kw is not None else [])]
+    _need_xPhys_hist = any("xPhys_hist" in p for p in _cont_params)
+    if continuation_kw is not None:
+        continuation_kw["stop_flag"] = [False] * len(continuation_kw["funcs"])
+    hist = {"xhist":        [x.copy() for i in np.arange(max_history)],
+            "xPhys_hist":   [xPhys.copy() for i in np.arange(max_history)]
+                            if _need_xPhys_hist else None,
+            "obj_hist":     [0. for i in np.arange(max_history)],
+            "constrs_hist": [constrs.copy() for i in np.arange(max_history)]}
     # initialize adjoint variables
     adj = np.zeros(f.shape)
+    # seed filter_kw with any initial filter state (e.g. eta from EtaProjectorXu2010)
+    if isinstance(ft, list):
+        for _f in ft:
+            if hasattr(_f, "eta"):
+                filter_kw["eta"] = _f.eta
+            if hasattr(_f, "etas"):
+                filter_kw["etas"] = _f.etas
     #
-    if "beta" in filter_kw.keys():
-        filter_kw["beta_loop"] = 0
     # optimization loop
     for loop in np.arange(nouteriter):
         #
-        if "beta_loop" in filter_kw.keys():
-            filter_kw["beta_loop"] += 1 
         # solve FEM, calculate obj. func. and gradients.
         if optimizer in ["oc","mma", "ocm","ocg"] or\
            (optimizer in ["gcmma"] and ninneriter==0) or\
@@ -632,6 +746,10 @@ def main(nelx: int, nely: int,
                   np.min(dobj), np.max(dobj), 
                   np.min(dconstrs)))
         # design variables update by optimizer
+        if continuation_kw is not None:
+            run_continuation(continuation_kw, stage=0,
+                             filter_kw=filter_kw, optimizer_kw=optimizer_kw,
+                             logger=log)
         # optimality criteria
         if optimizer=="oc":
             (x[:,0], g) = oc_top88(x=x[:,0], volfrac=volfrac,
@@ -651,8 +769,8 @@ def main(nelx: int, nely: int,
                                                                  n=x.shape[0],
                                                                  iter=loop,
                                                                  xval=x,
-                                                                 xold1=xhist[-1],
-                                                                 xold2=xhist[-2],
+                                                                 xold1=hist["xhist"][-1],
+                                                                 xold2=hist["xhist"][-2],
                                                                  f0val=obj,
                                                                  df0dx=dobj,
                                                                  fval=constrs,
@@ -671,15 +789,14 @@ def main(nelx: int, nely: int,
             and loop >= accelerator_kw["accel_start"] and \
             accelerator_kw["accelerator"] is not None:
             x[:] = accelerator_kw["accelerator"](x=x.reshape( np.prod(x.shape), order="F" ),
-                                                 xhist=[_x.reshape( np.prod(x.shape), order="F" ) for _x in xhist],
+                                                 xhist=[_x.reshape( np.prod(x.shape), order="F" ) for _x in hist["xhist"]],
                                                  **accelerator_kw).reshape(x.shape,order="F")
         elif mix is not None:
-            x[:] = xhist[-1]*(1-mix) + x*mix
-        # append history
-        xhist.append(x.copy())
-        # prune history if too long
-        if len(xhist)> max_history+1:
-            xhist = xhist[-max_history-1:]
+            x[:] = hist["xhist"][-1]*(1-mix) + x*mix
+        # update and prune history
+        update_history(**hist,
+                       x=x, xPhys=xPhys, obj=obj, constrs=constrs,
+                       max_history=max_history)
         #
         log.debug("Post Mixing Update: it.: {0}, med. x.: {1:.10f}, med. xPhys: {2:.10f}".format(
                   loop, np.median(x),np.median(xPhys)))
@@ -696,6 +813,11 @@ def main(nelx: int, nely: int,
             else:
                 xPhys = ft[0].apply_filter(x=x,
                                            **filter_kw)
+            for _f in ft:
+                if hasattr(_f, "eta"):
+                    filter_kw["eta"] = _f.eta
+                if hasattr(_f, "etas"):
+                    filter_kw["etas"] = _f.etas
         elif ft == 0:
             xPhys[:] = x
         elif ft == 1 and filter_mode == "matrix":
@@ -712,8 +834,8 @@ def main(nelx: int, nely: int,
         #
         log.debug("Post Density Filter: it.: {0}, med. x.: {1:.10f}, med. xPhys: {2:.10f}".format(
                   loop, np.median(x),np.median(xPhys)))
-        # compute the change by the inf. norm
-        change = np.abs(xhist[-1] - xhist[-2]).max()
+        # compute the change
+        change = convergence_kw["change_func"](**hist,**convergence_kw)
         # plot to screen
         if output_kw["display"]:
             if ndim == 2:
@@ -730,19 +852,20 @@ def main(nelx: int, nely: int,
         # write iteration history to screen (req. Python 2.6 or newer)
         log.info("it.: {0} obj.: {1:.10f} vol.: {2:.10f} ch.: {3:.10f}".format(
                      loop+1, obj, xPhys.mean(), change))
-        # convergence check
-        if change < 0.01 and not "beta" in filter_kw.keys():
-            break
-        elif change < 0.01 and \
-             "beta" in filter_kw.keys() and \
-             filter_kw["beta"] >= filter_kw["beta_limit"]:
-            break
-        elif "beta" in filter_kw.keys() and \
-             filter_kw["beta"] < filter_kw["beta_limit"] and\
-             (change < 0.01 or filter_kw["beta_loop"] >= filter_kw["beta_update"]):
-            filter_kw["beta"] = filter_kw["beta"]*filter_kw["beta_scale"]
-            filter_kw["beta_loop"] = 0
-            log.info("beta increased.: {0: .1f}".format(filter_kw["beta"]))
+        # convergence and parameter continuation check
+        if continuation_kw is None:
+            if change < convergence_kw["conv_tol"]:
+                break
+        else:
+            if run_continuation(continuation_kw, stage=1,
+                                **hist,
+                                change=change,
+                                loop=loop,
+                                filter_kw=filter_kw,
+                                optimizer_kw=optimizer_kw,
+                                conv_tol=convergence_kw["conv_tol"],
+                                logger=log):
+                break
     #
     if output_kw["export"]:
         export_vtk(filename=output_kw["file"],
@@ -757,4 +880,8 @@ def main(nelx: int, nely: int,
     if output_kw["display"]:
         plt.show()
         input("Press any key...")
-    return x, obj
+    #
+    if output_kw["save_pdf"]:
+        fig.savefig(output_kw["file"]+".pdf", 
+                    **output_kw["pdf_kw"])
+    return x, xTilde, xPhys, obj 

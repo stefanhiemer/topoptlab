@@ -21,17 +21,19 @@ def default_outputkw() -> Dict:
     Keys and Default Values 
     -----------------------
 
-    +------------------+-------+-----------+---------------------------------------------+
-    | Key              | Type  | Default   | Description                                 |
-    +------------------+-------+-----------+---------------------------------------------+
-    | "file"           | str   | "topopt"  | Base name used for output files.            |
-    | "display"        | bool  | True      | Display intermediary design.                |
-    | "export"         | bool  | True      | Export final results to disk as VTK.        |
-    | "write_log"      | bool  | True      | Write a log file.                           |
-    | "profile"        | bool  | False     | Profile code execution.                     |
-    | "output_movie"   | bool  | False     | Generate a movie of intermediate designs.   |
-    | "verbosity"      | int   | 20        | Level of verbosity (see SimpleLogger).      |
-    +------------------+-------+-----------+---------------------------------------------+
+    +------------------+-------+--------------------------+---------------------------------------------+
+    | Key              | Type  | Default                  | Description                                 |
+    +------------------+-------+--------------------------+---------------------------------------------+
+    | "file"           | str   | "topopt"                 | Base name used for output files.            |
+    | "display"        | bool  | True                     | Display intermediary design.                |
+    | "export"         | bool  | True                     | Export final results to disk as VTK.        |
+    | "write_log"      | bool  | True                     | Write a log file.                           |
+    | "profile"        | bool  | False                    | Profile code execution.                     |
+    | "output_movie"   | bool  | False                    | Generate a movie of intermediate designs.   |
+    | "verbosity"      | int   | 20                       | Level of verbosity (see SimpleLogger).      |
+    | "save_pdf"       | bool  | False                    | Save final design as pdf.                   |
+    | "pdf_kw"         | dict  | {"bbox_inches": "tight"} | Save final design as pdf.                   |
+    +------------------+-------+--------------------------+---------------------------------------------+
 
 
     Returns
@@ -46,7 +48,9 @@ def default_outputkw() -> Dict:
             "write_log": True,
             "profile": False,
             "output_movie": False,
-            "verbosity": 20}
+            "verbosity": 20, 
+            "save_pdf": False, 
+            "pdf_kw": {"bbox_inches": "tight"}}
 
 def check_output_kw(output_kw: Dict) -> None:
     """

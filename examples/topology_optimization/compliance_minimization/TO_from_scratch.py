@@ -1,30 +1,32 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 # A 165 LINE TOPOLOGY OPTIMIZATION CODE BY NIELS AAGE AND VILLADS EGEDE JOHANSEN, JANUARY 2013
-# rewrite with the topoptlab package by Stefan Hiemer (January 2025)
 from typing import Callable, Union
 from cProfile import Profile
-
+#
 import numpy as np
-from scipy.sparse import coo_array,save_npz
-
+from scipy.sparse import coo_array
+#
 from matplotlib import colors
 import matplotlib.pyplot as plt
-
+#
+from topoptlab.material_interpolation import simp, simp_dx
+#
 from topoptlab.filter.matrix_filter import assemble_matrix_filter
+#
 from topoptlab.fem import create_matrixinds,assemble_matrix,apply_bc
-
 from topoptlab.example_bc.lin_elast import mbb_2d,mbb_3d
 from topoptlab.example_bc.heat_conduction import heatplate_2d
-
+# element related things
 from topoptlab.elements.bilinear_quadrilateral import create_edofMat as create_edofMat2d
 from topoptlab.elements.trilinear_hexahedron import create_edofMat as create_edofMat3d
 from topoptlab.elements.linear_elasticity_2d import lk_linear_elast_2d
 from topoptlab.elements.linear_elasticity_3d import lk_linear_elast_3d
 from topoptlab.elements.poisson_2d import lk_poisson_2d
 from topoptlab.elements.poisson_3d import lk_poisson_3d
-
+#
 from topoptlab.optimizer.optimality_criterion import oc_top88
+#
 from topoptlab.solve_linsystem import solve_lin
-
 # MAIN DRIVER
 def main(nelx: int, nely: int, nelz: Union[None,int],
          volfrac: float,
@@ -82,8 +84,8 @@ def main(nelx: int, nely: int, nelz: Union[None,int],
     # total number of design elements
     n = np.prod([nelx,nely,nelz][:ndim])
     # Max and min stiffness
-    Emin=1e-9
-    Emax=1.0
+    eps=1e-9
+    E=1.0
     # Allocate design variables (as array), initialize and allocate sens.
     x=volfrac * np.ones(n,dtype=float,order="F")
     xold=x.copy()
@@ -125,7 +127,8 @@ def main(nelx: int, nely: int, nelz: Union[None,int],
     while change>0.01 and loop<2000:
         loop=loop+1
         # Setup and solve FE problem
-        sK=(KE.flatten()[:,None]*(Emin+xPhys**penal*(Emax-Emin))).flatten(order='F')
+        scale = simp(xPhys=xPhys,penal=penal, eps=eps)
+        sK=(KE.flatten()[:,None]*E*scale).flatten(order='F')#*(Emin+xPhys**penal*(Emax-Emin))).flatten(order='F')
         K = coo_array((sK,(iK,jK)),shape=(ndof,ndof)).tocsr()
         # Remove constrained dofs from matrix
         K = apply_bc(K=K,solver="scipy-direct",
@@ -137,8 +140,8 @@ def main(nelx: int, nely: int, nelz: Union[None,int],
         # Objective and sensitivity
         ce[:] = (np.dot(u[edofMat,0],KE) * u[edofMat,0]).sum(1)
         #
-        obj=( (Emin+xPhys**penal*(Emax-Emin))*ce ).sum()
-        dc[:]=(-penal*xPhys**(penal-1)*(Emax-Emin))*ce
+        obj=( E*scale*ce ).sum()
+        dc[:]=(-1)*E*simp_dx(xPhys=xPhys,penal=penal, eps=eps)*ce
         dv[:] = np.ones(n)
         # Sensitivity filtering:
         if ft==0:
@@ -174,7 +177,7 @@ def main(nelx: int, nely: int, nelz: Union[None,int],
 # The real main driver
 if __name__ == "__main__":
     # Default input parameters
-    nelx = 160
+    nelx = 40
     nely = nelx
     nelz=None
     volfrac = 0.4

@@ -28,7 +28,7 @@ def test_filterobj(nelx, nely, volfrac, ft_int, ft_obj, rmin, filter_mode, bcs):
     slow tests in same file.
     """
     #
-    x_int, obj_int = main(nelx=nelx, nely=nely, volfrac=volfrac, 
+    x_int, _, _, obj_int = main(nelx=nelx, nely=nely, volfrac=volfrac, 
                   rmin=rmin, ft=ft_int, filter_mode=filter_mode,
                   optimizer="oc",
                   bcs=bcs,
@@ -39,7 +39,7 @@ def test_filterobj(nelx, nely, volfrac, ft_int, ft_obj, rmin, filter_mode, bcs):
                                "profile": False,
                                "debug": 0})
     #
-    x_obj, obj_obj = main(nelx=nelx, nely=nely, volfrac=volfrac, 
+    x_obj, _, _, obj_obj = main(nelx=nelx, nely=nely, volfrac=volfrac, 
                   rmin=rmin, ft=ft_obj, filter_mode=filter_mode,
                   optimizer="oc",
                   bcs=bcs,

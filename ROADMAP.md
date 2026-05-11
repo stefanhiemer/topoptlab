@@ -1,21 +1,15 @@
 features
 
-- [ ] add source for scalar field
-- [ ] get rid of manual determinant calculation in elements with quadrature
 - [ ] inverse homogenization
 - [ ] stress constraints
-- [ ] isotropic hyperelasticity
-- [ ] Neo-Hooke
 - [ ] multimaterial optimization
 - [ ] anisotropic / orientation variable optimization
 - [ ] anisotropic hyperelasticity
 - [ ] include Globally Convergent Method of Moving symptotes (GCMMA) into TO main
-- [ ] optimality criteria with analytical update
 - [ ] unstructured meshes from GMSH
 - [ ] add aggregation functions
 
 generalizations
-- [ ] wrap filter in TOFilter class
 - [ ] wrap different physical phenomena in FEM_Phys class
 - [ ] generalize boundary conditions
 - [ ] generalize filters to multimaterial optimization

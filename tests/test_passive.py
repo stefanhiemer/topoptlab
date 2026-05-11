@@ -19,7 +19,7 @@ def test_compliance_1(nelx, nely, volfrac, ft, rmin, filter_mode, bcs, obj_ref):
     radius = nely/3
     pass_el = sphere(nelx=nelx, nely=nely, center=center, radius=radius)
     #
-    x, obj = main(nelx=nelx, nely=nely, volfrac=volfrac, 
+    _, _, _, obj = main(nelx=nelx, nely=nely, volfrac=volfrac, 
                   rmin=rmin, ft=ft,
                   el_flags=pass_el,filter_mode=filter_mode,optimizer="oc",
                   bcs=bcs,
@@ -47,7 +47,7 @@ def test_compliance_2(nelx, nely, volfrac, ft, rmin, filter_mode, bcs, obj_ref):
     radius = nely/3
     pass_el = sphere(nelx=nelx, nely=nely, center=center, radius=radius)
     #
-    x, obj = main(nelx=nelx, nely=nely, volfrac=volfrac,
+    _, _, _, obj = main(nelx=nelx, nely=nely, volfrac=volfrac,
                   rmin=rmin, ft=ft,
                   el_flags=pass_el,filter_mode=filter_mode,optimizer="oc",
                   bcs=bcs,

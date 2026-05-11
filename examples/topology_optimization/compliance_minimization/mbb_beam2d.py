@@ -67,4 +67,5 @@ if __name__ == "__main__":
                               "write_log": write_log,
                               "profile": False,
                               "verbosity": 20,
-                              "output_movie": False})
+                              "output_movie": False,
+                              "save_pdf": false})

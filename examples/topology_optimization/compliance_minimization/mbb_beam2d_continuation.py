@@ -10,19 +10,22 @@ from topoptlab.filter.density_filter import DensityFilter
 from topoptlab.filter.sensitivity_filter import SensitivityFilter
 from topoptlab.filter.haeviside_projectors import HaevisideProjectorGuest2004,\
                                                   HaevisideProjectorSigmund2007,\
-                                                  EtaProjectorXu2010
-from topoptlab.convergence_criteria import norm_design_change
-from topoptlab.param_continuation import beta_scaling
+                                                  EtaProjectorXu2010,\
+                                                  MultiEtaProjectorXu2010
+from topoptlab.convergence_criteria import max_design_change, norm_design_change
+from topoptlab.param_continuation import adaptive_beta_continuation, update_move_limit
 
 if __name__ == "__main__":
     # Default input parameters
-    nelx = 240
+    nelx = 60
     nely = int(nelx/3)
     volfrac = 0.5
     rmin = 3.6  # 5.4
     penal = 3.0
-    ft = [DensityFilter, 
-          EtaProjectorXu2010] # ft==0 -> sens, ft==1 -> dens
+    ft = [DensityFilter,
+          #EtaProjectorXu2010,  # single-eta
+          MultiEtaProjectorXu2010,  # multi-eta
+          ] # ft==0 -> sens, ft==1 -> dens
     display = True
     export = False
     #
@@ -55,7 +58,8 @@ if __name__ == "__main__":
     #
     optimizer_kw = mma_defaultkws(n=nelx*nely, 
                                   n_constr=1)
-    optimizer_kw["move"] = 0.025
+    optimizer_kw["move"] = 0.05
+    #optimizer_kw["asyincr"] = 1.05
     #
     main(nelx=nelx, nely=nely, volfrac=volfrac, 
                  matinterpol_kw={"eps":1e-9, "penal": penal},
@@ -63,7 +67,10 @@ if __name__ == "__main__":
                  ft=ft, 
                  l = 0.5,
                  filter_kw={"beta": 4,
-                            "volfrac": volfrac},
+                            "volfrac": volfrac,
+                            "n_etas": 2,
+                            "weights": np.array([0.7,0.3])
+                            },
                  filter_mode="matrix",
                  optimizer="mma", optimizer_kw=optimizer_kw,
                  lin_solver_kw = {"name": "cvxopt-cholmod"},
@@ -80,11 +87,11 @@ if __name__ == "__main__":
                               "verbosity": 20,
                               "output_movie": False}, 
                  convergence_kw = {"conv_tol": 1e-2,
-                                   "change_func": norm_design_change,
+                                   "change_func": max_design_change,
                                    "ord": 2},
-                 continuation_kw = {"funcs": [beta_scaling],
-                                    "func_kws": [{"beta_scale": 2,
-                                                  "beta_limit": 64,
-                                                  "beta_update": 100,
-                                                  "state": {}}]},
+                 continuation_kw = {"funcs": [adaptive_beta_continuation#,update_move_limit,
+                                              ],
+                                    "func_kws": [{"beta_limit": 64,
+                                                  "state": {}}#,{"stage": 0}
+                                                 ]},
                  )

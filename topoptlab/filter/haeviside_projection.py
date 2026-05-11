@@ -418,7 +418,7 @@ def multieta_projection_dx(etas: np.ndarray,
         first derivative of projected densities.
 
     """
-    xProj_dx = beta * (1 - np.tanh(beta * (xTilde - etas[None,...]))**2) /\
+    xProj_dx = beta * (1 - np.tanh(beta * (xTilde[...,None] - etas[None,...]))**2) /\
                       (np.tanh(beta*etas[None,...])+np.tanh(beta*(1-etas[None,...])))
     
     if weights is None:
@@ -433,7 +433,7 @@ def multieta_projection_deta(etas: np.ndarray,
                              ) -> np.ndarray:
     """
     First derivative of the weighted multi-threshold Haeviside projection
-    with respect to each threshold eta_n, as done in
+    with respect to each threshold eta_n as a generalization to
 
     Xu S, Cai Y, Cheng G (2010) Volume preserving nonlinear density filter
     based on Heaviside functions. Struct Multidiscip Optim 41:495–505
@@ -441,7 +441,7 @@ def multieta_projection_deta(etas: np.ndarray,
     Parameters
     ----------
     etas : np.ndarray
-        threshold values, shape (N_etas,).
+        threshold values, shape (n_etas,).
     xTilde : np.ndarray
         intermediate densities (typically before a density filter is applied).
     beta : float
@@ -455,7 +455,51 @@ def multieta_projection_deta(etas: np.ndarray,
     -------
     xPhys_deta : np.ndarray
         d(xPhys)/d(eta_n) = w_n * d(xProj_n)/d(eta_n),
-        shape (..., N_etas).
+        shape (..., n_etas).
+
+    """
+    # individual projections: shape (..., N_etas)
+    xProj_n = (np.tanh(beta * etas[None,...]) +\
+               np.tanh(beta * (xTilde[...,None] - etas[None,...]))) /\
+              (np.tanh(beta * etas[None,...]) +\
+               np.tanh(beta * (1 - etas[None,...])))
+    # 
+    return beta * weights[None,...] * ( 
+            (1 - xProj_n) * np.cosh(beta * etas[None,...])**(-2) -
+             np.cosh(beta * (xTilde[...,None] - etas[None,...]))**(-2) +
+             xProj_n * np.cosh(beta * (1 - etas[None,...]))**(-2)) \
+             / (np.tanh(beta * etas) + np.tanh(beta * (1 - etas)))[None,...]
+
+def multieta_projection_deta2(etas: np.ndarray,
+                              xTilde: np.ndarray,
+                              beta: float,
+                              weights: Union[None,np.ndarray]
+                              ) -> np.ndarray:
+    """
+    Second derivative of the weighted multi-threshold Haeviside projection
+    with respect to each threshold eta_n,  as a generalization to
+
+    Xu S, Cai Y, Cheng G (2010) Volume preserving nonlinear density filter
+    based on Heaviside functions. Struct Multidiscip Optim 41:495–505
+
+    Parameters
+    ----------
+    etas : np.ndarray
+        threshold values, shape (n_etas,).
+    xTilde : np.ndarray
+        intermediate densities (typically before a density filter is applied).
+    beta : float
+        sharpness factor. The higher the more we approach the Haeviside
+        function which is recovered in the limit of beta to infinity
+    weights : None or np.ndarray
+        weights for combining the multiple threshold projections. If None,
+        uniform weights are used.
+
+    Returns
+    -------
+    xPhys_deta : np.ndarray
+        d(xPhys)/d(eta_n) = w_n * d(xProj_n)/d(eta_n),
+        shape (..., n_etas, n_etas).
 
     """
     # individual projections: shape (..., N_etas)
@@ -477,7 +521,7 @@ if __name__ == "__main__":
     eta = 0.5
     beta = 10
     #
-    xTilde = np.linspace(0,1.,11)[:-1]
+    xTilde = np.linspace(0,1.,11)[:-1][:,None]
     # finite difference
     xProj = eta_projection(eta=eta+eps,
                            xTilde=xTilde, 
@@ -496,26 +540,29 @@ if __name__ == "__main__":
                                      beta=beta)
     print(xProj_deta)
     #
-    # --- multi-eta test ---
-    #
     etas = np.array([0.25, 0.5, 0.75])
     weights = np.array([1/3, 1/3, 1/3])
-    #
+    #  
     xPhys = multieta_projection(etas=etas, xTilde=xTilde, beta=beta, weights=weights)
-    # finite difference: perturb each eta_n independently
-    xPhys_deta_fd = np.zeros((xTilde.shape[0], etas.shape[0]))
+    print("xTilde shape :", xTilde.shape)
+    print("xPhys  shape :", xPhys.shape)
+    #
+    xPhys_dx = multieta_projection_dx(etas=etas, xTilde=xTilde, beta=beta, weights=weights)
+    xPhys_dx_fd = (multieta_projection(etas=etas, xTilde=xTilde+eps, beta=beta, weights=weights) -
+                   multieta_projection(etas=etas, xTilde=xTilde-eps, beta=beta, weights=weights)) / (2*eps)
+    print("xPhys_dx  shape (analytic) :", xPhys_dx.shape)
+    print("xPhys_dx  shape (fd)       :", xPhys_dx_fd.shape)
+    print("max abs err d/dx :", np.max(np.abs(xPhys_dx - xPhys_dx_fd)))
+    #
+    xPhys_deta = multieta_projection_deta(etas=etas, xTilde=xTilde, beta=beta, weights=weights)
+    xPhys_deta_fd = np.zeros((*xTilde.shape, etas.shape[0]))
     for n in range(etas.shape[0]):
         etas_p = etas.copy(); etas_p[n] += eps
         etas_m = etas.copy(); etas_m[n] -= eps
-        xPhys_deta_fd[:, n] = (multieta_projection(etas=etas_p, xTilde=xTilde,
-                                                    beta=beta, weights=weights) -
-                                multieta_projection(etas=etas_m, xTilde=xTilde,
-                                                    beta=beta, weights=weights)) / (2*eps)
-    # analytic
-    xPhys_deta = multieta_projection_deta(etas=etas, xTilde=xTilde,
-                                          beta=beta, weights=weights)
-    print("finite diff d(xPhys)/d(etas):")
-    print(xPhys_deta_fd)
-    print("analytic d(xPhys)/d(etas):")
-    print(xPhys_deta.shape)
-    print("max abs err:", np.max(np.abs(xPhys_deta - xPhys_deta_fd)))
+        xPhys_deta_fd[..., n] = (multieta_projection(etas=etas_p, xTilde=xTilde,
+                                                      beta=beta, weights=weights) -
+                                  multieta_projection(etas=etas_m, xTilde=xTilde,
+                                                      beta=beta, weights=weights)) / (2*eps)
+    print("xPhys_deta shape (analytic) :", xPhys_deta.shape)
+    print("xPhys_deta shape (fd)       :", xPhys_deta_fd.shape)
+    print("max abs err d/detas :", np.max(np.abs(xPhys_deta - xPhys_deta_fd)))
