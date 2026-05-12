@@ -3,7 +3,7 @@ from functools import partial
 import numpy as np
 
 from topoptlab.topology_optimization import main
-from topoptlab.example_bc.lin_elast import gripper_2d
+from topoptlab.example_bc.lin_elast import jaws_2d
 from topoptlab.objectives import var_maximization
 from topoptlab.geometries import slab
 from topoptlab.utils import map_eltoimg
@@ -31,7 +31,7 @@ if __name__ == "__main__":
                    center=(nelx-1,0), 
                    fill_value=1, 
                    widths=[int(output_frac*nelx)+int(rmin),int(slit_height*nely)+int(rmin)  ])
-    bc = partial(gripper_2d, 
+    bc = partial(jaws_2d, 
                  input_frac=input_frac, 
                  output_frac=output_frac, 
                  slit_height=slit_height)
@@ -68,11 +68,11 @@ if __name__ == "__main__":
     #
     main(nelx=nelx, nely=nely, volfrac=volfrac, 
          matinterpol_kw={"eps":1e-9, "penal": penal}, 
-         el_flags = pass_el,
+         #el_flags = pass_el,
          rmin=rmin, 
          bcs=bc , obj_func=var_maximization ,obj_kw={"l": l},
          ft=ft, filter_mode="matrix",optimizer="mma",
-         nouteriter=250,
+         nouteriter=2000,
          output_kw = {"file": "gripper_2d",
                       "display": display,
                       "export": export,
