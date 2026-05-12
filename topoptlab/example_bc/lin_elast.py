@@ -452,6 +452,63 @@ def forceinverter_3d(nelx: int, nely: int, nelz: int,
     springs = [np.array([0,3*nelx*(nely+1)]),np.array([0.1,1e-4])]
     return u,f,fixed,np.setdiff1d(dofs,fixed),springs
 
+def gripper_2d(nelx: int, nely: int,
+               ndof: int, 
+               input_frac: float = 0.4, 
+               output_frac: float = 0.2,
+               slit_height: float = 0.1,
+               **kwargs: Any) -> Tuple[np.ndarray,np.ndarray,
+                                       np.ndarray,np.ndarray,
+                                       np.ndarray]:
+    """
+    Gripper as example case for compliant mechanisms. We assume a length 
+    of ´input_frac*nelx´ is used to apply force by vertical gripping which should
+    translate to displacement of ´output_frac*nelx´ at `slit_height`.
+
+
+    Parameters
+    ----------
+    nelx : int
+        number of elements in x direction.
+    nely : int
+        number of elements in y direction.
+    ndof : int
+        number of degrees of freedom.
+
+    Returns
+    -------
+    u : np.ndarray
+        array of zeros for state variable (displacement, temperature) to be
+        filled of shape (ndof).
+    f : np.ndarray
+        array of zeros for state flow variables (forces, flow).
+    fixed : np.ndarray
+        indices of fixed dofs (nfixed).
+    free : np.ndarray
+        indices of free dofs (ndofs - nfixed).
+    springs : list
+        contains two 1D np.ndarrays of equal length. first is of integer type
+        and contains the indices of dofs attached to a spring. second contains
+        the spring constants.
+
+    """
+    # force and displacements
+    f = np.zeros((ndof, 1))
+    u = np.zeros((ndof, 1))
+    #
+    fixed = np.union1d(np.arange(1,(nelx+1)*(nely+1)*2,(nely+1)*2), # symmetry
+                       np.array([0])) # bottom left fixation
+    # load/source
+    clamp = np.arange((nely+1)*2-1,
+                      ndof,(nely+1)*2)[:int(nelx*input_frac)+1]
+    f[clamp,0] = 1
+    #
+    spring_inds = int(slit_height*nely*2) + np.arange(0,ndof,2*(nely+1)) + 1
+    spring_inds = spring_inds[-int(output_frac*nelx):]
+    springs = [np.sort(np.hstack((spring_inds, clamp))),
+               np.ones(spring_inds.shape[0]+clamp.shape[0])*0.1]
+    return u,f,fixed,np.setdiff1d(np.arange(ndof),fixed),springs
+
 def threepointbending_2d(nelx: int, nely: int,
                          ndof: int, **kwargs: Any
                          ) -> Tuple[np.ndarray,np.ndarray,
