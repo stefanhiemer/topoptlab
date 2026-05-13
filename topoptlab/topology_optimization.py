@@ -38,7 +38,8 @@ from topoptlab.output_designs import export_vtk
 # map element data to img/voxel
 from topoptlab.utils import map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel,\
                             check_simulation_params,dict_without,\
-                            default_outputkw,check_output_kw,check_optimizer_kw
+                            default_outputkw,check_output_kw,check_optimizer_kw,\
+                            default_el_flags_policy,check_el_flags_policy
 # logging related stuff
 from topoptlab.log_utils import EmptyLogger,SimpleLogger
 from topoptlab.convergence_criteria import max_design_change
@@ -124,7 +125,8 @@ def main(nelx: int, nely: int,
          matinterpol_dx: Callable = simp_dx,
          matinterpol_kw: Dict = {"eps": 1e-9, "penal": 3.},
          el_flags: Union[None,np.ndarray] = None,
-         optimizer: str = "mma", 
+         el_flags_policy: Union[None,Dict] = None,
+         optimizer: str = "mma",
          optimizer_kw: Union[None,Dict] = None,
          mix: Union[None,float] = None,
          accelerator_kw: Dict = {"accel_freq": 4,
@@ -267,6 +269,8 @@ def main(nelx: int, nely: int,
     # check dictionaries
     check_output_kw(output_kw)
     check_simulation_params(simulation_kw)
+    if el_flags_policy is not None:
+        check_el_flags_policy(el_flags_policy)
     # initialize profiling
     if output_kw["profile"]:
         profiler = Profile() 
@@ -349,6 +353,14 @@ def main(nelx: int, nely: int,
                 xTilde.append(initial_guess[key])
     else:
         xTilde = None
+    # precompute prescribed-element masks for filter policy corrections
+    passive_mask    = None
+    active_mask     = None
+    prescribed_mask = None
+    if el_flags is not None:
+        passive_mask    = el_flags == 1
+        active_mask     = el_flags == 2
+        prescribed_mask = el_flags != 0
     # initialize arrays for gradients
     dobj = np.zeros( x.shape,order="F")
     # initialize constraints
@@ -377,14 +389,21 @@ def main(nelx: int, nely: int,
             mask = el_flags == 1
             optimizer_kw["xmin"][mask] = 0.
             optimizer_kw["xmax"][mask] = 0.+1e-9
-            x[mask,0] = 1.
-            xPhys[mask,0] = 1.
+            x[mask,0] = 0.
+            xPhys[mask,0] = 0.
             # active
             mask = el_flags == 2
             optimizer_kw["xmin"][mask] = 1.- 1e-9
             optimizer_kw["xmax"][mask] = 1.
             x[mask] = 1.
             xPhys[mask] = 1.
+            # redistribute volfrac over free elements so that passive elements
+            # (contributing 0) add material to the free set
+            if volfrac is not None:
+                n_free = (~prescribed_mask).sum()
+                x_free = np.clip(volfrac * n / n_free, 0., 1.)
+                x[~prescribed_mask, 0]     = x_free
+                xPhys[~prescribed_mask, 0] = x_free
     else:
         raise ValueError("Unknown optimizer: ", optimizer)
     # get element stiffness matrix
@@ -469,12 +488,16 @@ def main(nelx: int, nely: int,
                  filter_mode=filter_mode,
                  rmin=rmin,
                  n_constr=n_constr,
+                 el_flags=el_flags,
+                 el_flags_policy=el_flags_policy,
                  **filter_kw)]
     elif isinstance(ft, list):
         ft = [ft_obj(nelx=nelx,nely=nely,nelz=nelz,
                      filter_mode=filter_mode,
                      rmin=rmin,
                      n_constr=n_constr,
+                     el_flags=el_flags,
+                     el_flags_policy=el_flags_policy,
                      **filter_kw) \
               for ft_obj in ft]
     # Filter: Build (and assemble) the index+data vectors for the coo matrix format
@@ -554,10 +577,8 @@ def main(nelx: int, nely: int,
     # seed filter_kw with any initial filter state (e.g. eta from EtaProjectorXu2010)
     if isinstance(ft, list):
         for _f in ft:
-            if hasattr(_f, "eta"):
-                filter_kw["eta"] = _f.eta
-            if hasattr(_f, "etas"):
-                filter_kw["etas"] = _f.etas
+            if _f.changes_filter_kw:
+                _f.update_filter_kw(filter_kw)
     #
     # optimization loop
     for loop in np.arange(nouteriter):
@@ -737,9 +758,13 @@ def main(nelx: int, nely: int,
             dobj[:] = TF.T @ lu_solve(TF@dobj)
             dconstrs[:] = TF.T @ lu_solve(TF@dconstrs)
         elif ft == -1:
-            pass 
+            pass
         else:
             raise ValueError("No filter applied. ft: ", ft)
+        # backward filter policy: zero sensitivities at prescribed elements
+        if el_flags_policy is not None and el_flags_policy["correct_backward"]:
+            dobj[prescribed_mask]     = 0.
+            dconstrs[prescribed_mask] = 0.
         #
         log.debug("Pre-Sensitivity Filter: it.: {0}, min(dobj): {1:.10f}, max(dobj): {2:.10f}, dv: {3:.10f}".format(
                   loop, 
@@ -814,10 +839,8 @@ def main(nelx: int, nely: int,
                 xPhys = ft[0].apply_filter(x=x,
                                            **filter_kw)
             for _f in ft:
-                if hasattr(_f, "eta"):
-                    filter_kw["eta"] = _f.eta
-                if hasattr(_f, "etas"):
-                    filter_kw["etas"] = _f.etas
+                if _f.changes_filter_kw:
+                    _f.update_filter_kw(filter_kw)
         elif ft == 0:
             xPhys[:] = x
         elif ft == 1 and filter_mode == "matrix":
@@ -831,6 +854,10 @@ def main(nelx: int, nely: int,
             xPhys[:] = TF.T @ lu_solve(TF@x)
         elif ft == -1:
             xPhys[:]  = x
+        # forward filter policy: restore prescribed densities after filtering
+        if el_flags_policy is not None and el_flags_policy["correct_forward"]:
+            xPhys[passive_mask] = 0.
+            xPhys[active_mask]  = 1.
         #
         log.debug("Post Density Filter: it.: {0}, med. x.: {1:.10f}, med. xPhys: {2:.10f}".format(
                   loop, np.median(x),np.median(xPhys)))
@@ -868,10 +895,26 @@ def main(nelx: int, nely: int,
                 break
     #
     if output_kw["export"]:
+        #
+        nodal_variables = {"u": u, 
+                           "f": f}
+        if springs is not None:
+            spring_array = np.zeros((u.shape[0],1))
+            spring_array[springs[0],0] = springs[1]
+            nodal_variables["springs"] = spring_array
+        if "l" in obj_kw.keys() and obj_kw["l"].shape[0] == u.shape[0]:
+            nodal_variables["l_obj"] = obj_kw["l"]
+        #
+        element_variables={"el_flags": el_flags, 
+                           "xPhys": xPhys, 
+                           "x": x}
+        #
         export_vtk(filename=output_kw["file"],
                    nelx=nelx,nely=nely,nelz=nelz,
-                   xPhys=xPhys,x=x,
-                   u=u,f=f,volfrac=volfrac)
+                   volfrac=volfrac, 
+                   elem_size=l,
+                   nodal_variables=nodal_variables,
+                   element_variables=element_variables)
     # finish profiling
     if output_kw["profile"]:
         profiler.disable()
@@ -881,7 +924,7 @@ def main(nelx: int, nely: int,
         plt.show()
         input("Press any key...")
     #
-    if output_kw["save_pdf"]:
+    if output_kw["display"] and output_kw["save_pdf"]:
         fig.savefig(output_kw["file"]+".pdf", 
                     **output_kw["pdf_kw"])
     return x, xTilde, xPhys, obj 

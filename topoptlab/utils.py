@@ -52,6 +52,58 @@ def default_outputkw() -> Dict:
             "save_pdf": False, 
             "pdf_kw": {"bbox_inches": "tight"}}
 
+def default_el_flags_policy() -> Dict:
+    """
+    Return the default policy dictionary for passive/active element handling
+    in topology_optimization.main().
+
+    Keys and Default Values
+    -----------------------
+
+    +---------------------+------+---------+----------------------------------------------------+
+    | Key                 | Type | Default | Description                                        |
+    +---------------------+------+---------+----------------------------------------------------+
+    | "correct_forward"   | bool | True    | After the forward filter, restore prescribed       |
+    |                     |      |         | densities (passive→0, active→1) so that passive/  |
+    |                     |      |         | active elements do not bleed into free neighbours. |
+    | "correct_backward"  | bool | True    | After the backward filter, zero the objective and  |
+    |                     |      |         | constraint sensitivities at prescribed elements so |
+    |                     |      |         | their fixed state does not contaminate neighbours. |
+    | "neglect_in_filter" | bool | True    | Prescribed elements neither receive nor contribute |
+    |                     |      |         | density/sensitivity to their neighbours during     |
+    |                     |      |         | filtering.                                         |
+    +---------------------+------+---------+----------------------------------------------------+
+
+    Returns
+    -------
+    el_flags_policy : dict
+    """
+    return {"correct_forward":   True,
+            "correct_backward":  True,
+            "neglect_in_filter": True}
+
+
+def check_el_flags_policy(el_flags_policy: Dict) -> None:
+    """
+    Insert any missing keys into ``el_flags_policy`` using the defaults from
+    ``default_el_flags_policy()``.
+
+    Parameters
+    ----------
+    el_flags_policy : dict
+        policy dictionary, modified in-place.
+
+    Returns
+    -------
+    None
+    """
+    default_kw = default_el_flags_policy()
+    missing_keys = set(default_kw.keys()) - set(el_flags_policy.keys())
+    for key in missing_keys:
+        el_flags_policy[key] = default_kw[key]
+    return
+
+
 def check_output_kw(output_kw: Dict) -> None:
     """
     Check that general output parameters are sensible or implemented and insert

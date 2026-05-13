@@ -35,11 +35,13 @@ def threshold(xPhys: np.ndarray,
 
 def export_vtk(filename: str, 
                nelx: int, nely: int, 
-               xPhys: np.ndarray,
-               nelz: Union[None,int],
+               xPhys: Union[None,np.ndarray] = None,
+               nelz: Union[None,int] = None,
                x: Union[None,np.ndarray] = None,
                u: Union[None,np.ndarray] = None, 
                f: Union[None,np.ndarray] = None,
+               nodal_variables: Union[None,Dict[np.ndarray]] = None,
+               element_variables: Union[None,Dict[np.ndarray]] = None,
                u_bw: Union[None,np.ndarray] = None,
                f_bw: Union[None,np.ndarray] = None,
                xTilde: Union[None,np.ndarray] = None,
@@ -142,6 +144,15 @@ def export_vtk(filename: str,
         for i in np.arange(f_bw.shape[1]):
             node_data.update({f"f_bw{i}": f_bw[:,i].reshape(points.shape[0],
                                              int(f_bw[:,i].shape[0]/points.shape[0]))})
+    if nodal_variables is not None:
+        #
+        for key in nodal_variables.keys():
+            if nodal_variables[key] is None:
+                continue
+            for i in range(nodal_variables[key].shape[1]):
+                node_data.update({f"{key}{i}": nodal_variables[key][:,i].reshape(points.shape[0],
+                                             int(nodal_variables[key][:,i].shape[0]/points.shape[0]))})
+
     # assign node IDs to each cell. 
     if nelz is None:
         elx,ely = np.arange(nelx)[:,None], np.arange(nely)[None,:]
@@ -160,17 +171,39 @@ def export_vtk(filename: str,
                                  n3+1,n4+1,n4,n3))
     # insert data for elements
     el_data = {}
-    el_data.update({"xPhys": [xPhys]})
+    if xPhys is not None: 
+        el_data.update({"xPhys": [xPhys]})
     if x is not None:
         el_data.update({"x": [x]})
     if xTilde is not None:
         el_data.update({"xTilde": [xTilde]})
-    if volfrac is not None:
+    if volfrac is not None and xPhys is not None:
         el_data.update({"xThresh": [threshold(xPhys,volfrac)]})
+    if volfrac is not None and \
+       element_variables is not None and \
+       "xPhys" in element_variables.keys():
+        el_data.update({"xThresh": [threshold(element_variables["xPhys"],volfrac)]})
     if stress_vm is not None:
         el_data["stress_vm"] = [np.asarray(stress_vm, dtype=float)]
     if vectors is not None:
         el_data["vectors"] = [np.asarray(vectors, dtype=float)]
+    if element_variables is not None:
+        #
+        for key in element_variables.keys():
+            if element_variables[key] is None:
+                continue  
+
+            if len(element_variables[key].shape)==2:
+                for i in range(element_variables[key].shape[1]): 
+                    el_data.update({f"{key}-{i}": [element_variables[key][:,i]]})
+            elif len(element_variables[key].shape)==1:
+                #
+                if element_variables[key].dtype==np.int32:
+                    element_variables[key] = element_variables[key].astype(np.int64)
+
+                el_data.update({f"{key}": [element_variables[key]]})
+            else:
+                raise ValueError
     #
     if nelz is None:
         Mesh(points,
@@ -182,51 +215,4 @@ def export_vtk(filename: str,
              [("hexahedron", idMat)],
              point_data=node_data,
              cell_data=el_data).write(filename+".vtk")
-    return
-
-def export_stl(filename: str, 
-               nelx: int, nely: int, 
-               xPhys: np.ndarray,
-               volfrac: float) -> None:
-    """
-    Export design to a stl file for 3D printing.
-
-    Parameters
-    ----------
-    filename : str
-        filename without ".vtk" ending.
-    nelx : int
-        number of elements in x direction.
-    nely : int
-        number of elements in y direction.
-    xPhys : np.ndarray
-        densities used to scale the material properties.
-    volfrac : float, optional
-        volume fraction. If not None, then also a thresholded designed is 
-        stored. The default is None.
-
-    Returns
-    -------
-    None.
-
-    """
-    # threshold densities to get final design
-    mask = (threshold(xPhys,volfrac) == 1)
-    # construct node positions for meshio 
-    _x,_y = np.meshgrid(np.linspace(0,nelx,nelx+1),
-                        np.linspace(0,nely,nely+1)[-1::-1])
-    points = np.column_stack((_x.flatten("F"),
-                              _y.flatten("F"))) 
-    # assign node IDs to each triangle cell.
-    elx,ely = np.arange(nelx)[:,None], np.arange(nely)[None,:]
-    n1 = ((nely+1)*elx+ely).flatten()
-    n2 = ((nely+1)*(elx+1)+ely).flatten()
-    idMat = np.column_stack((n1+1, n2+1, n2, n1))
-    idMat = np.vstack((idMat[mask][:,[0,1,2]],
-                       idMat[mask][:,[0,2,3]]))
-    #
-    Mesh(points,
-         [("triangle", idMat)],
-         point_data={}, 
-         cell_data={}).write(filename+".stl")
     return

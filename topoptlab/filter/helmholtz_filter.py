@@ -177,6 +177,13 @@ class HelmholtzFilter(TOFilter):
         """
         return self._constraint_filter_mask
 
+    @property
+    def changes_filter_kw(self) -> bool:
+        return False
+
+    def update_filter_kw(self, filter_kw: dict) -> None:
+        return
+
 def assemble_helmholtz_filter(nelx: int, nely: int, rmin: float,
                               nelz: Union[int, None] = None, 
                               l: np.ndarray = np.array([1.,1.]),

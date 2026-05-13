@@ -26,6 +26,8 @@ class MatrixFilter(TOFilter):
                  pbc: Union[bool, List, np.ndarray] = False,
                  filter_objective: bool = True,
                  constraint_filter_mask: Union[None, np.ndarray] = None,
+                 el_flags: Union[None, np.ndarray] = None,
+                 el_flags_policy: Union[None, dict] = None,
                  **kwargs: Any) -> None:
         """
         Assemble matrix-based filter from "Efficient topology optimization in
@@ -51,6 +53,10 @@ class MatrixFilter(TOFilter):
             if None, filter is applied to all constraint sensitivities.
             Otherwise, a boolean array indicating which constraint
             sensitivities are filtered.
+        el_flags : None or np.ndarray
+            array of element flags (0 free, 1 passive, 2 active).
+        el_flags_policy : None or dict
+            policy dict controlling filter behaviour for prescribed elements.
 
         Returns
         -------
@@ -61,7 +67,9 @@ class MatrixFilter(TOFilter):
                                                   nely=nely,
                                                   nelz=nelz,
                                                   rmin=rmin,
-                                                  pbc=pbc)
+                                                  pbc=pbc,
+                                                  el_flags=el_flags,
+                                                  el_flags_policy=el_flags_policy)
         self._filter_objective = filter_objective
         if constraint_filter_mask is None:
             self._constraint_filter_mask = np.ones(n_constr, dtype=bool)
@@ -145,11 +153,20 @@ class MatrixFilter(TOFilter):
         """
         return self._constraint_filter_mask
 
-def assemble_matrix_filter(nelx: int, 
-                           nely: int, 
+    @property
+    def changes_filter_kw(self) -> bool:
+        return False
+
+    def update_filter_kw(self, filter_kw: dict) -> None:
+        return
+
+def assemble_matrix_filter(nelx: int,
+                           nely: int,
                            rmin: Union[float,List,np.ndarray],
                            nelz: Union[int, None] = None,
                            pbc: Union[bool,List,np.ndarray] = False,
+                           el_flags: Union[None, np.ndarray] = None,
+                           el_flags_policy: Union[None, dict] = None,
                            **kwargs: Any) -> Tuple[csc_matrix,np.matrix]:
     """
     Assemble distance based filters as sparse matrix that is applied on to
@@ -268,15 +285,25 @@ def assemble_matrix_filter(nelx: int,
     neighbors = (neighbors*\
                  np.array([nely,1,nelx*nely][:ndim])[None,None,:]).sum(axis=-1)
     #
-    iH = np.repeat( el, np.sum(inside,axis=1))
+    iH = np.repeat(el, np.sum(inside,axis=1))
     jH = neighbors[inside].astype(int)
     sH = np.tile(np.linalg.norm(rmin,ord=2) / np.sqrt(ndim)-r,
                  (nel,1))[inside]
     sH = np.maximum(sH,0.)
+    # eliminate passive/active elements from filter matrix
+    if el_flags is not None and el_flags_policy is not None and \
+            el_flags_policy["neglect_in_filter"]:
+        prescribed = el_flags != 0
+        keep = ~(prescribed[iH.astype(int)] | prescribed[jH.astype(int)])
+        iH, jH, sH = iH[keep], jH[keep], sH[keep]
     # Finalize assembly and convert to csc format
     H = coo_matrix((sH, (iH, jH)), shape=(nel, nel)).tocsc()
     # normalization constants
     Hs = H.sum(1)
+    # set to 1 for active/passive elements to avoid zero division.
+    if el_flags is not None and el_flags_policy is not None and \
+            el_flags_policy["neglect_in_filter"]:
+        Hs[el_flags != 0] = 1.
     return H,Hs
 
 def assemble_matrix_filter_legacy(nelx: int, nely: int, rmin: float,

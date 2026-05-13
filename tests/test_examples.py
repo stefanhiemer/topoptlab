@@ -1,7 +1,14 @@
-from subprocess import run
+from subprocess import run, CalledProcessError
 import os
 
 import pytest
+
+
+def run_example(cmd):
+    try:
+        run(cmd, shell=False, check=True)
+    except CalledProcessError as e:
+        pytest.fail(f"Example failed.\nCommand: {' '.join(cmd)}\n{e}")
 
 @pytest.mark.parametrize('example_directory, params',
                          [(".","2 10 0"),
@@ -21,7 +28,7 @@ def test_fdm(tmp_path,example_directory,params):
     cmds = [['python', file, ] + params.split(" ") for file in applications]
     #
     for cmd in cmds:
-        run(cmd, shell=False, check=True)
+        run_example(cmd)
     return
 
 @pytest.mark.parametrize('example_directory, params',
@@ -43,7 +50,7 @@ def test_fem(tmp_path,example_directory,params):
     cmds = [['python', file, ] + params.split(" ") for file in applications]
     #
     for cmd in cmds:
-        run(cmd, shell=False, check=True)
+        run_example(cmd)
     return
 
 @pytest.mark.parametrize('example_directory, params',
@@ -64,7 +71,7 @@ def test_optimization(tmp_path,example_directory,params):
     cmds = [['python', file, ] + params.split(" ") for file in applications]
     #
     for cmd in cmds:
-        run(cmd, shell=False, check=True)
+        run_example(cmd)
     return
 
 @pytest.mark.parametrize('example_directory, params',
@@ -87,7 +94,7 @@ def test_topology_optimization2d(tmp_path,example_directory,params):
             if "2d" in file]
     #
     for cmd in cmds:
-        run(cmd, shell=False, check=True)
+        run_example(cmd)
     return 
 
 @pytest.mark.parametrize('example_directory, params',
@@ -110,5 +117,5 @@ def test_topology_optimization3d(tmp_path,example_directory,params):
             if "3d" in file]
     #
     for cmd in cmds:
-        run(cmd, shell=False, check=True)
+        run_example(cmd)
     return 

@@ -134,18 +134,44 @@ class TOFilter(ABC):
     @property
     def constraint_filter_mask(self) -> Union[bool,np.ndarray]:
         """
-        Indicate if filter is applied to constraint sensitivities. 
-        
+        Indicate if filter is applied to constraint sensitivities.
+
         Parameters
         ----------
         None.
-            
+
         Returns
         -------
         constraint_filter_mask : bool
             True if filter is applied to all constraint sensitivities,
             False if none are filtered, or a boolean mask indicating
             which constraint sensitivities are filtered.
-            
+
+        """
+        ...
+
+    @property
+    @abstractmethod
+    def changes_filter_kw(self) -> bool:
+        """
+        True if this filter writes state back to filter_kw after each forward
+        pass (e.g. an updated eta / etas).
+
+        Returns
+        -------
+        changes_filter_kw : bool
+        """
+        ...
+
+    @abstractmethod
+    def update_filter_kw(self, filter_kw: dict) -> None:
+        """
+        Write any filter state needed by downstream stages or continuation
+        into ``filter_kw`` in-place.
+
+        Parameters
+        ----------
+        filter_kw : dict
+            filter keyword dictionary, updated in-place.
         """
         ...

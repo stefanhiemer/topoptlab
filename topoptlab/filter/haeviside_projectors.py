@@ -153,6 +153,13 @@ class HaevisideProjectorGuest2004(TOFilter):
         """
         return self._constraint_filter_mask
 
+    @property
+    def changes_filter_kw(self) -> bool:
+        return False
+
+    def update_filter_kw(self, filter_kw: dict) -> None:
+        return
+
 class HaevisideProjectorSigmund2007(TOFilter):
     """
     
@@ -297,6 +304,13 @@ class HaevisideProjectorSigmund2007(TOFilter):
         constraint_filter_mask : np.ndarray of shape (n_constr,)
         """
         return self._constraint_filter_mask
+
+    @property
+    def changes_filter_kw(self) -> bool:
+        return False
+
+    def update_filter_kw(self, filter_kw: dict) -> None:
+        return
 
 
 class EtaProjectorXu2010(TOFilter):
@@ -483,6 +497,13 @@ class EtaProjectorXu2010(TOFilter):
         """
         return self._constraint_filter_mask
 
+    @property
+    def changes_filter_kw(self) -> bool:
+        return True
+
+    def update_filter_kw(self, filter_kw: dict) -> None:
+        filter_kw["eta"] = self.eta
+
 class MultiEtaProjectorXu2010(TOFilter):
     """
     Multi-threshold Heaviside projection based on
@@ -627,3 +648,10 @@ class MultiEtaProjectorXu2010(TOFilter):
     @property
     def constraint_filter_mask(self) -> np.ndarray:
         return self._constraint_filter_mask
+
+    @property
+    def changes_filter_kw(self) -> bool:
+        return True
+
+    def update_filter_kw(self, filter_kw: dict) -> None:
+        filter_kw["etas"] = self.etas

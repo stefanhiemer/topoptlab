@@ -12,7 +12,7 @@ from scipy.linalg import cholesky
 from matplotlib.colors import Normalize
 import matplotlib.pyplot as plt
 
-from topoptlab.output_designs import export_vtk,export_stl,threshold
+from topoptlab.output_designs import export_vtk,threshold
 from topoptlab.elements.linear_elasticity_2d import lk_linear_elast_2d
 from topoptlab.fem import update_indices
 from topoptlab.optimizer.optimality_criterion import oc_mechanism

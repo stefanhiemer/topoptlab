@@ -24,8 +24,8 @@ class SensitivityFilter(TOFilter):
     """
     
     def __init__(self,
-                 nelx: int, 
-                 nely: int, 
+                 nelx: int,
+                 nely: int,
                  n_constr : int,
                  rmin: float,
                  nelz: Union[int, None] = None,
@@ -33,17 +33,19 @@ class SensitivityFilter(TOFilter):
                  gamma: float = 1e-3,
                  filter_objective : bool = True,
                  constraint_filter_mask : Union[None,np.ndarray] = None,
+                 el_flags: Union[None, np.ndarray] = None,
+                 el_flags_policy: Union[None, dict] = None,
                  **kwargs: Any) -> None:
         """
         Initialize filter and construct the filter if necessary
-        
+
         Parameters
         ----------
         nelx : int
             number of elements in x direction.
         nely : int
             number of elements in y direction.
-        n_constr : int 
+        n_constr : int
             number of constraints.
         rmin : float
             cutoff radius for the filter.
@@ -62,7 +64,11 @@ class SensitivityFilter(TOFilter):
             True if filter is applied to all constraint sensitivities,
             False if none are filtered, or a boolean mask indicating
             which constraint sensitivities are filtered.
-        
+        el_flags : None or np.ndarray
+            array of element flags (0 free, 1 passive, 2 active).
+        el_flags_policy : None or dict
+            policy dict controlling filter behaviour for prescribed elements.
+
         Returns
         -------
         None
@@ -71,15 +77,20 @@ class SensitivityFilter(TOFilter):
         #
         self.gamma = gamma
         #
+        if el_flags_policy is not None and el_flags_policy["neglect_in_filter"] and \
+                filter_mode != "matrix":
+            raise NotImplementedError("neglect_in_filter is only supported for filter_mode='matrix'.")
         if filter_mode == "matrix":
-            self.filter = MatrixFilter(nelx=nelx, 
-                                       nely=nely, 
+            self.filter = MatrixFilter(nelx=nelx,
+                                       nely=nely,
                                        n_constr=n_constr,
                                        rmin=rmin,
-                                       nelz=nelz)
+                                       nelz=nelz,
+                                       el_flags=el_flags,
+                                       el_flags_policy=el_flags_policy)
         elif filter_mode == "helmholtz":
-            self.filter = HelmholtzFilter(nelx=nelx, 
-                                          nely=nely, 
+            self.filter = HelmholtzFilter(nelx=nelx,
+                                          nely=nely,
                                           n_constr=n_constr,
                                           rmin=rmin,
                                           nelz=nelz)
@@ -177,18 +188,17 @@ class SensitivityFilter(TOFilter):
     @property
     def constraint_filter_mask(self) -> Union[bool,np.ndarray]:
         """
-        Indicate if filter is applied to constraint sensitivities. 
-        
-        Parameters
-        ----------
-        None.
-            
+        Indicate if filter is applied to constraint sensitivities.
+
         Returns
         -------
         constraint_filter_mask : bool
-            True if filter is applied to all constraint sensitivities,
-            False if none are filtered, or a boolean mask indicating
-            which constraint sensitivities are filtered.
-            
         """
         return self._constraint_filter_mask
+
+    @property
+    def changes_filter_kw(self) -> bool:
+        return False
+
+    def update_filter_kw(self, filter_kw: dict) -> None:
+        return

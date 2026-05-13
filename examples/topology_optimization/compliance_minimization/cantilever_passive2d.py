@@ -39,10 +39,15 @@ if __name__ == "__main__":
     center = (nelx/3 - 1, nely/2 - 1)
     radius = nely/3
     pass_el = sphere(nelx=nelx, nely=nely, center=center, radius=radius)
-    main(nelx=nelx, nely=nely, volfrac=volfrac, 
+    main(nelx=nelx, nely=nely, volfrac=volfrac,
          matinterpol_kw={"eps":1e-9, "penal": penal},
          rmin=rmin,
-         ft=ft, el_flags = pass_el ,filter_mode = "matrix",optimizer="oc",
+         ft=ft, el_flags=pass_el,
+         el_flags_policy={"correct_forward": False,
+                          "correct_backward": False,
+                          "neglect_in_filter": False},
+         filter_mode="matrix",
+         optimizer="oc",
          bcs=cantilever_2d,
          output_kw = {"file": "cantilever_passive2d",
                       "display": display,
