@@ -16,9 +16,9 @@ if __name__ == "__main__":
     nelx = 60
     nely = int(nelx/3)
     volfrac = 0.5
-    rmin = 2.4  # 5.4
+    rmin = 0.04*nelx  # 5.4
     penal = 3.0
-    ft = DensityFilter # ft==0 -> sens, ft==1 -> dens
+    ft = 0#DensityFilter # ft==0 -> sens, ft==1 -> dens
     display = True
     export = False
     #
@@ -68,4 +68,4 @@ if __name__ == "__main__":
                               "profile": False,
                               "verbosity": 20,
                               "output_movie": False,
-                              "save_pdf": False})
+                              "save_pdf": True})

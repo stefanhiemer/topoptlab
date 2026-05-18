@@ -104,6 +104,107 @@ def check_el_flags_policy(el_flags_policy: Dict) -> None:
     return
 
 
+def default_constraint_kw() -> Dict:
+    """
+    Return the default values for optional keys in a constraint dict.
+
+    Keys and Default Values
+    -----------------------
+    "kw"        : {}      — keyword arguments forwarded to the constraint function.
+    "filter"    : True    — whether constraint sensitivities are filtered.
+    "normalize" : False   — whether to normalize value and gradient.
+    "norm_ref"  : None    — explicit normalization reference; if None, use
+                            max(|value|, delta) with delta from this function.
+    "eps"       : 1e-6    — tolerance used when splitting an equality constraint
+                            into two inequalities.
+    "norm_delta": 1e-6    — floor used for auto-normalization to avoid
+                            division by zero.
+
+    Returns
+    -------
+    dict
+    """
+    return {"kw":        {},
+            "filter":    True,
+            "normalize": False,
+            "norm_ref":  None,
+            "eps":       1e-6,
+            "norm_delta": 1e-6}
+
+def check_constraint(c: Dict) -> None:
+    """
+    Validate a single constraint dict and fill in missing optional keys from
+    ``default_constraint_kw()``.
+
+    Required keys: "name", "func", "type", "value".
+
+    Parameters
+    ----------
+    c : dict
+        constraint specification, modified in-place.
+
+    Returns
+    -------
+    None
+    """
+    for key in ("name", "func", "type", "value"):
+        if key not in c:
+            raise ValueError(f"Constraint is missing required key: '{key}'.")
+    if c["type"] not in ("leq", "geq", "eq"):
+        raise ValueError(f"Constraint 'type' must be 'leq', 'geq', or 'eq', "
+                         f"got '{c['type']}'.")
+    defaults = default_constraint_kw()
+    for key, val in defaults.items():
+        if key not in c:
+            c[key] = val
+    return
+
+def check_constraints(constraints: List) -> None:
+    """
+    Validate and fill defaults for a list of constraint dicts in-place.
+
+    Parameters
+    ----------
+    constraints : list of dict
+
+    Returns
+    -------
+    None
+    """
+    for c in constraints:
+        check_constraint(c)
+    return
+
+def expand_eq_constraints(constraints: List) -> List:
+    """
+    Replace each equality constraint with two inequality constraints so that
+    the rest of the pipeline only ever handles leq and geq.  Each eq entry is
+    removed from the output and replaced by:
+
+        c(x) = value  →  c(x) ≤ value + eps   (leq)
+                         c(x) ≥ value - eps   (geq)
+
+    The input list is not modified; a new list is returned.
+
+    Parameters
+    ----------
+    constraints : list of dict
+        validated constraint dicts (call check_constraints first).
+
+    Returns
+    -------
+    expanded : list of dict
+        constraint list containing only leq and geq entries.
+    """
+    expanded = []
+    for c in constraints:
+        if c["type"] == "eq":
+            expanded.append({**c, "type": "leq", "value": c["value"] + c["eps"]})
+            expanded.append({**c, "type": "geq", "value": c["value"] - c["eps"]})
+        else:
+            expanded.append(c)
+    return expanded
+
 def check_output_kw(output_kw: Dict) -> None:
     """
     Check that general output parameters are sensible or implemented and insert

@@ -53,6 +53,7 @@ class DensityFilter(TOFilter):
                  constraint_filter_mask : Union[None,np.ndarray] = None,
                  el_flags: Union[None, np.ndarray] = None,
                  el_flags_policy: Union[None, dict] = None,
+                 l: np.ndarray = np.array([1., 1.]),
                  **kwargs: Any) -> None:
         """
         Initialize filter and construct the filter if necessary
@@ -106,7 +107,8 @@ class DensityFilter(TOFilter):
                                           nely=nely,
                                           n_constr=n_constr,
                                           rmin=rmin,
-                                          nelz=nelz)
+                                          nelz=nelz,
+                                          l=l)
         #
         self._filter_objective = filter_objective
         if constraint_filter_mask is None:

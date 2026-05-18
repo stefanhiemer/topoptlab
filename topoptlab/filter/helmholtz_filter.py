@@ -72,10 +72,10 @@ class HelmholtzFilter(TOFilter):
 
         """
         KF, self.TF = assemble_helmholtz_filter(nelx=nelx,
-                                                 nely=nely,
-                                                 rmin=rmin,
-                                                 nelz=nelz,
-                                                 l=l)
+                                                nely=nely,
+                                                rmin=rmin,
+                                                nelz=nelz,
+                                                l=l)
         self.lu_solve = factorized(KF)
         self._filter_objective = filter_objective
         if constraint_filter_mask is None:

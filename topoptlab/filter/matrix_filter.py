@@ -77,7 +77,7 @@ class MatrixFilter(TOFilter):
                 constraint_filter_mask.shape == (n_constr,):
             self._constraint_filter_mask = constraint_filter_mask
         else:
-            raise TypeError("constraint_filter_mask must be None or np.ndarray of shape (n_constr,).")
+            raise TypeError("constraint_filter_mask must be None or np.ndarray of shape (n_constr,): ", constraint_filter_mask)
         return
         
     def apply_filter(self, 

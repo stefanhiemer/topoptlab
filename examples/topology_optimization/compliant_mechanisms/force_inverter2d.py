@@ -4,17 +4,19 @@ from numpy import zeros
 from topoptlab.topology_optimization import main
 from topoptlab.example_bc.lin_elast import forceinverter_2d
 from topoptlab.objectives import var_maximization
+from topoptlab.filter.sensitivity_filter import SensitivityFilter
+from topoptlab.filter.density_filter import DensityFilter
 
 if __name__ == "__main__":
     # Default input parameters
-    nelx = 160
+    nelx = 40
     nely = int(nelx/2)
     volfrac = 0.3
-    rmin = 0.015 * nelx #0.04*nelx  # 5.4
+    rmin = 0.05 * nelx #0.04*nelx  # 5.4
     penal = 3.0
-    ft = 1 # ft==0 -> sens, ft==1 -> dens
+    ft = 0 # ft==0 -> sens, ft==1 -> dens
     display = True
-    export = True
+    export = False
     write_log = True
     #
     import sys
@@ -43,9 +45,13 @@ if __name__ == "__main__":
     main(nelx=nelx, nely=nely, volfrac=volfrac, 
          matinterpol_kw={"eps":1e-9, "penal": penal},
          rmin=rmin, 
-         bcs=forceinverter_2d , obj_func=var_maximization ,obj_kw={"l": l},
-         ft=ft, filter_mode="matrix",optimizer="mma",
-         nouteriter=250,
+         bcs=forceinverter_2d , 
+         obj_func=var_maximization ,
+         obj_kw={"l": l},
+         ft=ft, 
+         filter_mode="helmholtz",
+         optimizer="ocm",
+         nouteriter=200,
          output_kw = {"file": "force-inverter_2d",
                       "display": display,
                       "export": export,

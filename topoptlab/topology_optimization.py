@@ -2,6 +2,7 @@
 from typing import Callable, Dict, List, Tuple, Union
 from functools import partial
 from cProfile import Profile
+from datetime import datetime
 import inspect
 #
 import numpy as np
@@ -11,7 +12,8 @@ from scipy.ndimage import convolve
 from matplotlib.colors import Normalize
 import matplotlib.pyplot as plt
 # functions to create filters 
-from topoptlab.filter.filter import TOFilter 
+from topoptlab.filter.filter import TOFilter
+from topoptlab.filter.fetch_filter import fetch_filters
 from topoptlab.filter.convolution_filter import assemble_convolution_filter
 from topoptlab.filter.helmholtz_filter import assemble_helmholtz_filter
 from topoptlab.filter.matrix_filter import assemble_matrix_filter
@@ -39,7 +41,9 @@ from topoptlab.output_designs import export_vtk
 from topoptlab.utils import map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel,\
                             check_simulation_params,dict_without,\
                             default_outputkw,check_output_kw,check_optimizer_kw,\
-                            default_el_flags_policy,check_el_flags_policy
+                            default_el_flags_policy,check_el_flags_policy,\
+                            check_constraints,expand_eq_constraints
+from topoptlab.objectives import vol_frac as volume_fraction_constraint
 # logging related stuff
 from topoptlab.log_utils import EmptyLogger,SimpleLogger
 from topoptlab.convergence_criteria import max_design_change
@@ -126,6 +130,7 @@ def main(nelx: int, nely: int,
          matinterpol_kw: Dict = {"eps": 1e-9, "penal": 3.},
          el_flags: Union[None,np.ndarray] = None,
          el_flags_policy: Union[None,Dict] = None,
+         constraints: Union[None,List[Dict]] = None,
          optimizer: str = "mma",
          optimizer_kw: Union[None,Dict] = None,
          mix: Union[None,float] = None,
@@ -266,6 +271,7 @@ def main(nelx: int, nely: int,
     None.
 
     """
+    # insert: checking_function
     # check dictionaries
     check_output_kw(output_kw)
     check_simulation_params(simulation_kw)
@@ -294,6 +300,7 @@ def main(nelx: int, nely: int,
                            verbosity=output_kw["verbosity"])
         
         #
+        log.info(f"date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         log.info(f"optimizer {optimizer}")
         log.info(f"number of spatial dimensions: {ndim}")
         log.info("elements: "+" x ".join([f"{nelx}",f"{nely}",f"{nelz}"][:ndim]))
@@ -363,22 +370,45 @@ def main(nelx: int, nely: int,
         prescribed_mask = el_flags != 0
     # initialize arrays for gradients
     dobj = np.zeros( x.shape,order="F")
-    # initialize constraints
-    n_constr = 0
+    # build and validate constraint list
+    if constraints is None:
+        constraints = []
+    # legacy: if volfrac is given, prepend the volume fraction inequality
     if volfrac is not None:
-        n_constr += 1
-    constrs = np.zeros( (n_constr, 1) )
+        constraints = [{"name": "volume fraction",
+                        "func": volume_fraction_constraint,
+                        "type": "leq",
+                        "value": volfrac,
+                        "kw":   {}}] + list(constraints)
+    # fill missing optional keys and check types
+    check_constraints(constraints)
+    # MMA/GCMMA only handle inequalities: split equality constraints into two
+    # inequalities upfront so the rest of the pipeline only ever sees leq/geq
+    if optimizer in ["mma", "gcmma"]:
+        constraints = expand_eq_constraints(constraints)
+    n_constr = len(constraints)
+    # build filter mask: one bool per constraint row
+    _constr_filter_mask = np.array([c["filter"] for c in constraints], dtype=bool)
+    constrs  = np.zeros( (n_constr, 1) )
     dconstrs = np.zeros( (n, n_constr) )
     # initialize history length needed for optimizer
     optimizer_kw = check_optimizer_kw(optimizer=optimizer,
                                       n=x.shape[0],
                                       ft=ft,
-                                      n_constr=1,
+                                      n_constr=n_constr,
                                       optimizer_kw=optimizer_kw)
-    if optimizer in ["oc","ocm","ocg"]:
+    if optimizer in ["oc","ocm"]:
+        # legacy OC: only a single constraint (volume fraction) is supported
+        if n_constr != 1:
+            raise ValueError(
+                f"Optimizers 'oc' and 'ocm' support exactly one constraint, "
+                f"got {n_constr}.")
         # must be initialized to use the NGuyen/Paulino OC approach
         g = 0
-        #
+        max_history = 2
+    elif optimizer == "ocg":
+        # must be initialized to use the NGuyen/Paulino OC approach
+        g = 0
         max_history = 2
     elif optimizer in ["mma","gcmma"]:
         # mma needs results of the two previous iterations
@@ -488,6 +518,7 @@ def main(nelx: int, nely: int,
                  filter_mode=filter_mode,
                  rmin=rmin,
                  n_constr=n_constr,
+                 l=l,
                  el_flags=el_flags,
                  el_flags_policy=el_flags_policy,
                  **filter_kw)]
@@ -496,10 +527,38 @@ def main(nelx: int, nely: int,
                      filter_mode=filter_mode,
                      rmin=rmin,
                      n_constr=n_constr,
+                     l=l,
                      el_flags=el_flags,
                      el_flags_policy=el_flags_policy,
                      **filter_kw) \
               for ft_obj in ft]
+    elif isinstance(ft, int) and ft == 0:
+        # convert integer ft code to list of TOFilter objects
+        # NOTE: temporary — all filters share the same kw; in general each
+        # filter may receive its own keyword dict via filter_args
+        _ft_kw = dict(nelx=nelx, nely=nely, nelz=nelz,
+                      filter_mode=filter_mode,
+                      rmin=rmin,
+                      n_constr=n_constr,
+                      l=l,
+                      el_flags=el_flags,
+                      el_flags_policy=el_flags_policy,
+                      **filter_kw)
+        ft = fetch_filters(ft=ft, filter_args=[_ft_kw, _ft_kw])
+    elif isinstance(ft, int) and ft >= 1:
+        # convert integer ft code to list of TOFilter objects
+        # NOTE: temporary — all filters share the same kw; in general each
+        # filter should receive its own keyword dict via filter_args
+        _ft_kw = dict(nelx=nelx, nely=nely, nelz=nelz,
+                      filter_mode=filter_mode,
+                      rmin=rmin,
+                      n_constr=n_constr,
+                      l=l,
+                      constraint_filter_mask=_constr_filter_mask,
+                      el_flags=el_flags,
+                      el_flags_policy=el_flags_policy,
+                      **filter_kw)
+        ft = fetch_filters(ft=ft, filter_args=[_ft_kw, _ft_kw])
     # Filter: Build (and assemble) the index+data vectors for the coo matrix format
     elif filter_mode == "matrix":
         H,Hs = assemble_matrix_filter(nelx=nelx,nely=nely,nelz=nelz,
@@ -565,6 +624,8 @@ def main(nelx: int, nely: int,
                     for f in (continuation_kw["funcs"]
                               if continuation_kw is not None else [])]
     _need_xPhys_hist = any("xPhys_hist" in p for p in _cont_params)
+    if not _need_xPhys_hist and "mode" in convergence_kw.keys():
+        _need_xPhys_hist = convergence_kw["mode"] == "xPhys"
     if continuation_kw is not None:
         continuation_kw["stop_flag"] = [False] * len(continuation_kw["funcs"])
     hist = {"xhist":        [x.copy() for i in np.arange(max_history)],
@@ -650,7 +711,10 @@ def main(nelx: int, nely: int,
                                                 **obj_kw)
                 # if problem not self adjoint, solve for adjoint variables and
                 # calculate derivatives, else use analytical solution
-                if self_adj:
+                if self_adj is None:
+                    dobj[:,0] += rhs_adj 
+                    break
+                elif self_adj:
                     #dobj[:] += rhs_adj
                     adj[free,i] = rhs_adj[free,0]
                 else:
@@ -664,7 +728,7 @@ def main(nelx: int, nely: int,
                                            preconditioner=preconditioner,
                                            preconditioner_kw=preconditioner_kw)
                 # update sensitivity for quantities that need a small offset to
-                # avoid degeneracy of the FE problem
+                # avoid degeneracy of the FE pro i need to add a continue after this I guess?blem
                 # standard contribution of element stiffness/conductivity
                 dobj_offset = np.matvec(KE,u[edofMat,i])
                 # contribution due to force induced by strain
@@ -687,15 +751,72 @@ def main(nelx: int, nely: int,
         # optimizer is unknown.
         else:
             raise NotImplementedError("Unknown optimizer.")
-        # Constraints and constraint gradients
-        constrs[:,0] = 0.
+        # Constraints, constraint gradients and adjoint analysis
+        constrs[:,:] = 0.
         dconstrs[:,:] = 0.
-        if volfrac is not None:
-            constrs[0,0] = xPhys.mean() - volfrac
-            if optimizer in ["mma","gcmma"]:
-                dconstrs[:,0:1] = np.full(x.shape,1/x.shape[0])
-            elif optimizer in ["oc","ocm","ocg"]:
-                dconstrs[:,0] = np.ones(x.shape[0])
+        for k, c in enumerate(constraints):
+            val = 0.
+            dconstr = np.zeros(x.shape, order="F")
+            for j in np.arange(f.shape[1]):
+                val, rhs_adj_c, self_adj_c = c["func"](obj=val,
+                                                       i=j,
+                                                       xPhys=xPhys,
+                                                       u=u,
+                                                       KE=KE,
+                                                       edofMat=edofMat,
+                                                       Kes=Kes,
+                                                       matinterpol=matinterpol,
+                                                       matinterpol_kw=matinterpol_kw,
+                                                       cellVolume=cellVolume,
+                                                       **c["kw"])
+                # depends only on xPhys or any design variable: rhs_adj_c is already the gradient
+                if self_adj_c is None:
+                    dconstr[:,0] += rhs_adj_c.ravel()
+                    break
+                # self adjoint 
+                elif self_adj_c:
+                    adj[free,j] = rhs_adj_c[free,0]
+                # adjoint problem needs to be solved
+                else:
+                    adj[free,j:j+1],_,_ = solve_lin(K,
+                                               rhs=rhs_adj_c[free,j:j+1],
+                                               rhs0=adj[free,j:j+1],
+                                               solver=lin_solver,
+                                               solver_kw=lin_solver_kw,
+                                               factorization=fact,
+                                               P=precond,
+                                               preconditioner=preconditioner,
+                                               preconditioner_kw=preconditioner_kw)
+                # accumulate sensitivity via chain rule through material interpolation
+                dconstr_offset = np.matvec(KE, u[edofMat,j])
+                if "strain_uniform" in body_forces_kw.keys():
+                    dconstr_offset -= fe_strain[None,:,j]
+                if f0 is not None:
+                    dconstr_offset -= f0[None,:,j]
+                dconstr[:,0] += (matinterpol_dx(xPhys=xPhys, **matinterpol_kw)*\
+                                 adj[edofMat,j]*dconstr_offset).sum(axis=1)
+                if "density_coupled" in body_forces_kw.keys():
+                    dconstr[:,0] -= simp_dx(xPhys=xPhys, eps=0., penal=1.)[:,0]*\
+                                    np.dot(adj[edofMat,j],fe_dens[:,j])
+            # apply constraint type sign
+            if c["type"] == "leq":
+                constrs[k, 0] = val - c["value"]
+                dconstrs[:, k:k+1] = dconstr
+            elif c["type"] == "geq":
+                constrs[k, 0] = c["value"] - val
+                dconstrs[:, k:k+1] = -dconstr
+            elif c["type"] == "eq":
+                constrs[k, 0] = val - c["value"]
+                dconstrs[:, k:k+1] = dconstr
+        # optionally normalize each constraint row by a reference value
+        for k, constraint in enumerate(constraints):
+            if constraint["normalize"]:
+                if constraint["norm_ref"] is None: 
+                    ref = np.maximum(abs(c["value"]), c["norm_delta"])
+                else:
+                    ref = constraint["norm_ref"]
+                constrs[k, 0] = constrs[k, 0]/ref
+                dconstrs[:, k:k+1] = dconstrs[:, k:k+1]/ref
         #
         log.debug("Pre-Sensitivity Filter: it.: {0}, min(dobj): {1:.10f}, max(dobj): {2:.10f}, dv: {3:.10f}".format(
                   loop, 
@@ -766,7 +887,7 @@ def main(nelx: int, nely: int,
             dobj[prescribed_mask]     = 0.
             dconstrs[prescribed_mask] = 0.
         #
-        log.debug("Pre-Sensitivity Filter: it.: {0}, min(dobj): {1:.10f}, max(dobj): {2:.10f}, dv: {3:.10f}".format(
+        log.debug("Post-Sensitivity Filter: it.: {0}, min(dobj): {1:.10f}, max(dobj): {2:.10f}, dv: {3:.10f}".format(
                   loop, 
                   np.min(dobj), np.max(dobj), 
                   np.min(dconstrs)))
@@ -777,17 +898,26 @@ def main(nelx: int, nely: int,
                              logger=log)
         # optimality criteria
         if optimizer=="oc":
-            (x[:,0], g) = oc_top88(x=x[:,0], volfrac=volfrac,
-                                 dc=dobj[:,0], dv=dconstrs[:,0], g=g,
-                                 el_flags=el_flags)
+            (x[:,0], g) = oc_top88(x=x[:,0], 
+                                   volfrac=constraints[0]["value"],
+                                   dc=dobj[:,0], 
+                                   dv=dconstrs[:,0]*x[:,0].shape[0], 
+                                   g=g,
+                                   el_flags=el_flags)
         elif optimizer=="ocm":
-            (x[:,0], g) = oc_mechanism(x=x[:,0], volfrac=volfrac,
-                                     dc=dobj[:,0], dv=dconstrs[:,0], g=g,
-                                     el_flags=el_flags)
-        elif optimizer=="ocg":
-            (x[:,0], g) = oc_generalized(x=x[:,0], volfrac=volfrac,
-                                       dc=dobj[:,0], dv=dconstrs[:,0], g=g,
+            (x[:,0], g) = oc_mechanism(x=x[:,0], 
+                                       volfrac=constraints[0]["value"],
+                                       dc=dobj[:,0], 
+                                       dv=dconstrs[:,0], 
+                                       g=g,
                                        el_flags=el_flags)
+        elif optimizer=="ocg":
+            (x[:,0], g) = oc_generalized(x=x[:,0], 
+                                         volfrac=constraints[0]["value"],
+                                         dc=dobj[:,0], 
+                                         dv=dconstrs[:,0]*x[:,0].shape[0], 
+                                         g=g,
+                                         el_flags=el_flags)
         # method of moving asymptotes
         elif optimizer=="mma":
             xmma,ymma,zmma,lam,xsi,eta_mma,mu,zet,s,low,upp = mmasub(m=optimizer_kw["nconstr"],
@@ -818,10 +948,6 @@ def main(nelx: int, nely: int,
                                                  **accelerator_kw).reshape(x.shape,order="F")
         elif mix is not None:
             x[:] = hist["xhist"][-1]*(1-mix) + x*mix
-        # update and prune history
-        update_history(**hist,
-                       x=x, xPhys=xPhys, obj=obj, constrs=constrs,
-                       max_history=max_history)
         #
         log.debug("Post Mixing Update: it.: {0}, med. x.: {1:.10f}, med. xPhys: {2:.10f}".format(
                   loop, np.median(x),np.median(xPhys)))
@@ -858,6 +984,10 @@ def main(nelx: int, nely: int,
         if el_flags_policy is not None and el_flags_policy["correct_forward"]:
             xPhys[passive_mask] = 0.
             xPhys[active_mask]  = 1.
+        # update and prune history (after forward filter so xPhys_hist is consistent)
+        update_history(**hist,
+                       x=x, xPhys=xPhys, obj=obj, constrs=constrs,
+                       max_history=max_history)
         #
         log.debug("Post Density Filter: it.: {0}, med. x.: {1:.10f}, med. xPhys: {2:.10f}".format(
                   loop, np.median(x),np.median(xPhys)))
@@ -877,8 +1007,9 @@ def main(nelx: int, nely: int,
                        xPhys=xPhys,x=x,
                        u=u,f=f,volfrac=volfrac)
         # write iteration history to screen (req. Python 2.6 or newer)
-        log.info("it.: {0} obj.: {1:.10f} vol.: {2:.10f} ch.: {3:.10f}".format(
-                     loop+1, obj, xPhys.mean(), change))
+        log.info("it.: {0} obj.: {1:.10f} vol.: {2:.10f} ch.: {3:.10f} constrs.: [{4}]".format(
+                     loop+1, obj, xPhys.mean(), change,
+                     ", ".join(f"{v:.6f}" for v in constrs[:,0])))
         # convergence and parameter continuation check
         if continuation_kw is None:
             if change < convergence_kw["conv_tol"]:

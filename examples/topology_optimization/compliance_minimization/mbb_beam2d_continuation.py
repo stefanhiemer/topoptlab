@@ -17,14 +17,13 @@ from topoptlab.param_continuation import adaptive_beta_continuation, update_move
 
 if __name__ == "__main__":
     # Default input parameters
-    nelx = 60
+    nelx = 120
     nely = int(nelx/3)
     volfrac = 0.5
-    rmin = 3.6  # 5.4
+    rmin = 0.02*nelx  # 5.4
     penal = 3.0
     ft = [DensityFilter,
-          #EtaProjectorXu2010,  # single-eta
-          MultiEtaProjectorXu2010,  # multi-eta
+          EtaProjectorXu2010,  # single-eta
           ] # ft==0 -> sens, ft==1 -> dens
     display = True
     export = False
@@ -79,13 +78,14 @@ if __name__ == "__main__":
                  bcs=mbb_2d,
                  #body_forces_kw={"density_coupled": np.array([0,-0.01])},
                  #accelerator_kw=accelerator_kw,
-                 output_kw = {"file": "mbb_2d",
+                 output_kw = {"file": "mbb-continued_2d",
                               "display": display,
                               "export": export,
                               "write_log": write_log,
                               "profile": False,
                               "verbosity": 20,
-                              "output_movie": False}, 
+                              "output_movie": False,
+                              "save_pdf": True}, 
                  convergence_kw = {"conv_tol": 1e-2,
                                    "change_func": max_design_change,
                                    "ord": 2},
