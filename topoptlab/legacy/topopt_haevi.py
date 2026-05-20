@@ -588,7 +588,7 @@ if __name__ == "__main__":
     volfrac = 0.5  # 0.4
     rmin = 2.4  # 5.4
     penal = 3.0
-    ft = 5 # ft==0 -> sens, ft==1 -> dens
+    ft = 0 # ft==0 -> sens, ft==1 -> dens
     import sys
     if len(sys.argv) > 1:
         nelx = int(sys.argv[1])
@@ -604,10 +604,10 @@ if __name__ == "__main__":
         ft = int(sys.argv[6])
     try:
         main(nelx, nely, volfrac, penal, rmin, ft, 
-             passive=False,pde=False,solver="oc",
-             nouteriter=2000,
+             passive=False,pde=True,solver="oc",
+             nouteriter=1,
              ninneriter=0,
-             debug=False)
+             debug=True)
     except Exception as e:
         logging.error(traceback.format_exc())
         logging.shutdown()

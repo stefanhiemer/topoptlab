@@ -908,7 +908,7 @@ def main(nelx: int, nely: int,
             (x[:,0], g) = oc_mechanism(x=x[:,0], 
                                        volfrac=constraints[0]["value"],
                                        dc=dobj[:,0], 
-                                       dv=dconstrs[:,0], 
+                                       dv=dconstrs[:,0]*x[:,0].shape[0], 
                                        g=g,
                                        el_flags=el_flags)
         elif optimizer=="ocg":

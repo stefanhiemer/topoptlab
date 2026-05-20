@@ -57,7 +57,7 @@ if __name__ == "__main__":
                  filter_mode="matrix",
                  optimizer="oc",
                  assembly_mode="full",
-                 nouteriter=2000,
+                 nouteriter=1,
                  bcs=mbb_2d,
                  #body_forces_kw={"density_coupled": np.array([0,-0.01])},
                  #accelerator_kw=accelerator_kw,
@@ -66,6 +66,6 @@ if __name__ == "__main__":
                               "export": export,
                               "write_log": write_log,
                               "profile": False,
-                              "verbosity": 20,
+                              "verbosity": 1,
                               "output_movie": False,
                               "save_pdf": True})
