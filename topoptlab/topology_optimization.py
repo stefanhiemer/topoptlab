@@ -340,8 +340,20 @@ def main(nelx: int, nely: int,
     else:
         initialguess_keys = initial_guess.keys()
     #
-    if initialguess_keys is None or "x" not in initialguess_keys:
-        x = volfrac * np.ones( (n,1), dtype=float,order='F')
+    if (initialguess_keys is None or \
+       "x" not in initialguess_keys) and \
+       volfrac:
+        x = np.full(shape=(n,1), 
+                    fill_value=volfrac, 
+                    dtype=float, 
+                    order='F')
+    elif (initialguess_keys is None or \
+       "x" not in initialguess_keys) and \
+       volfrac is None:
+        x = np.full(shape=(n,1), 
+                    fill_value=0.5, 
+                    dtype=float, 
+                    order='F')
     else:
         x = initial_guess["x"]
     #

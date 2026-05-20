@@ -118,10 +118,11 @@ def vol_frac(xPhys: np.ndarray,
     """
     """
     if el_vols is None:
-        return xPhys.mean(), np.full(xPhys.shape,1/xPhys.shape[0]), None
+        return xPhys.mean(), np.full(xPhys.shape[0],1/xPhys.shape[0]), None
     else:
-        raise NotImplementedError("Volume fraction objective has not been implemented for irregular meshes.")
-        return (xPhys*el_vols).sum(axis=0) / el_vols.sum()
+        raise NotImplementedError("Volume fraction objective is implemented for irregular meshes, but not yet tested")
+        vol = el_vols.sum()
+        return (xPhys*el_vols).sum(axis=0) / vol, el_vols/vol, None 
 
 def var_maximization(u: np.ndarray, 
                      l: np.ndarray, 
