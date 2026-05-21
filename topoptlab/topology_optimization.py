@@ -903,6 +903,15 @@ def main(nelx: int, nely: int,
                   loop, 
                   np.min(dobj), np.max(dobj), 
                   np.min(dconstrs)))
+        # scale objective and its gradient if requested
+        if "scale_factor" in obj_kw and obj_kw["scale_factor"] is not None:
+            obj   *= obj_kw["scale_factor"]
+            dobj  *= obj_kw["scale_factor"]
+        # scale each constraint and its gradient by its own factor if requested
+        for k, c in enumerate(constraints):
+            if c["scale_factor"] is not None:
+                constrs[k, 0]     *= c["scale_factor"]
+                dconstrs[:, k:k+1] *= c["scale_factor"]
         # design variables update by optimizer
         if continuation_kw is not None:
             run_continuation(continuation_kw, stage=0,

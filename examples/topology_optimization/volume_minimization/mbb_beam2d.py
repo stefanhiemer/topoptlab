@@ -34,6 +34,8 @@ if __name__ == "__main__":
         export = bool(int(sys.argv[7]))
     if len(sys.argv)>8:
         write_log = bool(int(sys.argv[8]))
+    # initial guess
+    
     #
     main(nelx=nelx, nely=nely,
          volfrac=None,
@@ -44,7 +46,7 @@ if __name__ == "__main__":
          optimizer="mma",
          bcs=mbb_2d,
          obj_func=vol_frac,
-         obj_kw={},
+         obj_kw={"scale_factor": 100},
          constraints=[{"name": "compliance",
                        "func": compliance,
                        "type": "leq",

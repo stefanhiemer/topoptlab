@@ -124,12 +124,13 @@ def default_constraint_kw() -> Dict:
     -------
     dict
     """
-    return {"kw":        {},
-            "filter":    True,
-            "normalize": False,
-            "norm_ref":  None,
-            "eps":       1e-6,
-            "norm_delta": 1e-6}
+    return {"kw":          {},
+            "filter":      True,
+            "normalize":   False,
+            "norm_ref":    None,
+            "eps":         1e-6,
+            "norm_delta":  1e-6,
+            "scale_factor": None}
 
 def check_constraint(c: Dict) -> None:
     """
