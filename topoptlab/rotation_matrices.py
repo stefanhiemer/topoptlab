@@ -56,14 +56,14 @@ def Rv_2d(theta: np.ndarray, eng_conv: bool = False) -> np.ndarray:
     Rv : np.ndarray, shape (n,3,3)
     """
     if not eng_conv:
-        return np.column_stack((np.cos(theta)**2, np.sin(theta)**2, 2.0 * np.cos(theta) * np.sin(theta),
-                                np.sin(theta)**2, np.cos(theta)**2, -2.0 * np.cos(theta) * np.sin(theta),
-                                -np.cos(theta) * np.sin(theta), np.cos(theta) * np.sin(theta), np.cos(theta)**2 - np.sin(theta)**2
+        return np.column_stack((np.cos(theta)**2, np.sin(theta)**2, -2.0 * np.cos(theta) * np.sin(theta),
+                                np.sin(theta)**2, np.cos(theta)**2, 2.0 * np.cos(theta) * np.sin(theta),
+                                np.cos(theta) * np.sin(theta), -np.cos(theta) * np.sin(theta), np.cos(theta)**2 - np.sin(theta)**2
                                 )).reshape((theta.shape[0], 3, 3))
     else:
-        return np.column_stack((np.cos(theta)**2, np.sin(theta)**2, np.cos(theta) * np.sin(theta),
-                                np.sin(theta)**2, np.cos(theta)**2, -np.cos(theta) * np.sin(theta),
-                                -2.0 * np.cos(theta) * np.sin(theta), 2.0 * np.cos(theta) * np.sin(theta),np.cos(theta)**2 - np.sin(theta)**2
+        return np.column_stack((np.cos(theta)**2, np.sin(theta)**2, -np.cos(theta) * np.sin(theta),
+                                np.sin(theta)**2, np.cos(theta)**2, np.cos(theta) * np.sin(theta),
+                                2.0 * np.cos(theta) * np.sin(theta), -2.0 * np.cos(theta) * np.sin(theta),np.cos(theta)**2 - np.sin(theta)**2
                                 )).reshape((theta.shape[0], 3, 3))
 
 
@@ -86,14 +86,14 @@ def dRvdtheta_2d(theta: np.ndarray, eng_conv: bool = False) -> np.ndarray:
     theta = np.asarray(theta).reshape(-1)
 
     if not eng_conv:
-        return np.column_stack((-2.0 * np.cos(theta) * np.sin(theta), 2.0 * np.cos(theta) * np.sin(theta), 2.0 * (np.cos(theta)**2 - np.sin(theta)**2),
-                                2.0 * np.cos(theta) * np.sin(theta), -2.0 * np.cos(theta) * np.sin(theta), -2.0 * (np.cos(theta)**2 - np.sin(theta)**2),
-                                -(np.cos(theta)**2 - np.sin(theta)**2), (np.cos(theta)**2 - np.sin(theta)**2), -4.0 * np.cos(theta) * np.sin(theta)
+        return np.column_stack((-2.0 * np.cos(theta) * np.sin(theta), 2.0 * np.cos(theta) * np.sin(theta), -2.0 * (np.cos(theta)**2 - np.sin(theta)**2),
+                                2.0 * np.cos(theta) * np.sin(theta), -2.0 * np.cos(theta) * np.sin(theta), 2.0 * (np.cos(theta)**2 - np.sin(theta)**2),
+                                (np.cos(theta)**2 - np.sin(theta)**2), -(np.cos(theta)**2 - np.sin(theta)**2), -4.0 * np.cos(theta) * np.sin(theta)
                                 )).reshape((theta.shape[0], 3, 3))
     else:
-        return np.column_stack((-2.0 * np.cos(theta) * np.sin(theta), 2.0 * np.cos(theta) * np.sin(theta), np.cos(theta)**2 - np.sin(theta)**2,
-                                2.0 * np.cos(theta) * np.sin(theta), -2.0 * np.cos(theta) * np.sin(theta), -(np.cos(theta)**2 - np.sin(theta)**2),
-                                -2.0 * (np.cos(theta)**2 - np.sin(theta)**2), 2.0 * (np.cos(theta)**2 - np.sin(theta)**2), -4.0 * np.cos(theta) * np.sin(theta)
+        return np.column_stack((-2.0 * np.cos(theta) * np.sin(theta), 2.0 * np.cos(theta) * np.sin(theta), -(np.cos(theta)**2 - np.sin(theta)**2),
+                                2.0 * np.cos(theta) * np.sin(theta), -2.0 * np.cos(theta) * np.sin(theta), (np.cos(theta)**2 - np.sin(theta)**2),
+                                2.0 * (np.cos(theta)**2 - np.sin(theta)**2), -2.0 * (np.cos(theta)**2 - np.sin(theta)**2), -4.0 * np.cos(theta) * np.sin(theta)
                                 )).reshape((theta.shape[0], 3, 3))
 
 def R_3d(theta: np.ndarray, phi: np.ndarray)-> np.ndarray:
