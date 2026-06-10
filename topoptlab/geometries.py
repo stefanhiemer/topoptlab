@@ -3,7 +3,8 @@ from typing import Any, Callable, Dict, List, Union
 
 import numpy as np
 
-from topoptlab.utils import check_meshdata, elid_to_coords, nodeid_to_coords
+from topoptlab.utils import check_meshdata, elid_to_coords, nodeid_to_coords,\
+                            map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel
 
 def cube_mask(coords : np.ndarray,
               low : np.ndarray, 
@@ -149,7 +150,8 @@ def nodeids_in_mask(node_id: np.ndarray,
 
 def sphere(nelx: int, nely: int, center: np.ndarray, 
            radius: float, 
-           fill_value: int =1) -> np.ndarray:
+           fill_value: int =1, 
+           **kwargs: Any) -> np.ndarray:
     """
     Create element flags for a sphere located at the specified center with the
     specified radius.
@@ -334,11 +336,22 @@ def diracdelta(nelx: int, nely: int, nelz: Union[None,int] = None,
                  radius=1,fill_value=1.)
     return x
 
-def bounding_rectangle(nelx: int, nely: int, 
-                       faces: List = ["b","t","r","l"]) -> np.ndarray:
+def bounding_box(nelx: int, nely: int,
+                 faces: List[str] = ["b", "t", "r", "l"],
+                 fill_value: int = 2,
+                 thickness: Union[None,int] = None,
+                 nelz: Union[None, int] = None) -> np.ndarray:
     """
-    Create element flags for a bounding box of one element thickness. It is
-    possible to draw only specified faces of the bounding box.
+    Create element flags for the boundary shell of the mesh in 2D or 3D.
+
+    Element indexing (column-major / Fortran-like within each x-column):
+
+    - 2D: ``e = ex * nely + ey``
+    - 3D: ``e = (ez * nelx + ex) * nely + ey``
+
+    Face labels for 2D: ``"l"`` (left, ex=0), ``"r"`` (right, ex=nelx-1),
+    ``"t"`` (top, ey=0), ``"b"`` (bottom, ey=nely-1).
+    Additional labels for 3D: ``"f"`` (front, ez=0), ``"k"`` (back, ez=nelz-1).
 
     Parameters
     ----------
@@ -347,40 +360,76 @@ def bounding_rectangle(nelx: int, nely: int,
     nely : int
         number of elements in y direction.
     faces : list of str
-        which faces of bounding box are supposed to be drawn. Possible
-        values are "b" for bottom, "t" for top, "l" for left and "r" for right.
+        which faces to include.
+    thickness : int
+        number of element layers per face (default 1).
+    fill_value : int
+        flag value assigned to selected elements (default 2 = active).
+    nelz : int or None
+        number of elements in z direction; None for 2D.
 
     Returns
     -------
-    el_flags : np.ndarray
-        element flags of shape (nelx*nely)
+    el_flags : np.ndarray of int, shape (n,)
+        element flags with ``fill_value`` set on the selected faces.
 
     """
-    # collect indices
-    indices = []
-    # append corner indices
-    if "t" in faces or "l" in faces:
-        indices.append(0)
-    if "t" in faces or "r" in faces:
-        indices.append((nelx-1)*nely)
-    if "b" in faces or "l" in faces:
-        indices.append(nely - 1)
-    if "b" in faces or "r" in faces:
-        indices.append(nelx*nely-1)
-    # append faces without corner indices
-    if "t" in faces:
-        indices.append(np.arange(nely,(nelx-1)*nely,nely))
-    if "b" in faces:
-        indices.append(np.arange(nely-1,nelx*nely,nely))
-    if "l" in faces:
-        indices.append(np.arange(1,nely-1))
-    if "r" in faces:
-        indices.append(np.arange((nelx-1)*nely + 1,nelx*nely-1))
     #
-    indices = np.hstack(indices)
-    el_flags = np.zeros(nelx*nely,dtype=int)
-    # set to active
-    el_flags[indices] = 2
+    if nelz is None:
+        ndim = 2
+    else:
+        ndim = 3
+    #
+    if thickness and ndim == 2:
+        mapping = map_eltoimg
+        invmap = map_imgtoel
+    elif thickness and dim == 3:
+        mapping = map_eltovoxel
+        invmap = map_voxeltoel
+    #
+    n = np.prod([nel,nely,nelz][:ndim])
+    #
+    inds = []
+    if "l" in faces:
+        inds += [np.arange(nely)]
+    if "r" in faces:
+        inds += [np.arange(nely)+nely*(nelx-1)]
+    if "t" in faces:
+        inds += [np.arange(0,n,nely)]
+    elif "b" in faces:
+        inds += [np.arange(0,n,nely)+nely-1]
+    #
+    if ndim == 3:
+        #
+        if len(inds) !=0:
+            inds = np.unique(np.array(inds)) 
+            #
+            inds = [inds[:,None] + (np.arange(nelz)*nelx*nely)[None,:]]
+        #
+        if "f" in faces:
+            inds += [np.arange(nelx*nely)]
+        if "k" in faces:
+            inds += [np.arange(nelx*nely) + nelx*nely*(nelz-1) - 1]
+    if len(inds) !=0:
+        inds = np.unique(np.array(inds))
+    #
+    if isinstance(fill_value,(int,np.in32,np.int64)):
+        el_flags = np.zeros(n, dtype=np.int32)
+    elif isinstance(fill_value,(float,np.float64)):
+        el_flags = np.zeros(n, dtype=np.float64)
+    elif isinstance(fill_value,bool):
+        el_flags = np.zeros(n, dtype=bool)
+    el_flags[inds] = fill_value
+    #
+    if thickness and el_flags.dtype == np.int32:
+        el_flags = invmap(grey_dilation(mapping(el_flags),
+                          size=thickness)).astype(np.int32)
+    elif thickness and el_flags.dtype == np.float64:
+        el_flags = invmap(grey_dilation(mapping(el_flags),
+                          size=thickness))
+    elif thickness and el_flags.dtype == bool:
+        el_flags = invmap(binary_dilation(mapping(el_flags),
+                          size=thickness))
     return el_flags
 
 def slab(nelx: int, nely: int, center: np.ndarray, 

@@ -123,7 +123,7 @@ def ramp_dx(xPhys: np.ndarray,
         scale factor to multiply with material property/matrix.
 
     """
-    return (1+penal)*(1+penal*(1-xPhys))**(-2)
+    return (1-eps)*(1+penal)*(1+penal*(1-xPhys))**(-2)
 
 def bound_interpol(xPhys: np.ndarray, 
                    w: float,

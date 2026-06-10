@@ -6,14 +6,18 @@ import numpy as np
 from scipy.optimize import root_scalar, minimize, Bounds,\
                            LinearConstraint, NonlinearConstraint
 
+from topoptlab.log_utils import EmptyLogger,SimpleLogger
+
 def find_eta(eta0: float, 
              xTilde: np.ndarray, 
              beta: float, 
              volfrac: float,
              root_args: Dict = {"fprime": True,
-                                "method": "newton",
+                                "fprime2": True,
+                                "method": "halley",
                                 "maxiter": 1000,
                                 "bracket": [-1/2,1/2]},
+            logger: Union[EmptyLogger,SimpleLogger] = EmptyLogger(),
              **kwargs: Any) -> float:
     """
     Find volume preserving eta for the element-wiser elaxed Haeviside 
@@ -35,6 +39,8 @@ def find_eta(eta0: float,
         volume fraction.
     root_args : dict
         arguments for root finding algorithm to find the volume conserving eta.
+    logger : BaseLogger
+        logger object to log performance.
 
     Returns
     -------
@@ -52,6 +58,8 @@ def find_eta(eta0: float,
                          **root_args)
     #
     if result.converged:
+        logger.perf("find_eta iterations=%d function_calls=%d", 
+                    result.iterations, result.function_calls)
         return result.root+1/2
     else:
         raise ValueError("volume conserving eta could not be found: ",result)
@@ -88,10 +96,15 @@ def _find_eta_root_func(eta: float,
     #
     xProj = eta_projection(eta=eta,xTilde=xTilde,beta=beta)
     #
-    return xProj.mean()-volfrac, eta_projection_deta(eta = eta, 
-                                                     xTilde=xTilde, 
-                                                     xProj=xProj,
-                                                     beta=beta).mean()
+    return xProj.mean()-volfrac, \
+           eta_projection_deta(eta = eta, 
+                               xTilde=xTilde, 
+                               xProj=xProj,
+                               beta=beta).mean(), \
+            eta_projection_deta2(eta = eta, 
+                                 xTilde=xTilde, 
+                                 xProj=xProj,
+                                 beta=beta).mean()
 
 def eta_projection(eta: float, 
                    xTilde: np.ndarray, 
@@ -167,20 +180,73 @@ def eta_projection_deta(eta: float,
         threshold value.
     xTilde : np.ndarray
         intermediate densities (typically before a density filter is applied).
+    xProj : np.ndarray
+        eta-projected densities, i.e. the output of
+        ``eta_projection(eta, xTilde, beta)``. Passed in to avoid
+        recomputing the projection, since it appears in the derivative
+        formula directly.
     beta : float
         sharpness factor. The higher the more we approach the Haeviside
-        function which is recovered in the limit of beta to infinity
+        function which is recovered in the limit of beta to infinity.
 
     Returns
     -------
     xProj_deta : np.ndarray
-        first derivative of projected densities.
+        derivative of projected densities with respect to eta.
 
     """
     return beta * ((1-xProj)*np.cosh(beta*eta)**(-2) -\
                    np.cosh(beta*(xTilde-eta))**(-2) + \
                    xProj*np.cosh(beta*(1-eta))**(-2)) /\
-                  (np.tanh(beta*eta)+np.tanh(beta*(1-eta)))    
+                  (np.tanh(beta*eta)+np.tanh(beta*(1-eta)))
+
+def eta_projection_deta2(eta: float, 
+                         xTilde: np.ndarray, 
+                         xProj: np.ndarray,
+                         beta: float) -> np.ndarray:
+    """
+    Second derivative of the differentiable "relaxed" Haeviside projection
+    with respect to eta, as done in
+
+    Xu S, Cai Y, Cheng G (2010) Volume preserving nonlinear density filter
+    based on Heaviside functions. Struct Multidiscip Optim 41:495–505
+
+    Parameters
+    ----------
+    eta : float
+        threshold value.
+    xTilde : np.ndarray
+        intermediate densities (typically before a density filter is applied).
+    xProj : np.ndarray
+        eta-projected densities, i.e. the output of
+        ``eta_projection(eta, xTilde, beta)``. Passed in to avoid
+        recomputing the projection, since it appears in the derivative
+        formula directly.
+    beta : float
+        sharpness factor. The higher the more we approach the Haeviside
+        function which is recovered in the limit of beta to infinity.
+
+    Returns
+    -------
+    xProj_deta2 : np.ndarray
+        second derivative of projected densities with respect to eta.
+
+    """
+    xProj_deta = eta_projection_deta(eta=eta, 
+                                     xTilde=xTilde, 
+                                     xProj=xProj, 
+                                     beta=beta)
+    # term1 = (1-xProj)*np.cosh(beta*eta)**(-2)
+    term1_deta = (-1)*(xProj_deta + 2*beta*(1-xProj)*np.tanh(beta*eta))*np.cosh(beta*eta)**(-2)
+    # term2 = np.cosh(beta*(xTilde-eta))**(-2)
+    term2_deta = 2*beta*np.cosh(beta*(xTilde-eta))**(-2) * np.tanh(beta*(xTilde-eta))
+    # term3 = xProj*np.cosh(beta*(1-eta))**(-2)
+    term3_deta = (xProj_deta + 2*beta*xProj*np.tanh(beta*(1-eta)))*np.cosh(beta*(1-eta))**(-2)
+    # term4 = (np.tanh(beta*eta)+np.tanh(beta*(1-eta)))**(-1)
+    term4_deta = (-beta)*(np.tanh(beta*eta)+np.tanh(beta*(1-eta)))**(-2) * \
+                 (np.cosh(beta*eta)**(-2)-np.cosh(beta*(1-eta))**(-2))
+    return beta * ((term1_deta -term2_deta+term3_deta)/(np.tanh(beta*eta)+np.tanh(beta*(1-eta)))+\
+                    xProj_deta*term4_deta*(np.tanh(beta*eta)+np.tanh(beta*(1-eta))))
 
 def find_multieta(etas0: Union[float,np.ndarray], 
                   xTilde: np.ndarray, 
@@ -193,6 +259,7 @@ def find_multieta(etas0: Union[float,np.ndarray],
                                      "method": "newton",
                                      "maxiter": 1000,
                                      "bracket": [-1/2,1/2]},
+                  logger: Union[EmptyLogger,SimpleLogger] = EmptyLogger(),
                   **kwargs: Any) -> float:
     """
     Find volume preserving eta multiple eta projections
@@ -224,7 +291,7 @@ def find_multieta(etas0: Union[float,np.ndarray],
         etas0=np.hstack((etas_fixed, 0.5))
         func = None#_find_multieta_fixed
     elif mode == "equal":
-        etas0=np.linstpace(0, 1, weights.shape[0]+2)[1:-1]
+        etas0=np.linspace(0, 1, weights.shape[0]+2)[1:-1]
         func = None#_find_multieta_equalspaced
     elif mode == "mse":
         etas0 = np.asarray(etas0, dtype=float)
@@ -254,16 +321,20 @@ def find_multieta(etas0: Union[float,np.ndarray],
     elif mode in ["mse"]:
         #
         n = etas0.shape[0]
-        eps_bnd = 1e-8
+        constraints = []
         # bounds: each eta in (eps, 1-eps)
+        eps_bnd = 1e-8
         bounds = Bounds(eps_bnd * np.ones(n), (1 - eps_bnd) * np.ones(n))
         # ordering constraint: eta[i+1] - eta[i] >= eps_bnd
-        A = np.zeros((n - 1, n))
-        A[:,:-1] = -np.eye(n-1)
-        A[:,1:] += np.eye(n-1)
-        order_constraint = LinearConstraint(A, 
-                                            lb=eps_bnd, 
-                                            ub=np.inf)
+        if n > 1:
+            #
+            A = np.zeros((n - 1, n))
+            A[:,:-1] = -np.eye(n-1)
+            A[:,1:] += np.eye(n-1)
+            order_constraint = LinearConstraint(A, 
+                                                lb=eps_bnd, 
+                                                ub=np.inf)
+            constraints.append(order_constraint)
         # volume constraint: mean(xPhys) == volfrac
         volume_constraint = NonlinearConstraint(fun=partial(volume_constraint_fun, 
                                                             xTilde=xTilde, 
@@ -277,6 +348,7 @@ def find_multieta(etas0: Union[float,np.ndarray],
                                                             volfrac=volfrac),
                                                 lb=-eps_bnd, 
                                                 ub=eps_bnd)
+        constraints.append(volume_constraint)
         result = minimize(fun=func,
                           x0=etas0,
                           args=(xTilde, beta, weights, volfrac),
@@ -286,9 +358,11 @@ def find_multieta(etas0: Union[float,np.ndarray],
                           bounds=bounds,
                           options={"maxiter": 10000, 
                                    "initial_tr_radius": 0.2},
-                          constraints=[order_constraint, volume_constraint])
+                          constraints=constraints)
         #
         if result.success:
+            logger.perf("find_multieta iterations=%d function_calls=%d jacobian_calls=%d", 
+                        result.nit, result.nfev, result.njev)
             result = result.x 
         else:
             raise ValueError("volume conserving eta could not be found: ", result)
@@ -348,7 +422,7 @@ def volume_constraint_jac(etas: np.ndarray,
 def multieta_projection(etas: np.ndarray, 
                         xTilde: np.ndarray, 
                         beta: float, 
-                        weights: Union[None,np.ndarray] = None, 
+                        weights: Union[None,np.ndarray] = None,
                         **kwargs: Any
                         ) -> np.ndarray:
     """
@@ -470,49 +544,158 @@ def multieta_projection_deta(etas: np.ndarray,
              xProj_n * np.cosh(beta * (1 - etas[None,...]))**(-2)) \
              / (np.tanh(beta * etas) + np.tanh(beta * (1 - etas)))[None,...]
 
-def multieta_projection_deta2(etas: np.ndarray,
-                              xTilde: np.ndarray,
-                              beta: float,
-                              weights: Union[None,np.ndarray]
-                              ) -> np.ndarray:
+def guest_projection(x: np.ndarray,
+                     beta: float,
+                     **kwargs: Any) -> np.ndarray:
     """
-    Second derivative of the weighted multi-threshold Haeviside projection
-    with respect to each threshold eta_n,  as a generalization to
+    Implements the Haeviside projection by
 
-    Xu S, Cai Y, Cheng G (2010) Volume preserving nonlinear density filter
-    based on Heaviside functions. Struct Multidiscip Optim 41:495–505
+    Guest, James K., Jean H. Prévost, and Ted Belytschko. "Achieving minimum
+    length scale in topology optimization using nodal design variables and
+    projection functions." International journal for numerical methods in
+    engineering 61.2 (2004): 238-254.
 
+    This projection is a smooth version of the Haeviside step function Theta(x),
+    so in simple words, this projection sets every value that is larger than
+    zero to one and everything smaller/equal to zero to zero. The filter
+    equation is
+
+    x_filtered = 1 - exp(-beta x) + x exp(-beta)
+
+    beta is the projection strength, that is typically ramped up during the TO
+    process to large values. The larger beta, the closer this filter is to a
+    Haeviside function.
+    
     Parameters
     ----------
-    etas : np.ndarray
-        threshold values, shape (n_etas,).
-    xTilde : np.ndarray
-        intermediate densities (typically before a density filter is applied).
+    x : np.ndarray
+        (intermediate) design variables.
     beta : float
-        sharpness factor. The higher the more we approach the Haeviside
-        function which is recovered in the limit of beta to infinity
-    weights : None or np.ndarray
-        weights for combining the multiple threshold projections. If None,
-        uniform weights are used.
+        projection strength.
 
     Returns
     -------
-    xPhys_deta : np.ndarray
-        d(xPhys)/d(eta_n) = w_n * d(xProj_n)/d(eta_n),
-        shape (..., n_etas, n_etas).
+    x_filtered : np.ndarray
+        filtered design variables.
 
     """
-    # individual projections: shape (..., N_etas)
-    xProj_n = (np.tanh(beta * etas[None,...]) +\
-               np.tanh(beta * (xTilde[...,None] - etas[None,...]))) /\
-              (np.tanh(beta * etas[None,...]) +\
-               np.tanh(beta * (1 - etas[None,...])))
-    # 
-    return beta * weights[None,...] * ( 
-            (1 - xProj_n) * np.cosh(beta * etas[None,...])**(-2) -
-             np.cosh(beta * (xTilde[...,None] - etas[None,...]))**(-2) +
-             xProj_n * np.cosh(beta * (1 - etas[None,...]))**(-2)) \
-             / (np.tanh(beta * etas) + np.tanh(beta * (1 - etas)))[None,...]
+    return 1 - np.exp(-beta*x) + x*np.exp(-beta)
+
+def guest_projection_dx(x: np.ndarray,
+                        beta: float,
+                        **kwargs: Any) -> np.ndarray:
+    """
+    Implements first derivative of the Haeviside projection by
+
+    Guest, James K., Jean H. Prévost, and Ted Belytschko. "Achieving minimum
+    length scale in topology optimization using nodal design variables and
+    projection functions." International journal for numerical methods in
+    engineering 61.2 (2004): 238-254.
+
+    This projection is a smooth version of the Haeviside step function Theta(x),
+    so in simple words, this projection sets every value that is larger than
+    zero to one and everything smaller/equal to zero to zero. The filter
+    equation is
+
+        x_filtered = 1 - exp(-beta x) + x exp(-beta)
+
+    so the first derivative is 
+
+        dx_filtered = beta*exp(-beta*x) + exp(-beta)
+
+    beta is the projection strength, that is typically ramped up during the TO
+    process to large values. The larger beta, the closer this filter is to a
+    Haeviside function.
+    
+    Parameters
+    ----------
+    x : np.ndarray
+        (intermediate) design variables.
+    beta : float
+        projection strength.
+
+    Returns
+    -------
+    dx_filtered : np.ndarray
+        first derivative of filtered design variables.
+
+    """
+    return beta*np.exp(-beta*x) + np.exp(-beta)
+
+def sigmund2007_projection(x: np.ndarray,
+                           beta: float,
+                           **kwargs: Any) -> np.ndarray:
+    """
+    Implements the Haeviside projection by
+
+    Sigmund, Ole. "Morphology-based black and white filters for topology 
+    optimization." Structural and Multidisciplinary Optimization 33.4 (2007): 
+    401-424.
+
+    This projection is a smooth version of the Haeviside step function Theta(1-x),
+    so in simple words, this projection sets every value that is smaller than 
+    one to zero and everything smaller/equal to one to one. The filter
+    equation is
+
+    x_filtered = np.exp(beta*(x-1)) - (1-x)*np.exp(-beta)
+
+    beta is the projection strength, that is typically ramped up during the TO
+    process to large values. The larger beta, the closer this filter is to a
+    Haeviside function.
+    
+    Parameters
+    ----------
+    x : np.ndarray
+        (intermediate) design variables.
+    beta : float
+        projection strength.
+
+    Returns
+    -------
+    x_filtered : np.ndarray
+        filtered design variables.
+
+    """
+    return np.exp(beta*(x-1)) - (1-x)*np.exp(-beta)
+
+def sigmund2007_projection_dx(x: np.ndarray,
+                              beta: float,
+                              **kwargs: Any) -> np.ndarray:
+    """
+    Implements first derivative of the Haeviside projection by
+
+    Sigmund, Ole. "Morphology-based black and white filters for topology 
+    optimization." Structural and Multidisciplinary Optimization 33.4 (2007): 
+    401-424.
+
+    This projection is a smooth version of the Haeviside step function Theta(1-x),
+    so in simple words, this projection sets every value that is smaller than one 
+    to zero and everything smaller/equal to one to one. The filter equation is
+
+        x_filtered = np.exp(beta*(x-1)) - (1-x)*np.exp(-beta)
+
+    so the first derivative is 
+
+        dx = beta*exp(beta*(x-1)) + exp(-beta)
+
+    beta is the projection strength, that is typically ramped up during the TO
+    process to large values. The larger beta, the closer this filter is to a
+    Haeviside function.
+    
+    Parameters
+    ----------
+    x : np.ndarray
+        (intermediate) design variables.
+    beta : float
+        projection strength.
+
+    Returns
+    -------
+    dx_filtered : np.ndarray
+        first derivative of filtered design variables.
+
+    """
+    return np.exp(beta*(x-1)) * beta + np.exp(-beta)
 
 if __name__ == "__main__":
     #

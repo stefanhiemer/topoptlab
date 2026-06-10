@@ -69,9 +69,10 @@ def default_el_flags_policy() -> Dict:
     | "correct_backward"  | bool | True    | After the backward filter, zero the objective and  |
     |                     |      |         | constraint sensitivities at prescribed elements so |
     |                     |      |         | their fixed state does not contaminate neighbours. |
-    | "neglect_in_filter" | bool | True    | Prescribed elements neither receive nor contribute |
-    |                     |      |         | density/sensitivity to their neighbours during     |
-    |                     |      |         | filtering.                                         |
+    | "neglect_in_filter" | bool | True    | Passive (1) and active (2) elements neither        |
+    |                     |      |         | receive nor contribute density/sensitivity to their |
+    |                     |      |         | neighbours during filtering. Non-design elements    |
+    |                     |      |         | (flag=3) are always kept in the stencil regardless.|
     +---------------------+------+---------+----------------------------------------------------+
 
     Returns

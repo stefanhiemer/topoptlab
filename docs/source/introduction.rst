@@ -6,6 +6,7 @@ Introduction and Tutorials to Topology Optimization
 
    introduction/intro_to
    introduction/filter
+   introduction/passive_active_elements
    introduction/adjoint_analysis
    introduction/optimizers
    introduction/meshing

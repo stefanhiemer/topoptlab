@@ -39,7 +39,7 @@ if __name__ == "__main__":
     main(nelx=nelx, nely=nely, volfrac=volfrac, 
          matinterpol_kw={"eps":1e-9, "penal": penal},
          rmin=rmin, 
-         ft=ft, filter_mode="matrix", optimizer="mma",nouteriter=1000,
+         ft=ft, filter_mode="matrix", optimizer="oc",nouteriter=1000,
          #lin_solver_kw = {"name": "cvxopt-cholmod"},
          #lin_solver_kw = {"name": "topoptlab-cg"}, preconditioner_kw = {"name": "pyamg-pyamg-ruge_stuben"},
          bcs=heatplate_2d, 

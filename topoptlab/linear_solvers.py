@@ -28,7 +28,8 @@ def max_res(r: np.ndarray, atol: float,
     """ 
     return np.abs(r).max() < atol
 
-def res_norm(r: np.ndarray, atol: float,
+def res_norm(r: np.ndarray, 
+             atol: float,
             **kwargs: Any) -> bool:
     """
     Check if maximum residual smaller than tolerance.

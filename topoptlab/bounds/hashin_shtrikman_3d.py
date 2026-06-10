@@ -1,6 +1,26 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 import numpy as np
 
+def _check_well_ordered(Ks: np.ndarray, Gs: np.ndarray) -> None:
+    """
+    Raise ValueError if Ks and Gs are not well-ordered, i.e. if the phase
+    with the largest bulk modulus does not also have the largest shear modulus,
+    or the phase with the smallest bulk modulus does not also have the smallest
+    shear modulus.
+    """
+    if np.argmax(Ks) != np.argmax(Gs):
+        raise ValueError(
+            "Moduli are not well-ordered: the phase with the largest bulk "
+            "modulus (index %d) does not have the largest shear modulus "
+            "(index %d)." % (np.argmax(Ks), np.argmax(Gs))
+        )
+    if np.argmin(Ks) != np.argmin(Gs):
+        raise ValueError(
+            "Moduli are not well-ordered: the phase with the smallest bulk "
+            "modulus (index %d) does not have the smallest shear modulus "
+            "(index %d)." % (np.argmin(Ks), np.argmin(Gs))
+        )
+
 def poiss_nary_upp(x: np.ndarray, 
                    Ks: np.ndarray, Gs: np.ndarray) -> np.ndarray:
     """
@@ -507,19 +527,21 @@ def emod_binary_low_dx(x: np.ndarray,
 def shearmod_nary_upp(x: np.ndarray,
                       Ks: np.ndarray, Gs: np.ndarray) -> np.ndarray:
     """
-    Return the upper Hashin Shtrikman bound for the shear modulus 
-    of a composite consisting of m isotropic materials. At the moment I am 
-    not aware of any assumption about the ordering of the phases. Taken from 
-    Eq. 3.45 of 
-    
-    "Hashin, Zvi, and Shmuel Shtrikman. "A variational approach to the theory 
-    of the elastic behaviour of multiphase materials." Journal of the Mechanics 
+    Return the upper Hashin Shtrikman bound for the shear modulus
+    of a composite consisting of m isotropic materials. Taken from
+    Eq. 3.45 of
+
+    "Hashin, Zvi, and Shmuel Shtrikman. "A variational approach to the theory
+    of the elastic behaviour of multiphase materials." Journal of the Mechanics
     and Physics of Solids 11.2 (1963): 127-140."
+
+    Requires well-ordered moduli: the phase with the largest shear modulus
+    must also have the largest bulk modulus. Raises ValueError otherwise.
 
     Parameters
     ----------
     x : np.ndarray, shape (n,m-1)
-        volume fraction of first m-1 phases. The volume fraction of the mth 
+        volume fraction of first m-1 phases. The volume fraction of the mth
         phase can then be inferred via 1-x.sum(axis=1)
     Ks : np.ndarray, shape (m)
         bulk moduli
@@ -532,6 +554,7 @@ def shearmod_nary_upp(x: np.ndarray,
         upper bound of shear modulus
 
     """
+    _check_well_ordered(Ks, Gs)
     # shapes and indices
     m = Ks.shape[0]
     # find minimum
@@ -616,19 +639,21 @@ def shearmod_nary_upp_dx(x: np.ndarray,
 def shearmod_nary_low(x: np.ndarray,
                       Ks: np.ndarray, Gs: np.ndarray) -> np.ndarray:
     """
-    Return the lower Hashin Shtrikman bound for the shear modulus 
-    of a composite consisting of m isotropic materials. At the moment I am 
-    not aware of any assumption about the ordering of the phases. Taken from 
-    Eq. 3.44 of 
-    
-    "Hashin, Zvi, and Shmuel Shtrikman. "A variational approach to the theory 
-    of the elastic behaviour of multiphase materials." Journal of the Mechanics 
+    Return the lower Hashin Shtrikman bound for the shear modulus
+    of a composite consisting of m isotropic materials. Taken from
+    Eq. 3.44 of
+
+    "Hashin, Zvi, and Shmuel Shtrikman. "A variational approach to the theory
+    of the elastic behaviour of multiphase materials." Journal of the Mechanics
     and Physics of Solids 11.2 (1963): 127-140."
+
+    Requires well-ordered moduli: the phase with the smallest shear modulus
+    must also have the smallest bulk modulus. Raises ValueError otherwise.
 
     Parameters
     ----------
     x : np.ndarray, shape (n,m-1)
-        volume fraction of first m-1 phases. The volume fraction of the mth 
+        volume fraction of first m-1 phases. The volume fraction of the mth
         phase can then be inferred via 1-x.sum(axis=1)
     Ks : np.ndarray, shape(m)
         bulk moduli
@@ -641,6 +666,7 @@ def shearmod_nary_low(x: np.ndarray,
         lower bound of shear modulus
 
     """
+    _check_well_ordered(Ks, Gs)
     # shapes and indices
     m = Ks.shape[0]
     # find minimum
@@ -725,19 +751,21 @@ def shearmod_nary_low_dx(x: np.ndarray,
 def bulkmod_nary_upp(x: np.ndarray,
                      Ks: np.ndarray, Gs: np.ndarray) -> np.ndarray:
     """
-    Return the upper Hashin Shtrikman bound for the bulk modulus 
-    of a composite consisting of m isotropic materials. At the moment I am 
-    not aware of any assumption about the ordering of the phases. Taken from 
-    Eq. 3.38 of 
-    
-    "Hashin, Zvi, and Shmuel Shtrikman. "A variational approach to the theory 
-    of the elastic behaviour of multiphase materials." Journal of the Mechanics 
+    Return the upper Hashin Shtrikman bound for the bulk modulus
+    of a composite consisting of m isotropic materials. Taken from
+    Eq. 3.38 of
+
+    "Hashin, Zvi, and Shmuel Shtrikman. "A variational approach to the theory
+    of the elastic behaviour of multiphase materials." Journal of the Mechanics
     and Physics of Solids 11.2 (1963): 127-140."
+
+    Requires well-ordered moduli: the phase with the largest bulk modulus
+    must also have the largest shear modulus. Raises ValueError otherwise.
 
     Parameters
     ----------
     x : np.ndarray, shape (n,m-1)
-        volume fraction of first m-1 phases. The volume fraction of the mth 
+        volume fraction of first m-1 phases. The volume fraction of the mth
         phase can then be inferred via 1-x.sum(axis=1)
     Ks : np.ndarray, shape(m)
         bulk moduli
@@ -750,6 +778,7 @@ def bulkmod_nary_upp(x: np.ndarray,
         upper bound of bulk modulus
 
     """
+    _check_well_ordered(Ks, Gs)
     # shapes and indices
     m = Ks.shape[0]
     # find maximum
@@ -833,24 +862,26 @@ def bulkmod_nary_upp_dx(x: np.ndarray,
 def bulkmod_nary_low(x: np.ndarray,
                      Ks: np.ndarray, Gs: np.ndarray) -> np.ndarray:
     """
-    Return the lower Hashin Shtrikman bound for the bulk modulus 
-    of a composite consisting of m isotropic materials. At the moment I am 
-    not aware of any assumption about the ordering of the phases. Taken from 
-    Eq. 3.37 of 
-    
-    "Hashin, Zvi, and Shmuel Shtrikman. "A variational approach to the theory 
-    of the elastic behaviour of multiphase materials." Journal of the Mechanics 
+    Return the lower Hashin Shtrikman bound for the bulk modulus
+    of a composite consisting of m isotropic materials. Taken from
+    Eq. 3.37 of
+
+    "Hashin, Zvi, and Shmuel Shtrikman. "A variational approach to the theory
+    of the elastic behaviour of multiphase materials." Journal of the Mechanics
     and Physics of Solids 11.2 (1963): 127-140."
+
+    Requires well-ordered moduli: the phase with the smallest bulk modulus
+    must also have the smallest shear modulus. Raises ValueError otherwise.
 
     Parameters
     ----------
     x : np.ndarray, shape (n,m-1)
-        volume fraction of first m-1 phases. The volume fraction of the mth 
+        volume fraction of first m-1 phases. The volume fraction of the mth
         phase can then be inferred via 1-x.sum(axis=1)
     Ks : np.ndarray, shape(m)
         bulk moduli
     Gs : np.ndarray, shape(m)
-        larger bulk modulus
+        shear moduli
 
     Returns
     -------
@@ -858,6 +889,7 @@ def bulkmod_nary_low(x: np.ndarray,
         lower bound of bulk modulus
 
     """
+    _check_well_ordered(Ks, Gs)
     # shapes and indices
     m = Ks.shape[0]
     # find minimum

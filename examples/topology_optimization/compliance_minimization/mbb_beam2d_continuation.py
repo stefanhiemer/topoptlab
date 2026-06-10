@@ -13,7 +13,7 @@ from topoptlab.filter.haeviside_projectors import HaevisideProjectorGuest2004,\
                                                   EtaProjectorXu2010,\
                                                   MultiEtaProjectorXu2010
 from topoptlab.convergence_criteria import max_design_change, norm_design_change
-from topoptlab.param_continuation import adaptive_beta_continuation, update_move_limit
+from topoptlab.param_continuation import dunning_beta_continuation, update_move_limit
 
 if __name__ == "__main__":
     # Default input parameters
@@ -89,7 +89,7 @@ if __name__ == "__main__":
                  convergence_kw = {"conv_tol": 1e-2,
                                    "change_func": max_design_change,
                                    "ord": 2},
-                 continuation_kw = {"funcs": [adaptive_beta_continuation#,update_move_limit,
+                 continuation_kw = {"funcs": [dunning_beta_continuation#,update_move_limit,
                                               ],
                                     "func_kws": [{"beta_limit": 64,
                                                   "state": {}}#,{"stage": 0}

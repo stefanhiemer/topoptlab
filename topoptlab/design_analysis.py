@@ -3,6 +3,7 @@ from typing import Union
 
 import numpy as np
 from scipy.ndimage import grey_opening, grey_closing
+from scipy.interpolate import CubicHermiteSpline
 
 from topoptlab.geometries import sphere, ball
 from topoptlab.utils import map_eltoimg, map_eltovoxel
@@ -64,16 +65,20 @@ def level_indicator(x: np.ndarray,
     if x_i is None and isinstance(nlevels,int):
         herm = CubicHermiteSpline(x=np.linspace(0,1/nlevels,3),
                                   y=np.array([0,1,0]),
-                                  dydx=np.zeros(nlevels+1),
+                                  dydx=np.zeros(3),
                                   extrapolate="periodic")
     elif isinstance(x_i,np.ndarray) and len(x_i.shape)==1:
-        herm = CubicHermiteSpline(x=np.linspace(0,1,2*x_i.shape[0]-1),
+        # midpoints
+        x_mid = (x_i[1:]-x_i[:-1])/2
+        x_knots = np.column_stack((x_i, np.append(x_mid,np.zeros(1)))).flatten()[:-1]
+        #
+        herm = CubicHermiteSpline(x=x_knots,
                                   y=np.tile([0,1],x_i.shape)[:-1],
-                                  dydx=np.zeros_like(2*x_i.shape[0]-1),
+                                  dydx=np.zeros(2*x_i.shape[0]-1),
                                   extrapolate=None)
     else:
         raise NotImplementedError("Input inconsistent.")
-    return herm(x)
+    return herm(x).mean(axis=0)
 
 def lengthscale_violations(x: np.ndarray,
                            r: float,

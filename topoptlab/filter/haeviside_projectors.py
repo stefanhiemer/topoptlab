@@ -5,11 +5,12 @@ import numpy as np
 
 from topoptlab.filter.filter import TOFilter
 from topoptlab.filter.haeviside_projection import find_eta, eta_projection, eta_projection_dx,\
-                                                  find_multieta, multieta_projection, multieta_projection_dx
+                                                  find_multieta, multieta_projection, multieta_projection_dx,\
+                                                  guest_projection, guest_projection_dx,\
+                                                  sigmund2007_projection, sigmund2007_projection_dx
 
 class HaevisideProjectorGuest2004(TOFilter):
     """
-
     Implements the Haeviside projection by
 
     Guest, James K., Jean H. Prévost, and Ted Belytschko. "Achieving minimum
@@ -65,7 +66,7 @@ class HaevisideProjectorGuest2004(TOFilter):
 
     def apply_filter(self,
                      x: np.ndarray,
-                     beta=float,
+                     beta: float,
                      **kwargs: Any) -> np.ndarray:
         """
         Apply filter to (intermediate) design variables x
@@ -85,7 +86,7 @@ class HaevisideProjectorGuest2004(TOFilter):
             filtered design variables.
 
         """
-        return 1 - np.exp(-beta*x) + x*np.exp(-beta)
+        return guest_projection(x=x, beta=beta)
     
     def apply_filter_dx(self,
                         x : np.ndarray,
@@ -117,7 +118,7 @@ class HaevisideProjectorGuest2004(TOFilter):
         dx : np.ndarray
             design sensitivities with respect to un-filtered design variables.
         """
-        return dx_filtered * (beta*np.exp(-beta*x) + np.exp(-beta))
+        return dx_filtered * guest_projection_dx(x=x, beta=beta)
     
     @property
     def vol_conserv(self) -> bool:
@@ -170,7 +171,7 @@ class HaevisideProjectorSigmund2007(TOFilter):
     401-424.
     
     This projection is a different flavor of the Guest2004 projection and 
-    approximates the shifted Haeviside step function Theta(1-x), so in this 
+    approximates the shifted Haeviside step function Theta(1-x), so this 
     projection sets every value that is smaller than one to zero and everything 
     smaller/equal to one to one. The filter equation is 
     
@@ -217,7 +218,7 @@ class HaevisideProjectorSigmund2007(TOFilter):
 
     def apply_filter(self,
                      x: np.ndarray,
-                     beta=float,
+                     beta: float,
                      **kwargs: Any) -> np.ndarray:
         """
         Apply filter to (intermediate) design variables x
@@ -237,7 +238,7 @@ class HaevisideProjectorSigmund2007(TOFilter):
             filtered design variables.
 
         """
-        return np.exp(beta*(x-1)) - (1-x)*np.exp(-beta)
+        return sigmund2007_projection(x=x, beta=beta)
     
     def apply_filter_dx(self,
                         x : np.ndarray,
@@ -269,7 +270,7 @@ class HaevisideProjectorSigmund2007(TOFilter):
         dx : np.ndarray
             design sensitivities with respect to un-filtered design variables.
         """
-        return dx_filtered * (np.exp(beta*(x-1)) * beta + np.exp(-beta))
+        return dx_filtered * sigmund2007_projection_dx(x=x, beta=beta)
     
     @property
     def vol_conserv(self) -> bool:
@@ -336,21 +337,21 @@ class EtaProjectorXu2010(TOFilter):
     
     def __init__(self,
                  n_constr: int,
-                 volfrac: Union[None,float],
+                 volfrac: Union[None, float],
                  filter_objective: bool = True,
                  constraint_filter_mask: Union[None, np.ndarray] = None,
-                 eta: Union[None,float] = None,
+                 eta: Union[None, float] = None,
+                 adapt_eta: bool = True,
                  **kwargs: Any) -> None:
         """
-        Initialize filter by setting volume conserving flag.
+        Initialize filter.
 
         Parameters
         ----------
         n_constr : int
             number of constraints.
         volfrac : None or float
-            target volume fraction. If not None, eta is updated each call to
-            apply_filter via a root search to preserve the volume fraction.
+            target volume fraction used to initialise eta when eta is None.
         filter_objective : bool
             if True, filter is applied to objective sensitivities.
         constraint_filter_mask : None or np.ndarray of shape (n_constr,)
@@ -359,21 +360,25 @@ class EtaProjectorXu2010(TOFilter):
             sensitivities are filtered.
         eta : None or float
             initial projection threshold. If None, volfrac is used as the
-            initial value for eta.
+            initial value.
+        adapt_eta : bool
+            if True (default), eta is updated each call to apply_filter via a
+            root search to preserve the volume fraction, making the filter
+            volume conserving. If False, eta stays fixed.
 
         Returns
         -------
         None
 
         """
-        if eta is None and volfrac:
-            self.eta = volfrac
-            self._vol_conserv = True
-        elif eta:
+        if eta is not None:
             self.eta = eta
-            self._vol_conserv = False
+        elif volfrac is not None:
+            self.eta = volfrac
         else:
-            raise ValueError
+            raise ValueError("Either eta or volfrac must be provided to initialise the threshold.")
+        self.adapt_eta = adapt_eta
+        self._vol_conserv = adapt_eta
         self._filter_objective = filter_objective
         if constraint_filter_mask is None:
             self._constraint_filter_mask = np.ones(n_constr, dtype=bool)
@@ -388,10 +393,7 @@ class EtaProjectorXu2010(TOFilter):
                      x : np.ndarray, 
                      beta : float,
                      volfrac : Union[None,float],
-                     root_args : Dict = {"fprime": True,
-                                        "method": "newton",
-                                        "maxiter": 1000,
-                                        "bracket": [-1/2,1/2]},
+                     root_args : union[None,Dict] = None,
                      **kwargs: Any) -> np.ndarray:
         """
         Apply filter to (intermediate) design variables x
@@ -408,8 +410,9 @@ class EtaProjectorXu2010(TOFilter):
         volfrac : None or float
             target volume fraction. If not None, eta is updated via a root
             search before applying the projection.
-        root_args : dict
-            keyword arguments passed to find_eta for the root search.
+        root_args : None or dict
+            keyword arguments passed to find_eta for the root search. If None, defaults
+            if find_deta are used.
 
         Returns
         -------
@@ -418,12 +421,16 @@ class EtaProjectorXu2010(TOFilter):
 
         """
 
-        if volfrac:
+        if self.adapt_eta and volfrac:
+            if root_args is None:
+                kw = {} 
+            else: 
+                kw = {"root_args": root_args}
             self.eta = find_eta(eta0 = self.eta,
-                                xTilde = x, 
+                                xTilde = x,
                                 beta = beta,
                                 volfrac = volfrac,
-                                root_args = root_args)
+                                **kw)
         return eta_projection(eta=self.eta, 
                               xTilde=x, 
                               beta=beta)
@@ -437,13 +444,14 @@ class EtaProjectorXu2010(TOFilter):
         Apply filter to the sensitivities with respect to filtered variables
         x_filtered using the chain rule assuming
 
-            x_filtered = np.exp(beta*(x-1)) - (1-x)*np.exp(-beta)
+            x_filtered = (tanh(beta*eta) + tanh(beta*(x - eta))) /
+                         (tanh(beta*eta) + tanh(beta*(1 - eta)))
 
         to get the sensitivities with respect to the (unfiltered) design
         variables or in the case of many filters intermediate design variables:
 
-            dx = beta * (1 - tanh(beta * (x_filtered - eta))**2) /\
-                    (tanh(beta*eta)+tanh(beta*(1-eta)))
+            dx = dx_filtered * beta * (1 - tanh(beta*(x - eta))**2) /
+                    (tanh(beta*eta) + tanh(beta*(1 - eta)))
 
         Parameters
         ----------
@@ -499,10 +507,11 @@ class EtaProjectorXu2010(TOFilter):
 
     @property
     def changes_filter_kw(self) -> bool:
-        return True
+        return self.adapt_eta
 
     def update_filter_kw(self, filter_kw: dict) -> None:
-        filter_kw["eta"] = self.eta
+        if self.adapt_eta:
+            filter_kw["eta"] = self.eta
 
 class MultiEtaProjectorXu2010(TOFilter):
     """
@@ -519,9 +528,10 @@ class MultiEtaProjectorXu2010(TOFilter):
     where each H_{beta, eta_n} is the single-threshold tanh projection.
     This allows smooth multi-phase interpolation from a single design field.
 
-    When ``volfrac`` is provided the thresholds are updated each call via
-    ``find_multieta`` (MSE-minimising, volume-constrained optimisation) to
-    keep the projected volume fraction close to the target.
+    When ``adapt_eta=True`` (default) and ``volfrac`` is provided, the
+    thresholds are updated each call via ``find_multieta`` (MSE-minimising,
+    volume-constrained optimisation) to keep the projected volume fraction
+    close to the target. Set ``adapt_eta=False`` to keep thresholds fixed.
     """
 
     def __init__(self,
@@ -532,6 +542,7 @@ class MultiEtaProjectorXu2010(TOFilter):
                  filter_objective: bool = True,
                  constraint_filter_mask: Union[None, np.ndarray] = None,
                  etas: Union[None, np.ndarray] = None,
+                 adapt_eta: bool = True,
                  **kwargs: Any) -> None:
         """
         Parameters
@@ -539,8 +550,8 @@ class MultiEtaProjectorXu2010(TOFilter):
         n_constr : int
             number of constraints.
         volfrac : None or float
-            target volume fraction. If not None, ``etas`` are updated each
-            call to ``apply_filter`` via ``find_multieta``.
+            target volume fraction passed to ``find_multieta`` when
+            ``adapt_eta`` is True.
         n_etas : int
             number of threshold values.
         weights : None or np.ndarray of shape (n_etas,)
@@ -552,6 +563,10 @@ class MultiEtaProjectorXu2010(TOFilter):
         etas : None or np.ndarray of shape (n_etas,)
             initial threshold values. Defaults to n_etas equally spaced
             values in (0, 1) when None.
+        adapt_eta : bool
+            if True (default), ``etas`` are updated each call to
+            ``apply_filter`` via ``find_multieta``, making the filter volume
+            conserving. If False, ``etas`` stay fixed.
         """
         if etas is None:
             self.etas = np.linspace(0.0, 1.0, n_etas + 2)[1:-1]
@@ -561,7 +576,8 @@ class MultiEtaProjectorXu2010(TOFilter):
             self.weights = np.ones(n_etas) / n_etas
         else:
             self.weights = np.asarray(weights, dtype=float)
-        self._vol_conserv = volfrac is not None
+        self.adapt_eta = adapt_eta
+        self._vol_conserv = adapt_eta
         self._filter_objective = filter_objective
         if constraint_filter_mask is None:
             self._constraint_filter_mask = np.ones(n_constr, dtype=bool)
@@ -597,7 +613,7 @@ class MultiEtaProjectorXu2010(TOFilter):
         x_filtered : np.ndarray
             projected design variables.
         """
-        if volfrac is not None:
+        if self.adapt_eta and volfrac is not None:
             self.etas = find_multieta(etas0=self.etas,
                                       xTilde=x.ravel(),
                                       beta=beta,
@@ -651,7 +667,13 @@ class MultiEtaProjectorXu2010(TOFilter):
 
     @property
     def changes_filter_kw(self) -> bool:
-        return True
+        return self.adapt_eta
 
     def update_filter_kw(self, filter_kw: dict) -> None:
-        filter_kw["etas"] = self.etas
+        if self.adapt_eta:
+            filter_kw["etas"] = self.etas
+
+
+def vol_conserv():
+
+    return 

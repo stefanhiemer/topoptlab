@@ -10,7 +10,7 @@ if __name__ == "__main__":
     # Default input parameters
     nelx = 60
     nely = int(nelx/3)
-    compliance_limit = 300.
+    compliance_limit = 400.
     rmin = 0.04*nelx
     penal = 3.0
     ft = DensityFilter

@@ -205,9 +205,12 @@ def main(nelx: int, nely: int,
     matinterpol_kw : callable 
         dictionary containing the arguments for the material interpolation.
     el_flags : np.ndarray or None
-        array of flags/integers that switch behaviour of specific elements.
-        Currently 1 marks the element as passive (zero at all times), while 2
-        marks it as active (1 at all time).
+        array of flags/integers that switch behaviour of specific elements:
+        0 = free (optimised normally), 1 = passive (fixed at 0),
+        2 = active (fixed at 1), 3 = non-design (excluded from the optimizer
+        but participates in the density filter — its physical density is
+        determined by the filter from surrounding elements, and its gradient
+        contribution propagates to neighbours before being zeroed).
     optimizer: str
         solver options which are "oc", "mma" and "gcmma" for the optimality
         criteria method, the method of moving asymptotes and the globally
@@ -442,8 +445,7 @@ def main(nelx: int, nely: int,
             # redistribute volfrac over free elements so that passive elements
             # (contributing 0) add material to the free set
             if volfrac is not None:
-                n_free = (~prescribed_mask).sum()
-                x_free = np.clip(volfrac * n / n_free, 0., 1.)
+                x_free = np.clip(volfrac * n / (~prescribed_mask).sum(), 0., 1.)
                 x[~prescribed_mask, 0]     = x_free
                 xPhys[~prescribed_mask, 0] = x_free
     else:
@@ -571,28 +573,6 @@ def main(nelx: int, nely: int,
                       el_flags_policy=el_flags_policy,
                       **filter_kw)
         ft = fetch_filters(ft=ft, filter_args=[_ft_kw, _ft_kw])
-    # Filter: Build (and assemble) the index+data vectors for the coo matrix format
-    elif filter_mode == "matrix":
-        H,Hs = assemble_matrix_filter(nelx=nelx,nely=nely,nelz=nelz,
-                                      rmin=rmin,ndim=ndim)
-    elif filter_mode == "convolution":
-        
-        if ndim == 2:
-            invmapping = partial(map_imgtoel,
-                                 nelx=nelx,nely=nely)
-        elif ndim == 3:
-            invmapping = partial(map_voxeltoel,
-                                 nelx=nelx,nely=nely,nelz=nelz)
-        h,hs = assemble_convolution_filter(nelx=nelx,nely=nely,nelz=nelz,
-                                           rmin=rmin,
-                                           mapping=mapping,
-                                           invmapping=invmapping)
-    elif filter_mode == "helmholtz" and ft in [0,1]:
-        KF,TF = assemble_helmholtz_filter(nelx=nelx,nely=nely,nelz=nelz,
-                                          rmin=rmin, l=l,
-                                          n1=n1,n2=n2,n3=n3,n4=n4)
-        # LU decomposition. returns a function for solving, not the matrices
-        lu_solve = factorized(KF)
     else:
         raise ValueError(f"Unknown filter. ft: {ft} filter_mode {filter_mode}")
     # BC's and support
@@ -763,7 +743,7 @@ def main(nelx: int, nely: int,
         # optimizer is unknown.
         else:
             raise NotImplementedError("Unknown optimizer.")
-        # Constraints, constraint gradients and adjoint analysis
+        # constraints, constraint gradients and adjoint analysis
         constrs[:,:] = 0.
         dconstrs[:,:] = 0.
         for k, c in enumerate(constraints):
@@ -864,39 +844,11 @@ def main(nelx: int, nely: int,
                                                   x_filtered=xTilde[i],
                                                   dx_filtered=dconstrs[:,ft[i].constraint_filter_mask], 
                                                   **filter_kw)
-        elif ft == 0 and filter_mode == "matrix":
-            dobj[:] = np.asarray(H@(x*dobj) /
-                                 Hs) / np.maximum(0.001, x)
-            #dobj[:] = H @ (dc*x) / Hs / np.maximum(0.001, x)
-        elif ft == 0 and filter_mode == "convolution":
-            dobj[:] = invmapping( convolve(mapping(x*dobj),
-                                           weights=h, axes=(0,1,2)[:ndim],
-                                           mode="constant",
-                                           cval=0.0)) / hs / np.maximum(0.001, x)
-        elif ft == 0 and filter_mode == "helmholtz":
-            dobj[:] = TF.T @ lu_solve(TF@(dobj*xPhys))/np.maximum(0.001, x)
-        elif ft == 1 and filter_mode == "matrix":
-            dobj[:] = np.asarray(H*(dobj/Hs))
-            dconstrs[:] = np.asarray(H*(dconstrs/Hs))
-        elif ft == 1 and filter_mode == "convolution":
-            dobj[:] = invmapping( convolve(mapping(dobj),
-                                           weights=h, axes=(0,1,2)[:ndim],
-                                           mode="constant",
-                                           cval=0.0)) / hs
-            dconstrs[:] = invmapping( convolve(mapping(dconstrs),
-                                           weights=h, axes=(0,1,2)[:ndim],
-                                           mode="constant",
-                                           cval=0.0)) / hs
-        elif ft == 1 and filter_mode == "helmholtz":
-            dobj[:] = TF.T @ lu_solve(TF@dobj)
-            dconstrs[:] = TF.T @ lu_solve(TF@dconstrs)
-        elif ft == -1:
-            pass
         else:
             raise ValueError("No filter applied. ft: ", ft)
         # backward filter policy: zero sensitivities at prescribed elements
         if el_flags_policy is not None and el_flags_policy["correct_backward"]:
-            dobj[prescribed_mask]     = 0.
+            dobj[prescribed_mask] = 0.
             dconstrs[prescribed_mask] = 0.
         #
         log.debug("Post-Sensitivity Filter: it.: {0}, min(dobj): {1:.10f}, max(dobj): {2:.10f}, dv: {3:.10f}".format(
@@ -910,7 +862,7 @@ def main(nelx: int, nely: int,
         # scale each constraint and its gradient by its own factor if requested
         for k, c in enumerate(constraints):
             if c["scale_factor"] is not None:
-                constrs[k, 0]     *= c["scale_factor"]
+                constrs[k, 0] *= c["scale_factor"]
                 dconstrs[:, k:k+1] *= c["scale_factor"]
         # design variables update by optimizer
         if continuation_kw is not None:
@@ -942,16 +894,16 @@ def main(nelx: int, nely: int,
         # method of moving asymptotes
         elif optimizer=="mma":
             xmma,ymma,zmma,lam,xsi,eta_mma,mu,zet,s,low,upp = mmasub(m=optimizer_kw["nconstr"],
-                                                                 n=x.shape[0],
-                                                                 iter=loop,
-                                                                 xval=x,
-                                                                 xold1=hist["xhist"][-1],
-                                                                 xold2=hist["xhist"][-2],
-                                                                 f0val=obj,
-                                                                 df0dx=dobj,
-                                                                 fval=constrs,
-                                                                 dfdx=dconstrs.T,
-                                                                 **optimizer_kw)
+                                                                     n=x.shape[0],
+                                                                     iter=loop,
+                                                                     xval=x,
+                                                                     xold1=hist["xhist"][-1],
+                                                                     xold2=hist["xhist"][-2],
+                                                                     f0val=obj,
+                                                                     df0dx=dobj,
+                                                                     fval=constrs,
+                                                                     dfdx=dconstrs.T,
+                                                                     **optimizer_kw)
 
             # update asymptotes
             optimizer_kw["low"] = low
@@ -980,27 +932,25 @@ def main(nelx: int, nely: int,
                 for i in range(1,len(ft)-1):
                     xTilde[i] = ft[i].apply_filter(x=xTilde[i-1],
                                                    **filter_kw)
+                    #
+                    if ft[i].changes_filter_kw:
+                        ft[i].update_filter_kw(filter_kw)
                 xPhys = ft[-1].apply_filter(x=xTilde[-1],
                                             **filter_kw)
+                #
+                if ft[-1].changes_filter_kw:
+                    ft[-1].update_filter_kw(filter_kw)
             else:
                 xPhys = ft[0].apply_filter(x=x,
                                            **filter_kw)
+                #
+                if ft[0].changes_filter_kw:
+                    ft[0].update_filter_kw(filter_kw)
             for _f in ft:
                 if _f.changes_filter_kw:
                     _f.update_filter_kw(filter_kw)
-        elif ft == 0:
-            xPhys[:] = x
-        elif ft == 1 and filter_mode == "matrix":
-            xPhys[:] = np.asarray(H*x/Hs)
-        elif ft == 1 and filter_mode == "convolution":
-            xPhys[:] = invmapping( convolve(mapping(x),
-                                           weights=h, axes=(0,1,2)[:ndim],
-                                           mode="constant",
-                                           cval=0.0)) / hs
-        elif ft == 1 and filter_mode == "helmholtz":
-            xPhys[:] = TF.T @ lu_solve(TF@x)
-        elif ft == -1:
-            xPhys[:]  = x
+        else:
+            raise TypeError("ft should be a list at this point: ", type(ft))
         # forward filter policy: restore prescribed densities after filtering
         if el_flags_policy is not None and el_flags_policy["correct_forward"]:
             xPhys[passive_mask] = 0.

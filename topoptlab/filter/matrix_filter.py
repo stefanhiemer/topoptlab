@@ -290,10 +290,11 @@ def assemble_matrix_filter(nelx: int,
     sH = np.tile(np.linalg.norm(rmin,ord=2) / np.sqrt(ndim)-r,
                  (nel,1))[inside]
     sH = np.maximum(sH,0.)
-    # eliminate passive/active elements from filter matrix
+    # eliminate passive (1) and active (2) elements from filter matrix;
+    # non-design elements (flag=3) are intentionally kept in the stencil.
     if el_flags is not None and el_flags_policy is not None and \
             el_flags_policy["neglect_in_filter"]:
-        prescribed = el_flags != 0
+        prescribed = (el_flags == 1) | (el_flags == 2)
         keep = ~(prescribed[iH.astype(int)] | prescribed[jH.astype(int)])
         iH, jH, sH = iH[keep], jH[keep], sH[keep]
     # Finalize assembly and convert to csc format
@@ -303,7 +304,7 @@ def assemble_matrix_filter(nelx: int,
     # set to 1 for active/passive elements to avoid zero division.
     if el_flags is not None and el_flags_policy is not None and \
             el_flags_policy["neglect_in_filter"]:
-        Hs[el_flags != 0] = 1.
+        Hs[(el_flags == 1) | (el_flags == 2)] = 1.
     return H,Hs
 
 def assemble_matrix_filter_legacy(nelx: int, nely: int, rmin: float,

@@ -95,24 +95,6 @@ class TOFilter(ABC):
             
         """
         ...
-    
-    @property
-    @abstractmethod
-    def vol_conserv(self) -> bool:
-        """
-        Set self.vol_conserv to indicate if filter is volume conserving. 
-        
-        Parameters
-        ----------
-        None.
-            
-        Returns
-        -------
-        vol_conserv : bool
-            True if filter is volume conserving.
-            
-        """
-        ...
         
     @property
     def filter_objective(self) -> bool:
