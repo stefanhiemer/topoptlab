@@ -1,16 +1,22 @@
+# This code is a mixture of the code by Niels Aage and the topRank2.m code by Sigmund. 
 # A 165 LINE TOPOLOGY OPTIMIZATION CODE BY NIELS AAGE AND VILLADS EGEDE JOHANSEN, JANUARY 2013
-# minor modifications by Stefan Hiemer (January 2025)
+# minor modifications by Stefan Hiemer (June 2026)
+from typing import Tuple
+
 import numpy as np
-from scipy.sparse import coo_matrix,coo_array
+from scipy.sparse import coo_matrix,csc_matrix,coo_array
 from scipy.sparse.linalg import spsolve
 from matplotlib import colors
 import matplotlib.pyplot as plt
 # MAIN DRIVER
-def main(nelx,nely,volfrac,penal,rmin,ft,
-         angle_update="principle_stress"):
+def main(nelx,nely,volfrac,penal,rmin,ft):
     """
-    Topology optimization for maximum stiffness with the SIMP method based on 
-    the default direct solver of scipy sparse.
+    Topology optimization for as done in:
+
+       Wu, Jun, Ole Sigmund, and Jeroen P. Groen. 
+       "Topology optimization of multi-scale structures: 
+       a review." Structural and Multidisciplinary 
+       Optimization 63.3 (2021): 1455-1480.
     
     Parameters
     ----------
@@ -99,20 +105,22 @@ def main(nelx,nely,volfrac,penal,rmin,ft,
                    labelbottom=False,
                    labelleft=False)
     fig.show()
+    # 
     # Set loop counter and gradient vectors 
     loop=0
-    change=1
+    change=np.ones(2)
     dobjdmu1 = np.ones(nely*nelx)
     dobjdmu2 = np.ones(nely*nelx)
     dvdmu1 = np.ones(nely*nelx)
     dvdmu2 = np.ones(nely*nelx)
     ce = np.ones(nely*nelx)
     stress = np.zeros(u.shape)
-    while change>0.01 and loop<2000:
+    while change.max()>0.01 and loop<2000:
         loop=loop+1
         # update local properties
-        R = Rv_2d(angs)
-        cH = rank2_2d(muPhys[:,0], muPhys[:,1], nu=nu, E=E)
+        R = Rv_2d(-angs)
+        cH = rank2_2d(muPhys[:,0], muPhys[:,1], 
+                      nu=nu, E=E)
         c = R.transpose((0,2,1))@cH@R
         # add background stiffness
         c = c + c0
@@ -121,63 +129,36 @@ def main(nelx,nely,volfrac,penal,rmin,ft,
         K = coo_array((lks.flatten(),(iK,jK)),shape=(ndof,ndof)).tocsc()
         # Remove constrained dofs from matrix
         K = K[free,:][:,free]
-        print(K.todense())
-        import sys 
-        sys.exit()
         # Solve system 
         u[free,0]=spsolve(K,f[free,0])
-        #print(K.todense())
-        #print(u)
         # update angles based on principal stress:
         angsold[:] = angs
-        if angle_update == "principle_stress":
-            # calculate strain and stress
-            strain = bmatr@u[edofMat]
-            stress = c@strain
-            #
-            angs[:,0] =  np.atan2(2*stress[:,2,0] , 
-                                  stress[:,0,0] - stress[:,1,0])
-        change=np.abs(angs-angsold).max()
+        # calculate strain and stress
+        strain = bmatr@u[edofMat]
+        stress = c@strain
+        # update angle and recompute stiffness 
+        # this is wrong in my opinion, but part of the original code
+        angs[:,0] =  np.atan2(2*stress[:,2,0] , 
+                                stress[:,0,0] - stress[:,1,0])/2
+        change[0]=np.abs(angs-angsold).max()
+        R = Rv_2d(-angs)
+        cH = rank2_2d(muPhys[:,0], muPhys[:,1], 
+                      nu=nu, E=E)
+        c = R.transpose((0,2,1))@cH@R + c0
+        lks = lk(c) # element stiffness matrices
         # objective
         ce[:] = np.squeeze(u[edofMat].transpose((0,2,1)) @ lks @ u[edofMat])
         obj= ce.sum()
         # sensitivity
-        dcdmu1 = rank2_2d_dmu1(mu1=mu[:,0], mu2=mu[:,1], nu=nu, E=E)
+        dcdmu1 = rank2_2d_dmu1(mu1=muPhys[:,0], mu2=muPhys[:,1], 
+                               nu=nu, E=E)
         dcdmu1[:] = R.transpose((0,2,1))@dcdmu1@R
         dobjdmu1[:]= -np.squeeze(u[edofMat].transpose((0,2,1)) @ lk(c=dcdmu1) @ u[edofMat])
         #
-        dcdmu2 = rank2_2d_dmu2(mu1=mu[:,0], mu2=mu[:,1], nu=nu, E=E)
+        dcdmu2 = rank2_2d_dmu2(mu1=muPhys[:,0], mu2=muPhys[:,1], 
+                               nu=nu, E=E)
         dcdmu2[:] = R.transpose((0,2,1))@dcdmu2@R
         dobjdmu2[:]= -np.squeeze(u[edofMat].transpose((0,2,1)) @ lk(c=dcdmu2) @ u[edofMat])
-        #
-        dmu = 1e-10
-        _dobjdmu2 = np.zeros(dobjdmu2.shape)
-        for i in np.arange(nelx*nely):
-            _u = np.zeros(u.shape)
-            _ce = np.zeros(ce.shape)
-            #
-            _mu = mu.copy()
-            _mu[i,1] = _mu[i,1] + dmu 
-            #
-            cH = rank2_2d(_mu[:,0], _mu[:,1], nu=nu, E=E)
-            c = R.transpose((0,2,1))@cH@R
-            c = c + c0
-            #
-            _lks = lk(c) # element stiffness matrices
-            _K = coo_matrix((_lks.flatten(),(iK,jK)),shape=(ndof,ndof)).tocsc()
-            # Remove constrained dofs from matrix
-            _K = _K[free,:][:,free]
-            # Solve system 
-            _u[free,0]=spsolve(_K,f[free,0])
-            #
-            _ce[:] = np.squeeze(_u[edofMat].transpose((0,2,1)) @ _lks @ _u[edofMat])
-            _obj= _ce.sum()
-            #
-            _dobjdmu2[i] = (_obj-obj)/dmu
-        print(dobjdmu2)
-        print(_dobjdmu2)
-        import sys 
-        sys.exit()
         #
         dvdmu1[:] = 1-muPhys[:,1]
         dvdmu2[:] = 1-muPhys[:,0]
@@ -192,7 +173,16 @@ def main(nelx,nely,volfrac,penal,rmin,ft,
             dvdmu2[:] = np.asarray(H*(dvdmu2[np.newaxis].T/Hs))[:,0]
         # Optimality criteria
         muold[:]=mu
-        mu[:],g=oc(mu,volfrac,dobjdmu1,dobjdmu2,dvdmu1,dvdmu2,g)
+        mu[:],g=oc(mu,
+                   volfrac,
+                   dobjdmu1,
+                   dobjdmu2,
+                   dvdmu1,
+                   dvdmu2,
+                   g, 
+                   ft,
+                   H, 
+                   Hs)
         # Filter design variables
         if ft==0:   
             muPhys[:]=mu
@@ -200,23 +190,31 @@ def main(nelx,nely,volfrac,penal,rmin,ft,
             muPhys[:,0]=np.asarray(H*mu[:,0][np.newaxis].T/Hs)[:,0]
             muPhys[:,1]=np.asarray(H*mu[:,1][np.newaxis].T/Hs)[:,0]
         # Compute the change by the inf. norm
-        change=np.abs(mu-muold).max()
+        change[1]=np.abs(mu-muold).max()
         # Plot to screen
         rho = muPhys[:,0]+muPhys[:,1]-muPhys[:,0]*muPhys[:,1]
         im.set_array(-rho.reshape((nely,nelx),order="F"))
         fig.canvas.draw()
         plt.pause(0.01)
         # Write iteration history to screen (req. Python 2.6 or newer)
-        print("it.: {0} , obj.: {1:.10f} Vol.: {2:.10f}, ch.: {3:.10f}".format(\
-                    loop,obj,rho.mean(),change))
-        #if loop%50:
-        #    c0 = c0 /10
+        print("it.: {0} , obj.: {1:.10f} Vol.: {2:.10f}, ch. ang.: {3:.10f}, ch. mu.: {4:.10f}".format(\
+                    loop,obj,rho.mean(),change[0],change[1]))
+        if E0 >= 1.001e-6 and loop % 50 == 0:
+            E0 *= 0.1
+            c0 = E0 / (1-nu**2) * np.array([[1,nu,0],
+                                            [nu,1,0],
+                                            [0,0,(1-nu)/2]])[None,:,:]
+            change[1] = 1.0
     # Make sure the plot stays and that the shell remains    
     plt.show()
     input("Press any key...")
     return 
 # matrix filter
-def assemble_filter(rmin,el,nelx,nely):
+def assemble_filter(rmin: float,
+                    el: np.ndarray,
+                    nelx: int,
+                    nely: int
+                    ) -> Tuple[csc_matrix,np.matrix]:
     """
     Assemble matrix filter.
     
@@ -233,10 +231,10 @@ def assemble_filter(rmin,el,nelx,nely):
         
     Returns
     -------
-    xnew : np.array, shape (nel)
-        updatet element densities for topology optimization.
-    gt : float
-        updated parameter for the heuristic updating scheme..
+    H : csc_matrix
+        matrix filter.
+    Hs : np.matrix
+        array for normalizion.
 
     """
     # Filter: Build (and assemble) the index+data vectors for the coo matrix format
@@ -264,7 +262,7 @@ def assemble_filter(rmin,el,nelx,nely):
     H = coo_matrix((sH, (iH, jH)), shape=(nelx*nely, nelx*nely)).tocsc()
     Hs = H.sum(1)
     return H,Hs
-def Rv_2d(theta):
+def Rv_2d(theta: np.ndarray) -> np.ndarray:
     """
     2D rotation matrix for tensors of 2nd order ("Voigt vectors") and 4th order 
     ("Voigt matrices"). 
@@ -286,7 +284,7 @@ def Rv_2d(theta):
                             np.sin(2*theta), -np.sin(2*theta), np.cos(2*theta)))\
           .reshape((theta.shape[0],3,3))
 #element stiffness matrix
-def lk(c):
+def lk(c: np.ndarray) -> np.ndarray:
     """
     Create element stiffness matrix for 2D anisotropic linear elasticity with 
     bilinear quadrilateral elements. 
@@ -388,7 +386,7 @@ def rank2_2d(mu1,mu2,nu,E):
     c : np.ndarray, shape (nel,3,3)
         stiffness tensor.
     """
-    factor = E/(1-mu2+((mu1*mu2)*(1-nu)))
+    factor = E/(1-mu2+((mu1*mu2)*(1-nu**2)))
     _0 = np.zeros(mu1.shape)
     return factor[:,None,None] * np.column_stack((mu1,mu1*mu2*nu,_0,
                                                   mu1*mu2*nu,mu2*(1-mu2+(mu1*mu2)),_0,
@@ -414,8 +412,8 @@ def rank2_2d_dmu1(mu1,mu2,nu,E):
     dcdmu1 : np.ndarray, shape (nel,3,3)
         stiffness tensor.
     """
-    factor = E/(1-mu2+mu1*mu2*(1-nu))
-    factordmu1 = (-1) * E / (1-mu2+mu1*mu2*(1-nu))**2 * (mu2*(1-nu))
+    factor = E/(1-mu2+mu1*mu2*(1-nu**2))
+    factordmu1 = (-1) * E / (1-mu2+mu1*mu2*(1-nu**2))**2 * (mu2*(1-nu**2))
     _0 = np.zeros(mu1.shape)
     A = np.column_stack((mu1, mu1*mu2*nu, _0,
                          mu1*mu2*nu, mu2*(1-mu2+mu1*mu2), _0,
@@ -445,8 +443,8 @@ def rank2_2d_dmu2(mu1,mu2,nu,E):
     dcdmu2 : np.ndarray, shape (nel,3,3)
         stiffness tensor.
     """
-    factor = E/(1-mu2+mu1*mu2*(1-nu))
-    factordmu2 = (-E) / (1-mu2+mu1*mu2*(1-nu))**2 * (mu1*(1-nu)-1)
+    factor = E/(1-mu2+mu1*mu2*(1-nu**2))
+    factordmu2 = (-E) / (1-mu2+mu1*mu2*(1-nu**2))**2 * (mu1*(1-nu**2)-1)
     _0 = np.zeros(mu1.shape)
     A = np.column_stack((mu1, mu1*mu2*nu, _0,
                          mu1*mu2*nu, mu2*(1-mu2+mu1*mu2), _0,
@@ -456,7 +454,17 @@ def rank2_2d_dmu2(mu1,mu2,nu,E):
                              _0, _0, _0)).reshape(mu1.shape[0],3,3)
     return factordmu2[:,None,None] * A + factor[:,None,None] * Admu2 
 # Optimality criterion
-def oc(mu,volfrac,dobjdmu1,dobjdmu2,dvdmu1,dvdmu2,g):
+def oc(mu: np.ndarray,
+       volfrac: float,
+       dobjdmu1: np.ndarray,
+       dobjdmu2: np.ndarray,
+       dvdmu1: np.ndarray,
+       dvdmu2: np.ndarray,
+       g: float, 
+       ft: int,
+       H :  csc_matrix,
+       Hs : np.matrix, 
+       ) -> np.ndarray:
     """
     Optimality criteria method (section 2.2 in top88 paper) for maximum/minimum 
     stiffness/compliance. Heuristic updating scheme for the element densities 
@@ -492,11 +500,14 @@ def oc(mu,volfrac,dobjdmu1,dobjdmu2,dvdmu1,dvdmu2,g):
     """
     l1=0
     l2=1e5
-    move=0.05
+    move=0.1
     # reshape to perform vector operations
     munew=np.zeros(mu.shape)
+    if ft==1:
+        muPhys = np.zeros(mu.shape)
     if (dobjdmu1>=0).any() or (dobjdmu2>=0).any():
-        raise ValueError("Still something wrong")
+        raise ValueError("Still something wrong: ", 
+                         dobjdmu1.min(), dobjdmu2.min())
     while (l2-l1)/(l1+l2)>1e-3:
         lmid=0.5*(l2+l1)
         munew[:,0]= np.maximum(0.,
@@ -509,7 +520,12 @@ def oc(mu,volfrac,dobjdmu1,dobjdmu2,dvdmu1,dvdmu2,g):
                                        np.minimum(1.,
                                                   np.minimum(mu[:,1]+move,
                                                              mu[:,1]*np.sqrt(-dobjdmu2/dvdmu2/lmid)))))
-        rho = munew[:,0]+munew[:,1] - (munew[:,0]*munew[:,1])
+        if ft==1:    
+            muPhys[:,0]=np.asarray(H*munew[:,0][np.newaxis].T/Hs)[:,0]
+            muPhys[:,1]=np.asarray(H*munew[:,1][np.newaxis].T/Hs)[:,0]
+            rho = muPhys[:,0]+muPhys[:,1] - (muPhys[:,0]*muPhys[:,1])
+        else:
+            rho = munew[:,0]+munew[:,1] - (munew[:,0]*munew[:,1])
         gt=(rho-volfrac).mean()
         if gt>0 :
             l1=lmid
@@ -519,8 +535,8 @@ def oc(mu,volfrac,dobjdmu1,dobjdmu2,dvdmu1,dvdmu2,g):
 # The real main driver    
 if __name__ == "__main__":
     # Default input parameters
-    nelx=1
-    nely=1
+    nelx=60
+    nely=20
     volfrac=0.5
     rmin=2.4
     penal=3.0
