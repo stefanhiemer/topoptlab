@@ -114,7 +114,7 @@ def main(nelx: int, nely: int,
                                 "meshfile": None},
          nelz: Union[None,int] = None,
          initial_guess: Union[None,Dict[str, np.ndarray]] = None,
-         filter_mode: str = "matrix",
+         filter_mode: str = "convolution",
          lin_solver_kw: Dict = {"name": "scipy-direct"}, 
          preconditioner_kw: Dict = {"name": None},
          assembly_mode: str = "full",
@@ -364,17 +364,6 @@ def main(nelx: int, nely: int,
         xPhys = x.copy()
     else:
         xPhys = initial_guess["xPhys"]
-    # intermediate filter variables
-    if isinstance(ft, list):
-        xTilde = []
-        for i in range(len(ft) - 1):
-            key = f" xTilde-{i}"
-            if initialguess_keys is None or key not in initialguess_keys:
-                xTilde.append(x.copy())
-            else:
-                xTilde.append(initial_guess[key])
-    else:
-        xTilde = None
     # precompute prescribed-element masks for filter policy corrections
     passive_mask    = None
     active_mask     = None
@@ -395,6 +384,8 @@ def main(nelx: int, nely: int,
                         "type": "leq",
                         "value": volfrac,
                         "kw":   {}}] + list(constraints)
+        if ft == 0:
+            constraints[0]["filter"] = False
     # fill missing optional keys and check types
     check_constraints(constraints)
     # MMA/GCMMA only handle inequalities: split equality constraints into two
@@ -522,10 +513,20 @@ def main(nelx: int, nely: int,
     # convolution filter.
     if ndim == 2:
         mapping = partial(map_eltoimg,
-                          nelx=nelx,nely=nely)
+                          nelx=nelx,
+                          nely=nely)
+        invmapping = partial(map_imgtoel, 
+                             nelx=nelx, 
+                             nely=nely)
     elif ndim == 3:
         mapping = partial(map_eltovoxel,
-                          nelx=nelx,nely=nely,nelz=nelz)
+                          nelx=nelx,
+                          nely=nely,
+                          nelz=nelz)
+        invmapping = partial(map_voxeltoel, 
+                             nelx=nelx, 
+                             nely=nely, 
+                             nelz=nelz)
     # prepare functions to invert this mapping if we use the convolution filter
     if not isinstance(ft, (int,list)) and issubclass(ft, TOFilter):
         ft = [ft(nelx=nelx,nely=nely,nelz=nelz,
@@ -546,35 +547,35 @@ def main(nelx: int, nely: int,
                      el_flags_policy=el_flags_policy,
                      **filter_kw) \
               for ft_obj in ft]
-    elif isinstance(ft, int) and ft == 0:
+    elif isinstance(ft, int):
         # convert integer ft code to list of TOFilter objects
-        # NOTE: temporary — all filters share the same kw; in general each
-        # filter may receive its own keyword dict via filter_args
         _ft_kw = dict(nelx=nelx, nely=nely, nelz=nelz,
                       filter_mode=filter_mode,
                       rmin=rmin,
                       n_constr=n_constr,
                       l=l,
-                      el_flags=el_flags,
-                      el_flags_policy=el_flags_policy,
-                      **filter_kw)
-        ft = fetch_filters(ft=ft, filter_args=[_ft_kw, _ft_kw])
-    elif isinstance(ft, int) and ft >= 1:
-        # convert integer ft code to list of TOFilter objects
-        # NOTE: temporary — all filters share the same kw; in general each
-        # filter should receive its own keyword dict via filter_args
-        _ft_kw = dict(nelx=nelx, nely=nely, nelz=nelz,
-                      filter_mode=filter_mode,
-                      rmin=rmin,
-                      n_constr=n_constr,
-                      l=l,
+                      mapping=mapping, 
+                      invmapping=invmapping,
                       constraint_filter_mask=_constr_filter_mask,
                       el_flags=el_flags,
                       el_flags_policy=el_flags_policy,
                       **filter_kw)
-        ft = fetch_filters(ft=ft, filter_args=[_ft_kw, _ft_kw])
+        ft = fetch_filters(ft=ft, 
+                           filter_args=[_ft_kw])
+        #filter_kw = [_ft_kw]*len(ft)
     else:
         raise ValueError(f"Unknown filter. ft: {ft} filter_mode {filter_mode}")
+    # intermediate filter variables
+    if isinstance(ft, list):
+        xTilde = []
+        for i in range(len(ft) - 1):
+            key = f" xTilde-{i}"
+            if initialguess_keys is None or key not in initialguess_keys:
+                xTilde.append(x.copy())
+            else:
+                xTilde.append(initial_guess[key])
+    else:
+        xTilde = None
     # BC's and support
     u,f,fixed,free,springs = bcs(nelx=nelx,nely=nely,nelz=nelz,
                                  ndof=ndof)
@@ -699,6 +700,8 @@ def main(nelx: int, nely: int,
                                                 Kes=Kes,
                                                 matinterpol=matinterpol,
                                                 matinterpol_kw=matinterpol_kw,
+                                                mapping=mapping, 
+                                                invmapping=invmapping,
                                                 cellVolume=cellVolume, 
                                                 **obj_kw)
                 # if problem not self adjoint, solve for adjoint variables and
@@ -759,6 +762,8 @@ def main(nelx: int, nely: int,
                                                        Kes=Kes,
                                                        matinterpol=matinterpol,
                                                        matinterpol_kw=matinterpol_kw,
+                                                       mapping=mapping, 
+                                                       invmapping=invmapping,
                                                        cellVolume=cellVolume,
                                                        **c["kw"])
                 # depends only on xPhys or any design variable: rhs_adj_c is already the gradient
@@ -812,7 +817,8 @@ def main(nelx: int, nely: int,
         #
         log.debug("Pre-Sensitivity Filter: it.: {0}, min(dobj): {1:.10f}, max(dobj): {2:.10f}, dv: {3:.10f}".format(
                   loop, 
-                  np.min(dobj), np.max(dobj), 
+                  np.min(dobj), 
+                  np.max(dobj), 
                   np.min(dconstrs)))
         # sensitivity filtering
         if isinstance(ft, list):
@@ -1029,4 +1035,4 @@ def main(nelx: int, nely: int,
     if output_kw["display"] and output_kw["save_pdf"]:
         fig.savefig(output_kw["file"]+".pdf", 
                     **output_kw["pdf_kw"])
-    return x, xTilde, xPhys, obj 
+    return x, xTilde, xPhys, obj

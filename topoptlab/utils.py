@@ -273,6 +273,8 @@ def check_optimizer_kw(optimizer: str,
                                       n_constr = n_constr)
     elif optimizer in ["oc","ocm","oc88","ocg"]:
         default_kw = {}
+    else:
+        raise NotImplementedError("unknown optimizer: ", optimizer)
     #
     missing_keys = set(default_kw.keys()) - set(optimizer_kw.keys())
     for key in missing_keys:

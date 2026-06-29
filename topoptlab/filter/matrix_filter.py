@@ -1,10 +1,11 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any,List,Tuple,Union
+from typing import Any,Callable,List,Tuple,Union
 
 import numpy as np
 from scipy.sparse import coo_matrix,csc_matrix
 
 from topoptlab.filter.filter import TOFilter
+from topoptlab.filter.kernels import hat_kernel
 
 class MatrixFilter(TOFilter):
     """
@@ -22,6 +23,7 @@ class MatrixFilter(TOFilter):
                  nely: int,
                  n_constr: int,
                  rmin: float,
+                 kernel_fn: Callable,
                  nelz: Union[int, None] = None,
                  pbc: Union[bool, List, np.ndarray] = False,
                  filter_objective: bool = True,
@@ -43,6 +45,8 @@ class MatrixFilter(TOFilter):
             number of constraints.
         rmin : float
             cutoff radius for the filter.
+        kernel_fn : callable
+            weighting kernel passed to the underlying filter assembly.
         nelz : int or None
             number of elements in z direction.
         pbc : bool, list or np.ndarray
@@ -65,6 +69,7 @@ class MatrixFilter(TOFilter):
         """
         self.H, self.Hs = assemble_matrix_filter(nelx=nelx,
                                                   nely=nely,
+                                                  kernel_fn=kernel_fn,
                                                   nelz=nelz,
                                                   rmin=rmin,
                                                   pbc=pbc,
@@ -91,12 +96,12 @@ class MatrixFilter(TOFilter):
         Parameters
         ----------
         x : np.ndarray
-            (intermediate) design variables.
+            (intermediate) design variables, shape (n, k) where k >= 1.
 
         Returns
         -------
         x_filtered : np.ndarray
-            filtered design variables.
+            filtered design variables, shape (n, k).
 
         """
         return np.asarray(self.H*x/self.Hs)
@@ -118,12 +123,14 @@ class MatrixFilter(TOFilter):
         Parameters
         ----------
         dx_filtered : np.ndarray
-            sensitivities with respect to filtered design variables.
-            
+            sensitivities with respect to filtered design variables,
+            shape (n, k).
+
         Returns
         -------
         dx : np.ndarray
-            design sensitivities with respect to un-filtered design variables.
+            design sensitivities with respect to un-filtered design variables,
+            shape (n, k).
         """
         return np.asarray(self.H*(dx_filtered/self.Hs))
     
@@ -167,6 +174,8 @@ def assemble_matrix_filter(nelx: int,
                            pbc: Union[bool,List,np.ndarray] = False,
                            el_flags: Union[None, np.ndarray] = None,
                            el_flags_policy: Union[None, dict] = None,
+                           kernel_fn: Union[Callable, None] = None,
+                           compute_coords: bool = True,
                            **kwargs: Any) -> Tuple[csc_matrix,np.matrix]:
     """
     Assemble distance based filters as sparse matrix that is applied on to
@@ -184,9 +193,19 @@ def assemble_matrix_filter(nelx: int,
         for each dimension.
     nelz : int or None
         number of elements in z direction.
-    pbc : bool, list or np.ndarray 
+    pbc : bool, list or np.ndarray
         flag for periodic boundary conditions.
-        
+    kernel_fn : callable
+        function that maps stencil offset coordinates to weights. When
+        compute_coords is True (default), called as kernel_fn(x, y, rmin) in
+        2D or kernel_fn(x, y, rmin, z) in 3D with the stencil offset arrays
+        and the effective scalar rmin. When compute_coords is False, called as
+        kernel_fn(rmin) and must return the weight array for all stencil
+        offsets directly.
+    compute_coords : bool
+        if True (default), stencil offset coordinate arrays are computed and
+        passed to kernel_fn. If False, kernel_fn is called with rmin only.
+
     Returns
     -------
     H : csc.matrix
@@ -252,8 +271,18 @@ def assemble_matrix_filter(nelx: int,
     neighbors = [np.arange(-d,d+1) for d in dx]
     neighbors = [n.flatten() for n in np.meshgrid(*neighbors, indexing='ij')]
     neighbors = np.column_stack(neighbors)
-    # calculate distance for neighbors
-    r = np.linalg.norm(neighbors, axis=1, ord=2)
+    # compute kernel weights for each stencil offset
+    effective_rmin = np.linalg.norm(rmin, ord=2) / np.sqrt(ndim)
+    if compute_coords:
+        if ndim == 2:
+            sH_stencil = kernel_fn(x=neighbors[:, 0], y=neighbors[:, 1],
+                                   z=None,
+                                   rmin=effective_rmin)
+        else:
+            sH_stencil = kernel_fn(x=neighbors[:, 0], y=neighbors[:, 1],
+                                   rmin=effective_rmin, z=neighbors[:, 2])
+    else:
+        sH_stencil = kernel_fn(rmin=effective_rmin)
     # create coordinates of neighbours for each element
     neighbors = coords[:,None,:] + neighbors[None,:,:]
     # apply boundary condtions
@@ -287,9 +316,7 @@ def assemble_matrix_filter(nelx: int,
     #
     iH = np.repeat(el, np.sum(inside,axis=1))
     jH = neighbors[inside].astype(int)
-    sH = np.tile(np.linalg.norm(rmin,ord=2) / np.sqrt(ndim)-r,
-                 (nel,1))[inside]
-    sH = np.maximum(sH,0.)
+    sH = np.tile(sH_stencil, (nel,1))[inside]
     # eliminate passive (1) and active (2) elements from filter matrix;
     # non-design elements (flag=3) are intentionally kept in the stencil.
     if el_flags is not None and el_flags_policy is not None and \
@@ -401,4 +428,4 @@ def assemble_matrix_filter_legacy(nelx: int, nely: int, rmin: float,
     H = coo_matrix((sH, (iH, jH)), shape=(n, n)).tocsc()
     # normalization constants
     Hs = H.sum(1)
-    return H,Hs
+    return H, Hs

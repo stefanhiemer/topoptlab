@@ -6,6 +6,7 @@ from topoptlab.filter.density_filter import DensityFilter
 from topoptlab.filter.haeviside_projectors import HaevisideProjectorGuest2004,\
                                                   HaevisideProjectorSigmund2007,\
                                                   EtaProjectorXu2010
+from topoptlab.filter.amfilter_langelaar import LangelaarFilter
 
 def fetch_filters(ft : int,
                   filter_args : List) -> List:
@@ -18,8 +19,9 @@ def fetch_filters(ft : int,
         1: density filter
         2: density filter + Guest Haeviside projection
         3: density filter + Sigmund Haeviside projection
-        4: density filter + eta projection with fixed eta (volume conserving 
+        4: density filter + eta projection (volume conserving 
                             eta depends on filter_args)
+        5: density filter + langelaar filter + eta projection
         -1: not filter
 
     Parameters
@@ -34,18 +36,29 @@ def fetch_filters(ft : int,
     filters : list
         list of collected, initialized TOfilters.
     """
-    filters = []
+    
     if ft == 0:
-        filters.append(SensitivityFilter(**filter_args[0]))
+        filters = [SensitivityFilter]
     elif ft == 1:
-        filters.append(DensityFilter(**filter_args[0]))
+        filters = [DensityFilter]
     elif ft == 2:
-        filters.append(DensityFilter(**filter_args[0]))
-        filters.append(HaevisideProjectorGuest2004(**filter_args[1]))
+        filters = [DensityFilter,
+                   HaevisideProjectorGuest2004]
     elif ft == 3:
-        filters.append(DensityFilter(**filter_args[0]))
-        filters.append(HaevisideProjectorSigmund2007(**filter_args[1]))
+        filters = [DensityFilter, 
+                   HaevisideProjectorSigmund2007]
     elif ft == 4:
-        filters.append(DensityFilter(**filter_args[0]))
-        filters.append(EtaProjectorXu2010(**filter_args[1]))
+        filters = [DensityFilter, 
+                   EtaProjectorXu2010]
+    elif ft == 5:
+        filters = [DensityFilter,
+                   LangelaarFilter,
+                   EtaProjectorXu2010]
+    else:
+        raise NotImplementedError("Unknown ft code: ", ft)
+    #
+    if len(filters) > 1 and len(filter_args) == 1:
+        filter_args = len(filters)*filter_args
+    #
+    filters = [f(**filter_args[i]) for i,f in enumerate(filters)]
     return filters

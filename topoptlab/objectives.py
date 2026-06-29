@@ -3,6 +3,10 @@ from typing import Any, Callable, Dict, Tuple, Union
 from warnings import warn
 
 import numpy as np
+from scipy.ndimage import correlate, convolve
+
+from topoptlab.aggregation import softmax_pnorm, softmax_pnorm_dx,\
+                                  softmax_ks, softmax_ks_dx
 
 def compliance(xPhys: np.ndarray, 
                u: np.ndarray, 
@@ -114,15 +118,16 @@ def compliance_squarederror(xPhys: np.ndarray,
 
 def vol_frac(xPhys: np.ndarray, 
              el_vols: Union[None,float,np.ndarray] = None,
+             col_ind: int = 0,
              **kwargs: Any) -> Tuple[float,np.ndarray,bool]:
     """
     """
     if el_vols is None:
-        return xPhys.mean(), np.full(xPhys.shape[0],1/xPhys.shape[0]), None
+        return xPhys[:,col_ind].mean(axis=0), np.full(xPhys.shape[0],1/xPhys.shape[0]), None
     else:
         raise NotImplementedError("Volume fraction objective is implemented for irregular meshes, but not yet tested")
         vol = el_vols.sum()
-        return (xPhys*el_vols).sum(axis=0) / vol, el_vols/vol, None 
+        return (xPhys*el_vols)[:,col_ind].sum(axis=0) / vol, el_vols/vol, None 
 
 def var_maximization(u: np.ndarray, 
                      l: np.ndarray, 
@@ -368,6 +373,7 @@ def stress_pnorm(u: np.ndarray,
         Element strain vector in Voigt notation for each element.
     **kwargs : dict
         Unused extra arguments for compatibility with the optimization driver.
+
     Returns
     -------
     obj : float
@@ -388,8 +394,8 @@ def stress_pnorm(u: np.ndarray,
     stress_pnorm = mean_sP ** (1.0 / Pnorm)  
 
     # Derivative of the p-norm objective with respect to the relaxed stress.   
-    coeff = (1.0 / n) * (mean_sP ** (1.0 / Pnorm - 1.0))
-    ds_p_ds_re = coeff * (stress_re**(Pnorm - 1.0))
+    coeff = (1. / n) * (mean_sP ** (1. / Pnorm - 1.))
+    ds_p_ds_re = coeff * (stress_re**(Pnorm - 1.))
     
     # Explicit derivative of the p-norm stress with respect to xPhys.
     # A mask is used to suppress the contribution exactly at very small
@@ -419,3 +425,119 @@ def stress_pnorm(u: np.ndarray,
     rhs_adj = np.zeros((u.shape[0], 1), dtype=u.dtype)
     np.add.at(rhs_adj[:, 0], edofMat,- ds_p_du)
     return obj, rhs_adj, ds_p_dxPhys, False
+
+def baseplate_slice(baseplate: str, 
+                    ndim: int) -> Tuple:
+    if ndim == 2:
+        table = {
+            "N": (0, slice(None)),
+            "S": (-1, slice(None)),
+            "E": (slice(None), -1),
+            "W": (slice(None), 0),
+        }
+    elif ndim == 3:
+        table = {
+            "B": (0, slice(None), slice(None)),
+            "U": (-1, slice(None), slice(None)),
+            "N": (slice(None), 0, slice(None)),
+            "S": (slice(None), -1, slice(None)),
+            "E": (slice(None), slice(None), -1),
+            "W": (slice(None), slice(None), 0),
+        }
+    else:
+        raise ValueError("ndim must be 2 or 3")
+
+    return table[baseplate]
+
+def am_angle(xPhys: np.ndarray, 
+             p: float, 
+             ks_exponent: float,
+             baseplate: str,
+             ndim: int,
+             invmapping: Callable,
+             mapping: Callable,
+             **kwargs: Any) -> Tuple[float, np.ndarray, np.ndarray, bool]:
+    # kernel for supporting region
+    kernel = np.zeros(ndim*[3])
+    slicing = baseplate_slice(baseplate=baseplate, 
+                              ndim=ndim)
+    kernel[slicing] = 1
+    # get soft maxmimum of supporting region
+    placeholder = invmapping(correlate(mapping(xPhys**p),
+                                       weights=kernel, 
+                                       axes=(0,1,2)[:ndim],
+                                       mode="constant",
+                                       cval=0.))
+    #
+    el_softmax = placeholder**(1/p)
+    # element-wise constraints 
+    el_constr = xPhys - el_softmax
+    # baseplate row always fulfills constraint.
+    el_constr = mapping(el_constr)
+    el_constr[slicing] = 0. 
+    el_constr = invmapping(el_constr)
+    # soft maximum of element-wise constraints 
+    softmax = softmax_ks(values=el_constr, 
+                         exponent=ks_exponent)
+    #
+    w = softmax_ks_dx(values=el_constr,
+                      exponent=ks_exponent)
+    # baseplate row always fulfills constraint.
+    w = mapping(w)
+    w[slicing] = 0.
+    w = invmapping(w)
+    #
+    mask = placeholder != 0
+    placeholder[mask] = placeholder[mask]**((1-p)/p)
+    #
+    softmax_dx = w - xPhys**(p-1) * \
+                 invmapping(convolve(mapping(w * placeholder), 
+                                      weights=kernel,
+                                      axes=(0,1,2)[:ndim],
+                                      mode="constant",
+                                      cval=0.))
+    #
+    softmax_dx[np.isnan(softmax_dx)] = 0.
+    return softmax, softmax_dx, None
+
+def generalized_stress(u: np.ndarray,
+                       i: int,
+                       edofMat: np.ndarray,
+                       B: np.ndarray,
+                       C_es: np.ndarray,
+                       xPhys: np.ndarray,
+                       stress_vm: np.ndarray,
+                       dsvm: np.ndarray,
+                       penal_sig: float,
+                       Pnorm: float,
+                       obj: float,
+                       dscale: np.ndarray,
+                       cs: np.ndarray,
+                       strain: np.ndarray,
+                       **kwargs: Any) -> Tuple[float, np.ndarray, np.ndarray, bool]:
+    #
+    stress = B@u[edofMat,i]
+    return
+
+if __name__ == "__main__":
+
+    from topoptlab.utils import map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel
+    from functools import partial 
+    #
+    test = np.array([0]+4*[1]+2*[0]+[1]+4*[0],order="F")[:,None]
+    #
+    mapping = partial(map_eltoimg,
+                      nelx=4,nely=3)
+    invmapping = partial(map_imgtoel,
+                         nelx=4,nely=3)
+
+    constr, dconstr,_ = am_angle(xPhys=test, 
+                                 p = 10.,
+                                 mapping=mapping,
+                                 invmapping=invmapping,
+                                 ndim=2,
+                                 baseplate="S")
+    #
+    print(constr)
+    #
+    print(mapping(dconstr))

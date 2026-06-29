@@ -4,6 +4,7 @@ import numpy as np
 from matplotlib import colors
 import matplotlib.pyplot as plt
 # functions to create filters
+from topoptlab.filter.kernels import hat_kernel
 from topoptlab.filter.matrix_filter import assemble_matrix_filter
 from topoptlab.filter.haeviside_projection import find_eta
 # default application case that provides boundary conditions, etc.
@@ -291,7 +292,8 @@ def main(nelx: int, nely: int, nelz: int | None,
         #
     if filter_mode == "matrix":
         H,Hs = assemble_matrix_filter(nelx=nelx,nely=nely,nelz=nelz,
-                                      rmin=rmin,ndim=ndim)
+                                      rmin=rmin,ndim=ndim, 
+                                      kernel_fn=hat_kernel)
     # BC's and support
     u,f,fixed,free,springs = bcs(nelx=nelx,nely=nely,nelz=nelz,
                                  ndof=ndof)

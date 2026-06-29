@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any,Tuple,Union
+from typing import Any,Callable,Tuple,Union
 
 import numpy as np
 
 from topoptlab.filter.filter import TOFilter
+from topoptlab.filter.kernels import hat_kernel
 from topoptlab.filter.matrix_filter import MatrixFilter
 from topoptlab.filter.helmholtz_filter import HelmholtzFilter
 from topoptlab.filter.convolution_filter import ConvolutionFilter
@@ -49,11 +50,12 @@ class DensityFilter(TOFilter):
                  rmin: float,
                  nelz: Union[int, None] = None,
                  filter_mode: str = "matrix",
-                 filter_objective : bool = True,
-                 constraint_filter_mask : Union[None,np.ndarray] = None,
+                 filter_objective: bool = True,
+                 constraint_filter_mask: Union[None, np.ndarray] = None,
                  el_flags: Union[None, np.ndarray] = None,
                  el_flags_policy: Union[None, dict] = None,
                  l: np.ndarray = np.array([1., 1.]),
+                 kernel_fn: Callable = hat_kernel,
                  **kwargs: Any) -> None:
         """
         Initialize filter and construct the filter if necessary
@@ -85,6 +87,9 @@ class DensityFilter(TOFilter):
             array of element flags (0 free, 1 passive, 2 active).
         el_flags_policy : None or dict
             policy dict controlling filter behaviour for prescribed elements.
+        kernel_fn : callable
+            weighting kernel passed to the underlying filter assembly.
+            Defaults to hat_kernel.
 
         Returns
         -------
@@ -101,7 +106,8 @@ class DensityFilter(TOFilter):
                                        rmin=rmin,
                                        nelz=nelz,
                                        el_flags=el_flags,
-                                       el_flags_policy=el_flags_policy)
+                                       el_flags_policy=el_flags_policy,
+                                       kernel_fn=kernel_fn)
         elif filter_mode == "helmholtz":
             self.filter = HelmholtzFilter(nelx=nelx,
                                           nely=nely,
@@ -109,6 +115,15 @@ class DensityFilter(TOFilter):
                                           rmin=rmin,
                                           nelz=nelz,
                                           l=l)
+        elif filter_mode == "convolution":
+            self.filter = ConvolutionFilter(nelx=nelx,
+                                            nely=nely,
+                                            n_constr=n_constr,
+                                            rmin=rmin,
+                                            nelz=nelz,
+                                            kernel_fn=kernel_fn)
+        else:
+            raise ValueError("Unknown filter_mode: ", filter_mode)
         #
         self._filter_objective = filter_objective
         if constraint_filter_mask is None:
@@ -131,12 +146,12 @@ class DensityFilter(TOFilter):
         Parameters
         ----------
         x : np.ndarray
-            unfiltered variables.
+            unfiltered variables, shape (n, k).
 
         Returns
         -------
         x_filtered : np.ndarray
-            filtered design variables.
+            filtered design variables, shape (n, k).
 
         """
         return self.filter.apply_filter(x=x)
@@ -156,12 +171,14 @@ class DensityFilter(TOFilter):
         Parameters
         ----------
         dx_filtered : np.ndarray
-            sensitivities with respect to filtered design variables.
-            
+            sensitivities with respect to filtered design variables,
+            shape (n, k).
+
         Returns
         -------
         dx : np.ndarray
-            design sensitivities with respect to un-filtered design variables.
+            design sensitivities with respect to un-filtered design variables,
+            shape (n, k).
         """
         return self.filter.apply_filter_dx(x_filtered=None,
                                            dx_filtered=dx_filtered)

@@ -168,6 +168,81 @@ def scale_move_limit(filter_kw: Dict,
                 optimizer_kw["move"], filter_kw["beta"]))
     return True
 
+def scaling(change: float,
+            loop: int,
+            key: str,
+            filter_kw: Dict,
+            conv_tol: float,
+            scale: float = 2.0,
+            limit: float = 64.0,
+            update: int = 50,
+            state: Union[None, Dict] = None,
+            logger: Union[EmptyLogger,SimpleLogger] = EmptyLogger(),
+            **kwargs: Any) -> bool:
+    """
+    Continuation scheme for the Heaviside projection parameter beta.
+
+    Increases ``filter_kw[key]`` by scaling by ``scale`` whenever the 
+    change metric falls below ``conv_tol`` or the iteration counter since the 
+    last beta update reaches ``key_update``.  Signals termination once
+    ``limit`` is reached and the change is below ``conv_tol``.
+
+    The iteration counter is maintained in-place in ``state[key+"_loop"]``,
+    which is initialised automatically on the first call if ``state`` is an
+    empty dict.  Pass the same dict object every call so state persists.
+
+    Parameters
+    ----------
+    change : float
+        current value of the convergence metric.
+    loop : int
+        current iteration index.
+    filter_kw : dict
+        filter keyword dictionary. Must contain ``"beta"``, updated in-place.
+    conv_tol : float
+        convergence tolerance. Continuation is triggered when
+        ``change < conv_tol``.
+    beta_scale : float
+        multiplicative factor applied to ``filter_kw["beta"]`` at each
+        continuation step (default 2.0).
+    beta_limit : float
+        upper bound on beta; terminates once reached and converged
+        (default 64.0).
+    beta_update : int
+        maximum number of iterations between forced beta updates, even if
+        convergence has not been reached (default 50).
+    state : dict or None
+        mutable dict for persisting the per-call iteration counter
+        ``"beta_loop"``.  Pass the same dict every call; it is initialised
+        automatically if empty or None.
+    logger : BaseLogger
+        logger object to log performance.
+
+    Returns
+    -------
+    stop : bool
+        True if continuation finished and design converged.
+    """
+    if "beta" not in filter_kw:
+        raise ValueError(f'"{key}" is not in filter_kw: ', filter_kw.keys())
+    if state is None:
+        state = {}
+    state.setdefault(key+"_loop", 0)
+    state[key+"_loop"] += 1
+    if change < conv_tol and \
+       filter_kw[key] >= limit:
+        stop = True
+    elif (change < conv_tol or \
+          state["beta_loop"] >= update) and \
+          filter_kw["beta"] < limit:
+        filter_kw[key] *= scale
+        state[key+"_loop"] = 0
+        logger.info("{0} increased.: {1: .1f}".format(key,filter_kw[key]))
+        stop = False
+    else:
+        stop = False
+    return stop
+
 def beta_scaling(change: float,
                  loop: int,
                  filter_kw: Dict,
@@ -181,9 +256,9 @@ def beta_scaling(change: float,
     """
     Continuation scheme for the Heaviside projection parameter beta.
 
-    Increases ``filter_kw["beta"]`` by ``beta_scale`` whenever the change
-    metric falls below ``conv_tol`` or the iteration counter since the last
-    beta update reaches ``beta_update``.  Signals termination once
+    Increases ``filter_kw["beta"]`` by scaling by ``beta_scale`` whenever the 
+    change metric falls below ``conv_tol`` or the iteration counter since the 
+    last beta update reaches ``beta_update``.  Signals termination once
     ``beta_limit`` is reached and the change is below ``conv_tol``.
 
     The iteration counter is maintained in-place in ``state["beta_loop"]``,
@@ -242,6 +317,80 @@ def beta_scaling(change: float,
         stop = False
     return stop
 
+def beta_translation(change: float,
+                     loop: int,
+                     filter_kw: Dict,
+                     conv_tol: float,
+                     beta_translation: float = 1.0,
+                     beta_limit: float = 64.0,
+                     beta_update: int = 50,
+                     state: Union[None, Dict] = None,
+                     logger: Union[EmptyLogger,SimpleLogger] = EmptyLogger(),
+                     **kwargs: Any) -> bool:
+    """
+    Continuation scheme for the Heaviside projection parameter beta.
+
+    Increases ``filter_kw["beta"]`` by adding ``beta_translation`` 
+    whenever the change metric falls below ``conv_tol`` or the iteration 
+    counter since the last beta update reaches ``beta_update``.  Signals 
+    termination once ``beta_limit`` is reached and the change is below 
+    ``conv_tol``.
+
+    The iteration counter is maintained in-place in ``state["beta_loop"]``,
+    which is initialised automatically on the first call if ``state`` is an
+    empty dict.  Pass the same dict object every call so state persists.
+
+    Parameters
+    ----------
+    change : float
+        current value of the convergence metric.
+    loop : int
+        current iteration index.
+    filter_kw : dict
+        filter keyword dictionary. Must contain ``"beta"``, updated in-place.
+    conv_tol : float
+        convergence tolerance. Continuation is triggered when
+        ``change < conv_tol``.
+    beta_translation : float
+        multiplicative factor applied to ``filter_kw["beta"]`` at each
+        continuation step (default 2.0).
+    beta_limit : float
+        upper bound on beta; terminates once reached and converged
+        (default 64.0).
+    beta_update : int
+        maximum number of iterations between forced beta updates, even if
+        convergence has not been reached (default 50).
+    state : dict or None
+        mutable dict for persisting the per-call iteration counter
+        ``"beta_loop"``.  Pass the same dict every call; it is initialised
+        automatically if empty or None.
+    logger : BaseLogger
+        logger object to log performance.
+
+    Returns
+    -------
+    stop : bool
+        True if continuation finished and design converged.
+    """
+    if "beta" not in filter_kw:
+        raise ValueError('"beta" is not in filter_kw: ', filter_kw)
+    if state is None:
+        state = {}
+    state.setdefault("beta_loop", 0)
+    state["beta_loop"] += 1
+    if change < conv_tol and \
+       filter_kw["beta"] >= beta_limit:
+        stop = True
+    elif (change < conv_tol or \
+          state["beta_loop"] >= beta_update) and \
+          filter_kw["beta"] < beta_limit:
+        filter_kw["beta"] += beta_translation
+        state["beta_loop"] = 0
+        logger.info("beta increased.: {0: .1f}".format(filter_kw["beta"]))
+        stop = False
+    else:
+        stop = False
+    return stop
 
 def dunning_beta_continuation(change: float,
                               loop: int,

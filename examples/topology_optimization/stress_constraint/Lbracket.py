@@ -4,6 +4,7 @@ import numpy as np
 from matplotlib import colors
 import matplotlib.pyplot as plt
 # functions to create filters
+from topoptlab.filter.kernels import hat_kernel
 from topoptlab.filter.matrix_filter import assemble_matrix_filter
 from topoptlab.filter.haeviside_projection import find_eta
 # default application case that provides boundary conditions, etc.
@@ -302,7 +303,8 @@ def main(nelx: int, nely: int, nelz: int | None,
                                       nely=nely,
                                       nelz=nelz,
                                       rmin=rmin,
-                                      ndim=ndim)
+                                      ndim=ndim, 
+                                      kernel_fn=hat_kernel)
     else:
         raise ValueError("this tutorial only permits filter_mode 'matrix'.")
 

@@ -7,6 +7,7 @@ from scipy.sparse import spmatrix,sparray
 
 import pytest
 
+from topoptlab.filter.kernels import hat_kernel
 from topoptlab.filter.convolution_filter import assemble_convolution_filter 
 from topoptlab.filter.matrix_filter import assemble_matrix_filter
 from topoptlab.filter.density_filter import DensityFilter
@@ -85,7 +86,8 @@ def test_normalization(nelx,nely,nelz,rmin,filter_mode):
     desired = x.sum()
     if filter_mode == "matrix":
         H,Hs = assemble_matrix_filter(nelx=nelx,nely=nely,nelz=nelz,
-                                      rmin=rmin,ndim=ndim)
+                                      rmin=rmin,ndim=ndim, 
+                                      kernel_fn=hat_kernel)
         if isinstance(H,spmatrix):
             actual = asarray(H*x/Hs)
         elif isinstance(H,sparray):
@@ -94,7 +96,8 @@ def test_normalization(nelx,nely,nelz,rmin,filter_mode):
         h,hs = assemble_convolution_filter(nelx=nelx,nely=nely,nelz=nelz,
                                            rmin=rmin,
                                            mapping=mapping,
-                                           invmapping=invmapping)
+                                           invmapping=invmapping, 
+                                           kernel_fn=hat_kernel)
         actual = invmapping(convolve(mapping(x),
                                      h,
                                      mode="constant",axes=(0,1,2)[:ndim],
@@ -133,11 +136,11 @@ def test_consistency(nelx,nely,nelz,rmin):
                              nelx=nelx,nely=nely,nelz=nelz)
     #
     seed(0)
-    x = rand(n,1).flatten(order="F")
+    x = rand(n,1)
     # matrix filter
     H,Hs = assemble_matrix_filter(nelx=nelx,nely=nely,nelz=nelz,
-                                  rmin=rmin,ndim=ndim)
-
+                                  rmin=rmin,ndim=ndim, 
+                                  kernel_fn=hat_kernel)
     if isinstance(H,spmatrix):
         desired = asarray(H*x/Hs)
     elif isinstance(H,sparray):
@@ -146,7 +149,8 @@ def test_consistency(nelx,nely,nelz,rmin):
     h,hs = assemble_convolution_filter(nelx=nelx,nely=nely,nelz=nelz,
                                        rmin=rmin,
                                        mapping=mapping,
-                                       invmapping=invmapping)
+                                       invmapping=invmapping, 
+                                       kernel_fn=hat_kernel)
     actual = invmapping(convolve(mapping(x),
                                  h,
                                  mode="constant",axes=(0,1,2)[:ndim],

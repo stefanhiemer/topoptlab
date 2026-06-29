@@ -1,10 +1,143 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Union
+from functools import partial
+from typing import Any, Callable, Union
 
 import numpy as np
 from scipy.sparse import csc_array
 
-def AMfilter(x: np.ndarray, baseplate: str = 'S',
+from topoptlab.filter.filter import TOFilter
+from topoptlab.utils import map_eltoimg, map_imgtoel
+
+
+class LangelaarFilter(TOFilter):
+    """
+    Additive manufacturing filter by
+
+    Langelaar, Matthijs. "An additive manufacturing filter for topology
+    optimization of print-ready designs." Structural and multidisciplinary
+    optimization 55 (2017): 871-883.
+
+    Wraps the AMfilter function as a TOFilter. Only 2D is supported.
+    """
+
+    def __init__(self,
+                 nelx: int,
+                 nely: int,
+                 n_constr: int,
+                 mapping: Callable, 
+                 invmapping: Callable,
+                 baseplate: str = 'S',
+                 filter_objective: bool = True,
+                 constraint_filter_mask: Union[None, np.ndarray] = None,
+                 nelz: Union[None, int] = None,
+                 **kwargs: Any) -> None:
+        """
+        Parameters
+        ----------
+        nelx : int
+            number of elements in x direction.
+        nely : int
+            number of elements in y direction.
+        n_constr : int
+            number of constraints.
+        mapping : callable
+            maps 1D design variable array of shape (n, k) to a 3D array of
+            shape (nely, nelx, k) suitable for the AM filter.
+        invmapping : callable
+            inverse of mapping; maps (nely, nelx, k) back to (n, k).
+        baseplate : str
+            baseplate orientation: 'N', 'E', 'S' (default), 'W', or 'X'
+            (bypass).
+        filter_objective : bool
+            if True, filter is applied to objective sensitivities.
+        constraint_filter_mask : None or np.ndarray of shape (n_constr,)
+            if None, filter is applied to all constraint sensitivities.
+        nelz : int or None
+            must be None; 3D is not supported.
+        """
+        #
+        if nelz is not None:
+            raise NotImplementedError("AMFilter is only implemented for 2D.")
+        #
+        self.baseplate = baseplate
+        self.mapping = mapping
+        self.invmapping = invmapping
+        self._filter_objective = filter_objective
+        #
+        if constraint_filter_mask is None:
+            self._constraint_filter_mask = np.ones(n_constr, dtype=bool)
+        elif isinstance(constraint_filter_mask, np.ndarray) and \
+                constraint_filter_mask.shape == (n_constr,):
+            self._constraint_filter_mask = constraint_filter_mask
+        else:
+            raise TypeError(
+                "constraint_filter_mask must be None or np.ndarray of shape (n_constr,).")
+
+    def apply_filter(self, x: np.ndarray, **kwargs: Any) -> np.ndarray:
+        """
+        Apply the AM filter to design variables x.
+
+        Parameters
+        ----------
+        x : np.ndarray
+            (intermediate) design variables, shape (n, k) where k >= 1.
+
+        Returns
+        -------
+        x_filtered : np.ndarray
+            printable design densities, shape (n, k).
+        """
+        return self.invmapping(AMfilter(self.mapping(x), 
+                                        baseplate=self.baseplate))
+
+    def apply_filter_dx(self,
+                        x: np.ndarray,
+                        x_filtered: np.ndarray,
+                        dx_filtered: np.ndarray,
+                        **kwargs: Any) -> np.ndarray:
+        """
+        Chain-rule pullback of sensitivities through the AM filter.
+
+        Parameters
+        ----------
+        x : np.ndarray
+            unfiltered design variables, shape (n, k).
+        x_filtered : np.ndarray
+            not used; kept for interface compatibility.
+        dx_filtered : np.ndarray
+            sensitivities with respect to filtered design variables,
+            shape (n, k).
+
+        Returns
+        -------
+        dx : np.ndarray
+            sensitivities with respect to x, shape (n, k).
+        """
+        return self.invmapping(AMfilter(self.mapping(x), 
+                               baseplate=self.baseplate, 
+                               sensitivities=self.mapping(dx_filtered)))
+
+    @property
+    def vol_conserv(self) -> bool:
+        return False
+
+    @property
+    def filter_objective(self) -> bool:
+        return self._filter_objective
+
+    @property
+    def constraint_filter_mask(self) -> np.ndarray:
+        return self._constraint_filter_mask
+
+    @property
+    def changes_filter_kw(self) -> bool:
+        return False
+
+    def update_filter_kw(self, filter_kw: dict) -> None:
+        return
+
+def AMfilter(x: np.ndarray, 
+             baseplate: str = 'S',
              sensitivities: Union[np.ndarray,None] = None) -> np.ndarray:
     """
     Applies the filter by

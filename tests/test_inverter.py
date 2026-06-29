@@ -11,6 +11,8 @@ from topoptlab.objectives import var_maximization
 @pytest.mark.parametrize('ft, rmin, filter_mode, obj_ref',
                          [(0,1.2,"matrix",-1.117),
                           (1,1.2,"matrix",-1.022),
+                          (0,1.2,"convolution",-1.117),
+                          (1,1.2,"convolution",-1.022),
                           (0,2.0,"helmholtz",-0.9957),
                           (1,2.0,"helmholtz",-0.797)]) 
 

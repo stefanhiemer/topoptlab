@@ -106,12 +106,12 @@ class HelmholtzFilter(TOFilter):
         Parameters
         ----------
         x : np.ndarray
-            (intermediate) design variables.
+            (intermediate) design variables, shape (n, k).
 
         Returns
         -------
         x_filtered : np.ndarray
-            filtered design variables.
+            filtered design variables, shape (n, k).
 
         """
         return self.TF.T @ self.lu_solve(self.TF@x) #x
@@ -140,14 +140,16 @@ class HelmholtzFilter(TOFilter):
         Parameters
         ----------
         x_filtered : np.ndarray
-            filtered design variables.
+            filtered design variables, shape (n, k).
         dx_filtered : np.ndarray
-            sensitivities with respect to filtered design variables.
-            
+            sensitivities with respect to filtered design variables,
+            shape (n, k).
+
         Returns
         -------
         dx : np.ndarray
-            design sensitivities with respect to un-filtered design variables.
+            design sensitivities with respect to un-filtered design variables,
+            shape (n, k).
         """
         return self.TF.T @ self.lu_solve(self.TF@dx_filtered) # TF.T @ self.lu_solve(TF@(dobj*xPhys))/np.maximum(0.001, x)
 
