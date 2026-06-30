@@ -1,12 +1,13 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 from typing import Union
+from functools import partial
 
 import numpy as np
 from scipy.ndimage import grey_opening, grey_closing
 from scipy.interpolate import CubicHermiteSpline
 
 from topoptlab.geometries import sphere, ball
-from topoptlab.utils import map_eltoimg, map_eltovoxel
+from topoptlab.utils import map_eltoimg, map_eltovoxel, map_imgtoel, map_voxeltoel
 
 def gray_indicator(x: np.ndarray) -> np.ndarray:
     """
@@ -151,3 +152,76 @@ def lengthscale_violations(x: np.ndarray,
                                  structure=structure,
                                  mode="nearest",cval=0.)-x
     return solidviolation, voidviolation
+
+def baseplate_kernel(baseplate: str, 
+                     ndim: int) -> Tuple:
+    baseplate = baseplate.upper()
+    kernel = np.zeros(ndim * [3])
+
+    if ndim == 2:
+        table = {"N": (0, slice(None)),
+                 "S": (-1, slice(None)),
+                 "E": (slice(None), -1),
+                 "W": (slice(None), 0)}
+        kernel[table[baseplate]] = 1.
+    elif ndim == 3:
+        # normal_axis, plane_index
+        table = {"B": (0, 0),
+                 "U": (0, -1),
+                 "N": (1, 0),
+                 "S": (1, -1),
+                 "W": (2, 0),
+                 "E": (2, -1),}
+        #
+        normal_axis, plane_index = table[baseplate]
+        center = [1, 1, 1]
+        center[normal_axis] = plane_index
+        # center point of support face
+        kernel[tuple(center)] = 1.
+        # cross arms in the two tangential directions
+        tangential_axes = [ax for ax in range(3) if ax != normal_axis]
+        for ax in tangential_axes:
+            for pos in (0, 2):
+                idx = center.copy()
+                idx[ax] = pos
+                kernel[tuple(idx)] = 1.
+    else:
+        raise ValueError("ndim must be 2 or 3")
+
+    return kernel
+
+def support_indicator(nelx: int,
+                      nely: int,
+                      nelz: int,
+                      xPhys: np.ndarray, 
+                      baseplate: str) -> np.ndarray:
+    
+    #
+    if nelz is None:
+        ndim = 2
+        mapping = partial(map_eltoimg, 
+                          nelx=nelx, 
+                          nely=nely) 
+        invmapping = partial(map_imgtoel, 
+                             nelx=nelx, 
+                             nely=nely)
+    else:
+        ndim = 3
+        mapping = partial(map_eltovoxel, 
+                          nelx=nelx, 
+                          nely=nely, 
+                          nelz=nelz) 
+        invmapping = partial(map_voxeltoel, 
+                             nelx=nelx, 
+                             nely=nely, 
+                             nelz=nelz)
+    #
+    kernel = baseplate_kernel(baseplate=baseplate, 
+                              ndim=ndim)
+    #
+    indicator = invmapping(convolve(mapping(xPhys),
+                                    weights=kernel, 
+                                    axes=(0,1,2)[:ndim],
+                                    mode="constant",
+                                    cval=0.)) / self.hs
+    return np.isclose(indicator, 0.) & ~np.isclose(xPhys,0.)

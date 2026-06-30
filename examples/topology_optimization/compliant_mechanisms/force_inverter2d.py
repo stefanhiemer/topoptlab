@@ -9,12 +9,12 @@ from topoptlab.filter.density_filter import DensityFilter
 
 if __name__ == "__main__":
     # Default input parameters
-    nelx = 40
+    nelx = 120
     nely = int(nelx/2)
     volfrac = 0.3
     rmin = 0.05 * nelx #0.04*nelx  # 5.4
     penal = 3.0
-    ft = 0 # ft==0 -> sens, ft==1 -> dens
+    ft = 1 # ft==0 -> sens, ft==1 -> dens
     display = True
     export = False
     write_log = True
@@ -49,7 +49,7 @@ if __name__ == "__main__":
          obj_func=var_maximization ,
          obj_kw={"l": l},
          ft=ft, 
-         filter_mode="helmholtz",
+         filter_mode="convolution",
          optimizer="ocm",
          nouteriter=200,
          output_kw = {"file": "force-inverter_2d",
