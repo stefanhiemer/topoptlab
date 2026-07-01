@@ -30,6 +30,7 @@ class LangelaarFilter(TOFilter):
                  filter_objective: bool = True,
                  constraint_filter_mask: Union[None, np.ndarray] = None,
                  nelz: Union[None, int] = None,
+                 channel: Union[None,int] = 0,
                  **kwargs: Any) -> None:
         """
         Parameters
@@ -54,12 +55,20 @@ class LangelaarFilter(TOFilter):
             if None, filter is applied to all constraint sensitivities.
         nelz : int or None
             must be None; 3D is not supported.
+        channel : None or int
+            channel to which to apply filter. If None all channels are summed over 
+            and filter is applied to result. Assume that x.sum(axis) \leq 1 where 
+            1-x is void.
         """
         #
         if nelz is not None:
             raise NotImplementedError("AMFilter is only implemented for 2D.")
         #
         self.baseplate = baseplate
+        if channel is None:
+            self.channel = -1
+        else:
+            self.channel = channel
         self.mapping = mapping
         self.invmapping = invmapping
         self._filter_objective = filter_objective
@@ -80,15 +89,20 @@ class LangelaarFilter(TOFilter):
         Parameters
         ----------
         x : np.ndarray
-            (intermediate) design variables, shape (n, k) where k >= 1.
+            design variables, shape (n,) or (n, k).
 
         Returns
         -------
         x_filtered : np.ndarray
-            printable design densities, shape (n, k).
+            printable design densities, same shape as x.
         """
-        return self.invmapping(AMfilter(self.mapping(x), 
-                                        baseplate=self.baseplate))
+        # multi-channel: x_img shape (nely, nelx, k)
+        if self.channel == -1:
+            return self.invmapping(AMfilter(self.mapping(x).sum(axis=-1),
+                                            baseplate=self.baseplate)[:, :, None])
+        else:
+            return self.invmapping(AMfilter(self.mapping(x)[..., self.channel],
+                                            baseplate=self.baseplate)[:, :, None])
 
     def apply_filter_dx(self,
                         x: np.ndarray,
@@ -101,21 +115,31 @@ class LangelaarFilter(TOFilter):
         Parameters
         ----------
         x : np.ndarray
-            unfiltered design variables, shape (n, k).
+            unfiltered design variables, shape (n,) or (n, k).
         x_filtered : np.ndarray
-            not used; kept for interface compatibility.
+            filtered design variables from the forward pass, same shape as x.
+            Used in sum mode to recover xi_solid without rerunning the forward.
         dx_filtered : np.ndarray
-            sensitivities with respect to filtered design variables,
-            shape (n, k).
+            sensitivities w.r.t. filtered variables, same shape as x.
 
         Returns
         -------
         dx : np.ndarray
-            sensitivities with respect to x, shape (n, k).
+            sensitivities w.r.t. x, same shape as x.
         """
-        return self.invmapping(AMfilter(self.mapping(x), 
-                               baseplate=self.baseplate, 
-                               sensitivities=self.mapping(dx_filtered)))
+        if self.channel == -1:
+            dx_new = AMfilter(self.mapping(x).sum(axis=-1),
+                              baseplate=self.baseplate,
+                              sensitivities=self.mapping(dx_filtered)) \
+                     * np.ones((1, 1, x.shape[-1]))
+        else:
+            # channel mode: only self.channel contributes, others get zero
+            dx_single = AMfilter(self.mapping(x)[:, :, self.channel],
+                                 baseplate=self.baseplate,
+                                 sensitivities=self.mapping(dx_filtered))[:, :, 0]  # (nely, nelx)
+            dx_new = np.zeros(dx_single.shape + (x.shape[-1],))               # (nely, nelx, k)
+            dx_new[:, :, self.channel] = dx_single
+        return self.invmapping(dx_new)
 
     @property
     def vol_conserv(self) -> bool:
