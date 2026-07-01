@@ -7,6 +7,7 @@ from scipy.ndimage import correlate, convolve
 
 from topoptlab.aggregation import softmax_pnorm, softmax_pnorm_dx,\
                                   softmax_ks, softmax_ks_dx
+from topoptlab.design_analysis import baseplate_slice, baseplate_kernel
 
 def compliance(xPhys: np.ndarray, 
                u: np.ndarray, 
@@ -426,29 +427,6 @@ def stress_pnorm(u: np.ndarray,
     np.add.at(rhs_adj[:, 0], edofMat,- ds_p_du)
     return obj, rhs_adj, ds_p_dxPhys, False
 
-def baseplate_slice(baseplate: str, 
-                    ndim: int) -> Tuple:
-    if ndim == 2:
-        table = {
-            "N": (0, slice(None)),
-            "S": (-1, slice(None)),
-            "E": (slice(None), -1),
-            "W": (slice(None), 0),
-        }
-    elif ndim == 3:
-        table = {
-            "B": (0, slice(None), slice(None)),
-            "U": (-1, slice(None), slice(None)),
-            "N": (slice(None), 0, slice(None)),
-            "S": (slice(None), -1, slice(None)),
-            "E": (slice(None), slice(None), -1),
-            "W": (slice(None), slice(None), 0),
-        }
-    else:
-        raise ValueError("ndim must be 2 or 3")
-
-    return table[baseplate]
-
 def am_angle(xPhys: np.ndarray, 
              p: float, 
              ks_exponent: float,
@@ -457,11 +435,68 @@ def am_angle(xPhys: np.ndarray,
              invmapping: Callable,
              mapping: Callable,
              **kwargs: Any) -> Tuple[float, np.ndarray, np.ndarray, bool]:
+    """
+    Additive-manufacturing overhang constraint based on local support.
+
+    For each element, a supporting region is defined by a baseplate-dependent
+    stencil. The support value is computed as a smooth maximum over the
+    densities in this stencil,
+
+        s_e = (sum_{j in S_e} x_j^p)^(1/p),
+
+    and the local overhang constraint is
+
+        c_e = x_e - s_e <= 0.
+
+    Thus, an element is feasible if its density does not exceed the smooth
+    maximum density of its supporting region. The baseplate layer is excluded
+    from the constraint and is always treated as feasible.
+
+    The element-wise constraints are aggregated into one scalar constraint by
+    a Kreisselmeier-Steinhauser smooth maximum,
+
+        g = KS(c_e).
+
+    The returned derivative is the total derivative of the aggregated
+    constraint with respect to the physical densities, including the adjoint
+    action of the support stencil.
+
+    Parameters
+    ----------
+    xPhys : np.ndarray
+        Physical element densities of shape ``(nel, 1)``.
+    p : float
+        Exponent used for the smooth p-norm maximum over the supporting
+        stencil.
+    ks_exponent : float
+        Exponent used in the KS aggregation of the element-wise constraints.
+    baseplate : str
+        Baseplate/build direction. In 2D: ``"N"``, ``"S"``, ``"E"``, ``"W"``.
+        In 3D: ``"B"``, ``"U"``, ``"N"``, ``"S"``, ``"E"``, ``"W"``.
+    ndim : int
+        Spatial dimension, either 2 or 3.
+    invmapping : Callable
+        Function mapping image/voxel-shaped arrays back to element-vector
+        layout.
+    mapping : Callable
+        Function mapping element-vector arrays to image/voxel layout.
+
+    Returns
+    -------
+    softmax : float or np.ndarray
+        Aggregated AM overhang constraint value.
+    softmax_dx : np.ndarray
+        Derivative of ``softmax`` with respect to ``xPhys``.
+    None
+        Always None as not self-adjoint and also requires no 
+        adjoint problem.
+
+    """
     # kernel for supporting region
-    kernel = np.zeros(ndim*[3])
     slicing = baseplate_slice(baseplate=baseplate, 
                               ndim=ndim)
-    kernel[slicing] = 1
+    kernel = baseplate_kernel(baseplate=baseplate, 
+                              ndim=ndim)
     # get soft maxmimum of supporting region
     placeholder = invmapping(correlate(mapping(xPhys**p),
                                        weights=kernel, 
@@ -499,6 +534,72 @@ def am_angle(xPhys: np.ndarray,
     #
     softmax_dx[np.isnan(softmax_dx)] = 0.
     return softmax, softmax_dx, None
+
+def support(xPhys: np.ndarray, 
+            baseplate: str,
+            ndim: int,
+            invmapping: Callable,
+            mapping: Callable,
+            **kwargs: Any) -> Tuple[float, np.ndarray, np.ndarray]:
+    """
+    Zhao-style unsupported-material measure.
+
+    Zhao, Dengyang, Ming Li, and Yusheng Liu. "Self-supporting topology 
+    optimization for additive manufacturing." arXiv preprint 
+    arXiv:1708.07364 (2017).
+
+    A hard active set of unsupported solid elements is detected by checking
+    whether an element has nonzero density and no material in its supporting
+    stencil. The objective/constraint value is then
+
+        g = sum_{e in U} x_e^2,
+
+    where U is the active set of unsupported elements. The active set is
+    treated as fixed when differentiating.
+
+    Parameters
+    ----------
+    xPhys : np.ndarray
+        Physical densities of shape ``(nel, 1)``.
+    baseplate : str
+        Baseplate/build direction.
+    ndim : int
+        Spatial dimension, either 2 or 3.
+    invmapping : Callable
+        Map image/voxel arrays back to element layout.
+    mapping : Callable
+        Map element arrays to image/voxel layout.
+
+    Returns
+    -------
+    g : float
+        Sum of squared densities of unsupported elements.
+    dg_dx : np.ndarray
+        Derivative with respect to ``xPhys`` with the active set fixed.
+    None
+        No adjoint right-hand side.
+    """
+    #
+    kernel = baseplate_kernel(baseplate=baseplate, ndim=ndim)
+    slicing = baseplate_slice(baseplate=baseplate, ndim=ndim)
+    #
+    x_img = mapping(xPhys)
+    #
+    unsupported = np.isclose(correlate(x_img,
+                                       weights=kernel,
+                                       axes=(0, 1, 2)[:ndim],
+                                       mode="constant",
+                                       cval=0.), 
+                             0.,atol=0.1) & ~np.isclose(x_img, 0.)
+    # baseplate is always supported
+    unsupported[slicing] = False
+    #
+    unsupported = invmapping(unsupported)
+    #
+    dg_dx = np.zeros_like(xPhys)
+    dg_dx[unsupported] = 2. * xPhys[unsupported]
+    #
+    return np.sum(xPhys[unsupported] ** 2), dg_dx, None
 
 def generalized_stress(u: np.ndarray,
                        i: int,

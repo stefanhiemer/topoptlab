@@ -58,7 +58,7 @@ def mma_defaultkws(n: int, n_constr: int, ft: Union[None,int] = None) -> Dict:
     optimizer_kw["albefa"] = 0.1
     return optimizer_kw
 
-def gcmma_defaultkws(n: int, ft: int, n_constr: int) -> Dict:
+def gcmma_defaultkws(n: int, n_constr: int, ft: [None,int] = None) -> Dict:
     """
     Default arguments for the globally convergent method of moving asymptotes 
     (GCMMA).

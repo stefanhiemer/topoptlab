@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Callable, Dict, List, Tuple, Union
+from typing import Any, Callable, Dict, List, Tuple, Union
 from functools import partial
 from cProfile import Profile
 from datetime import datetime
@@ -49,7 +49,7 @@ from topoptlab.log_utils import EmptyLogger,SimpleLogger
 from topoptlab.convergence_criteria import max_design_change
 from topoptlab.param_continuation import run_continuation
 #
-from mmapy import mmasub
+from mmapy import mmasub, gcmmasub, asymp, concheck, raaupdate
 
 def update_history(xhist: List, x: np.ndarray,
                    xPhys_hist: Union[None, List], xPhys: np.ndarray,
@@ -102,6 +102,460 @@ def update_history(xhist: List, x: np.ndarray,
     if constrs_hist is not None and len(constrs_hist) > max_history+1:
         del constrs_hist[:len(constrs_hist)-max_history-1]
     return
+
+def sensitivity_propagation(dobj: np.ndarray,
+                            dconstrs: np.ndarray,
+                            x: np.ndarray,
+                            xTilde: List[np.ndarray],
+                            xPhys: np.ndarray,
+                            ft: list,
+                            filter_kw: Union[Dict,List],
+                            el_flags_policy: Union[None,Dict],
+                            prescribed_mask: np.ndarray
+                            ) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Propagate objective and constraint sensitivities backward through the filter
+    chain via the chain rule, mapping gradients from physical variables back
+    to design variables.
+
+    Given a filter chain ``xPhys = ft[-1](ft[-2](...ft[0](x)...))``, the
+    backward pass applies each filter's adjoint in reverse order:
+
+        dx = ft[0].T( ft[1].T( ... ft[-1].T(dxPhys) ... ) )
+
+    Each filter's ``apply_filter_dx`` is called only when its
+    ``filter_objective`` / ``constraint_filter_mask`` flags allow it.
+    After the filter chain, sensitivities at prescribed (passive/active)
+    elements are zeroed when ``el_flags_policy["correct_backward"]`` is True.
+
+    Parameters
+    ----------
+    dobj : np.ndarray, shape (n, k)
+        Sensitivities of the objective w.r.t. physical densities. Modified
+        in-place and returned.
+    dconstrs : np.ndarray, shape (n, n_constr)
+        Sensitivities of the constraints w.r.t. physical densities. Modified
+        in-place and returned.
+    x : np.ndarray, shape (n, k)
+        Current design variables (unfiltered).
+    xTilde : list of np.ndarray, each shape (n, k)
+        Intermediate filtered variables between consecutive filter stages.
+        ``xTilde[i]`` is the output of ``ft[i]``. Empty when ``len(ft) == 1``.
+    xPhys : np.ndarray, shape (n, k)
+        Physical densities, i.e. the output of the last filter ``ft[-1]``.
+    ft : list of TOFilter
+        Ordered filter chain. Must be a non-empty list.
+    filter_kw : dict
+        Keyword arguments forwarded to each filter's ``apply_filter_dx``.
+    el_flags_policy : dict or None
+        Policy dict controlling element flag enforcement. If not None and
+        ``el_flags_policy["correct_backward"]`` is True, sensitivities at
+        prescribed elements are set to zero after filtering.
+    prescribed_mask : np.ndarray of bool, shape (n,) or None
+        Boolean mask identifying prescribed (passive or active) elements.
+        Only used when ``el_flags_policy["correct_backward"]`` is True.
+
+    Returns
+    -------
+    dobj : np.ndarray, shape (n, k)
+        Objective sensitivities w.r.t. design variables.
+    dconstrs : np.ndarray, shape (n, n_constr)
+        Constraint sensitivities w.r.t. design variables.
+    """
+
+    if isinstance(ft, list):
+        #
+        if ft[-1].filter_objective:
+            dobj[:] = ft[-1].apply_filter_dx(x=x if len(ft)==1 else xTilde[-1],
+                                             x_filtered=xPhys,
+                                             dx_filtered=dobj,
+                                             **filter_kw)
+        #
+        if np.any(ft[-1].constraint_filter_mask):
+            dconstrs[:,ft[-1].constraint_filter_mask] = \
+                 ft[-1].apply_filter_dx(x=x if len(ft)==1 else xTilde[-1],
+                                        x_filtered=xPhys,
+                                        dx_filtered=dconstrs[:,ft[-1].constraint_filter_mask],
+                                        **filter_kw)
+        if len(ft) > 1:
+            for i in range(len(ft)-2,-1,-1):
+                #
+                if ft[i].filter_objective:
+                    dobj[:] = ft[i].apply_filter_dx(x=x if i==0 else xTilde[i-1],
+                                                    x_filtered=xTilde[i],
+                                                    dx_filtered=dobj,
+                                                    **filter_kw)
+                #
+                if np.any(ft[i].constraint_filter_mask):
+                    dconstrs[:,ft[i].constraint_filter_mask] =\
+                        ft[i].apply_filter_dx(x=x if i==0 else xTilde[i-1],
+                                              x_filtered=xTilde[i],
+                                              dx_filtered=dconstrs[:,ft[i].constraint_filter_mask],
+                                              **filter_kw)
+    else:
+        raise ValueError(f"No filter applied. ft: {ft}")
+    # backward filter policy: zero sensitivities at prescribed elements
+    if el_flags_policy is not None and el_flags_policy["correct_backward"]:
+        dobj[prescribed_mask] = 0.
+        dconstrs[prescribed_mask] = 0.
+
+    return dobj, dconstrs
+
+def filter_design_variables(x: np.ndarray,
+                            xTilde: List[np.ndarray],
+                            xPhys: np.ndarray,
+                            ft: list,
+                            filter_kw: Union[Dict,List],
+                            el_flags_policy: Union[None,Dict],
+                            passive_mask: np.ndarray,
+                            active_mask: np.ndarray
+                            ) -> np.ndarray:
+    """
+    Apply the filter chain in the forward direction, mapping design variables
+    to physical densities.
+
+    Given a filter chain ``ft = [ft[0], ft[1], ..., ft[-1]]``, computes:
+
+        xTilde[0] = ft[0](x)
+        xTilde[i] = ft[i](xTilde[i-1])   for i = 1, ..., len(ft)-2
+        xPhys     = ft[-1](xTilde[-1])
+
+    For a single filter (``len(ft) == 1``) the intermediate list is unused and
+    ``xPhys = ft[0](x)`` directly. Filters that carry internal state (e.g. an
+    adaptive eta projector) update ``filter_kw`` in-place via
+    ``update_filter_kw`` after each stage. After the chain, prescribed element
+    densities are restored to 0 (passive) or 1 (active) when
+    ``el_flags_policy["correct_forward"]`` is True.
+
+    Parameters
+    ----------
+    x : np.ndarray, shape (n, k)
+        Current design variables (unfiltered).
+    xTilde : list of np.ndarray, each shape (n, k)
+        Intermediate filtered variables. ``xTilde[i]`` receives the output of
+        ``ft[i]`` and is modified in-place. Length must be ``len(ft) - 1``.
+    xPhys : np.ndarray, shape (n, k)
+        Physical densities to be updated with the output of the last filter.
+    ft : list of TOFilter
+        Ordered filter chain. Must be a non-empty list.
+    filter_kw : dict
+        Keyword arguments forwarded to each filter's ``apply_filter`` and
+        updated in-place by any filter whose ``changes_filter_kw`` is True.
+    el_flags_policy : dict or None
+        Policy dict controlling element flag enforcement. If not None and
+        ``el_flags_policy["correct_forward"]`` is True, prescribed densities
+        are restored after filtering.
+    passive_mask : np.ndarray of bool, shape (n,) or None
+        Boolean mask identifying passive elements (density forced to 0).
+    active_mask : np.ndarray of bool, shape (n,) or None
+        Boolean mask identifying active elements (density forced to 1).
+
+    Returns
+    -------
+    xTilde : list of np.ndarray
+        Updated intermediate filtered variables.
+    xPhys : np.ndarray, shape (n, k)
+        Updated physical densities.
+    """
+    if isinstance(ft, list):
+        if len(ft) > 1:
+            xTilde[0] = ft[0].apply_filter(x=x,
+                                           **filter_kw)
+            for i in range(1,len(ft)-1):
+                xTilde[i] = ft[i].apply_filter(x=xTilde[i-1],
+                                               **filter_kw)
+                #
+                if ft[i].changes_filter_kw:
+                    ft[i].update_filter_kw(filter_kw)
+            xPhys = ft[-1].apply_filter(x=xTilde[-1],
+                                        **filter_kw)
+            #
+            if ft[-1].changes_filter_kw:
+                ft[-1].update_filter_kw(filter_kw)
+        else:
+            xPhys = ft[0].apply_filter(x=x,
+                                        **filter_kw)
+            #
+            if ft[0].changes_filter_kw:
+                ft[0].update_filter_kw(filter_kw)
+        for _f in ft:
+            if _f.changes_filter_kw:
+                _f.update_filter_kw(filter_kw)
+    else:
+        raise TypeError(f"ft should be a list at this point: {type(ft)}")
+    # forward filter policy: restore prescribed densities after filtering
+    if el_flags_policy is not None and el_flags_policy["correct_forward"]:
+        xPhys[passive_mask] = 0.
+        xPhys[active_mask]  = 1.
+    return xTilde, xPhys
+
+def prepare_filters(ft: Union[int, type, List],
+                    nelx: int,
+                    nely: int,
+                    nelz: Union[int, None],
+                    filter_mode: str,
+                    rmin: float,
+                    n_constr: int,
+                    l: Union[float, np.ndarray],
+                    el_flags: Union[None, np.ndarray],
+                    el_flags_policy: Union[None, Dict],
+                    filter_kw: Dict,
+                    mapping: Callable,
+                    invmapping: Callable,
+                    constraint_filter_mask: np.ndarray
+                    ) -> List[TOFilter]:
+    """
+    Instantiate the filter chain from the ``ft`` specification and return it
+    as an ordered list of :class:`TOFilter` objects.
+
+    Three calling conventions are accepted for ``ft``:
+
+    * **TOFilter subclass** (not int, not list): a single filter is constructed
+      by calling ``ft(nelx=..., rmin=..., ...)``.
+    * **list of TOFilter subclasses**: each entry is instantiated with the same
+      mesh and filter keyword arguments; the resulting list defines the chain in
+      forward order.
+    * **int**: the integer code is resolved to a standard filter chain via
+      :func:`fetch_filters`.
+
+    Parameters
+    ----------
+    ft : int, TOFilter subclass, or list of TOFilter subclasses
+        Filter specification.
+    nelx : int
+        Number of elements in x-direction.
+    nely : int
+        Number of elements in y-direction.
+    nelz : int or None
+        Number of elements in z-direction; ``None`` for 2-D problems.
+    filter_mode : str
+        Filter implementation mode, e.g. ``"convolution"`` or ``"matrix"``.
+    rmin : float
+        Filter cut-off radius.
+    n_constr : int
+        Number of constraints; passed to the filter to size the constraint
+        sensitivity mask.
+    l : float or np.ndarray
+        Element size. Broadcast to all spatial directions when scalar.
+    el_flags : np.ndarray or None
+        Integer element-flag array (0 free, 1 passive, 2 active).
+    el_flags_policy : dict or None
+        Policy controlling how element flags are enforced in the filter.
+    filter_kw : dict
+        Additional keyword arguments forwarded to every filter constructor.
+    mapping : callable
+        Maps a flat element array to image/voxel layout.
+    invmapping : callable
+        Maps image/voxel layout back to a flat element array.
+    constraint_filter_mask : np.ndarray of bool, shape (n_constr,)
+        Indicates which constraint sensitivities are filtered; passed to the
+        filter when constructing from an integer code.
+
+    Returns
+    -------
+    ft : list of TOFilter
+        Instantiated filter chain in forward application order.
+    """
+    if not isinstance(ft, (int, list)) and issubclass(ft, TOFilter):
+        ft = [ft(nelx=nelx, nely=nely, nelz=nelz,
+                 filter_mode=filter_mode,
+                 rmin=rmin,
+                 n_constr=n_constr,
+                 l=l,
+                 el_flags=el_flags,
+                 el_flags_policy=el_flags_policy,
+                 **filter_kw)]
+    elif isinstance(ft, list):
+        ft = [ft_obj(nelx=nelx, nely=nely, nelz=nelz,
+                     filter_mode=filter_mode,
+                     rmin=rmin,
+                     n_constr=n_constr,
+                     l=l,
+                     el_flags=el_flags,
+                     el_flags_policy=el_flags_policy,
+                     **filter_kw)
+              for ft_obj in ft]
+    elif isinstance(ft, int):
+        _ft_kw = dict(nelx=nelx, nely=nely, nelz=nelz,
+                      filter_mode=filter_mode,
+                      rmin=rmin,
+                      n_constr=n_constr,
+                      l=l,
+                      mapping=mapping,
+                      invmapping=invmapping,
+                      constraint_filter_mask=constraint_filter_mask,
+                      el_flags=el_flags,
+                      el_flags_policy=el_flags_policy,
+                      **filter_kw)
+        ft = fetch_filters(ft=ft,
+                           filter_args=[_ft_kw])
+    else:
+        raise ValueError(f"Unknown filter. ft: {ft} filter_mode {filter_mode}")
+    return ft
+
+def prepare_phys_problems():
+
+    return
+
+def solve_phys_problems(xPhys: np.ndarray,
+                        KE: np.ndarray,
+                        iK: np.ndarray,
+                        jK: np.ndarray,
+                        ndof: int,
+                        n: int,
+                        edofMat: np.ndarray,
+                        f: np.ndarray,
+                        fixed: Union[np.ndarray, List[np.ndarray]],
+                        free: Union[np.ndarray, List[np.ndarray]],
+                        springs: Any,
+                        matinterpol: Callable,
+                        matinterpol_kw: Dict,
+                        assembly_mode: str,
+                        assm_indcs: Union[None, np.ndarray],
+                        body_forces_kw: Dict,
+                        fe_strain: Union[None, np.ndarray],
+                        fe_dens: Union[None, np.ndarray],
+                        lin_solver: str,
+                        lin_solver_kw: Dict,
+                        preconditioner: Union[None, str],
+                        preconditioner_kw: Dict,
+                        u: np.ndarray,
+                        ) -> Tuple[np.ndarray, Any, Any, Any, np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Assemble and solve all physical (FE) problems for the current iterate. Does the following steps:
+
+    1. computes scaled element stiffness matrices based on physical variables (e. g. xPhys),
+    2. assembles the global stiffness matrix 
+    3. adds design dependent force contributions (e. g. body-forces) to the right-hand side
+    4. applies boundary conditions 
+    5. solves the linear system for all load cases simultaneously 
+    
+    The returned objects are everything needed by the subsequent adjoint analysis and sensitivity computation.
+
+    Parameters
+    ----------
+    xPhys : np.ndarray, shape (n, k)
+        Physical element densities.
+    KE : np.ndarray, shape (dof_el, dof_el)
+        Reference element stiffness matrix (unscaled).
+    iK : np.ndarray
+        Row indices for sparse global stiffness assembly.
+    jK : np.ndarray
+        Column indices for sparse global stiffness assembly.
+    ndof : int
+        Total number of degrees of freedom.
+    n : int
+        Total number of elements.
+    edofMat : np.ndarray, shape (n, dof_el)
+        Element degree-of-freedom connectivity matrix.
+    f : np.ndarray, shape (ndof, n_lc)
+        External nodal force array for all load cases.
+    fixed : np.ndarray or list of np.ndarray
+        Indices of fixed (Dirichlet) DOFs. A single array is shared across
+        all load cases; a list provides per-load-case DOFs (future extension).
+    free : np.ndarray or list of np.ndarray
+        Indices of free DOFs, complementary to ``fixed``.
+    springs : Any
+        Spring data passed to :func:`assemble_matrix`. ``None`` if unused.
+    matinterpol : callable
+        Material interpolation ``scale = matinterpol(xPhys, **matinterpol_kw)``.
+    matinterpol_kw : dict
+        Keyword arguments forwarded to ``matinterpol``.
+    assembly_mode : str
+        Stiffness assembly mode. ``"full"`` uses the full element matrix;
+        ``"lower"`` exploits symmetry and only uses half of the off-diagonal.
+    assm_indcs : np.ndarray or None
+        Lower-triangular index pairs used when ``assembly_mode == "lower"``.
+    body_forces_kw : dict
+        Body-force specification. Supported keys: ``"strain_uniform"`` and
+        ``"density_coupled"``.
+    fe_strain : np.ndarray or None
+        Element load vectors for uniform strain body forces, shape
+        ``(n, dof_el, n_lc)``. Required when ``"strain_uniform"`` is in
+        ``body_forces_kw``.
+    fe_dens : np.ndarray or None
+        Element load vectors for density-coupled body forces, shape
+        ``(n, dof_el, n_lc)``. Required when ``"density_coupled"`` is in
+        ``body_forces_kw``.
+    lin_solver : str
+        Name of the linear solver backend.
+    lin_solver_kw : dict
+        Additional keyword arguments for the linear solver.
+    preconditioner : str or None
+        Name of the preconditioner, or ``None`` for no preconditioning.
+    preconditioner_kw : dict
+        Additional keyword arguments for the preconditioner.
+    u : np.ndarray, shape (ndof, n_lc)
+        Displacement field used as the initial guess; updated in-place.
+
+    Returns
+    -------
+    u : np.ndarray, shape (ndof, n_lc)
+        Updated displacement field for all load cases.
+    K : Any
+        Assembled, BC-reduced stiffness matrix (solver-specific format).
+        Reused for all adjoint solves within the same outer iteration.
+    fact : Any
+        Factorization of ``K`` returned by the linear solver. Passed back
+        to :func:`solve_lin` via ``factorization=fact`` for efficient adjoint
+        solves without re-factorization.
+    precond : Any
+        Preconditioner object, or ``None`` if no preconditioner was used.
+    Kes : np.ndarray, shape (n, dof_el, dof_el)
+        Scaled element stiffness matrices ``KE * scale``. Required by
+        objective and constraint functions.
+    rhs : np.ndarray, shape (ndof, n_lc)
+        Full right-hand side ``f + f_body`` before boundary conditions.
+    f_body : np.ndarray, shape (ndof, n_lc)
+        Body-force contribution to the right-hand side. Needed separately
+        for density-coupled body-force sensitivity terms.
+    """
+    # update physical properties of the elements and thus the entries
+    # of the elements
+    scale = matinterpol(xPhys=xPhys,**matinterpol_kw)
+    Kes = KE[None,:,:]*scale[:,:,None]
+    if assembly_mode == "full":
+        # this here is more memory efficient than Kes.flatten() as it
+        # provides a view onto the original Kes array instead of a copy
+        sK = Kes.reshape(np.prod(Kes.shape))
+    elif assembly_mode == "lower":
+        sK = Kes[:,
+                 assm_indcs[:,0],
+                 assm_indcs[:,1]].reshape(n*int(KE.shape[-1]/2*(KE.shape[-1]+1)))
+    # setup and solve FE problem
+    # assemble system matrix
+    K = assemble_matrix(sK=sK,iK=iK,jK=jK,
+                        ndof=ndof,solver=lin_solver,
+                        springs=springs)
+    # assemble forces due to body forces
+    f_body = np.zeros(f.shape)
+    u0 = None
+    for bodyforce in body_forces_kw.keys():
+        # assume each strain is a column vector in Voigt notation
+        if "strain_uniform" in body_forces_kw.keys():
+            fes = fe_strain[None,:,:]*scale[:,:,None]
+            np.add.at(f_body,
+                        edofMat,
+                        fes)
+        if "density_coupled" in body_forces_kw.keys():
+            fes = fe_dens[None,:,:]*simp(xPhys=xPhys, eps=0., penal=1.)[:,:,None]
+            np.add.at(f_body,
+                        edofMat,
+                        fes)
+    # assemble right hand side
+    rhs = f+f_body
+    # apply boundary conditions to matrix
+    K = apply_bc(K=K,solver=lin_solver,
+                    free=free,fixed=fixed)
+    # solve linear system. fact is a factorization and precond a preconditioner
+    u[free, :], fact, precond = solve_lin(K=K, 
+                                    rhs=rhs[free],
+                                    rhs0=u[free,:],
+                                    solver=lin_solver,
+                                    solver_kw=lin_solver_kw,
+                                    preconditioner=preconditioner,
+                                    preconditioner_kw=preconditioner_kw)
+    return u, K, fact, precond, Kes, rhs, f_body
 
 # MAIN DRIVER
 def main(nelx: int, nely: int,
@@ -365,12 +819,10 @@ def main(nelx: int, nely: int,
     else:
         xPhys = initial_guess["xPhys"]
     # precompute prescribed-element masks for filter policy corrections
-    passive_mask    = None
-    active_mask     = None
-    prescribed_mask = None
+    passive_mask, active_mask, prescribed_mask = None, None, None
     if el_flags is not None:
-        passive_mask    = el_flags == 1
-        active_mask     = el_flags == 2
+        passive_mask = el_flags == 1
+        active_mask = el_flags == 2
         prescribed_mask = el_flags != 0
     # initialize arrays for gradients
     dobj = np.zeros( x.shape,order="F")
@@ -406,9 +858,8 @@ def main(nelx: int, nely: int,
     if optimizer in ["oc","ocm"]:
         # legacy OC: only a single constraint (volume fraction) is supported
         if n_constr != 1:
-            raise ValueError(
-                f"Optimizers 'oc' and 'ocm' support exactly one constraint, "
-                f"got {n_constr}.")
+            raise ValueError(f"Optimizers 'oc' and 'ocm' support exactly one constraint, "
+                             f"got {n_constr}.")
         # must be initialized to use the NGuyen/Paulino OC approach
         g = 0
         max_history = 2
@@ -509,6 +960,8 @@ def main(nelx: int, nely: int,
     if assembly_mode == "lower":
         assm_indcs = np.column_stack(np.tril_indices_from(KE))
         assm_indcs = assm_indcs[np.lexsort( (assm_indcs[:,0],assm_indcs[:,1]) )]
+    else:
+        assm_indcs = None
     # function to convert densities, etc. to images/voxels for plotting or the
     # convolution filter.
     if ndim == 2:
@@ -527,44 +980,21 @@ def main(nelx: int, nely: int,
                              nelx=nelx, 
                              nely=nely, 
                              nelz=nelz)
-    # prepare functions to invert this mapping if we use the convolution filter
-    if not isinstance(ft, (int,list)) and issubclass(ft, TOFilter):
-        ft = [ft(nelx=nelx,nely=nely,nelz=nelz,
-                 filter_mode=filter_mode,
-                 rmin=rmin,
-                 n_constr=n_constr,
-                 l=l,
-                 el_flags=el_flags,
-                 el_flags_policy=el_flags_policy,
-                 **filter_kw)]
-    elif isinstance(ft, list):
-        ft = [ft_obj(nelx=nelx,nely=nely,nelz=nelz,
-                     filter_mode=filter_mode,
-                     rmin=rmin,
-                     n_constr=n_constr,
-                     l=l,
-                     el_flags=el_flags,
-                     el_flags_policy=el_flags_policy,
-                     **filter_kw) \
-              for ft_obj in ft]
-    elif isinstance(ft, int):
-        # convert integer ft code to list of TOFilter objects
-        _ft_kw = dict(nelx=nelx, nely=nely, nelz=nelz,
-                      filter_mode=filter_mode,
-                      rmin=rmin,
-                      n_constr=n_constr,
-                      l=l,
-                      mapping=mapping, 
-                      invmapping=invmapping,
-                      constraint_filter_mask=_constr_filter_mask,
-                      el_flags=el_flags,
-                      el_flags_policy=el_flags_policy,
-                      **filter_kw)
-        ft = fetch_filters(ft=ft, 
-                           filter_args=[_ft_kw])
-        #filter_kw = [_ft_kw]*len(ft)
-    else:
-        raise ValueError(f"Unknown filter. ft: {ft} filter_mode {filter_mode}")
+    # initialize filters
+    ft = prepare_filters(ft=ft,
+                         nelx=nelx,
+                         nely=nely,
+                         nelz=nelz,
+                         filter_mode=filter_mode,
+                         rmin=rmin,
+                         n_constr=n_constr,
+                         l=l,
+                         el_flags=el_flags,
+                         el_flags_policy=el_flags_policy,
+                         filter_kw=filter_kw,
+                         mapping=mapping,
+                         invmapping=invmapping,
+                         constraint_filter_mask=_constr_filter_mask)
     # intermediate filter variables
     if isinstance(ft, list):
         xTilde = []
@@ -633,59 +1063,38 @@ def main(nelx: int, nely: int,
         for _f in ft:
             if _f.changes_filter_kw:
                 _f.update_filter_kw(filter_kw)
-    #
     # optimization loop
     for loop in np.arange(nouteriter):
-        #
         # solve FEM, calculate obj. func. and gradients.
-        if optimizer in ["oc","mma", "ocm","ocg"] or\
-           (optimizer in ["gcmma"] and ninneriter==0) or\
-           loop==0:
-            # update physical properties of the elements and thus the entries
-            # of the elements
-            scale = matinterpol(xPhys=xPhys,**matinterpol_kw)
-            Kes = KE[None,:,:]*scale[:,:,None]
-            if assembly_mode == "full":
-                # this here is more memory efficient than Kes.flatten() as it
-                # provides a view onto the original Kes array instead of a copy
-                sK = Kes.reshape(np.prod(Kes.shape))
-            elif assembly_mode == "lower":
-                sK = Kes[:,
-                         assm_indcs[:,0],
-                         assm_indcs[:,1]].reshape(n*int(KE.shape[-1]/2*(KE.shape[-1]+1)))
-            ### Setup and solve FE problem
-            # assemble system matrix
-            K = assemble_matrix(sK=sK,iK=iK,jK=jK,
-                                ndof=ndof,solver=lin_solver,
-                                springs=springs)
-            # assemble forces due to body forces
-            f_body = np.zeros(f.shape)
-            u0 = None
-            for bodyforce in body_forces_kw.keys():
-                # assume each strain is a column vector in Voigt notation
-                if "strain_uniform" in body_forces_kw.keys():
-                    fes = fe_strain[None,:,:]*scale[:,:,None]
-                    np.add.at(f_body,
-                              edofMat,
-                              fes)
-                if "density_coupled" in body_forces_kw.keys():
-                    fes = fe_dens[None,:,:]*simp(xPhys=xPhys, eps=0., penal=1.)[:,:,None]
-                    np.add.at(f_body,
-                              edofMat,
-                              fes)
-            # assemble right hand side
-            rhs = f+f_body
-            # apply boundary conditions to matrix
-            K = apply_bc(K=K,solver=lin_solver,
-                         free=free,fixed=fixed)
-            # solve linear system. fact is a factorization and precond a preconditioner
-            u[free, :], fact, precond = solve_lin(K=K, 
-                                           rhs=rhs[free],
-                                           rhs0=u[free,:],
-                                           solver=lin_solver,
-                                           solver_kw=lin_solver_kw,
-                                           preconditioner=preconditioner,
-                                           preconditioner_kw=preconditioner_kw)
+        if optimizer in ["oc","mma","ocm","ocg","gcmma"]:
+            ### solve physical problems
+            u, K, fact, precond, Kes, rhs, f_body = solve_phys_problems(xPhys=xPhys,
+                                                                        KE=KE,
+                                                                        iK=iK,
+                                                                        jK=jK,
+                                                                        ndof=ndof,
+                                                                        n=n,
+                                                                        edofMat=edofMat,
+                                                                        f=f,
+                                                                        fixed=fixed,
+                                                                        free=free,
+                                                                        springs=springs,
+                                                                        matinterpol=matinterpol,
+                                                                        matinterpol_kw=matinterpol_kw,
+                                                                        assembly_mode=assembly_mode,
+                                                                        assm_indcs=assm_indcs,
+                                                                        body_forces_kw=body_forces_kw,
+                                                                        fe_strain=fe_strain,
+                                                                        fe_dens=fe_dens,
+                                                                        lin_solver=lin_solver,
+                                                                        lin_solver_kw=lin_solver_kw,
+                                                                        preconditioner=preconditioner,
+                                                                        preconditioner_kw=preconditioner_kw,
+                                                                        u=u)
+            #
+            for i in range(f.shape[1]): 
+                log.debug("FEM: it.: {0}, problem: {1}, min. u: {2:.10f}, med. u: {3:.10f}, max. u: {4:.10f}".format(
+                        loop,i,np.min(u[:,i]),np.median(u[:,i]),np.max(u[:,i])))
             # objective and sensitivities with regards to object
             obj = 0
             dobj[:] = 0.
@@ -741,8 +1150,8 @@ def main(nelx: int, nely: int,
                     dobj[:,0] -= simp_dx(xPhys=xPhys, eps=0., penal=1.)[:,0]*\
                                          np.dot(adj[edofMat,i],fe_dens[:,i])
                 #
-                log.debug("FEM: it.: {0}, problem: {1}, min. u: {2:.10f}, med. u: {3:.10f}, max. u: {4:.10f}".format(
-                           loop,i,np.min(u[:,i]),np.median(u[:,i]),np.max(u[:,i])))
+                log.debug("adj: it.: {0}, problem: {1}, min. adj: {2:.10f}, med. adj: {3:.10f}, max. adj: {4:.10f}".format(
+                           loop,i,np.min(adj[:,i]),np.median(adj[:,i]),np.max(adj[:,i])))
         # optimizer is unknown.
         else:
             raise NotImplementedError("Unknown optimizer.")
@@ -820,42 +1229,16 @@ def main(nelx: int, nely: int,
                   np.min(dobj), 
                   np.max(dobj), 
                   np.min(dconstrs)))
-        # sensitivity filtering
-        if isinstance(ft, list):
-            #
-            if ft[-1].filter_objective:
-                dobj[:] = ft[-1].apply_filter_dx(x=x if len(ft)==1 else xTilde[-1],
-                                                 x_filtered=xPhys,
-                                                 dx_filtered=dobj, 
-                                                 **filter_kw)
-            #
-            if np.any(ft[-1].constraint_filter_mask):
-                dconstrs[:,ft[-1].constraint_filter_mask] = \
-                     ft[-1].apply_filter_dx(x=x if len(ft)==1 else xTilde[-1], 
-                                            x_filtered=xPhys,
-                                            dx_filtered=dconstrs[:,ft[-1].constraint_filter_mask], 
-                                            **filter_kw)
-            if len(ft) > 1:
-                for i in range(len(ft)-2,-1,-1):
-                    #
-                    if ft[i].filter_objective:
-                        dobj[:] = ft[i].apply_filter_dx(x=x if i==0 else xTilde[i-1],
-                                                        x_filtered=xTilde[i],
-                                                        dx_filtered=dobj, 
-                                                        **filter_kw)
-                    #
-                    if np.any(ft[i].constraint_filter_mask):
-                        dconstrs[:,ft[i].constraint_filter_mask] =\
-                            ft[i].apply_filter_dx(x=x if i==0 else xTilde[i-1], 
-                                                  x_filtered=xTilde[i],
-                                                  dx_filtered=dconstrs[:,ft[i].constraint_filter_mask], 
-                                                  **filter_kw)
-        else:
-            raise ValueError("No filter applied. ft: ", ft)
-        # backward filter policy: zero sensitivities at prescribed elements
-        if el_flags_policy is not None and el_flags_policy["correct_backward"]:
-            dobj[prescribed_mask] = 0.
-            dconstrs[prescribed_mask] = 0.
+        # sensitivity propagation (call it this way to avoid confusion with sensitvity filter)
+        dobj, dconstrs = sensitivity_propagation(dobj=dobj,
+                                                 dconstrs=dconstrs,
+                                                 x=x,
+                                                 xTilde=xTilde,
+                                                 xPhys=xPhys,
+                                                 ft=ft,
+                                                 filter_kw=filter_kw,
+                                                 el_flags_policy=el_flags_policy,
+                                                 prescribed_mask=prescribed_mask)
         #
         log.debug("Post-Sensitivity Filter: it.: {0}, min(dobj): {1:.10f}, max(dobj): {2:.10f}, dv: {3:.10f}".format(
                   loop, 
@@ -915,6 +1298,151 @@ def main(nelx: int, nely: int,
             optimizer_kw["low"] = low
             optimizer_kw["upp"] = upp
             x = xmma.copy()
+        # globally convergent method of moving asymptotes
+        elif optimizer == "gcmma":
+            # update asymptotes and raa parameters
+            optimizer_kw["low"], optimizer_kw["upp"], \
+            optimizer_kw["raa0"], optimizer_kw["raa"] = asymp(
+                outeriter=loop,
+                n=x.shape[0],
+                xval=x,
+                xold1=hist["xhist"][-1],
+                xold2=hist["xhist"][-2],
+                df0dx=dobj,
+                dfdx=dconstrs.T,
+                **optimizer_kw)
+            # first subproblem solve
+            xmma,ymma,zmma,lam,xsi,eta_mma,mu,zet,s,f0app,fapp = gcmmasub(
+                m=optimizer_kw["nconstr"],
+                n=x.shape[0],
+                iter=loop,
+                xval=x,
+                xold1=hist["xhist"][-1],
+                xold2=hist["xhist"][-2],
+                f0val=obj,
+                df0dx=dobj,
+                fval=constrs,
+                dfdx=dconstrs.T,
+                **optimizer_kw)
+            # inner loop: tighten approximation until conservative
+            u_inner = u.copy()
+            for _inner in range(ninneriter):
+                # apply forward filter to xmma without touching xTilde/xPhys
+                xTilde_tmp = [t.copy() for t in xTilde]
+                xTilde_tmp, xPhys_new = filter_design_variables(x=xmma,
+                                                                xTilde=xTilde_tmp,
+                                                                xPhys=xPhys.copy(),
+                                                                ft=ft,
+                                                                filter_kw=filter_kw,
+                                                                el_flags_policy=el_flags_policy,
+                                                                passive_mask=passive_mask,
+                                                                active_mask=active_mask)
+                # solve FEM at xmma
+                u_inner, K_inner, fact_inner, precond_inner, Kes_new, _, _ = \
+                    solve_phys_problems(xPhys=xPhys_new,
+                                        KE=KE,
+                                        iK=iK, jK=jK,
+                                        ndof=ndof, n=n,
+                                        edofMat=edofMat,
+                                        f=f,
+                                        fixed=fixed, free=free, springs=springs,
+                                        matinterpol=matinterpol,
+                                        matinterpol_kw=matinterpol_kw,
+                                        assembly_mode=assembly_mode,
+                                        assm_indcs=assm_indcs,
+                                        body_forces_kw=body_forces_kw,
+                                        fe_strain=fe_strain,
+                                        fe_dens=fe_dens,
+                                        lin_solver=lin_solver,
+                                        lin_solver_kw=lin_solver_kw,
+                                        preconditioner=preconditioner,
+                                        preconditioner_kw=preconditioner_kw,
+                                        u=u_inner)
+                # evaluate objective at xmma
+                obj_new = 0.
+                for i in np.arange(f.shape[1]):
+                    obj_new, _, self_adj_new = obj_func(obj=obj_new, 
+                                                        i=i,
+                                                        xPhys=xPhys_new, 
+                                                        u=u_inner,
+                                                        KE=KE, 
+                                                        edofMat=edofMat, 
+                                                        Kes=Kes_new,
+                                                        matinterpol=matinterpol,
+                                                        matinterpol_kw=matinterpol_kw,
+                                                        mapping=mapping, 
+                                                        invmapping=invmapping,
+                                                        cellVolume=cellVolume, 
+                                                        **obj_kw)
+                    if self_adj_new is None:
+                        break
+                # evaluate constraint values at xmma
+                constrs_new = np.zeros_like(constrs)
+                for k, c in enumerate(constraints):
+                    val_new = 0.
+                    for j in np.arange(f.shape[1]):
+                        val_new, _, self_adj_c_new = c["func"](obj=val_new, 
+                                                               i=j,
+                                                               xPhys=xPhys_new, u=u_inner,
+                                                               KE=KE, 
+                                                               edofMat=edofMat, 
+                                                               Kes=Kes_new,
+                                                               matinterpol=matinterpol,
+                                                               matinterpol_kw=matinterpol_kw,
+                                                               mapping=mapping, 
+                                                               invmapping=invmapping,
+                                                               cellVolume=cellVolume, 
+                                                               **c["kw"])
+                        if self_adj_c_new is None:
+                            break
+                    if c["type"] == "leq":
+                        constrs_new[k, 0] = val_new - c["value"]
+                    elif c["type"] == "geq":
+                        constrs_new[k, 0] = c["value"] - val_new
+                    elif c["type"] == "eq":
+                        constrs_new[k, 0] = val_new - c["value"]
+                # apply same normalization and scaling as in the main sensitivity block
+                for k, c in enumerate(constraints):
+                    if c["normalize"]:
+                        ref = c["norm_ref"] if c["norm_ref"] is not None \
+                              else np.maximum(abs(c["value"]), c["norm_delta"])
+                        constrs_new[k, 0] /= ref
+                if "scale_factor" in obj_kw and obj_kw["scale_factor"] is not None:
+                    obj_new *= obj_kw["scale_factor"]
+                for k, c in enumerate(constraints):
+                    if c["scale_factor"] is not None:
+                        constrs_new[k, 0] *= c["scale_factor"]
+                # conservative check
+                conserv = concheck(m=optimizer_kw["nconstr"],
+                                   f0app=f0app,
+                                   f0valnew=obj_new,
+                                   fapp=fapp,
+                                   fvalnew=constrs_new,
+                                   **optimizer_kw)
+                if conserv:
+                    break
+                # tighten approximation and resolve subproblem
+                optimizer_kw["raa0"], optimizer_kw["raa"] = raaupdate(
+                                                        xmma=xmma,
+                                                        xval=x,
+                                                        f0valnew=float(obj_new),
+                                                        fvalnew=constrs_new,
+                                                        f0app=f0app,
+                                                        fapp=fapp,
+                                                        **optimizer_kw)
+                xmma,ymma,zmma,lam,xsi,eta_mma,mu,zet,s,f0app,fapp = gcmmasub(
+                                                        m=optimizer_kw["nconstr"],
+                                                        n=x.shape[0],
+                                                        iter=loop,
+                                                        xval=x,
+                                                        xold1=hist["xhist"][-1],
+                                                        xold2=hist["xhist"][-2],
+                                                        f0val=obj,
+                                                        df0dx=dobj,
+                                                        fval=constrs,
+                                                        dfdx=dconstrs.T,
+                                                        **optimizer_kw)
+                x = xmma.copy()
         #
         log.debug("Post Density Update: it.: {0}, med(x): {1:.10f}, mean(x): {2:.10f}, med(xPhys): {3:.10f}".format(
                    loop, np.median(x),np.mean(x), np.median(xPhys)))
@@ -931,36 +1459,14 @@ def main(nelx: int, nely: int,
         log.debug("Post Mixing Update: it.: {0}, med. x.: {1:.10f}, med. xPhys: {2:.10f}".format(
                   loop, np.median(x),np.median(xPhys)))
         # Filter design variables
-        if isinstance(ft, list):
-            if len(ft) > 1:
-                xTilde[0] = ft[0].apply_filter(x=x,
-                                               **filter_kw)
-                for i in range(1,len(ft)-1):
-                    xTilde[i] = ft[i].apply_filter(x=xTilde[i-1],
-                                                   **filter_kw)
-                    #
-                    if ft[i].changes_filter_kw:
-                        ft[i].update_filter_kw(filter_kw)
-                xPhys = ft[-1].apply_filter(x=xTilde[-1],
-                                            **filter_kw)
-                #
-                if ft[-1].changes_filter_kw:
-                    ft[-1].update_filter_kw(filter_kw)
-            else:
-                xPhys = ft[0].apply_filter(x=x,
-                                           **filter_kw)
-                #
-                if ft[0].changes_filter_kw:
-                    ft[0].update_filter_kw(filter_kw)
-            for _f in ft:
-                if _f.changes_filter_kw:
-                    _f.update_filter_kw(filter_kw)
-        else:
-            raise TypeError("ft should be a list at this point: ", type(ft))
-        # forward filter policy: restore prescribed densities after filtering
-        if el_flags_policy is not None and el_flags_policy["correct_forward"]:
-            xPhys[passive_mask] = 0.
-            xPhys[active_mask]  = 1.
+        xTilde, xPhys = filter_design_variables(x=x,
+                                                xTilde=xTilde,
+                                                xPhys=xPhys,
+                                                ft=ft,
+                                                filter_kw=filter_kw,
+                                                el_flags_policy=el_flags_policy,
+                                                passive_mask=passive_mask,
+                                                active_mask=active_mask)
         # update and prune history (after forward filter so xPhys_hist is consistent)
         update_history(**hist,
                        x=x, xPhys=xPhys, obj=obj, constrs=constrs,
@@ -986,7 +1492,7 @@ def main(nelx: int, nely: int,
         # write iteration history to screen (req. Python 2.6 or newer)
         log.info("it.: {0} obj.: {1:.10f} vol.: {2:.10f} ch.: {3:.10f} constrs.: [{4}]".format(
                      loop+1, obj, xPhys.mean(), change,
-                     ", ".join(f"{v:.6f}" for v in constrs[:,0])))
+                     ", ".join(f"{c['name']}: {v:.6f}" for c, v in zip(constraints, constrs[:,0]))))
         # convergence and parameter continuation check
         if continuation_kw is None:
             if change < convergence_kw["conv_tol"]:
@@ -1001,7 +1507,7 @@ def main(nelx: int, nely: int,
                                 conv_tol=convergence_kw["conv_tol"],
                                 logger=log):
                 break
-    #
+    ### Optimization loop finished
     if output_kw["export"]:
         #
         nodal_variables = {"u": u, 
