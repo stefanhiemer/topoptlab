@@ -13,10 +13,7 @@ from matplotlib.colors import Normalize
 import matplotlib.pyplot as plt
 # functions to create filters 
 from topoptlab.filter.filter import TOFilter
-from topoptlab.filter.fetch_filter import fetch_filters
-from topoptlab.filter.convolution_filter import assemble_convolution_filter
-from topoptlab.filter.helmholtz_filter import assemble_helmholtz_filter
-from topoptlab.filter.matrix_filter import assemble_matrix_filter
+from topoptlab.filter.workflows import prepare_filters,sensitivity_propagation,filter_design_variables
 # default application case that provides boundary conditions, etc.
 from topoptlab.example_bc.lin_elast import mbb_2d
 # set up finite element problem
@@ -50,6 +47,13 @@ from topoptlab.convergence_criteria import max_design_change
 from topoptlab.param_continuation import run_continuation
 #
 from mmapy import mmasub, gcmmasub, asymp, concheck, raaupdate
+# 
+from topoptlab.problem_solver import ProblemSolver
+from topoptlab.linear_solvers import res_norm
+from topoptlab.block_assembly import (assemble_global_block_system,
+                                      solve_global_block_system,
+                                      split_global_solution_by_fields,
+                                      transpose_blocks)
 
 def update_history(xhist: List, x: np.ndarray,
                    xPhys_hist: Union[None, List], xPhys: np.ndarray,
@@ -103,299 +107,146 @@ def update_history(xhist: List, x: np.ndarray,
         del constrs_hist[:len(constrs_hist)-max_history-1]
     return
 
-def sensitivity_propagation(dobj: np.ndarray,
-                            dconstrs: np.ndarray,
-                            x: np.ndarray,
-                            xTilde: List[np.ndarray],
-                            xPhys: np.ndarray,
-                            ft: list,
-                            filter_kw: Union[Dict,List],
-                            el_flags_policy: Union[None,Dict],
-                            prescribed_mask: np.ndarray
-                            ) -> Tuple[np.ndarray, np.ndarray]:
+def prepare_phys_problems(mesh: dict,
+                          lk: Union[None, Callable],
+                          body_forces_kw: dict,
+                          assembly_mode: str,
+                          obj_kw: dict) -> Tuple:
     """
-    Propagate objective and constraint sensitivities backward through the filter
-    chain via the chain rule, mapping gradients from physical variables back
-    to design variables.
-
-    Given a filter chain ``xPhys = ft[-1](ft[-2](...ft[0](x)...))``, the
-    backward pass applies each filter's adjoint in reverse order:
-
-        dx = ft[0].T( ft[1].T( ... ft[-1].T(dxPhys) ... ) )
-
-    Each filter's ``apply_filter_dx`` is called only when its
-    ``filter_objective`` / ``constraint_filter_mask`` flags allow it.
-    After the filter chain, sensitivities at prescribed (passive/active)
-    elements are zeroed when ``el_flags_policy["correct_backward"]`` is True.
+    Build all static FEM data needed before the optimisation loop.
 
     Parameters
     ----------
-    dobj : np.ndarray, shape (n, k)
-        Sensitivities of the objective w.r.t. physical densities. Modified
-        in-place and returned.
-    dconstrs : np.ndarray, shape (n, n_constr)
-        Sensitivities of the constraints w.r.t. physical densities. Modified
-        in-place and returned.
-    x : np.ndarray, shape (n, k)
-        Current design variables (unfiltered).
-    xTilde : list of np.ndarray, each shape (n, k)
-        Intermediate filtered variables between consecutive filter stages.
-        ``xTilde[i]`` is the output of ``ft[i]``. Empty when ``len(ft) == 1``.
-    xPhys : np.ndarray, shape (n, k)
-        Physical densities, i.e. the output of the last filter ``ft[-1]``.
-    ft : list of TOFilter
-        Ordered filter chain. Must be a non-empty list.
-    filter_kw : dict
-        Keyword arguments forwarded to each filter's ``apply_filter_dx``.
-    el_flags_policy : dict or None
-        Policy dict controlling element flag enforcement. If not None and
-        ``el_flags_policy["correct_backward"]`` is True, sensitivities at
-        prescribed elements are set to zero after filtering.
-    prescribed_mask : np.ndarray of bool, shape (n,) or None
-        Boolean mask identifying prescribed (passive or active) elements.
-        Only used when ``el_flags_policy["correct_backward"]`` is True.
+    mesh : dict
+        Mesh dictionary with keys ``"nelx"``, ``"nely"``, ``"nelz"``,
+        ``"ndim"``, ``"l"``.
+    lk : callable or None
+        Element stiffness function ``KE = lk(l=l)``.  Defaults to standard
+        linear-elasticity stiffness for the spatial dimension in ``mesh``.
+    body_forces_kw : dict
+        Body-force specification.  Supported keys:
+
+        ``"strain_uniform"``
+            Uniform applied strain in Voigt notation, shape ``(n_strain,)``
+            or ``(n_strain, n_lc)``.  1-D arrays are promoted to 2-D
+            in-place.  The single-element reference displacement ``u0``
+            is written into ``obj_kw["u0"]`` (homogenisation).
+        ``"density_coupled"``
+            Density-dependent body-force vector ``b``.
+    assembly_mode : str
+        ``"full"`` or ``"lower"`` (exploit symmetry of K).
+    obj_kw : dict
+        Keyword arguments for the objective function.  Updated with ``u0``
+        when ``"strain_uniform"`` body forces are present.
 
     Returns
     -------
-    dobj : np.ndarray, shape (n, k)
-        Objective sensitivities w.r.t. design variables.
-    dconstrs : np.ndarray, shape (n, n_constr)
-        Constraint sensitivities w.r.t. design variables.
+    lk : callable
+        Resolved element stiffness function.
+    KE : np.ndarray, shape (dof_el, dof_el)
+        Reference element stiffness matrix.
+    n_nodaldof : int
+        Number of DOFs per node.
+    ndof : int
+        Total number of DOFs.
+    edofMat : np.ndarray, shape (n_el, dof_el)
+        Element DOF connectivity matrix.
+    iK, jK : np.ndarray
+        Row / column indices for sparse global stiffness assembly.
+    assm_indcs : np.ndarray or None
+        Lower-triangle index pairs used when ``assembly_mode == "lower"``.
+    fe_strain : np.ndarray or None
+        Pre-computed strain body-force vectors, shape ``(dof_el, n_lc)``.
+    fe_dens : np.ndarray or None
+        Pre-computed density body-force vector.
     """
-
-    if isinstance(ft, list):
-        #
-        if ft[-1].filter_objective:
-            dobj[:] = ft[-1].apply_filter_dx(x=x if len(ft)==1 else xTilde[-1],
-                                             x_filtered=xPhys,
-                                             dx_filtered=dobj,
-                                             **filter_kw)
-        #
-        if np.any(ft[-1].constraint_filter_mask):
-            dconstrs[:,ft[-1].constraint_filter_mask] = \
-                 ft[-1].apply_filter_dx(x=x if len(ft)==1 else xTilde[-1],
-                                        x_filtered=xPhys,
-                                        dx_filtered=dconstrs[:,ft[-1].constraint_filter_mask],
-                                        **filter_kw)
-        if len(ft) > 1:
-            for i in range(len(ft)-2,-1,-1):
-                #
-                if ft[i].filter_objective:
-                    dobj[:] = ft[i].apply_filter_dx(x=x if i==0 else xTilde[i-1],
-                                                    x_filtered=xTilde[i],
-                                                    dx_filtered=dobj,
-                                                    **filter_kw)
-                #
-                if np.any(ft[i].constraint_filter_mask):
-                    dconstrs[:,ft[i].constraint_filter_mask] =\
-                        ft[i].apply_filter_dx(x=x if i==0 else xTilde[i-1],
-                                              x_filtered=xTilde[i],
-                                              dx_filtered=dconstrs[:,ft[i].constraint_filter_mask],
-                                              **filter_kw)
+    ndim = mesh["ndim"]
+    nelx, nely, nelz = mesh["nelx"], mesh["nely"], mesh["nelz"]
+    l = mesh["l"]
+    if ndim == 2:
+        create_edofMat = create_edofMat2d
     else:
-        raise ValueError(f"No filter applied. ft: {ft}")
-    # backward filter policy: zero sensitivities at prescribed elements
-    if el_flags_policy is not None and el_flags_policy["correct_backward"]:
-        dobj[prescribed_mask] = 0.
-        dconstrs[prescribed_mask] = 0.
+        create_edofMat = create_edofMat3d
+    # get function of element stiffness matrix
+    if lk is None and ndim == 2:
+        lk = lk_linear_elast_2d
+    elif lk is None and ndim == 3:
+        lk = lk_linear_elast_3d
 
-    return dobj, dconstrs
 
-def filter_design_variables(x: np.ndarray,
-                            xTilde: List[np.ndarray],
-                            xPhys: np.ndarray,
-                            ft: list,
-                            filter_kw: Union[Dict,List],
-                            el_flags_policy: Union[None,Dict],
-                            passive_mask: np.ndarray,
-                            active_mask: np.ndarray
-                            ) -> np.ndarray:
-    """
-    Apply the filter chain in the forward direction, mapping design variables
-    to physical densities.
-
-    Given a filter chain ``ft = [ft[0], ft[1], ..., ft[-1]]``, computes:
-
-        xTilde[0] = ft[0](x)
-        xTilde[i] = ft[i](xTilde[i-1])   for i = 1, ..., len(ft)-2
-        xPhys     = ft[-1](xTilde[-1])
-
-    For a single filter (``len(ft) == 1``) the intermediate list is unused and
-    ``xPhys = ft[0](x)`` directly. Filters that carry internal state (e.g. an
-    adaptive eta projector) update ``filter_kw`` in-place via
-    ``update_filter_kw`` after each stage. After the chain, prescribed element
-    densities are restored to 0 (passive) or 1 (active) when
-    ``el_flags_policy["correct_forward"]`` is True.
-
-    Parameters
-    ----------
-    x : np.ndarray, shape (n, k)
-        Current design variables (unfiltered).
-    xTilde : list of np.ndarray, each shape (n, k)
-        Intermediate filtered variables. ``xTilde[i]`` receives the output of
-        ``ft[i]`` and is modified in-place. Length must be ``len(ft) - 1``.
-    xPhys : np.ndarray, shape (n, k)
-        Physical densities to be updated with the output of the last filter.
-    ft : list of TOFilter
-        Ordered filter chain. Must be a non-empty list.
-    filter_kw : dict
-        Keyword arguments forwarded to each filter's ``apply_filter`` and
-        updated in-place by any filter whose ``changes_filter_kw`` is True.
-    el_flags_policy : dict or None
-        Policy dict controlling element flag enforcement. If not None and
-        ``el_flags_policy["correct_forward"]`` is True, prescribed densities
-        are restored after filtering.
-    passive_mask : np.ndarray of bool, shape (n,) or None
-        Boolean mask identifying passive elements (density forced to 0).
-    active_mask : np.ndarray of bool, shape (n,) or None
-        Boolean mask identifying active elements (density forced to 1).
-
-    Returns
-    -------
-    xTilde : list of np.ndarray
-        Updated intermediate filtered variables.
-    xPhys : np.ndarray, shape (n, k)
-        Updated physical densities.
-    """
-    if isinstance(ft, list):
-        if len(ft) > 1:
-            xTilde[0] = ft[0].apply_filter(x=x,
-                                           **filter_kw)
-            for i in range(1,len(ft)-1):
-                xTilde[i] = ft[i].apply_filter(x=xTilde[i-1],
-                                               **filter_kw)
-                #
-                if ft[i].changes_filter_kw:
-                    ft[i].update_filter_kw(filter_kw)
-            xPhys = ft[-1].apply_filter(x=xTilde[-1],
-                                        **filter_kw)
+    #
+    # get element stiffness matrix
+    KE = lk(l=l)
+    # infer nodal degrees of freedom assuming that we have 4/8 nodes in 2/3 D
+    n_nodaldof = int(KE.shape[-1]/2**ndim)
+    # total number of nodal dofs
+    ndof = n_nodaldof * np.prod( np.array([nelx,nely,nelz][:ndim])+1 )
+    # element degree of freedom matrix plus some helper indices
+    edofMat, n1, n2, n3, n4 = create_edofMat(nelx=nelx,nely=nely,nelz=nelz,
+                                             nnode_dof=n_nodaldof)
+    # fetch body forces
+    if len(body_forces_kw.keys())==0:
+        fe_strain = None
+        fe_dens = None
+    else:
+        # assume each strain is a column vector in Voigt notation
+        if "strain_uniform" in body_forces_kw.keys():
+            # fetch functions to create body force
+            if ndim == 2:
+                lf = lf_strain_2d
+            elif ndim == 3:
+                lf = lf_strain_3d
+            # calculate forces for each strain
+            fe_strain = []
+            if len(body_forces_kw["strain_uniform"].shape) == 1:
+                body_forces_kw["strain_uniform"] = body_forces_kw["strain_uniform"][:,None]
             #
-            if ft[-1].changes_filter_kw:
-                ft[-1].update_filter_kw(filter_kw)
+            for i in range(body_forces_kw["strain_uniform"].shape[-1]):
+                fe_strain.append(lf(body_forces_kw["strain_uniform"][:,i],E=1.0, l=l))
+            fe_strain = np.column_stack(fe_strain)
+            # find the imposed elemental field. Material properties are
+            # unimportant here as it just depends on the geometry of the
+            # element, not its properties. This part is needed for
+            # homogenization related objective functions and may later
+            # become optional via some flags.
+            if ndim == 2 and n_nodaldof != 1:
+                fixed = np.array([0,1,3])
+            elif ndim == 3 and n_nodaldof != 1:
+                fixed = np.array([0,1,2,4,5,7,8])
+            elif n_nodaldof == 1:
+                fixed = np.array([0])
+            free = np.setdiff1d(np.arange(KE.shape[-1]), fixed)
+            u0 = np.zeros(fe_strain.shape)
+            u0[free] = np.linalg.solve(KE[free,:][:,free],
+                                       fe_strain[free,:])
+            if "u0" not in obj_kw.keys():
+                obj_kw["u0"] = u0
         else:
-            xPhys = ft[0].apply_filter(x=x,
-                                        **filter_kw)
-            #
-            if ft[0].changes_filter_kw:
-                ft[0].update_filter_kw(filter_kw)
-        for _f in ft:
-            if _f.changes_filter_kw:
-                _f.update_filter_kw(filter_kw)
+            fe_strain = None
+        #
+        if "density_coupled" in body_forces_kw.keys():
+            # fetch functions to create body force
+            if ndim == 2 and n_nodaldof!=1:
+                lf = lf_bodyforce_2d
+            elif ndim == 3 and n_nodaldof!=1:
+                lf = lf_bodyforce_3d
+            fe_dens = lf_bodyforce_2d(b=body_forces_kw["density_coupled"])
+        else:
+            fe_dens = None
+        #
+        if len([key for key in body_forces_kw.keys() \
+                if key not in ["density_coupled","strain_uniform"]]):
+            raise NotImplementedError("One type of bodyforce/source has not yet been implemented.")
+    # Construct the index pointers for the coo format
+    iK,jK = create_matrixinds(edofMat=edofMat, 
+                              mode=assembly_mode)
+    if assembly_mode == "lower":
+        assm_indcs = np.column_stack(np.tril_indices_from(KE))
+        assm_indcs = assm_indcs[np.lexsort( (assm_indcs[:,0],assm_indcs[:,1]) )]
     else:
-        raise TypeError(f"ft should be a list at this point: {type(ft)}")
-    # forward filter policy: restore prescribed densities after filtering
-    if el_flags_policy is not None and el_flags_policy["correct_forward"]:
-        xPhys[passive_mask] = 0.
-        xPhys[active_mask]  = 1.
-    return xTilde, xPhys
+        assm_indcs = None
 
-def prepare_filters(ft: Union[int, type, List],
-                    nelx: int,
-                    nely: int,
-                    nelz: Union[int, None],
-                    filter_mode: str,
-                    rmin: float,
-                    n_constr: int,
-                    l: Union[float, np.ndarray],
-                    el_flags: Union[None, np.ndarray],
-                    el_flags_policy: Union[None, Dict],
-                    filter_kw: Dict,
-                    mapping: Callable,
-                    invmapping: Callable,
-                    constraint_filter_mask: np.ndarray
-                    ) -> List[TOFilter]:
-    """
-    Instantiate the filter chain from the ``ft`` specification and return it
-    as an ordered list of :class:`TOFilter` objects.
-
-    Three calling conventions are accepted for ``ft``:
-
-    * **TOFilter subclass** (not int, not list): a single filter is constructed
-      by calling ``ft(nelx=..., rmin=..., ...)``.
-    * **list of TOFilter subclasses**: each entry is instantiated with the same
-      mesh and filter keyword arguments; the resulting list defines the chain in
-      forward order.
-    * **int**: the integer code is resolved to a standard filter chain via
-      :func:`fetch_filters`.
-
-    Parameters
-    ----------
-    ft : int, TOFilter subclass, or list of TOFilter subclasses
-        Filter specification.
-    nelx : int
-        Number of elements in x-direction.
-    nely : int
-        Number of elements in y-direction.
-    nelz : int or None
-        Number of elements in z-direction; ``None`` for 2-D problems.
-    filter_mode : str
-        Filter implementation mode, e.g. ``"convolution"`` or ``"matrix"``.
-    rmin : float
-        Filter cut-off radius.
-    n_constr : int
-        Number of constraints; passed to the filter to size the constraint
-        sensitivity mask.
-    l : float or np.ndarray
-        Element size. Broadcast to all spatial directions when scalar.
-    el_flags : np.ndarray or None
-        Integer element-flag array (0 free, 1 passive, 2 active).
-    el_flags_policy : dict or None
-        Policy controlling how element flags are enforced in the filter.
-    filter_kw : dict
-        Additional keyword arguments forwarded to every filter constructor.
-    mapping : callable
-        Maps a flat element array to image/voxel layout.
-    invmapping : callable
-        Maps image/voxel layout back to a flat element array.
-    constraint_filter_mask : np.ndarray of bool, shape (n_constr,)
-        Indicates which constraint sensitivities are filtered; passed to the
-        filter when constructing from an integer code.
-
-    Returns
-    -------
-    ft : list of TOFilter
-        Instantiated filter chain in forward application order.
-    """
-    if not isinstance(ft, (int, list)) and issubclass(ft, TOFilter):
-        ft = [ft(nelx=nelx, nely=nely, nelz=nelz,
-                 filter_mode=filter_mode,
-                 rmin=rmin,
-                 n_constr=n_constr,
-                 l=l,
-                 el_flags=el_flags,
-                 el_flags_policy=el_flags_policy,
-                 **filter_kw)]
-    elif isinstance(ft, list):
-        ft = [ft_obj(nelx=nelx, nely=nely, nelz=nelz,
-                     filter_mode=filter_mode,
-                     rmin=rmin,
-                     n_constr=n_constr,
-                     l=l,
-                     el_flags=el_flags,
-                     el_flags_policy=el_flags_policy,
-                     **filter_kw)
-              for ft_obj in ft]
-    elif isinstance(ft, int):
-        _ft_kw = dict(nelx=nelx, nely=nely, nelz=nelz,
-                      filter_mode=filter_mode,
-                      rmin=rmin,
-                      n_constr=n_constr,
-                      l=l,
-                      mapping=mapping,
-                      invmapping=invmapping,
-                      constraint_filter_mask=constraint_filter_mask,
-                      el_flags=el_flags,
-                      el_flags_policy=el_flags_policy,
-                      **filter_kw)
-        ft = fetch_filters(ft=ft,
-                           filter_args=[_ft_kw])
-    else:
-        raise ValueError(f"Unknown filter. ft: {ft} filter_mode {filter_mode}")
-    return ft
-
-def prepare_phys_problems():
-
-    return
+    return lk, KE, n_nodaldof, ndof, edofMat, iK, jK, assm_indcs, fe_strain, fe_dens
 
 def solve_phys_problems(xPhys: np.ndarray,
                         KE: np.ndarray,
@@ -557,6 +408,264 @@ def solve_phys_problems(xPhys: np.ndarray,
                                     preconditioner_kw=preconditioner_kw)
     return u, K, fact, precond, Kes, rhs, f_body
 
+def copy_relevant_fields(state: Dict, problem) -> Dict:
+    """Shallow-copy only the fields written by solvers in problem."""
+    solvers = [problem] if isinstance(problem, ProblemSolver) else problem
+    keys = {k for solver in solvers for k in solver.output_keys}
+    return {k: state[k].copy() for k in keys if k in state}
+
+
+def converged(old: Dict, new: Dict, atol: float = 1e-8) -> bool:
+    """True when the 2-norm of the field change across all keys in old is below atol."""
+    r = np.concatenate([new[k].ravel() - old[k].ravel() for k in old])
+    return res_norm(r, atol=atol)
+
+
+def solver_loop(problems: List,
+                state: Dict,
+                ntimesteps: int,
+                nproblem_solves: int = 100,
+                coupling: List = None,
+                parameters: Dict = {},
+                solver_kw: List[Dict] = None,
+                logger = None,
+                ) -> Dict:
+    """
+    Time-stepping loop over weakly or strongly coupled problem groups.
+
+    problems : List
+        Sequence of problem groups. Each entry is either a single
+        ``ProblemSolver`` or a list of solvers forming a coupled group.
+    state : Dict
+        Initial field state; updated in place each time step.
+    ntimesteps : int
+        Number of time steps.
+    nproblem_solves : int
+        Maximum Picard iterations for ``"strong"`` coupling.
+    coupling : List
+        One entry per group in ``problems``:
+        ``"weak"``        – solve each solver once in sequence.
+        ``"strong"``      – partitioned Picard iteration until convergence.
+        ``"monolithic"``  – assemble and solve one global block system
+                            (implicit solvers only).
+    parameters : Dict
+        Design variables / fixed problem parameters (read-only).
+    context : Dict
+        Solver metadata forwarded to every solver; augmented with
+        ``"tstep"`` and ``"solve_iter"`` at runtime.
+    """
+    #
+    for tstep in np.arange(ntimesteps):
+        # iterate problem groups in forward order
+        for i, problem in enumerate(problems):
+            #
+            if coupling[i] == "weak":
+                # single solver or list of solvers solved once in sequence
+                solvers = [problem] if isinstance(problem, ProblemSolver) else problem
+                for solver in solvers:
+                    if solver.implicit:
+                        system = solver.assemble(state, 
+                                                 parameters, 
+                                                 solver_kw[i], 
+                                                 logger)
+                        out    = solver.solve(system, 
+                                              state, 
+                                              parameters, 
+                                              solver_kw[i], 
+                                              logger)
+                    else:
+                        out = solver.solve({}, 
+                                           state, 
+                                           parameters, 
+                                           solver_kw[i], 
+                                           logger)
+                    state.update(out)
+            #
+            elif coupling[i] == "strong":
+                # partitioned Picard iteration
+                for solve_iter in np.arange(nproblem_solves):
+                    state_old = copy_relevant_fields(state, problem)
+                    for solver in problem:
+                        if solver.implicit:
+                            system = solver.assemble(state, 
+                                                     parameters, 
+                                                     solver_kw[i], 
+                                                     logger)
+                            out    = solver.solve(system, 
+                                                  state, 
+                                                  parameters, 
+                                                  solver_kw[i], 
+                                                  logger)
+                        else:
+                            out = solver.solve({}, 
+                                               state, 
+                                               parameters, 
+                                               solver_kw[i], 
+                                               logger)
+                        state.update(out)
+                    if converged(state_old, state):
+                        break
+            #
+            elif coupling[i] == "monolithic":
+                system = {}
+                for solver in problem:
+                    system.update(solver.assemble(state, 
+                                                  parameters, 
+                                                  solver_kw[i], 
+                                                  logger))
+                global_system = assemble_global_block_system(system=system,
+                                                             state=state,
+                                                             parameters=parameters,
+                                                             solver_kw=solver_kw[i],
+                                                             logger=logger)
+                solution = solve_global_block_system(global_system)
+                state.update(split_global_solution_by_fields(solution, problem))
+            #
+            else:
+                raise ValueError(f"Unknown coupling mode: {coupling[i]}")
+    return state
+
+def adjoint_loop(problems: List,
+                 state: Dict,
+                 adj_rhs: Dict,
+                 ntimesteps: int,
+                 nproblem_solves: int = 100,
+                 coupling: Union[None,str,List[str]] = None,
+                 parameters: Dict = {},
+                 solver_kw: List[Dict] = None,
+                 logger = None,
+                 ) -> Dict:
+    """
+    Adjoint pass mirroring ``solver_loop``, walked backward in time and
+    problem-group order.  Each solver's cached forward state is reused so
+    no reassembly is needed for linear problems.
+
+    problems : list
+        Same sequence of problem groups as in the forward pass.
+    state : dict
+        Forward solution state (read-only; provides cached factorizations).
+    adj_rhs : dict
+        Seed sensitivities dL/d(field) for each output field of the last
+        forward step; updated with cross-physics coupling terms in-place.
+    ntimesteps : int
+        Number of time steps (adjoint runs from ``ntimesteps-1`` down to 0).
+    nproblem_solves : int
+        Maximum adjoint Picard iterations for ``"strong"`` coupling.
+    coupling : list
+        One entry per group in ``problems``:
+        ``"weak"``        – adjoint of each solver, reversed.
+        ``"strong"``      – partitioned adjoint Picard iteration.
+        ``"monolithic"``  – solve transposed global block adjoint system.
+    parameters : dict
+        Design variables / fixed problem parameters (read-only).
+    context : dict
+        Solver metadata; augmented with ``"tstep"`` and ``"solve_iter"``.
+    """
+    adj = {}
+    #
+    for tstep in reversed(range(ntimesteps)):
+        # adjoint groups are solved in reverse order of the forward pass
+        for i, problem in reversed(list(enumerate(problems))):
+            #
+            if coupling[i] == "weak":
+                # single solver
+                if isinstance(problem, ProblemSolver):
+                    adj_out = problem.adjoint(rhs=adj_rhs,
+                                              state=state,
+                                              parameters=parameters,
+                                              solver_kw=solver_kw[i],
+                                              logger=logger)
+                    adj.update(adj_out)
+                # list of solvers: adjoint in reverse sequence
+                else:
+                    for solver in reversed(problem):
+                        adj_out = solver.adjoint(rhs=adj_rhs,
+                                                 state=state,
+                                                 parameters=parameters,
+                                                 solver_kw=solver_kw[i],
+                                                 logger=logger)
+                        adj.update(adj_out)
+            #
+            elif coupling[i] == "strong":
+                # partitioned adjoint Picard iteration
+                for solve_iter in range(nproblem_solves):
+                    adj_old = copy_relevant_fields(adj, problem)
+                    for solver in reversed(problem):
+                        adj_out = solver.adjoint(rhs=adj_rhs,
+                                                 state=state,
+                                                 parameters=parameters,
+                                                 solver_kw=solver_kw[i],
+                                                 logger=logger)
+                        adj.update(adj_out)
+                    if converged(adj_old, adj):
+                        break
+            #
+            elif coupling[i] == "monolithic":
+                # collect transposed blocks from each solver
+                blocks_T = {}
+                rhs_adj  = {}
+                for solver in problem:
+                    local = solver.assemble_blocks(state, parameters,
+                                                   solver_kw[i], logger)
+                    blocks_T.update(transpose_blocks(local.get("blocks", {})))
+                    rhs_adj.update(local.get("adj_rhs", {}))
+                system_T = assemble_global_block_system(blocks=blocks_T,
+                                                        rhs=rhs_adj,
+                                                        state=state,
+                                                        parameters=parameters,
+                                                        solver_kw=solver_kw[i],
+                                                        logger=logger)
+                solution = solve_global_block_system(system_T)
+                adj.update(split_global_solution_by_fields(solution, problem))
+            #
+            else:
+                raise ValueError(f"Unknown coupling mode: {coupling[i]}")
+    return adj
+
+def initialize_design(n: int,
+                      initial_guess: Union[None, Dict[str, np.ndarray]],
+                      volfrac: Union[None, float]) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Initialize design variables x and physical densities xPhys.
+
+    Parameters
+    ----------
+    n : int
+        Total number of design elements.
+    initial_guess : dict or None
+        Optional initial values.  Recognised keys:
+
+        ``"x"``
+            Initial design variables, shape (n, 1).  Defaults to uniform
+            ``volfrac`` (or 0.5 if ``volfrac`` is None).
+        ``"xPhys"``
+            Initial physical densities, shape (n, 1).  Defaults to a copy
+            of ``x``.
+
+    volfrac : float or None
+        Volume fraction used to fill ``x`` when no initial guess is given.
+        If None, defaults to 0.5.
+
+    Returns
+    -------
+    x : np.ndarray, shape (n, 1)
+        Design variables.
+    xPhys : np.ndarray, shape (n, 1)
+        Physical densities.
+    """
+    if initial_guess is None or "x" not in initial_guess:
+        x = np.full(shape=(n, 1),
+                    fill_value=volfrac if volfrac is not None else 0.5,
+                    dtype=float,
+                    order='F')
+    else:
+        x = initial_guess["x"]
+    if initial_guess is None or "xPhys" not in initial_guess:
+        xPhys = x.copy()
+    else:
+        xPhys = initial_guess["xPhys"]
+    return x, xPhys
+
 # MAIN DRIVER
 def main(nelx: int, nely: int,
          volfrac: float, #penal: float, 
@@ -574,8 +683,11 @@ def main(nelx: int, nely: int,
          assembly_mode: str = "full",
          materials_kw: Dict = {"E": 1.}, 
          body_forces_kw: Dict = {},
-         bcs: Callable = mbb_2d, 
-         lk: Union[None,Callable] = None, 
+         bcs: Callable = mbb_2d,
+         problems: Union[None, List[ProblemSolver]] = None,
+         solver_kw: Union[Dict, List[Dict]] = {},
+         solver_coupling: Union[None, List[str]] = None,
+         lk: Union[None,Callable] = None,
          l: Union[float,List,np.ndarray] = 1.,
          obj_func: Callable = compliance, 
          obj_kw: Dict = {},
@@ -595,7 +707,9 @@ def main(nelx: int, nely: int,
          convergence_kw: Dict = {"conv_tol": 1e-2,
                                  "change_func": max_design_change},
          continuation_kw: Union[None, Dict] = None,
-         nouteriter: int = 2000, ninneriter: int = 15,
+         nouteriter: int = 2000, 
+         ninneriter: int = 15,
+         mesh_file: Union[None,str] = None,
          output_kw: Dict = default_outputkw()) -> Tuple[np.ndarray,float]:
     """
     Topology optimization workflow with the material interpolation method. 
@@ -746,10 +860,8 @@ def main(nelx: int, nely: int,
     #
     if nelz is None:
         ndim = 2
-        create_edofMat = create_edofMat2d
     else:
         ndim = 3
-        create_edofMat = create_edofMat3d
     #
     if output_kw["write_log"]:
         # check if log file exists and if True delete
@@ -767,12 +879,12 @@ def main(nelx: int, nely: int,
             log.info(f"rmin: {rmin}")#  penal: {penal}")
         if isinstance(ft, int):
             log.info("filter: " + ["Sensitivity based",
-                                 "Density based",
-                                 "Haeviside Guest",
-                                 "Haeviside complement Sigmund 2007",
-                                 "Haeviside eta projection",
-                                 "Volume Preserving eta projection",
-                                 "No filter"][ft])
+                                  "Density based",
+                                  "Haeviside Guest",
+                                  "Haeviside complement Sigmund 2007",
+                                  "Haeviside eta projection",
+                                  "Volume Preserving eta projection",
+                                  "No filter"][ft])
         else:
             log.info("filter: custom")
         log.info(f"filter mode: {filter_mode}")
@@ -780,44 +892,32 @@ def main(nelx: int, nely: int,
         # check if log file exists and if True delete
         log = EmptyLogger()
     # total number of design elements
-    n = np.prod([nelx,nely,nelz][:ndim])
+    n_el = int(np.prod([nelx, nely, nelz][:ndim]))
     #
-    if isinstance(l,float):
-        l = np.array( [l for i in np.arange(ndim)])
-    # only needed for homogenization so far
-    cellVolume = np.prod(l)*n
-    # get function of element stiffness matrix
-    if lk is None and ndim == 2:
-        lk = lk_linear_elast_2d
-    elif lk is None and ndim == 3:
-        lk = lk_linear_elast_3d
+    if isinstance(l, float):
+        l = np.array([l for i in np.arange(ndim)])
+    # bundle all mesh-related information; irregular-mesh support will extend this
+    if mesh_file is None:
+        if ndim == 2:
+            _mapping = partial(map_eltoimg,  nelx=nelx, nely=nely)
+            _invmapping = partial(map_imgtoel,  nelx=nelx, nely=nely)
+        else:
+            _mapping = partial(map_eltovoxel, nelx=nelx, nely=nely, nelz=nelz)
+            _invmapping = partial(map_voxeltoel, nelx=nelx, nely=nely, nelz=nelz)
+        mesh = {"nelx": nelx,
+                "nely": nely,
+                "nelz": nelz,
+                "ndim": ndim,
+                "l": l,
+                "n_el": n_el,
+                "cellVolume": float(np.prod(l) * n_el),
+                "mapping": _mapping,
+                "invmapping": _invmapping}
+    else:
+        raise NotImplementedError("Cannot handle irregular meshes right now.")
+    mapping, invmapping = mesh["mapping"], mesh["invmapping"]
     # Allocate design variables (as array), initialize and allocate sens.
-    if not isinstance(initial_guess,dict):
-        initialguess_keys = None
-    else:
-        initialguess_keys = initial_guess.keys()
-    #
-    if (initialguess_keys is None or \
-       "x" not in initialguess_keys) and \
-       volfrac:
-        x = np.full(shape=(n,1), 
-                    fill_value=volfrac, 
-                    dtype=float, 
-                    order='F')
-    elif (initialguess_keys is None or \
-       "x" not in initialguess_keys) and \
-       volfrac is None:
-        x = np.full(shape=(n,1), 
-                    fill_value=0.5, 
-                    dtype=float, 
-                    order='F')
-    else:
-        x = initial_guess["x"]
-    #
-    if initialguess_keys is None or "xPhys" not in initialguess_keys:
-        xPhys = x.copy()
-    else:
-        xPhys = initial_guess["xPhys"]
+    x, xPhys = initialize_design(n=n_el, initial_guess=initial_guess, volfrac=volfrac)
     # precompute prescribed-element masks for filter policy corrections
     passive_mask, active_mask, prescribed_mask = None, None, None
     if el_flags is not None:
@@ -848,7 +948,7 @@ def main(nelx: int, nely: int,
     # build filter mask: one bool per constraint row
     _constr_filter_mask = np.array([c["filter"] for c in constraints], dtype=bool)
     constrs  = np.zeros( (n_constr, 1) )
-    dconstrs = np.zeros( (n, n_constr) )
+    dconstrs = np.zeros((n_el, n_constr))
     # initialize history length needed for optimizer
     optimizer_kw = check_optimizer_kw(optimizer=optimizer,
                                       n=x.shape[0],
@@ -887,99 +987,35 @@ def main(nelx: int, nely: int,
             # redistribute volfrac over free elements so that passive elements
             # (contributing 0) add material to the free set
             if volfrac is not None:
-                x_free = np.clip(volfrac * n / (~prescribed_mask).sum(), 0., 1.)
-                x[~prescribed_mask, 0]     = x_free
+                x_free = np.clip(volfrac * n_el / (~prescribed_mask).sum(), 0., 1.)
+                x[~prescribed_mask, 0] = x_free
                 xPhys[~prescribed_mask, 0] = x_free
     else:
         raise ValueError("Unknown optimizer: ", optimizer)
-    # get element stiffness matrix
-    KE = lk(l=l)
-    # infer nodal degrees of freedom assuming that we have 4/8 nodes in 2/3 D
-    n_nodaldof = int(KE.shape[-1]/2**ndim)
-    # total number of nodal dofs
-    ndof = n_nodaldof * np.prod( np.array([nelx,nely,nelz][:ndim])+1 )
-    # element degree of freedom matrix plus some helper indices
-    edofMat, n1, n2, n3, n4 = create_edofMat(nelx=nelx,nely=nely,nelz=nelz,
-                                             nnode_dof=n_nodaldof)
-    # fetch body forces
-    if len(body_forces_kw.keys())==0:
+    # prepare FEM data structures
+    if problems is None:
+        lk, KE, n_nodaldof, ndof, edofMat, iK, jK, assm_indcs, fe_strain, fe_dens = \
+            prepare_phys_problems(mesh=mesh, lk=lk, body_forces_kw=body_forces_kw,
+                                  assembly_mode=assembly_mode, obj_kw=obj_kw)
+        # set up boundary conditions
+        u, f, fixed, free, springs = bcs(nelx=nelx, nely=nely, nelz=nelz, ndof=ndof)
+    else:
+        # mesh/DOF info pulled from the first solver — all setup was done at construction
+        _solver0    = problems[0] if isinstance(problems[0], ProblemSolver) \
+                      else problems[0][0]
+        f = _solver0.f        # load vector shape drives adj and load-case loop
+        free = _solver0.free     # needed for self-adjoint branch
+        KE = _solver0._KE0    # forwarded to obj_func
+        edofMat = _solver0.edofMat  # forwarded to obj_func
+        u = np.zeros_like(f) # placeholder; overwritten from state each iteration
+        if solver_coupling is None:
+            solver_coupling = ["weak"] * len(problems)
+        if isinstance(solver_kw, dict):
+            solver_kw = [solver_kw] * len(problems)
+        state = {}
+        parameters = {"xPhys": xPhys}
         fe_strain = None
         fe_dens = None
-    else:
-        # assume each strain is a column vector in Voigt notation
-        if "strain_uniform" in body_forces_kw.keys():
-            # fetch functions to create body force
-            if ndim == 2:
-                lf = lf_strain_2d
-            elif ndim == 3:
-                lf = lf_strain_3d
-            # calculate forces for each strain
-            fe_strain = []
-            if len(body_forces_kw["strain_uniform"].shape) == 1:
-                body_forces_kw["strain_uniform"] = body_forces_kw["strain_uniform"][:,None]
-            #
-            for i in range(body_forces_kw["strain_uniform"].shape[-1]):
-                fe_strain.append(lf(body_forces_kw["strain_uniform"][:,i],E=1.0, l=l))
-            fe_strain = np.column_stack(fe_strain)
-            # find the imposed elemental field. Material properties are
-            # unimportant here as it just depends on the geometry of the
-            # element, not its properties. This part is needed for
-            # homogenization related objective functions and may later
-            # become optional via some flags.
-            if ndim == 2 and n_nodaldof != 1:
-                fixed = np.array([0,1,3])
-            elif ndim == 3 and n_nodaldof != 1:
-                fixed = np.array([0,1,2,4,5,7,8])
-            elif n_nodaldof == 1:
-                fixed = np.array([0])
-            free = np.setdiff1d(np.arange(KE.shape[-1]), fixed)
-            u0 = np.zeros(fe_strain.shape)
-            u0[free] = np.linalg.solve(KE[free,:][:,free],
-                                       fe_strain[free,:])
-            if "u0" not in obj_kw.keys():
-                obj_kw["u0"] = u0
-        else:
-            fe_strain = None
-        #
-        if "density_coupled" in body_forces_kw.keys():
-            # fetch functions to create body force
-            if ndim == 2 and n_nodaldof!=1:
-                lf = lf_bodyforce_2d
-            elif ndim == 3 and n_nodaldof!=1:
-                lf = lf_bodyforce_3d
-            fe_dens = lf_bodyforce_2d(b=body_forces_kw["density_coupled"])
-        else:
-            fe_dens = None
-        #
-        if len([key for key in body_forces_kw.keys() \
-                if key not in ["density_coupled","strain_uniform"]]):
-            raise NotImplementedError("One type of bodyforce/source has not yet been implemented.")
-    # Construct the index pointers for the coo format
-    iK,jK = create_matrixinds(edofMat=edofMat, 
-                              mode=assembly_mode)
-    if assembly_mode == "lower":
-        assm_indcs = np.column_stack(np.tril_indices_from(KE))
-        assm_indcs = assm_indcs[np.lexsort( (assm_indcs[:,0],assm_indcs[:,1]) )]
-    else:
-        assm_indcs = None
-    # function to convert densities, etc. to images/voxels for plotting or the
-    # convolution filter.
-    if ndim == 2:
-        mapping = partial(map_eltoimg,
-                          nelx=nelx,
-                          nely=nely)
-        invmapping = partial(map_imgtoel, 
-                             nelx=nelx, 
-                             nely=nely)
-    elif ndim == 3:
-        mapping = partial(map_eltovoxel,
-                          nelx=nelx,
-                          nely=nely,
-                          nelz=nelz)
-        invmapping = partial(map_voxeltoel, 
-                             nelx=nelx, 
-                             nely=nely, 
-                             nelz=nelz)
     # initialize filters
     ft = prepare_filters(ft=ft,
                          nelx=nelx,
@@ -995,22 +1031,19 @@ def main(nelx: int, nely: int,
                          mapping=mapping,
                          invmapping=invmapping,
                          constraint_filter_mask=_constr_filter_mask)
-    # intermediate filter variables
+    # create intermediate filter variables. 
     if isinstance(ft, list):
         xTilde = []
         for i in range(len(ft) - 1):
             key = f" xTilde-{i}"
-            if initialguess_keys is None or key not in initialguess_keys:
+            if initial_guess is None or key not in initial_guess:
                 xTilde.append(x.copy())
             else:
                 xTilde.append(initial_guess[key])
     else:
         xTilde = None
-    # BC's and support
-    u,f,fixed,free,springs = bcs(nelx=nelx,nely=nely,nelz=nelz,
-                                 ndof=ndof)
-    f0 = None
     # check that boundary conditions and body forces are compatible
+    f0 = None
     if fe_strain is not None:
         if f.shape[-1] != fe_strain.shape[-1]:
             raise ValueError("Number of applied strains and boundary conditions is incompatible. Last dimension must be equal.")
@@ -1068,29 +1101,41 @@ def main(nelx: int, nely: int,
         # solve FEM, calculate obj. func. and gradients.
         if optimizer in ["oc","mma","ocm","ocg","gcmma"]:
             ### solve physical problems
-            u, K, fact, precond, Kes, rhs, f_body = solve_phys_problems(xPhys=xPhys,
-                                                                        KE=KE,
-                                                                        iK=iK,
-                                                                        jK=jK,
-                                                                        ndof=ndof,
-                                                                        n=n,
-                                                                        edofMat=edofMat,
-                                                                        f=f,
-                                                                        fixed=fixed,
-                                                                        free=free,
-                                                                        springs=springs,
-                                                                        matinterpol=matinterpol,
-                                                                        matinterpol_kw=matinterpol_kw,
-                                                                        assembly_mode=assembly_mode,
-                                                                        assm_indcs=assm_indcs,
-                                                                        body_forces_kw=body_forces_kw,
-                                                                        fe_strain=fe_strain,
-                                                                        fe_dens=fe_dens,
-                                                                        lin_solver=lin_solver,
-                                                                        lin_solver_kw=lin_solver_kw,
-                                                                        preconditioner=preconditioner,
-                                                                        preconditioner_kw=preconditioner_kw,
-                                                                        u=u)
+            if problems is None:
+                u, K, fact, precond, Kes, rhs, f_body = solve_phys_problems(xPhys=xPhys,
+                                                                            KE=KE,
+                                                                            iK=iK,
+                                                                            jK=jK,
+                                                                            ndof=ndof,
+                                                                            n=n_el,
+                                                                            edofMat=edofMat,
+                                                                            f=f,
+                                                                            fixed=fixed,
+                                                                            free=free,
+                                                                            springs=springs,
+                                                                            matinterpol=matinterpol,
+                                                                            matinterpol_kw=matinterpol_kw,
+                                                                            assembly_mode=assembly_mode,
+                                                                            assm_indcs=assm_indcs,
+                                                                            body_forces_kw=body_forces_kw,
+                                                                            fe_strain=fe_strain,
+                                                                            fe_dens=fe_dens,
+                                                                            lin_solver=lin_solver,
+                                                                            lin_solver_kw=lin_solver_kw,
+                                                                            preconditioner=preconditioner,
+                                                                            preconditioner_kw=preconditioner_kw,
+                                                                            u=u)
+            else:
+                parameters["xPhys"] = xPhys
+                state = solver_loop(problems,
+                                    state,
+                                    ntimesteps=1,
+                                    coupling=solver_coupling,
+                                    parameters=parameters,
+                                    solver_kw=solver_kw,
+                                    logger=log)
+                u    = state[_solver0.fieldname]
+                Kes  = _solver0._terms["Kes"]
             #
             for i in range(f.shape[1]): 
                 log.debug("FEM: it.: {0}, problem: {1}, min. u: {2:.10f}, med. u: {3:.10f}, max. u: {4:.10f}".format(
@@ -1111,7 +1156,7 @@ def main(nelx: int, nely: int,
                                                 matinterpol_kw=matinterpol_kw,
                                                 mapping=mapping, 
                                                 invmapping=invmapping,
-                                                cellVolume=cellVolume, 
+                                                cellVolume=mesh["cellVolume"],
                                                 **obj_kw)
                 # if problem not self adjoint, solve for adjoint variables and
                 # calculate derivatives, else use analytical solution
@@ -1122,36 +1167,51 @@ def main(nelx: int, nely: int,
                     #dobj[:] += rhs_adj
                     adj[free,i] = rhs_adj[free,0]
                 else:
-                    adj[free,i:i+1],_,_ = solve_lin(K, 
-                                           rhs=rhs_adj[free,i:i+1],
-                                           rhs0=adj[free,i:i+1],
-                                           solver=lin_solver,
-                                           solver_kw=lin_solver_kw,
-                                           factorization=fact,
-                                           P=precond,
-                                           preconditioner=preconditioner,
-                                           preconditioner_kw=preconditioner_kw)
-                # update sensitivity for quantities that need a small offset to
-                # avoid degeneracy of the FE pro i need to add a continue after this I guess?blem
-                # standard contribution of element stiffness/conductivity
-                dobj_offset = np.matvec(KE,u[edofMat,i])
-                # contribution due to force induced by strain
-                if "strain_uniform" in body_forces_kw.keys():
-                    dobj_offset -= fe_strain[None,:,i]
-                # generic density dependent element wise force
-                if f0 is not None:
-                    dobj_offset -= f0[None,:,i]
-                #
-                dobj[:,0] += (matinterpol_dx(xPhys=xPhys, **matinterpol_kw)*\
-                             adj[edofMat,i]*dobj_offset).sum(axis=1)
-                # update sensitivity for quantities that do not need a small
-                # offset to avoid degeneracy of the FE problem
-                if "density_coupled" in body_forces_kw.keys():
-                    dobj[:,0] -= simp_dx(xPhys=xPhys, eps=0., penal=1.)[:,0]*\
-                                         np.dot(adj[edofMat,i],fe_dens[:,i])
+                    if problems is None:
+                        adj[free,i:i+1],_,_ = solve_lin(K,
+                                               rhs=rhs_adj[free,i:i+1],
+                                               rhs0=adj[free,i:i+1],
+                                               solver=lin_solver,
+                                               solver_kw=lin_solver_kw,
+                                               factorization=fact,
+                                               P=precond,
+                                               preconditioner=preconditioner,
+                                               preconditioner_kw=preconditioner_kw)
+                    else:
+                        adj_out = _solver0.adjoint(rhs=rhs_adj,
+                                                   state=state,
+                                                   parameters=parameters,
+                                                   solver_kw=solver_kw[0],
+                                                   logger=log)
+                        adj[:, i:i+1] = adj_out[f"adj_{_solver0.fieldname}"]
+                if problems is None:
+                    # standard contribution of element stiffness/conductivity
+                    dobj_offset = np.matvec(KE,u[edofMat,i])
+                    # contribution due to force induced by strain
+                    if "strain_uniform" in body_forces_kw.keys():
+                        dobj_offset -= fe_strain[None,:,i]
+                    # generic density dependent element wise force
+                    if f0 is not None:
+                        dobj_offset -= f0[None,:,i]
+                    #
+                    dobj[:,0] += (matinterpol_dx(xPhys=xPhys, **matinterpol_kw)*\
+                                 adj[edofMat,i]*dobj_offset).sum(axis=1)
+                    # update sensitivity for quantities that do not need a small
+                    # offset to avoid degeneracy of the FE problem
+                    if "density_coupled" in body_forces_kw.keys():
+                        dobj[:,0] -= simp_dx(xPhys=xPhys, eps=0., penal=1.)[:,0]*\
+                                             np.dot(adj[edofMat,i],fe_dens[:,i])
                 #
                 log.debug("adj: it.: {0}, problem: {1}, min. adj: {2:.10f}, med. adj: {3:.10f}, max. adj: {4:.10f}".format(
                            loop,i,np.min(adj[:,i]),np.median(adj[:,i]),np.max(adj[:,i])))
+            else:
+                if problems is not None:
+                    dsens = _solver0.sensitivity(state=state,
+                                                 parameters=parameters,
+                                                 adjoint=adj,
+                                                 solver_kw=solver_kw[0],
+                                                 logger=log)
+                    dobj[:, 0] += dsens["dL_dxPhys"][:, 0]
         # optimizer is unknown.
         else:
             raise NotImplementedError("Unknown optimizer.")
@@ -1173,7 +1233,7 @@ def main(nelx: int, nely: int,
                                                        matinterpol_kw=matinterpol_kw,
                                                        mapping=mapping, 
                                                        invmapping=invmapping,
-                                                       cellVolume=cellVolume,
+                                                       cellVolume=mesh["cellVolume"],
                                                        **c["kw"])
                 # depends only on xPhys or any design variable: rhs_adj_c is already the gradient
                 if self_adj_c is None:
@@ -1184,7 +1244,8 @@ def main(nelx: int, nely: int,
                     adj[free,j] = rhs_adj_c[free,0]
                 # adjoint problem needs to be solved
                 else:
-                    adj[free,j:j+1],_,_ = solve_lin(K,
+                    if problems is None:
+                        adj[free,j:j+1],_,_ = solve_lin(K,
                                                rhs=rhs_adj_c[free,j:j+1],
                                                rhs0=adj[free,j:j+1],
                                                solver=lin_solver,
@@ -1193,17 +1254,33 @@ def main(nelx: int, nely: int,
                                                P=precond,
                                                preconditioner=preconditioner,
                                                preconditioner_kw=preconditioner_kw)
-                # accumulate sensitivity via chain rule through material interpolation
-                dconstr_offset = np.matvec(KE, u[edofMat,j])
-                if "strain_uniform" in body_forces_kw.keys():
-                    dconstr_offset -= fe_strain[None,:,j]
-                if f0 is not None:
-                    dconstr_offset -= f0[None,:,j]
-                dconstr[:,0] += (matinterpol_dx(xPhys=xPhys, **matinterpol_kw)*\
-                                 adj[edofMat,j]*dconstr_offset).sum(axis=1)
-                if "density_coupled" in body_forces_kw.keys():
-                    dconstr[:,0] -= simp_dx(xPhys=xPhys, eps=0., penal=1.)[:,0]*\
-                                    np.dot(adj[edofMat,j],fe_dens[:,j])
+                    else:
+                        adj_out = _solver0.adjoint(rhs=rhs_adj_c,
+                                                   state=state,
+                                                   parameters=parameters,
+                                                   solver_kw=solver_kw[0],
+                                                   logger=log)
+                        adj[:, j:j+1] = adj_out[f"adj_{_solver0.fieldname}"]
+                if problems is None:
+                    # accumulate sensitivity via chain rule through material interpolation
+                    dconstr_offset = np.matvec(KE, u[edofMat,j])
+                    if "strain_uniform" in body_forces_kw.keys():
+                        dconstr_offset -= fe_strain[None,:,j]
+                    if f0 is not None:
+                        dconstr_offset -= f0[None,:,j]
+                    dconstr[:,0] += (matinterpol_dx(xPhys=xPhys, **matinterpol_kw)*\
+                                     adj[edofMat,j]*dconstr_offset).sum(axis=1)
+                    if "density_coupled" in body_forces_kw.keys():
+                        dconstr[:,0] -= simp_dx(xPhys=xPhys, eps=0., penal=1.)[:,0]*\
+                                        np.dot(adj[edofMat,j],fe_dens[:,j])
+            else:
+                if problems is not None:
+                    dsens_c = _solver0.sensitivity(state=state,
+                                                   parameters=parameters,
+                                                   adjoint=adj,
+                                                   solver_kw=solver_kw[0],
+                                                   logger=log)
+                    dconstr[:, 0] += dsens_c["dL_dxPhys"][:, 0]
             # apply constraint type sign
             if c["type"] == "leq":
                 constrs[k, 0] = val - c["value"]
@@ -1342,7 +1419,7 @@ def main(nelx: int, nely: int,
                     solve_phys_problems(xPhys=xPhys_new,
                                         KE=KE,
                                         iK=iK, jK=jK,
-                                        ndof=ndof, n=n,
+                                        ndof=ndof, n=n_el,
                                         edofMat=edofMat,
                                         f=f,
                                         fixed=fixed, free=free, springs=springs,
@@ -1372,7 +1449,7 @@ def main(nelx: int, nely: int,
                                                         matinterpol_kw=matinterpol_kw,
                                                         mapping=mapping, 
                                                         invmapping=invmapping,
-                                                        cellVolume=cellVolume, 
+                                                        cellVolume=mesh["cellVolume"],
                                                         **obj_kw)
                     if self_adj_new is None:
                         break
@@ -1391,7 +1468,7 @@ def main(nelx: int, nely: int,
                                                                matinterpol_kw=matinterpol_kw,
                                                                mapping=mapping, 
                                                                invmapping=invmapping,
-                                                               cellVolume=cellVolume, 
+                                                               cellVolume=mesh["cellVolume"],
                                                                **c["kw"])
                         if self_adj_c_new is None:
                             break

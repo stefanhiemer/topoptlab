@@ -57,7 +57,7 @@ class LangelaarFilter(TOFilter):
             must be None; 3D is not supported.
         channel : None or int
             channel to which to apply filter. If None all channels are summed over 
-            and filter is applied to result. Assume that x.sum(axis) \leq 1 where 
+            and filter is applied to result. Assume that x.sum(axis) leq 1 where 
             1-x is void.
         """
         #
