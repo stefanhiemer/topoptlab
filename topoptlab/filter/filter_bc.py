@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
+from functools import partial
 from typing import Any,List, Union
 
 import numpy as np
@@ -75,20 +76,25 @@ def create_filter_bc(nelx: int,
     if nelz is None:
         ndim = 2
         create_edofMat = create_edofMat2d
-        mapping = map_eltoimg
-        invmap = map_imgtoel
-        struct = sphere 
+        mapping = partial(map_eltoimg, nelx=nelx, nely=nely)
+        invmap  = partial(map_imgtoel, nelx=nelx, nely=nely)
+        struct  = sphere
     else:
         ndim = 3
         create_edofMat = create_edofMat3d
-        mapping = map_eltovoxel
-        invmap = map_voxeltoel 
-        struct = ball
+        mapping = partial(map_eltovoxel, nelx=nelx, nely=nely, nelz=nelz)
+        invmap  = partial(map_voxeltoel, nelx=nelx, nely=nely, nelz=nelz)
+        struct  = ball
     #
     l = 1+int(2*rmin)
-    structure = struct(nelx=l,nely=l,nelz=l,
-                       radius=rmin, 
-                       fill_value=1.)
+    if nelz is None:
+        center = np.array([l // 2, l // 2])
+        structure = struct(nelx=l, nely=l, center=center,
+                           radius=rmin, fill_value=1).reshape(l, l).astype(bool)
+    else:
+        center = np.array([l // 2, l // 2, l // 2])
+        structure = struct(nelx=l, nely=l, nelz=l, center=center,
+                           radius=rmin, fill_value=1).reshape(l, l, l).astype(bool)
     #
     if mirror_sides is None:
         mirror_sides = []
@@ -114,8 +120,8 @@ def create_filter_bc(nelx: int,
     if vectorfield:
         bc_ndinds = np.unique(np.floor(bc_ndinds/ndim).astype(np.int32))
     # 
-    edofMat = create_edofMat(nelx=nelx, nely=nely, nelz=nelz,
-                             nnode_dof=1)
+    edofMat= create_edofMat(nelx=nelx, nely=nely, nelz=nelz,
+                            nnode_dof=1)[0]
     mask_bc = np.isin(edofMat,bc_ndinds).any(axis=1)
     mask_bc = invmap(binary_dilation(mapping(mask_bc & bd_box), 
                      structure=structure))

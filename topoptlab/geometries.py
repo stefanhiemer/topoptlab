@@ -1,7 +1,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
+from functools import partial
 from typing import Any, Callable, Dict, List, Union
 
 import numpy as np
+from scipy.ndimage import grey_dilation, binary_dilation
 
 from topoptlab.utils import check_meshdata, elid_to_coords, nodeid_to_coords,\
                             map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel
@@ -377,17 +379,14 @@ def bounding_box(nelx: int, nely: int,
     #
     if nelz is None:
         ndim = 2
+        mapping = partial(map_eltoimg,  nelx=nelx, nely=nely)
+        invmap  = partial(map_imgtoel,  nelx=nelx, nely=nely)
     else:
         ndim = 3
+        mapping = partial(map_eltovoxel, nelx=nelx, nely=nely, nelz=nelz)
+        invmap  = partial(map_voxeltoel, nelx=nelx, nely=nely, nelz=nelz)
     #
-    if thickness and ndim == 2:
-        mapping = map_eltoimg
-        invmap = map_imgtoel
-    elif thickness and dim == 3:
-        mapping = map_eltovoxel
-        invmap = map_voxeltoel
-    #
-    n = np.prod([nel,nely,nelz][:ndim])
+    n = np.prod([nelx,nely,nelz][:ndim])
     #
     inds = []
     if "l" in faces:
@@ -396,40 +395,37 @@ def bounding_box(nelx: int, nely: int,
         inds += [np.arange(nely)+nely*(nelx-1)]
     if "t" in faces:
         inds += [np.arange(0,n,nely)]
-    elif "b" in faces:
+    if "b" in faces:
         inds += [np.arange(0,n,nely)+nely-1]
     #
     if ndim == 3:
-        #
-        if len(inds) !=0:
-            inds = np.unique(np.array(inds)) 
-            #
+        if len(inds) != 0:
+            inds = np.unique(np.concatenate(inds))
             inds = [inds[:,None] + (np.arange(nelz)*nelx*nely)[None,:]]
-        #
         if "f" in faces:
             inds += [np.arange(nelx*nely)]
         if "k" in faces:
             inds += [np.arange(nelx*nely) + nelx*nely*(nelz-1) - 1]
-    if len(inds) !=0:
-        inds = np.unique(np.array(inds))
+    if len(inds) != 0:
+        inds = np.unique(np.concatenate(inds))
     #
-    if isinstance(fill_value,(int,np.in32,np.int64)):
-        el_flags = np.zeros(n, dtype=np.int32)
-    elif isinstance(fill_value,(float,np.float64)):
-        el_flags = np.zeros(n, dtype=np.float64)
-    elif isinstance(fill_value,bool):
+    if isinstance(fill_value, bool):
         el_flags = np.zeros(n, dtype=bool)
+    elif isinstance(fill_value, (int, np.int32, np.int64)):
+        el_flags = np.zeros(n, dtype=np.int32)
+    elif isinstance(fill_value, (float, np.float64)):
+        el_flags = np.zeros(n, dtype=np.float64)
     el_flags[inds] = fill_value
     #
-    if thickness and el_flags.dtype == np.int32:
+    if thickness and el_flags.dtype == bool:
+        el_flags = invmap(binary_dilation(mapping(el_flags),
+                                          iterations=int(thickness))).astype(bool)
+    elif thickness and el_flags.dtype == np.int32:
         el_flags = invmap(grey_dilation(mapping(el_flags),
-                          size=thickness)).astype(np.int32)
+                                        size=int(thickness))).astype(np.int32)
     elif thickness and el_flags.dtype == np.float64:
         el_flags = invmap(grey_dilation(mapping(el_flags),
-                          size=thickness))
-    elif thickness and el_flags.dtype == bool:
-        el_flags = invmap(binary_dilation(mapping(el_flags),
-                          size=thickness))
+                                        size=int(thickness)))
     return el_flags
 
 def slab(nelx: int, nely: int, center: np.ndarray, 

@@ -121,6 +121,7 @@ class HeatConduction(FEMSolver):
         self.fieldname = fieldname
         self._fact = None
         self._precond = None
+        return 
 
     def setup_discretization(self,
                              *,
@@ -135,32 +136,45 @@ class HeatConduction(FEMSolver):
         if isinstance(formulation, dict):
             lk = formulation["lk"]
         elif formulation == "galerkin" and regular_mesh:
+            #
+            self.ndof = np.prod(np.array([self.nelx, self.nely, self.nelz][:ndim]) + 1)
+            # element conductivity matrix
             _lk_map = {("quadrilateral", 1): lk_poisson_2d,
                        ("hexahedron", 1): lk_poisson_3d}
             lk = _lk_map.get((element_type, order))
             if lk is None:
-                raise ValueError(
-                    f"No built-in lk for element_type={element_type!r}, order={order}.")
+                raise ValueError(f"No built-in lk for element_type={element_type!r}, order={order}.")
+            # needed for some objective functions
+            self._KE0 = lk(l=self.l)
+            # create element degree-of-freedom matrix
+            if ndim == 1:
+                raise NotImplementedError("1D not implemented.")
+            elif ndim == 2:
+                create_edofMat = create_edofMat2d 
+            else: 
+                create_edofMat = create_edofMat3d
+            self.edofMat = create_edofMat(nelx=self.nelx,
+                                          nely=self.nely,
+                                          nelz=self.nelz,
+                                          nnode_dof=1)[0]
         elif formulation == "galerkin" and not regular_mesh:
+            _lk_map = {("quadrilateral", 1): _lk_poisson_2d,
+                       ("hexahedron", 1): _lk_poisson_3d}
+            lk = _lk_map.get((element_type, order))
             raise NotImplementedError(
                 "Irregular mesh not yet supported for galerkin formulation.")
         else:
             raise ValueError(f"Unknown formulation: {formulation!r}")
-        self._KE0 = lk(l=self.l)
-        nd_ndof = self._KE0.shape[0] // (2 ** ndim)
-        n = np.array([self.nelx, self.nely, self.nelz][:ndim])
-        self.ndof = int(np.prod(n + 1)) * nd_ndof
-        _create_edofMat = create_edofMat2d if ndim == 2 else create_edofMat3d
-        self.edofMat, *_ = _create_edofMat(nelx=self.nelx,
-                                           nely=self.nely,
-                                           nelz=self.nelz,
-                                           nnode_dof=nd_ndof)
-        self.iK, self.jK = create_matrixinds(self.edofMat, mode=self.assembly_mode)
+        # create matrix indices
+        self.iK, self.jK = create_matrixinds(self.edofMat, 
+                                             mode=self.assembly_mode)
+        #
         if self.assembly_mode == "lower":
             assm = np.column_stack(np.tril_indices_from(self._KE0))
             self._assm_indcs = assm[np.lexsort((assm[:, 0], assm[:, 1]))]
         else:
             self._assm_indcs = None
+        return 
 
     def core_terms(self,
                    state: Dict = {},
@@ -171,7 +185,8 @@ class HeatConduction(FEMSolver):
         """Scaled element conductivity matrices."""
         xPhys = parameters["xPhys"]
         if self.interpolation_mode == "scaling":
-            scale = self.matinterpol(xPhys=xPhys, **self.matinterpol_kw)
+            scale = self.matinterpol(xPhys=xPhys, 
+                                     **self.matinterpol_kw)
             Kes = self._KE0[None, :, :] * scale[:, :, None]
         elif self.interpolation_mode == "hashin":
             Kes = self.matinterpol(xPhys=xPhys, **self.matinterpol_kw)
