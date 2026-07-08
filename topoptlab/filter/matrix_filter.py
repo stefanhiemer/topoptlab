@@ -319,8 +319,9 @@ def assemble_matrix_filter(nelx: int,
     sH = np.tile(sH_stencil, (nel,1))[inside]
     # eliminate passive (1) and active (2) elements from filter matrix;
     # non-design elements (flag=3) are intentionally kept in the stencil.
-    if el_flags is not None and el_flags_policy is not None and \
-            el_flags_policy["neglect_in_filter"]:
+    if el_flags is not None and \
+       el_flags_policy is not None and \
+       el_flags_policy["neglect_in_filter"]:
         prescribed = (el_flags == 1) | (el_flags == 2)
         keep = ~(prescribed[iH.astype(int)] | prescribed[jH.astype(int)])
         iH, jH, sH = iH[keep], jH[keep], sH[keep]

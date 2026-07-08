@@ -923,7 +923,7 @@ def main(nelx: int, nely: int,
     if el_flags is not None:
         passive_mask = el_flags == 1
         active_mask = el_flags == 2
-        prescribed_mask = el_flags != 0
+        prescribed_mask = (el_flags == 1) | (el_flags == 2) 
     # initialize arrays for gradients
     dobj = np.zeros( x.shape,order="F")
     # build and validate constraint list
