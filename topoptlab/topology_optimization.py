@@ -624,7 +624,8 @@ def adjoint_loop(problems: List,
 
 def initialize_design(n: int,
                       initial_guess: Union[None, Dict[str, np.ndarray]],
-                      volfrac: Union[None, float]) -> Tuple[np.ndarray, np.ndarray]:
+                      volfrac: Union[None, float],
+                      n_mat: int = 1) -> Tuple[np.ndarray, np.ndarray]:
     """
     Initialize design variables x and physical densities xPhys.
 
@@ -636,25 +637,27 @@ def initialize_design(n: int,
         Optional initial values.  Recognised keys:
 
         ``"x"``
-            Initial design variables, shape (n, 1).  Defaults to uniform
+            Initial design variables, shape (n, n_mat).  Defaults to uniform
             ``volfrac`` (or 0.5 if ``volfrac`` is None).
         ``"xPhys"``
-            Initial physical densities, shape (n, 1).  Defaults to a copy
+            Initial physical densities, shape (n, n_mat).  Defaults to a copy
             of ``x``.
 
     volfrac : float or None
         Volume fraction used to fill ``x`` when no initial guess is given.
         If None, defaults to 0.5.
+    n_mat : int
+        Number of materials; determines the second axis of x and xPhys.
 
     Returns
     -------
-    x : np.ndarray, shape (n, 1)
+    x : np.ndarray, shape (n, n_mat)
         Design variables.
-    xPhys : np.ndarray, shape (n, 1)
+    xPhys : np.ndarray, shape (n, n_mat)
         Physical densities.
     """
     if initial_guess is None or "x" not in initial_guess:
-        x = np.full(shape=(n, 1),
+        x = np.full(shape=(n, n_mat),
                     fill_value=volfrac if volfrac is not None else 0.5,
                     dtype=float,
                     order='F')
@@ -853,10 +856,14 @@ def main(nelx: int, nely: int,
         profiler = Profile() 
         profiler.enable()
     # extract linear solver and preconditioner
-    lin_solver = lin_solver_kw["name"] 
+    lin_solver = lin_solver_kw["name"]
     preconditioner = preconditioner_kw["name"]
     lin_solver_kw = dict_without(lin_solver_kw, "name")
     preconditioner_kw = dict_without(preconditioner_kw, "name")
+    # normalize materials_kw: single dict → one-element list
+    if isinstance(materials_kw, dict):
+        materials_kw = [materials_kw]
+    n_mat = len(materials_kw)
     #
     if nelz is None:
         ndim = 2
@@ -917,7 +924,7 @@ def main(nelx: int, nely: int,
         raise NotImplementedError("Cannot handle irregular meshes right now.")
     mapping, invmapping = mesh["mapping"], mesh["invmapping"]
     # Allocate design variables (as array), initialize and allocate sens.
-    x, xPhys = initialize_design(n=n_el, initial_guess=initial_guess, volfrac=volfrac)
+    x, xPhys = initialize_design(n=n_el, initial_guess=initial_guess, volfrac=volfrac, n_mat=n_mat)
     # precompute prescribed-element masks for filter policy corrections
     passive_mask, active_mask, prescribed_mask = None, None, None
     if el_flags is not None:
@@ -982,8 +989,8 @@ def main(nelx: int, nely: int,
             mask = el_flags == 2
             optimizer_kw["xmin"][mask] = 1.- 1e-9
             optimizer_kw["xmax"][mask] = 1.
-            x[mask] = 1.
-            xPhys[mask] = 1.
+            x[mask, :] = 1.
+            xPhys[mask, :] = 1.
             # redistribute volfrac over free elements so that passive elements
             # (contributing 0) add material to the free set
             if volfrac is not None:

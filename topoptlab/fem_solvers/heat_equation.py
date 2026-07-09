@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any, Callable, Dict, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -14,11 +14,19 @@ from topoptlab.solve_linsystem import solve_lin
 from topoptlab.log_utils import BaseLogger, EmptyLogger
 
 
-class HeatConduction(FEMSolver):
+class HeatEquation(FEMSolver):
     """
-    Stationary heat conduction (Poisson) solver.
+    Solver for the (compressible) heat equation:
 
-    Solves  -div( k(x) grad T ) = f  on Omega,  T = T_D  on Gamma_D.
+       ρc_v ( ∂T ∂t + (u · ∇)T) − ∇ · (k∇T ) = -p ∇·u  τ : ε + ρh,
+
+    The incompressible heat equation 
+
+        ρc_p ( ∂T ∂t + (u · ∇)T) − ∇ · (k∇T ) = τ : ε + ρh,
+
+    So far we are restricted to heat conduction:
+
+       -∇ ·( K(x) ∇ T ) = f  on Omega,  T = T_D  on Gamma_D.
 
     Fits the FEMSolver pipeline:
       setup_discretization  – element routines and assembly indices (called from __init__)
@@ -70,6 +78,10 @@ class HeatConduction(FEMSolver):
                  bc: Callable,
                  ndim: int,
                  nelz: Optional[int] = None,
+                 transient: bool = False, 
+                 convection: bool = False,
+                 viscous_heating: bool = False,
+                 volumetric_source: Union[None,Callable] = None,
                  l: Union[float, np.ndarray] = 1.,
                  formulation: Union[str, Dict] = "galerkin",
                  order: Union[int, Tuple[int]] = 1,
@@ -80,8 +92,12 @@ class HeatConduction(FEMSolver):
                  matinterpol: Callable = simp,
                  matinterpol_dx: Callable = simp_dx,
                  matinterpol_kw: Dict = {"eps": 1e-9, "penal": 3.0},
+                 material_kw: Union[Dict, List[Dict]] = {"heat conductivity": 1.0},
                  fieldname: str = "T",
                  **kwargs: Any) -> None:
+        #
+        self.fieldname = fieldname
+        #
         self.ndim = ndim
         if regular_mesh:
             if isinstance(l, float):
@@ -98,7 +114,9 @@ class HeatConduction(FEMSolver):
             # here i either need to have a read function based on gmsh or that needs to be done
             # already in topology_optimization.py
             raise NotImplementedError
+        # for regular sets side lengths, for irregular sets length scale of mesh
         self.l = l
+        # different assembly modes to use symmetry to advantage
         self.assembly_mode = assembly_mode
         if element_type is None:
             if ndim == 1:
@@ -107,18 +125,28 @@ class HeatConduction(FEMSolver):
                 element_type = "quadrilateral"
             else:
                 element_type = "hexahedron"
+        # normalize material_kw to list and detect symmetry before setup_discretization
+        if isinstance(material_kw, dict):
+            material_kw = [material_kw]
+        self.material_kw = material_kw
+        self.log_material_properties()
+        #
         self.setup_discretization(element_type=element_type,
                                   order=order,
                                   formulation=formulation,
                                   ndim=ndim,
                                   regular_mesh=regular_mesh)
+        # unpack BC
         self.T, self.f, self.fixed, self.free, self._springs = bc(
             nelx=nelx, nely=nely, nelz=nelz, ndof=self.ndof)
+        #
+        
+        # set up material interpolation
         self.interpolation_mode = interpolation_mode
         self.matinterpol = matinterpol
         self.matinterpol_dx = matinterpol_dx
         self.matinterpol_kw = matinterpol_kw
-        self.fieldname = fieldname
+        #
         self._fact = None
         self._precond = None
         return 
@@ -262,10 +290,71 @@ class HeatConduction(FEMSolver):
     def output_keys(self) -> tuple:
         return (self.fieldname,)
 
-    def material_properties(self,
-                            logger: BaseLogger = None,
-                            ) -> Dict:
-        """Log and return the material model parameters."""
+    def log_material_properties(self, logger: BaseLogger = None) -> Dict:
+        """
+        Parse, validate, log, and cache material properties from ``self.material_kw``.
+
+        Sets ``self.symmetry`` to the most general symmetry class across all
+        materials (``"isotropic"`` < ``"orthotropic"`` < ``"anisotropic"``).
+        Must be called before ``setup_discretization`` so the correct element
+        ``lk`` can be selected.
+
+        Symmetry is inferred from the key present in each material dict:
+        ``"heat conductivity"`` (scalar) → ``"isotropic"``;
+        ``"heat conductivity tensor"`` (array) → ``"anisotropic"``.
+        An explicit ``"symmetry"`` key takes priority over inference.
+
+        Parameters
+        ----------
+        logger : BaseLogger or None
+
+        Returns
+        -------
+        props : dict
+            ``{"symmetry": str, "materials": List[Dict]}`` where each entry is
+            a copy of the input dict with ``"symmetry"`` filled in.
+        """
+        #
+        logger = logger or EmptyLogger()
+        #
+        _rank = {"isotropic": 0, 
+                 "orthotropic": 1, 
+                 "anisotropic": 2}
+        #
+        ks = []
+        symmetries = []
+        lines = [f"Material parameters (heat equation) for field: {self.fieldname}"]
+        for i, mat_kw in enumerate(self.material_kw):
+            if "heat conductivity tensor" in mat_kw.keys():
+                symmetries.append("anisotropic")
+                key = "heat conductivity tensor"
+            elif "heat conductivity" in mat_kw.keys():
+                symmetries.append("isotropic")
+                key = "heat conductivity"
+            elif all(["heat conductivity "+["x","y","z"][j] in mat_kw.keys() \
+                      for j in range(self.ndim)]):
+                symmetries.append("orthotropic")
+                key = "heat conductivity tensor"
+                mat_kw[key] = np.diag([mat_kw["heat conductivity " + c]
+                                       for c in ["x", "y", "z"][:self.ndim]])
+            else:
+                raise ValueError(f"material_kw[{i}]: missing 'heat conductivity' or "
+                                 f"'heat conductivity tensor'.")
+            ks.append(mat_kw[key])
+            logger.info(f"  material {i} ({symmetries[-1]}): {key} = {mat_kw[key]}")
+        # most general symmetry wins
+        symmetry = max(symmetries, key=lambda s: _rank[s])
+        # if the effective symmetry is not isotropic, upgrade scalar k to diagonal tensor
+        if symmetry != "isotropic":
+            self.ks = [k * np.eye(self.ndim) if np.ndim(k) == 0 else k for k in ks]
+        else:
+            self.ks = ks
+        logger.info(f"  effective symmetry: {symmetry}")
+        self.symmetry = symmetry
+        return {"symmetry": symmetry, "ks": ks}
+
+    def log_material_interpolation(self, logger: BaseLogger = None) -> Dict:
+        """Log and return the material interpolation parameters."""
         logger = logger or EmptyLogger()
         props = {"interpolation_mode": self.interpolation_mode,
                  "matinterpol": getattr(self.matinterpol,
@@ -273,7 +362,7 @@ class HeatConduction(FEMSolver):
                  "matinterpol_dx": getattr(self.matinterpol_dx,
                                            "__name__", str(self.matinterpol_dx)),
                  **self.matinterpol_kw}
-        lines = ["Material model (heat conduction):"]
+        lines = [f"Material interpolation (heat equation) for field: {self.fieldname}"]
         for k, v in props.items():
             lines.append(f"  {k}: {v}")
         logger.info("\n".join(lines))

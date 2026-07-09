@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 from topoptlab.topology_optimization import main
 from topoptlab.example_bc.heat_conduction import heatplate_2d
-from topoptlab.fem_solvers.heat_conduction import HeatConduction
+from topoptlab.fem_solvers.heat_equation import HeatEquation
 
 if __name__ == "__main__":
     nelx = 40
@@ -33,16 +33,14 @@ if __name__ == "__main__":
         export = bool(int(sys.argv[8]))
     if len(sys.argv) > 9:
         write_log = bool(int(sys.argv[9]))
-
-    solver = HeatConduction(
-        nelx=nelx,
-        nely=nely,
-        bc=heatplate_2d,
-        ndim=2,
-        assembly_mode="full",
-        matinterpol_kw={"eps": 1e-9, "penal": penal},
-    )
-
+    #
+    solver = HeatEquation(nelx=nelx,
+                          nely=nely,
+                          bc=heatplate_2d,
+                          ndim=2,
+                          assembly_mode="full",
+                          matinterpol_kw={"eps": 1e-9, "penal": penal})
+    #
     main(nelx=nelx, nely=nely, volfrac=volfrac,
          rmin=rmin,
          ft=ft, filter_mode="matrix", optimizer="oc", nouteriter=1000,

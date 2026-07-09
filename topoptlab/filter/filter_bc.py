@@ -12,7 +12,8 @@ from topoptlab.utils import map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel
 
 
 def _face_node_indices(side: str,
-                       nelx: int, nely: int,
+                       nelx: int, 
+                       nely: Union[None, int],
                        nelz: Union[None, int]) -> np.ndarray:
     """
     Return 0-based node indices on the named face of a structured mesh.
@@ -21,7 +22,16 @@ def _face_node_indices(side: str,
       2-D: node(ix, iy) = ix*(nely+1) + iy
       3-D: node(ix, iy, iz) = iz*(nelx*(nely+1)) + ix*(nely+1) + iy
     """
-    if nelz is None:
+    if nely is None:
+        if side == "l":
+            return np.array([0], 
+                            dtype=np.int32)
+        elif side == "r":
+            return np.array([0], 
+                            dtype=np.int32)
+        else:
+            return np.array([], dtype=np.int32)
+    elif nelz is None:
         ny1 = nely + 1
         nx1 = nelx + 1
         if side == "l":
@@ -158,9 +168,7 @@ def bc_in_bdbox(fixed: np.ndarray,
     # 
     edofMat= create_edofMat(nelx=nelx, nely=nely, nelz=nelz,
                             nnode_dof=1)[0]
-    mask_bc = np.isin(edofMat,bc_ndinds).any(axis=1)
-    #mask_bc = invmap(binary_dilation(mapping(mask_bc & bd_box), 
-    #                 structure=structure))
+    mask_bc = np.isin(edofMat,bc_ndinds).any(axis=1) & bd_box
     return mask_bc
 
 def create_filter_bc(nelx: int,
@@ -175,11 +183,14 @@ def create_filter_bc(nelx: int,
                      wrapping: bool = False,
                      **kwargs: Any) -> np.ndarray:
     """
-    Create element flags to apply boundary conditions similar to 
+    Create element flags to apply boundary conditions similar to (but slightly different)
 
        Clausen, Anders, and Erik Andreassen. "On filter boundary 
        conditions in topology optimization." Structural and 
        Multidisciplinary Optimization 56.5 (2017): 1147-1155.
+    
+    The minor difference is that instead of padding an outer layer of additional elements to 
+    the design (which makes the design larger), we just flag the existing elements.
 
     This is needed for consistent optimization at the boundaries of 
     the design but also for special filters e. g. coating. This is 
