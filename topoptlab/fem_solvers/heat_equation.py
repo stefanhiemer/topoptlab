@@ -11,7 +11,8 @@ from topoptlab.elements.poisson_2d import lk_poisson_2d, _lk_poisson_2d
 from topoptlab.elements.poisson_3d import lk_poisson_3d, _lk_poisson_3d
 from topoptlab.material_interpolation import simp, simp_dx
 from topoptlab.solve_linsystem import solve_lin
-from topoptlab.log_utils import BaseLogger, EmptyLogger
+from topoptlab.log_utils import BaseLogger, EmptyLogger, log_material_properties
+from topoptlab.material_tensors import resolve_property
 
 
 class HeatEquation(FEMSolver):
@@ -290,7 +291,8 @@ class HeatEquation(FEMSolver):
     def output_keys(self) -> tuple:
         return (self.fieldname,)
 
-    def log_material_properties(self, logger: BaseLogger = None) -> Dict:
+    def log_material_properties(self, 
+                                logger: BaseLogger = None) -> Dict:
         """
         Parse, validate, log, and cache material properties from ``self.material_kw``.
 
@@ -299,11 +301,6 @@ class HeatEquation(FEMSolver):
         Must be called before ``setup_discretization`` so the correct element
         ``lk`` can be selected.
 
-        Symmetry is inferred from the key present in each material dict:
-        ``"heat conductivity"`` (scalar) → ``"isotropic"``;
-        ``"heat conductivity tensor"`` (array) → ``"anisotropic"``.
-        An explicit ``"symmetry"`` key takes priority over inference.
-
         Parameters
         ----------
         logger : BaseLogger or None
@@ -311,47 +308,35 @@ class HeatEquation(FEMSolver):
         Returns
         -------
         props : dict
-            ``{"symmetry": str, "materials": List[Dict]}`` where each entry is
-            a copy of the input dict with ``"symmetry"`` filled in.
+            ``{"heat conductivity": [...], "heat conductivity symmetry": str}``
         """
+        # heat conductivity
+        symmetries = ["isotropic", 
+                     "orthotropic", 
+                     "anisotropic"]
+        prop_names = [["heat conductivity"], 
+                      ["heat conductivity x", 
+                       "heat conductivity y", 
+                       "heat conductivity z"][:self.ndim], 
+                      ["heat conductivity tensor"]]
+        arg_names = [["k"],
+                     ["kx","ky","kz"], 
+                     ["k"]]
         #
-        logger = logger or EmptyLogger()
+        props = log_material_properties(material_kw=self.material_kw,
+                                        prop_name="heat conductivity",
+                                        kind="tensor",
+                                        ndim=self.ndim,
+                                        fieldname=f"heat equation, field: {self.fieldname}",
+                                        logger=logger)
+        # function to achieve uniform representation
+        normalizing = {"isotropic": False, 
+                       "orthotropic": [isotropic, orthotropic, False],
+                       "anisotropic": [isotropic, orthotropic, False]}
         #
-        _rank = {"isotropic": 0, 
-                 "orthotropic": 1, 
-                 "anisotropic": 2}
+
         #
-        ks = []
-        symmetries = []
-        lines = [f"Material parameters (heat equation) for field: {self.fieldname}"]
-        for i, mat_kw in enumerate(self.material_kw):
-            if "heat conductivity tensor" in mat_kw.keys():
-                symmetries.append("anisotropic")
-                key = "heat conductivity tensor"
-            elif "heat conductivity" in mat_kw.keys():
-                symmetries.append("isotropic")
-                key = "heat conductivity"
-            elif all(["heat conductivity "+["x","y","z"][j] in mat_kw.keys() \
-                      for j in range(self.ndim)]):
-                symmetries.append("orthotropic")
-                key = "heat conductivity tensor"
-                mat_kw[key] = np.diag([mat_kw["heat conductivity " + c]
-                                       for c in ["x", "y", "z"][:self.ndim]])
-            else:
-                raise ValueError(f"material_kw[{i}]: missing 'heat conductivity' or "
-                                 f"'heat conductivity tensor'.")
-            ks.append(mat_kw[key])
-            logger.info(f"  material {i} ({symmetries[-1]}): {key} = {mat_kw[key]}")
-        # most general symmetry wins
-        symmetry = max(symmetries, key=lambda s: _rank[s])
-        # if the effective symmetry is not isotropic, upgrade scalar k to diagonal tensor
-        if symmetry != "isotropic":
-            self.ks = [k * np.eye(self.ndim) if np.ndim(k) == 0 else k for k in ks]
-        else:
-            self.ks = ks
-        logger.info(f"  effective symmetry: {symmetry}")
-        self.symmetry = symmetry
-        return {"symmetry": symmetry, "ks": ks}
+        return props
 
     def log_material_interpolation(self, logger: BaseLogger = None) -> Dict:
         """Log and return the material interpolation parameters."""

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any,Dict,Tuple
+from typing import Any,Dict,List,Optional,Tuple
 from abc import ABC, abstractmethod
 from os.path import isfile
 from os import remove
@@ -7,6 +7,8 @@ from sys import platform
 import re
 
 import numpy as np
+
+from topoptlab.material_tensors import isotropic, orthotropic
 
 def _noop(msg: str) -> None:
     """
@@ -559,3 +561,196 @@ def parse_simple_logfile(path: str) -> Dict[str, Any]:
     #log_data["tagged"] = tagged
     log_data["history"] = data
     return log_data | tagged
+
+def log_material_properties(material_kw: List[Dict[str, Any]],
+                            prop_name: str,
+                            kind: str = "scalar",
+                            ndim: int = 3,
+                            fieldname: str = "",
+                            logger: Union[None,BaseLogger] = None,
+                            ) -> Dict[str, Any]:
+    """
+    Parse, validate, and log a single material property across all material
+    regions. Call once per property a solver actually needs (e.g. once for
+    "heat conductivity", once for "density") rather than passing everything
+    a solver could ever use in one go.
+
+    ``kind`` distinguishes two families of properties:
+
+        - "tensor" : matrix-valued properties such as heat conductivity or
+          stiffness. Per material, ``mat_kw[prop_name]`` may be given as a
+          scalar (isotropic), a length-``ndim`` array of per-axis values
+          (orthotropic), or an ``ndim x ndim`` array (anisotropic; for
+          stiffness-like properties the caller builds this beforehand with
+          e.g. ``topoptlab.stiffness_tensors``). The effective symmetry is
+          the most general one found across all materials; scalar and
+          per-axis entries are then upgraded to full ``ndim x ndim``
+          tensors via ``topoptlab.material_tensors.isotropic``/
+          ``orthotropic`` so all returned values share a common shape.
+        - "scalar" : a single float per material with no symmetry handling,
+          e.g. mass density or heat capacity.
+
+    Parameters
+    ----------
+    material_kw : list of dict
+        One dict of property values per material region.
+    prop_name : str
+        Name of the property to extract, e.g. "heat conductivity".
+    kind : str
+        "tensor" or "scalar".
+    ndim : int
+        Spatial dimension; used to upgrade isotropic/orthotropic values to
+        full tensors.
+    fieldname : str
+        Label included in the log header, e.g. the solver's field name.
+    logger : BaseLogger or None
+        Logger to write to; if None, nothing is logged.
+
+    Returns
+    -------
+    props : dict
+        ``{prop_name: values}`` with one entry per material (float for
+        scalar properties, ndarray for tensor properties), plus
+        ``{f"{prop_name} symmetry": symmetry}`` for ``kind == "tensor"``.
+
+    """
+    logger = logger or EmptyLogger()
+    values = []
+    for i, mat_kw in enumerate(material_kw):
+        if prop_name not in mat_kw:
+            raise ValueError(f"material_kw[{i}]: missing {prop_name!r}.")
+        values.append(mat_kw[prop_name])
+    #
+    logger.info(f"Material property ({fieldname}): {prop_name}" if fieldname
+                else f"Material property: {prop_name}")
+    #
+    if kind == "tensor":
+        #
+        _rank = {"isotropic": 0, "orthotropic": 1, "anisotropic": 2}
+        _by_ndim = {0: "isotropic", 1: "orthotropic", 2: "anisotropic"}
+        symmetries = [_by_ndim[np.ndim(v)] for v in values]
+        symmetry = max(symmetries, key=lambda s: _rank[s])
+        #
+        if symmetry != "isotropic":
+            values = [orthotropic(v) if np.ndim(v) == 1
+                      else isotropic(ndim=ndim, k=v) if np.ndim(v) == 0
+                      else v
+                      for v in values]
+        #
+        for i, val in enumerate(values):
+            logger.info(f"  material {i}: {val}")
+        #
+        logger.info(f"  effective symmetry: {symmetry}")
+        return {prop_name: values, f"{prop_name} symmetry": symmetry}
+    #
+    elif kind == "scalar":
+        #
+        for i, v in enumerate(values):
+            logger.info(f"  material {i}: {v}")
+        return {prop_name: values}
+    else:
+        raise ValueError(f"Unknown kind {kind!r} for {prop_name!r}; "
+                         "expected 'tensor' or 'scalar'.")
+
+
+def log_material_properties(material_kw: Dict,
+                            fieldname: str,
+                            symmetries: List[str], 
+                            names: List[List[str],...], 
+                            arg_names: List[List[str],...], 
+                            converter_functions: List[List[Callable],...]
+                            logger: Union[None,BaseLogger] = None,) -> Tuple[np.ndarray,np.ndarray,str]
+    """
+    Needs sorted list of symmetries. The more general, the later in the list. E. g
+    ["isotropic","orthotropic","triclinc"].
+
+    1. finds symmetry class needed for specific elements.
+    2. use symmetry class to cast properties to representation needed for elements.
+    3. logs process
+    """
+    #
+    if len(material_kw) == 0:
+        raise ValueError("material_kw is empty. No material data provided.")
+    #
+    logger = logger or EmptyLogger()
+    #
+    mat_syminds = []
+    mat_symmetries = []
+    props = []
+    #
+    for i,mat_kw in enumerate(material_kw):
+        # find symmetry
+        keys = mat_kw.keys() 
+        sym_flag = [all(x in keys for x in sym_names) for sym_name in names] 
+        #
+        if sum(a) == 1:
+            mat_symind.append(symmetries[a.index(True)])
+            mat_symmetries.append(mat_symind[-1])
+        else:
+            raise ValueError(f"Symmetry for maerial {i} could not uniquely be identified.")
+        # collect material values to dictionary useable for casting
+        prop = {arg_name: mat_kw[key] for key,arg_name in \
+                      zip(names[mat_syminds[-1]], arg_names[mat_syminds[-1]])}
+        props.append(prop)
+        # logging properties as read
+        log.info(f"material {i}")
+        for key in names[mat_syminds[-1]]:
+            log.info(f"{key}: {mat_kw[key]}")
+    #
+    symmetry_index = max(mat_symind)
+    symmetry = symmetries[symmetry_index]
+    #
+    log.info(f"effective symmetry: {symmetry}")
+    #
+    props = [converter_functions[i][symmetry_index] for i,prop\
+             in zip(mat_syminds,props)]
+    return props, symmetry
+
+if __name__ == "__main__":
+    #
+    {"symmetries": ["isotropic", 
+                    "orthotropic", 
+                    "anisotropic"], 
+     "names": [["heat conductivity"], 
+               ["heat conductivity x", 
+                "heat conductivity y", 
+                "heat conductivity z"], 
+               ["heat conductivity tensor"]],
+     "arg_names": [["k"],
+                   ["kx","ky","kz"], 
+                   ["k"]]}
+    #
+    scalar_names = ["heat conductivity"]
+    scalar_names = ["Young's modulus", 
+                    "Poisson's ratio", 
+                    "shear modulus",
+                    "bulk modulus",
+                    "first Lame constant",
+                    "P-wave modulus"]
+    # list of scalar props
+    arg_names = ["k"]
+    arg_names = ["E","nu","G","K","lam","M"]
+    #
+    orthotropic_names = ["heat conductivity x", 
+                         "heat conductivity y", 
+                         "heat conductivity z"]
+    orthotropic_names = ["Young's modulus x", 
+                         "Young's modulus y", 
+                         "Young's modulus z", 
+                         "Poisson's ratio xy", 
+                         "Poisson's ratio xz", 
+                         "Poisson's ratio yz",
+                         "shear modulus xy", 
+                         "shear modulus xz", 
+                         "shear modulus yz"]
+    # list of orthotropic props
+    arg_names = ["kx","ky","kz"]
+    arg_names = ["Ex","Ey","Ez", 
+                 "nu_xy", "nu_xz", "nu_yz",
+                 "G_xy", "G_xz", "G_yz"]
+    #
+    aniso_names = ["heat conductivity tensor"]
+    aniso_names = ["stiffness tensor"]
+    #
+    arg_names = ["k"]
+    arg_names = ["c"]
