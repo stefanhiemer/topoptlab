@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 from abc import abstractmethod
-from typing import Any, Dict, Tuple, Union
+from typing import Any, Callable, Dict, List, Tuple, Union
 
 from topoptlab.problem_solver import ProblemSolver
-from topoptlab.log_utils import BaseLogger  # noqa: F401 – re-exported for subclasses
+from topoptlab.log_utils import BaseLogger, EmptyLogger, log_material_properties  # noqa: F401
 
 
 class FEMSolver(ProblemSolver):
@@ -127,6 +127,64 @@ class FEMSolver(ProblemSolver):
                            ) -> Dict:
         """Calculate quantities derived from the solution, e.g. stress."""
         return {}
+    
+    def log_material_property(self,
+                              solver_name: str,
+                              field_name: str,
+                              symmetries: List[str],
+                              prop_names: List[List[str]],
+                              arg_names: List[List[str]],
+                              converter_functions: List[List[Callable]],
+                              logger: BaseLogger = None) -> Tuple[List, str]:
+        """
+        Generic dispatcher: validate, log, and convert ``self.material_kw`` to a
+        uniform tensor representation.
+
+        Delegates to ``log_material_properties`` in ``log_utils``, which detects
+        the symmetry class of each material by matching key names from ``prop_names``
+        against the material dict, then applies ``converter_functions`` to cast all
+        properties to the most general symmetry class present.
+
+        Parameters
+        ----------
+        solver_name : str
+            Human-readable name of the solver, used only for the log header.
+        field_name : str
+            Name of the physical field (e.g. ``"T"``), used only for the log header.
+        symmetries : list of str
+            Symmetry class names in increasing generality, e.g.
+            ``["isotropic", "orthotropic", "triclinic"]``.
+        prop_names : list of list of str
+            For each symmetry class, the expected keys in ``material_kw``.
+        arg_names : list of list of str
+            For each symmetry class, the corresponding keyword argument names
+            passed to the converter functions.
+        converter_functions : list of list of callable
+            ``converter_functions[mat_sym_idx][effective_sym_idx](**prop)``
+            converts a material of symmetry ``mat_sym_idx`` to the effective
+            symmetry ``effective_sym_idx``.  Entries where
+            ``mat_sym_idx > effective_sym_idx`` are never reached and may be
+            ``None``.
+        logger : BaseLogger or None
+
+        Returns
+        -------
+        props : list
+            Converted per-material property objects (one per entry in
+            ``self.material_kw``), all in the effective symmetry representation.
+        symmetry : str
+            The effective (most general) symmetry class name.
+        """
+        logger = logger or EmptyLogger()
+        logger.info(f"Material Properties for FEM {solver_name} solver for field {field_name}")
+        props, symmetry = log_material_properties(
+            material_kw=self.material_kw,
+            symmetries=symmetries,
+            names=prop_names,
+            arg_names=arg_names,
+            converter_functions=converter_functions,
+            logger=logger)
+        return props, symmetry
 
     def material_properties(self,
                             logger: BaseLogger = None,

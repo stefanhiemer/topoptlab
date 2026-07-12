@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
+from functools import partial
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -11,15 +12,16 @@ from topoptlab.elements.poisson_2d import lk_poisson_2d, _lk_poisson_2d
 from topoptlab.elements.poisson_3d import lk_poisson_3d, _lk_poisson_3d
 from topoptlab.material_interpolation import simp, simp_dx
 from topoptlab.solve_linsystem import solve_lin
-from topoptlab.log_utils import BaseLogger, EmptyLogger, log_material_properties
-from topoptlab.material_tensors import resolve_property
+from topoptlab.log_utils import BaseLogger, EmptyLogger
+from topoptlab.material_tensors import isotropic, orthotropic
+from topoptlab.utils import identity
 
 
 class HeatEquation(FEMSolver):
     """
     Solver for the (compressible) heat equation:
 
-       ρc_v ( ∂T ∂t + (u · ∇)T) − ∇ · (k∇T ) = -p ∇·u  τ : ε + ρh,
+       ρc_v ( ∂T ∂t + (u · ∇)T) − ∇ · (k∇T ) = -p ∇·u + τ : ε + ρh,
 
     The incompressible heat equation 
 
@@ -95,6 +97,7 @@ class HeatEquation(FEMSolver):
                  matinterpol_kw: Dict = {"eps": 1e-9, "penal": 3.0},
                  material_kw: Union[Dict, List[Dict]] = {"heat conductivity": 1.0},
                  fieldname: str = "T",
+                 logger: BaseLogger = None,
                  **kwargs: Any) -> None:
         #
         self.fieldname = fieldname
@@ -126,11 +129,16 @@ class HeatEquation(FEMSolver):
                 element_type = "quadrilateral"
             else:
                 element_type = "hexahedron"
+        # store physics flags so log_material_properties can use them
+        self.transient = transient
+        self.convection = convection
+        self.viscous_heating = viscous_heating
+        self.volumetric_source = volumetric_source
         # normalize material_kw to list and detect symmetry before setup_discretization
         if isinstance(material_kw, dict):
             material_kw = [material_kw]
         self.material_kw = material_kw
-        self.log_material_properties()
+        self.log_material_properties(logger=logger)
         #
         self.setup_discretization(element_type=element_type,
                                   order=order,
@@ -211,17 +219,38 @@ class HeatEquation(FEMSolver):
                    solver_kw: Dict = {},
                    logger: BaseLogger = None,
                    ) -> Dict:
-        """Scaled element conductivity matrices."""
+        """Scaled element matrices for all active physics."""
         xPhys = parameters["xPhys"]
+        terms = {}
+        ### conductivity (always)
         if self.interpolation_mode == "scaling":
-            scale = self.matinterpol(xPhys=xPhys, 
+            scale = self.matinterpol(xPhys=xPhys,
                                      **self.matinterpol_kw)
-            Kes = self._KE0[None, :, :] * scale[:, :, None]
+            terms["Kes"] = self._KE0[None, :, :] * scale[:, :, None]
         elif self.interpolation_mode == "hashin":
-            Kes = self.matinterpol(xPhys=xPhys, **self.matinterpol_kw)
+            terms["Kes"] = self.matinterpol(xPhys=xPhys, **self.matinterpol_kw)
         else:
             raise ValueError(f"Unknown interpolation_mode: {self.interpolation_mode!r}")
-        return {"Kes": Kes}
+        ### mass matrix: rho * c_p * Me0 (transient or convection)
+        if self.transient or self.convection:
+            raise NotImplementedError("Element mass matrix for transient/convection not yet implemented.")
+        return terms
+
+    def source_terms(self,
+                     state: Dict = {},
+                     parameters: Dict = {},
+                     solver_kw: Dict = {},
+                     logger: BaseLogger = None,
+                     ) -> Dict:
+        """Element-level source contributions for active physics."""
+        terms = {}
+        ### volumetric heat source
+        if self.volumetric_source is not None:
+            raise NotImplementedError("Volumetric heat source element assembly not yet implemented.")
+        ### viscous heating: tau : epsilon
+        if self.viscous_heating:
+            raise NotImplementedError("Viscous heating element assembly not yet implemented.")
+        return terms
 
     def assemble_system(self,
                         terms: Dict,
@@ -230,24 +259,38 @@ class HeatEquation(FEMSolver):
                         solver_kw: Dict = {},
                         logger: BaseLogger = None,
                         ) -> Dict:
-        """Scatter element matrices into the global conductivity matrix K_TT."""
-        Kes = terms["Kes"]
-        nel = Kes.shape[0]
-        dof_el = Kes.shape[1]
+        """Accumulate element contributions then assemble once to global system."""
+        nel, dof_el = terms["Kes"].shape[:2]
         lin_solver = solver_kw.get("lin_solver", "cvxopt-cholmod")
+        ### i) collect local lhs element contributions and sum at element level
         if self.assembly_mode == "full":
-            sK = Kes.reshape(nel * dof_el * dof_el)
+            n_entries = dof_el * dof_el
+            sK = np.zeros((nel, n_entries))
+            sK += terms["Kes"].reshape(nel, n_entries)
+            if "Mes" in terms:
+                sK += terms["Mes"].reshape(nel, n_entries)
+            sK = sK.reshape(nel * n_entries)
         else:
-            sK = Kes[:, self._assm_indcs[:, 0],
-                        self._assm_indcs[:, 1]].reshape(
-                 nel * (dof_el * (dof_el + 1) // 2))
+            n_entries = dof_el * (dof_el + 1) // 2
+            sK = np.zeros((nel, n_entries))
+            sK += terms["Kes"][:, self._assm_indcs[:, 0], self._assm_indcs[:, 1]]
+            if "Mes" in terms:
+                sK += terms["Mes"][:, self._assm_indcs[:, 0], self._assm_indcs[:, 1]]
+            sK = sK.reshape(nel * n_entries)
+        ### ii) collect local rhs element contributions and sum at element level
+        f = self.f.copy()
+        if "f_source" in terms:
+            f += terms["f_source"]
+        if "f_viscous" in terms:
+            f += terms["f_viscous"]
+        ### iii) assemble lhs and rhs once to global problem
         K = assemble_matrix(sK=sK,
                             iK=self.iK,
                             jK=self.jK,
                             ndof=self.ndof,
                             solver=lin_solver,
                             springs=self._springs)
-        return {"K_TT": K}
+        return {"K_TT": K, "f_T": f}
 
     def apply_constraints(self,
                           system: Dict,
@@ -262,7 +305,7 @@ class HeatEquation(FEMSolver):
                         solver=lin_solver,
                         free=self.free,
                         fixed=self.fixed)
-        return {"K_TT": K_bc, "f_T": self.f}
+        return {"K_TT": K_bc, "f_T": system["f_T"]}
 
     def solve_discrete_system(self,
                               system: Dict,
@@ -310,35 +353,79 @@ class HeatEquation(FEMSolver):
         props : dict
             ``{"heat conductivity": [...], "heat conductivity symmetry": str}``
         """
-        # heat conductivity
-        symmetries = ["isotropic", 
-                     "orthotropic", 
-                     "anisotropic"]
-        prop_names = [["heat conductivity"], 
-                      ["heat conductivity x", 
-                       "heat conductivity y", 
-                       "heat conductivity z"][:self.ndim], 
-                      ["heat conductivity tensor"]]
-        arg_names = [["k"],
-                     ["kx","ky","kz"], 
-                     ["k"]]
         #
-        props = log_material_properties(material_kw=self.material_kw,
-                                        prop_name="heat conductivity",
-                                        kind="tensor",
-                                        ndim=self.ndim,
-                                        fieldname=f"heat equation, field: {self.fieldname}",
-                                        logger=logger)
-        # function to achieve uniform representation
-        normalizing = {"isotropic": False, 
-                       "orthotropic": [isotropic, orthotropic, False],
-                       "anisotropic": [isotropic, orthotropic, False]}
-        #
+        logger = logger or EmptyLogger()
+        logger.info(f"Material Properties for FEM HeatEquation solver for field {self.fieldname}")
+        ### log heat conductivity
+        # converter_functions[mat_sym_idx][effective_sym_idx](**prop)
+        # isotropic->* : partial fixes ndim; called as f(k=scalar)
+        # orthotropic->* : called as f(kx=..., ky=...) matching arg_names
+        # triclinic->triclinic: tensor passed through unchanged
+        converter_functions = [[partial(isotropic, ndim=self.ndim), 
+                                partial(isotropic, ndim=self.ndim), 
+                                partial(isotropic, ndim=self.ndim)],
+                                [None, 
+                                 orthotropic, 
+                                 orthotropic],
+                                 [None, None, identity],]
+        props, symmetry = self.log_material_property(
+                               solver_name="HeatEquation",
+                               field_name=self.fieldname,
+                               symmetries=["isotropic", 
+                                           "orthotropic", 
+                                           "triclinic"],
+                               prop_names=[["heat conductivity"],
+                                           ["heat conductivity x",
+                                            "heat conductivity y",
+                                            "heat conductivity z"][:self.ndim],
+                                           ["heat conductivity tensor"]],
+                               arg_names=[["k"],
+                                          ["kx", "ky", "kz"][:self.ndim],
+                                          ["k"]],
+                               converter_functions=converter_functions,
+                               logger=logger)
+        self.symmetry = symmetry
+        result = {"conductivity": {"symmetry": self.symmetry, "materials": props}}
+        ### log density
+        if self.transient or self.convection:
+            converter_functions = [[identity]]
+            density_props, _ = self.log_material_property(
+                                   solver_name="HeatEquation",
+                                   field_name=self.fieldname,
+                                   symmetries=["isotropic"],
+                                   prop_names=[["density"]],
+                                   arg_names=[["rho"]],
+                                   converter_functions=converter_functions,
+                                   logger=logger)
+            result["density"] = {"materials": density_props}
+        ### log heat capacity
+        if self.transient or self.convection:
+            converter_functions = [[identity]]
+            heat_capacity_props, _ = self.log_material_property(
+                                   solver_name="HeatEquation",
+                                   field_name=self.fieldname,
+                                   symmetries=["isotropic"],
+                                   prop_names=[["heat capacity"]],
+                                   arg_names=[["c"]],
+                                   converter_functions=converter_functions,
+                                   logger=logger)
+            result["heat_capacity"] = {"materials": heat_capacity_props}
+        ### log heat source
+        if self.volumetric_source is not None:
+            converter_functions = [[identity]]
+            heat_source_props, _ = self.log_material_property(
+                                   solver_name="HeatEquation",
+                                   field_name=self.fieldname,
+                                   symmetries=["isotropic"],
+                                   prop_names=[["heat source"]],
+                                   arg_names=[["h"]],
+                                   converter_functions=converter_functions,
+                                   logger=logger)
+            result["heat_source"] = {"materials": heat_source_props}
+        return result
 
-        #
-        return props
-
-    def log_material_interpolation(self, logger: BaseLogger = None) -> Dict:
+    def log_material_interpolation(self, 
+                                   logger: BaseLogger = None) -> Dict:
         """Log and return the material interpolation parameters."""
         logger = logger or EmptyLogger()
         props = {"interpolation_mode": self.interpolation_mode,

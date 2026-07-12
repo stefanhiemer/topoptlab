@@ -890,8 +890,25 @@ def batch_kron(A: np.ndarray, B: np.ndarray) -> np.ndarray:
     -------
     M : np.ndarray, shape (..., d*d, d*d)
         Batched Kronecker product of ``A`` and ``B`` acting on the last two axes.
-    
-
     """
     return np.einsum('...ij,...kl->...ikjl', A, B)\
              .reshape(*A.shape[:-2], A.shape[-2]*B.shape[-2], A.shape[-1]*B.shape[-1])
+            
+def identity(x):
+    """
+    Return the input unchanged.
+
+    Useful as a no-op converter or placeholder callable where a function
+    is required but no transformation is needed.
+
+    Parameters
+    ----------
+    x : any
+        Input value.
+
+    Returns
+    -------
+    x : any
+        The same object, unmodified.
+    """
+    return x
