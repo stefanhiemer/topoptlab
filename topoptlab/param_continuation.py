@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Union
 
 import numpy as np
 
-from topoptlab.log_utils import EmptyLogger,SimpleLogger
+from topoptlab.log_utils import EmptyLogger,BaseLogger
 from topoptlab.design_analysis import gray_indicator, level_indicator
 
 def run_continuation(continuation_kw: Dict,
@@ -58,7 +58,7 @@ def update_move_limit(filter_kw: Dict,
                       move_min: float = 0.01,
                       move_max: float = 0.2,
                       n_sample: int = 1000,
-                      logger: Union[EmptyLogger,SimpleLogger] = EmptyLogger(),
+                      logger: Union[EmptyLogger,BaseLogger] = EmptyLogger(),
                       **kwargs: Any) -> None:
     """
     Adapt the move limit to the current width of the Heaviside transition zone.
@@ -129,7 +129,7 @@ def scale_move_limit(filter_kw: Dict,
                      move_min: float = 1e-3,
                      move_max: float = 0.2,
                      beta0: float = 1,
-                     logger: Union[EmptyLogger,SimpleLogger] = EmptyLogger(),
+                     logger: Union[EmptyLogger,BaseLogger] = EmptyLogger(),
                      **kwargs: Any) -> None:
     """
     Adapt the MMA move limit depending on the current value of beta.
@@ -177,7 +177,7 @@ def scaling(change: float,
             limit: float = 64.0,
             update: int = 50,
             state: Union[None, Dict] = None,
-            logger: Union[EmptyLogger,SimpleLogger] = EmptyLogger(),
+            logger: Union[EmptyLogger,BaseLogger] = EmptyLogger(),
             **kwargs: Any) -> bool:
     """
     Continuation scheme for the Heaviside projection parameter beta.
@@ -251,7 +251,7 @@ def beta_scaling(change: float,
                  beta_limit: float = 64.0,
                  beta_update: int = 50,
                  state: Union[None, Dict] = None,
-                 logger: Union[EmptyLogger,SimpleLogger] = EmptyLogger(),
+                 logger: Union[EmptyLogger,BaseLogger] = EmptyLogger(),
                  **kwargs: Any) -> bool:
     """
     Continuation scheme for the Heaviside projection parameter beta.
@@ -325,7 +325,7 @@ def beta_translation(change: float,
                      beta_limit: float = 64.0,
                      beta_update: int = 50,
                      state: Union[None, Dict] = None,
-                     logger: Union[EmptyLogger,SimpleLogger] = EmptyLogger(),
+                     logger: Union[EmptyLogger,BaseLogger] = EmptyLogger(),
                      **kwargs: Any) -> bool:
     """
     Continuation scheme for the Heaviside projection parameter beta.
@@ -404,7 +404,7 @@ def dunning_beta_continuation(change: float,
                               obj_hist: Union[None, List] = None,
                               xPhys_hist: Union[None, List] = None,
                               state: Union[None, Dict] = None,
-                              logger: Union[EmptyLogger,SimpleLogger] = EmptyLogger(),
+                              logger: Union[EmptyLogger,BaseLogger] = EmptyLogger(),
                               **kwargs: Any) -> bool:
     """
     Adaptive beta continuation based on objective progress from:
@@ -508,7 +508,7 @@ def level_beta_continuation(change: float,
                             obj_hist: Union[None, List] = None,
                             xPhys_hist: Union[None, List] = None,
                             state: Union[None, Dict] = None,
-                            logger: Union[EmptyLogger,SimpleLogger] = EmptyLogger(),
+                            logger: Union[EmptyLogger,BaseLogger] = EmptyLogger(),
                             **kwargs: Any) -> bool:
     """
     Generalization of adaptive beta continuation for multi-level designs, based on

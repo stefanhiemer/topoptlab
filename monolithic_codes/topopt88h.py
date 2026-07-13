@@ -63,8 +63,8 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
     # BC's
     dofs = np.arange(ndof)
     # heat sink
-    fixed = np.arange(int(nely / 2 + 1 - nely / 20), 
-                      int(nely / 2 + 1 + nely / 20) + 1)
+    fixed = np.arange(int(nely / 2 - nely / 20), 
+                      int(nely / 2 + 1 + nely / 20))
     # general
     free = np.setdiff1d(dofs, fixed)
     # Solution and RHS vectors

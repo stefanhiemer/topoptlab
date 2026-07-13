@@ -40,7 +40,7 @@ def heatplate_2d(nelx: int, nely: int,
     f = np.zeros((ndof, 1))
     u = np.zeros((ndof, 1))
     # load/source
-    f[:, 0] = 0.01 # constant source
+    f[:, 0] = -1 # constant source
     fixed = np.arange(int(nely / 2 - nely / 20), 
                       int(nely / 2 + 1 + nely / 20))
     # symmetry condition, but nonsense for this example

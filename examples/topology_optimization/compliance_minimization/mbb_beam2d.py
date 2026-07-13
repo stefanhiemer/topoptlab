@@ -18,7 +18,7 @@ if __name__ == "__main__":
     volfrac = 0.5
     rmin = 0.04*nelx  # 5.4
     penal = 3.0
-    ft = 1#DensityFilter # ft==0 -> sens, ft==1 -> dens
+    ft = 0#DensityFilter # ft==0 -> sens, ft==1 -> dens
     display = True
     export = False
     #
@@ -54,8 +54,8 @@ if __name__ == "__main__":
                  rmin=rmin, 
                  ft=ft, 
                  filter_kw={},
-                 filter_mode="convolution",
-                 optimizer="mma",
+                 filter_mode="matrix",
+                 optimizer="oc",
                  assembly_mode="full",
                  nouteriter=2000,
                  bcs=mbb_2d,

@@ -33,6 +33,16 @@ class FEMSolver(ProblemSolver):
       Buckling          : {"K_uu": K, "G_uu": G}
     """
 
+    def apply_constraints(self,
+                          system: Dict,
+                          state: Dict = {},
+                          parameters: Dict = {},
+                          solver_kw: Dict = {},
+                          logger: BaseLogger = None,
+                          ) -> Dict:
+        """Enforce BCs, MPCs, periodicity, hanging nodes.  Returns modified system."""
+        return system
+
     def assemble(self,
                  state: Dict = {},
                  parameters: Dict = {},
@@ -45,6 +55,20 @@ class FEMSolver(ProblemSolver):
         system = self.apply_constraints(system, state, parameters, solver_kw, logger)
         return system
 
+    def assemble_blocks(self,
+                        state: Dict = {},
+                        parameters: Dict = {},
+                        solver_kw: Dict = {},
+                        logger: BaseLogger = None,
+                        ) -> Dict:
+        """
+        Return local blocks for monolithic assembly.
+
+        Returns ``{"blocks": {name: matrix, ...}, "adj_rhs": {name: rhs, ...}}``.
+        Used by ``adjoint_loop`` for the ``"monolithic"`` coupling mode.
+        """
+        raise NotImplementedError
+
     def assemble_system(self,
                         terms: Dict,
                         state: Dict = {},
@@ -55,15 +79,21 @@ class FEMSolver(ProblemSolver):
         """Assemble local terms into the global algebraic system."""
         return {}
 
-    def apply_constraints(self,
-                          system: Dict,
-                          state: Dict = {},
-                          parameters: Dict = {},
-                          solver_kw: Dict = {},
-                          logger: BaseLogger = None,
-                          ) -> Dict:
-        """Enforce BCs, MPCs, periodicity, hanging nodes.  Returns modified system."""
-        return system
+    def auxiliary_terms(self,
+                        state: Dict = {},
+                        parameters: Dict = {},
+                        solver_kw: Dict = {},
+                        logger: BaseLogger = None,
+                        ) -> Dict:
+        return {}
+
+    def boundary_terms(self,
+                       state: Dict = {},
+                       parameters: Dict = {},
+                       solver_kw: Dict = {},
+                       logger: BaseLogger = None,
+                       ) -> Dict:
+        return {}
 
     def collect_terms(self,
                       state: Dict = {},
@@ -79,30 +109,6 @@ class FEMSolver(ProblemSolver):
         terms.update(self.auxiliary_terms(state, parameters, solver_kw, logger))
         return terms
 
-    def core_terms(self,
-                   state: Dict = {},
-                   parameters: Dict = {},
-                   solver_kw: Dict = {},
-                   logger: BaseLogger = None,
-                   ) -> Dict:
-        return {}
-
-    def source_terms(self,
-                     state: Dict = {},
-                     parameters: Dict = {},
-                     solver_kw: Dict = {},
-                     logger: BaseLogger = None,
-                     ) -> Dict:
-        return {}
-
-    def boundary_terms(self,
-                       state: Dict = {},
-                       parameters: Dict = {},
-                       solver_kw: Dict = {},
-                       logger: BaseLogger = None,
-                       ) -> Dict:
-        return {}
-
     def constraint_terms(self,
                          state: Dict = {},
                          parameters: Dict = {},
@@ -111,12 +117,12 @@ class FEMSolver(ProblemSolver):
                          ) -> Dict:
         return {}
 
-    def auxiliary_terms(self,
-                        state: Dict = {},
-                        parameters: Dict = {},
-                        solver_kw: Dict = {},
-                        logger: BaseLogger = None,
-                        ) -> Dict:
+    def core_terms(self,
+                   state: Dict = {},
+                   parameters: Dict = {},
+                   solver_kw: Dict = {},
+                   logger: BaseLogger = None,
+                   ) -> Dict:
         return {}
 
     def derived_quantities(self,
@@ -127,7 +133,7 @@ class FEMSolver(ProblemSolver):
                            ) -> Dict:
         """Calculate quantities derived from the solution, e.g. stress."""
         return {}
-    
+
     def log_material_property(self,
                               solver_name: str,
                               field_name: str,
@@ -225,19 +231,13 @@ class FEMSolver(ProblemSolver):
         """Drive the actual linear / nonlinear / eigenvalue solve."""
         ...
 
-    def assemble_blocks(self,
-                        state: Dict = {},
-                        parameters: Dict = {},
-                        solver_kw: Dict = {},
-                        logger: BaseLogger = None,
-                        ) -> Dict:
-        """
-        Return local blocks for monolithic assembly.
-
-        Returns ``{"blocks": {name: matrix, ...}, "adj_rhs": {name: rhs, ...}}``.
-        Used by ``adjoint_loop`` for the ``"monolithic"`` coupling mode.
-        """
-        raise NotImplementedError
+    def source_terms(self,
+                     state: Dict = {},
+                     parameters: Dict = {},
+                     solver_kw: Dict = {},
+                     logger: BaseLogger = None,
+                     ) -> Dict:
+        return {}
 
     def transient(self,
                   state: Dict = {},

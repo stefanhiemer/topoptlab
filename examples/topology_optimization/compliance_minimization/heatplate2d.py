@@ -11,8 +11,8 @@ if __name__ == "__main__":
     volfrac = 0.4
     rmin = 0.03*nelx
     penal = 3.0
-    ft = 0 # ft==0 -> sens, ft==1 -> dens
-    display = True
+    ft = 1 # ft==0 -> sens, ft==1 -> dens
+    display = False
     export = False
     write_log = True
     #
@@ -37,9 +37,14 @@ if __name__ == "__main__":
         write_log = bool(int(sys.argv[9]))
     #
     main(nelx=nelx, nely=nely, volfrac=volfrac, 
-         matinterpol_kw={"eps":1e-9, "penal": penal},
+         matinterpol_kw={"eps":1e-3, "penal": penal},
          rmin=rmin, 
-         ft=ft, filter_mode="matrix", optimizer="oc",nouteriter=1000,
+         ft=ft, 
+         filter_mode="matrix", 
+         optimizer="oc",
+         nouteriter=1000,
+         lin_solver_kw = {"name": "scipy-direct"},
+         assembly_mode = "full",
          #lin_solver_kw = {"name": "cvxopt-cholmod"},
          #lin_solver_kw = {"name": "topoptlab-cg"}, preconditioner_kw = {"name": "pyamg-pyamg-ruge_stuben"},
          bcs=heatplate_2d, 

@@ -14,7 +14,8 @@ def sensitivity_propagation(dobj: np.ndarray,
                             ft: list,
                             filter_kw: Union[Dict,List],
                             el_flags_policy: Union[None,Dict],
-                            prescribed_mask: np.ndarray
+                            prescribed_mask: np.ndarray,
+                            **kwargs: Any
                             ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Propagate objective and constraint sensitivities backward through the filter
@@ -111,8 +112,8 @@ def filter_design_variables(x: np.ndarray,
                             filter_kw: Union[Dict,List],
                             el_flags_policy: Union[None,Dict],
                             passive_mask: np.ndarray,
-                            active_mask: np.ndarray
-                            ) -> np.ndarray:
+                            active_mask: np.ndarray,
+                            **kwargs: Any) -> np.ndarray:
     """
     Apply the filter chain in the forward direction, mapping design variables
     to physical densities.
@@ -205,8 +206,8 @@ def prepare_filters(ft: Union[int, type, List],
                     filter_kw: Dict,
                     mapping: Callable,
                     invmapping: Callable,
-                    constraint_filter_mask: np.ndarray
-                    ) -> List[TOFilter]:
+                    constraint_filter_mask: np.ndarray,
+                    **kwargs: Any) -> List[TOFilter]:
     """
     Instantiate the filter chain from the ``ft`` specification and return it
     as an ordered list of :class:`TOFilter` objects.

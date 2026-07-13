@@ -29,26 +29,6 @@ class ProblemSolver(ABC):
       solver_kw  – linear solver settings: name, tolerances, preconditioner, …
     """
 
-    def assemble(self,
-                 state: Dict = {},
-                 parameters: Dict = {},
-                 solver_kw: Dict = {},
-                 logger: BaseLogger = None,
-                 ) -> dict:
-        """Assemble discrete operators (matrices, RHS, constraints). Returns a system dict."""
-        raise NotImplementedError
-
-    @abstractmethod
-    def solve(self,
-              system: Dict = {},
-              state: Dict = {},
-              parameters: Dict = {},
-              solver_kw: Dict = {},
-              logger: BaseLogger = None,
-              ) -> dict[str, Any]:
-        """Solve the assembled system. Returns new fields to merge into state."""
-        ...
-
     def __call__(self,
                  state: Dict = {},
                  parameters: Dict = {},
@@ -58,6 +38,35 @@ class ProblemSolver(ABC):
         """Assemble and solve in one step."""
         system = self.assemble(state, parameters, solver_kw, logger)
         return self.solve(system, state, parameters, solver_kw, logger)
+
+    def adjoint(self,
+                rhs: Any = None,
+                state: Dict = {},
+                parameters: Dict = {},
+                solver_kw: Dict = {},
+                logger: BaseLogger = None,
+                ) -> Any:
+        """Solve the adjoint system for the given right-hand side."""
+        raise NotImplementedError
+
+    def assemble(self,
+                 state: Dict = {},
+                 parameters: Dict = {},
+                 solver_kw: Dict = {},
+                 logger: BaseLogger = None,
+                 ) -> dict:
+        """Assemble discrete operators (matrices, RHS, constraints). Returns a system dict."""
+        raise NotImplementedError
+
+    def derivative(self,
+                   wrt: str = "",
+                   state: Dict = {},
+                   parameters: Dict = {},
+                   solver_kw: Dict = {},
+                   logger: BaseLogger = None,
+                   ) -> Any:
+        """Return the derivative of the output w.r.t. the named quantity."""
+        raise NotImplementedError
 
     @property
     def implicit(self) -> bool:
@@ -69,6 +78,21 @@ class ProblemSolver(ABC):
     def input_keys(self) -> tuple[str, ...]:
         """Keys this solver reads from state / parameters."""
         return ()
+
+    def linearize(self,
+                  state: Dict = {},
+                  parameters: Dict = {},
+                  solver_kw: Dict = {},
+                  logger: BaseLogger = None,
+                  ) -> Any:
+        """Return the linearization (Jacobian / tangent) of the problem at the current state."""
+        raise NotImplementedError
+
+    def material_properties(self,
+                            logger: BaseLogger = None,
+                            ) -> Dict:
+        """Define the material model and log its properties."""
+        raise NotImplementedError
 
     @property
     def output_keys(self) -> tuple[str, ...]:
@@ -84,35 +108,6 @@ class ProblemSolver(ABC):
         """Evaluate the residual R(state, parameters). Needed for nonlinear problems."""
         raise NotImplementedError
 
-    def linearize(self,
-                  state: Dict = {},
-                  parameters: Dict = {},
-                  solver_kw: Dict = {},
-                  logger: BaseLogger = None,
-                  ) -> Any:
-        """Return the linearization (Jacobian / tangent) of the problem at the current state."""
-        raise NotImplementedError
-
-    def adjoint(self,
-                rhs: Any = None,
-                state: Dict = {},
-                parameters: Dict = {},
-                solver_kw: Dict = {},
-                logger: BaseLogger = None,
-                ) -> Any:
-        """Solve the adjoint system for the given right-hand side."""
-        raise NotImplementedError
-
-    def derivative(self,
-                   wrt: str = "",
-                   state: Dict = {},
-                   parameters: Dict = {},
-                   solver_kw: Dict = {},
-                   logger: BaseLogger = None,
-                   ) -> Any:
-        """Return the derivative of the output w.r.t. the named quantity."""
-        raise NotImplementedError
-
     def sensitivity(self,
                     state: Dict = {},
                     parameters: Dict = {},
@@ -123,11 +118,16 @@ class ProblemSolver(ABC):
         """Compute dL/d(parameters) given the adjoint field."""
         raise NotImplementedError
 
-    def material_properties(self,
-                            logger: BaseLogger = None,
-                            ) -> Dict:
-        """Define the material model and log its properties."""
-        raise NotImplementedError
+    @abstractmethod
+    def solve(self,
+              system: Dict = {},
+              state: Dict = {},
+              parameters: Dict = {},
+              solver_kw: Dict = {},
+              logger: BaseLogger = None,
+              ) -> dict[str, Any]:
+        """Solve the assembled system. Returns new fields to merge into state."""
+        ...
 
     def transient(self,
                   state: Dict = {},

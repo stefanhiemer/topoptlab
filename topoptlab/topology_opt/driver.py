@@ -49,365 +49,8 @@ from topoptlab.param_continuation import run_continuation
 from mmapy import mmasub, gcmmasub, asymp, concheck, raaupdate
 # 
 from topoptlab.problem_solver import ProblemSolver
-from topoptlab.linear_solvers import res_norm
-from topoptlab.block_assembly import (assemble_global_block_system,
-                                      solve_global_block_system,
-                                      split_global_solution_by_fields,
-                                      transpose_blocks)
-
-def update_history(xhist: List, x: np.ndarray,
-                   xPhys_hist: Union[None, List], xPhys: np.ndarray,
-                   obj_hist: Union[None, List], obj: float,
-                   constrs_hist: Union[None, List], constrs: np.ndarray,
-                   max_history: int) -> None:
-    """
-    Append current iterate to history lists and prune to max_history+1 entries.
-
-    Parameters
-    ----------
-    xhist : list of np.ndarray
-        history of design iterates.
-    x : np.ndarray
-        current design iterate.
-    xPhys_hist : None or list of np.ndarray
-        history of physical densities, or None if not tracked.
-    xPhys : np.ndarray
-        current physical densities.
-    obj_hist : None or list of float
-        history of objective values, or None if not tracked.
-    obj : float
-        current objective value.
-    constrs_hist : None or list of np.ndarray
-        history of constraint vectors, or None if not tracked.
-    constrs : np.ndarray
-        current constraint vector.
-    max_history : int
-        maximum number of iterates to retain.
-
-    Returns
-    -------
-    None
-    """
-    # append history
-    xhist.append(x.copy())
-    if xPhys_hist is not None:
-        xPhys_hist.append(xPhys.copy())
-    if obj_hist is not None:
-        obj_hist.append(obj)
-    if constrs_hist is not None:
-        constrs_hist.append(constrs.copy())
-    # prune history
-    if len(xhist) > max_history+1:
-        del xhist[:len(xhist)-max_history-1]
-    if xPhys_hist is not None and len(xPhys_hist) > max_history+1:
-        del xPhys_hist[:len(xPhys_hist)-max_history-1]
-    if obj_hist is not None and len(obj_hist) > max_history+1:
-        del obj_hist[:len(obj_hist)-max_history-1]
-    if constrs_hist is not None and len(constrs_hist) > max_history+1:
-        del constrs_hist[:len(constrs_hist)-max_history-1]
-    return
-
-def prepare_phys_problems(mesh: dict,
-                          lk: Union[None, Callable],
-                          body_forces_kw: dict,
-                          assembly_mode: str,
-                          obj_kw: dict) -> Tuple:
-    """
-    Build all static FEM data needed before the optimisation loop.
-
-    Parameters
-    ----------
-    mesh : dict
-        Mesh dictionary with keys ``"nelx"``, ``"nely"``, ``"nelz"``,
-        ``"ndim"``, ``"l"``.
-    lk : callable or None
-        Element stiffness function ``KE = lk(l=l)``.  Defaults to standard
-        linear-elasticity stiffness for the spatial dimension in ``mesh``.
-    body_forces_kw : dict
-        Body-force specification.  Supported keys:
-
-        ``"strain_uniform"``
-            Uniform applied strain in Voigt notation, shape ``(n_strain,)``
-            or ``(n_strain, n_lc)``.  1-D arrays are promoted to 2-D
-            in-place.  The single-element reference displacement ``u0``
-            is written into ``obj_kw["u0"]`` (homogenisation).
-        ``"density_coupled"``
-            Density-dependent body-force vector ``b``.
-    assembly_mode : str
-        ``"full"`` or ``"lower"`` (exploit symmetry of K).
-    obj_kw : dict
-        Keyword arguments for the objective function.  Updated with ``u0``
-        when ``"strain_uniform"`` body forces are present.
-
-    Returns
-    -------
-    lk : callable
-        Resolved element stiffness function.
-    KE : np.ndarray, shape (dof_el, dof_el)
-        Reference element stiffness matrix.
-    n_nodaldof : int
-        Number of DOFs per node.
-    ndof : int
-        Total number of DOFs.
-    edofMat : np.ndarray, shape (n_el, dof_el)
-        Element DOF connectivity matrix.
-    iK, jK : np.ndarray
-        Row / column indices for sparse global stiffness assembly.
-    assm_indcs : np.ndarray or None
-        Lower-triangle index pairs used when ``assembly_mode == "lower"``.
-    fe_strain : np.ndarray or None
-        Pre-computed strain body-force vectors, shape ``(dof_el, n_lc)``.
-    fe_dens : np.ndarray or None
-        Pre-computed density body-force vector.
-    """
-    ndim = mesh["ndim"]
-    nelx, nely, nelz = mesh["nelx"], mesh["nely"], mesh["nelz"]
-    l = mesh["l"]
-    if ndim == 2:
-        create_edofMat = create_edofMat2d
-    else:
-        create_edofMat = create_edofMat3d
-    # get function of element stiffness matrix
-    if lk is None and ndim == 2:
-        lk = lk_linear_elast_2d
-    elif lk is None and ndim == 3:
-        lk = lk_linear_elast_3d
-
-
-    #
-    # get element stiffness matrix
-    KE = lk(l=l)
-    # infer nodal degrees of freedom assuming that we have 4/8 nodes in 2/3 D
-    n_nodaldof = int(KE.shape[-1]/2**ndim)
-    # total number of nodal dofs
-    ndof = n_nodaldof * np.prod( np.array([nelx,nely,nelz][:ndim])+1 )
-    # element degree of freedom matrix plus some helper indices
-    edofMat, n1, n2, n3, n4 = create_edofMat(nelx=nelx,nely=nely,nelz=nelz,
-                                             nnode_dof=n_nodaldof)
-    # fetch body forces
-    if len(body_forces_kw.keys())==0:
-        fe_strain = None
-        fe_dens = None
-    else:
-        # assume each strain is a column vector in Voigt notation
-        if "strain_uniform" in body_forces_kw.keys():
-            # fetch functions to create body force
-            if ndim == 2:
-                lf = lf_strain_2d
-            elif ndim == 3:
-                lf = lf_strain_3d
-            # calculate forces for each strain
-            fe_strain = []
-            if len(body_forces_kw["strain_uniform"].shape) == 1:
-                body_forces_kw["strain_uniform"] = body_forces_kw["strain_uniform"][:,None]
-            #
-            for i in range(body_forces_kw["strain_uniform"].shape[-1]):
-                fe_strain.append(lf(body_forces_kw["strain_uniform"][:,i],E=1.0, l=l))
-            fe_strain = np.column_stack(fe_strain)
-            # find the imposed elemental field. Material properties are
-            # unimportant here as it just depends on the geometry of the
-            # element, not its properties. This part is needed for
-            # homogenization related objective functions and may later
-            # become optional via some flags.
-            if ndim == 2 and n_nodaldof != 1:
-                fixed = np.array([0,1,3])
-            elif ndim == 3 and n_nodaldof != 1:
-                fixed = np.array([0,1,2,4,5,7,8])
-            elif n_nodaldof == 1:
-                fixed = np.array([0])
-            free = np.setdiff1d(np.arange(KE.shape[-1]), fixed)
-            u0 = np.zeros(fe_strain.shape)
-            u0[free] = np.linalg.solve(KE[free,:][:,free],
-                                       fe_strain[free,:])
-            if "u0" not in obj_kw.keys():
-                obj_kw["u0"] = u0
-        else:
-            fe_strain = None
-        #
-        if "density_coupled" in body_forces_kw.keys():
-            # fetch functions to create body force
-            if ndim == 2 and n_nodaldof!=1:
-                lf = lf_bodyforce_2d
-            elif ndim == 3 and n_nodaldof!=1:
-                lf = lf_bodyforce_3d
-            fe_dens = lf_bodyforce_2d(b=body_forces_kw["density_coupled"])
-        else:
-            fe_dens = None
-        #
-        if len([key for key in body_forces_kw.keys() \
-                if key not in ["density_coupled","strain_uniform"]]):
-            raise NotImplementedError("One type of bodyforce/source has not yet been implemented.")
-    # Construct the index pointers for the coo format
-    iK,jK = create_matrixinds(edofMat=edofMat, 
-                              mode=assembly_mode)
-    if assembly_mode == "lower":
-        assm_indcs = np.column_stack(np.tril_indices_from(KE))
-        assm_indcs = assm_indcs[np.lexsort( (assm_indcs[:,0],assm_indcs[:,1]) )]
-    else:
-        assm_indcs = None
-
-    return lk, KE, n_nodaldof, ndof, edofMat, iK, jK, assm_indcs, fe_strain, fe_dens
-
-def solve_phys_problems(xPhys: np.ndarray,
-                        KE: np.ndarray,
-                        iK: np.ndarray,
-                        jK: np.ndarray,
-                        ndof: int,
-                        n: int,
-                        edofMat: np.ndarray,
-                        f: np.ndarray,
-                        fixed: Union[np.ndarray, List[np.ndarray]],
-                        free: Union[np.ndarray, List[np.ndarray]],
-                        springs: Any,
-                        matinterpol: Callable,
-                        matinterpol_kw: Dict,
-                        assembly_mode: str,
-                        assm_indcs: Union[None, np.ndarray],
-                        body_forces_kw: Dict,
-                        fe_strain: Union[None, np.ndarray],
-                        fe_dens: Union[None, np.ndarray],
-                        lin_solver: str,
-                        lin_solver_kw: Dict,
-                        preconditioner: Union[None, str],
-                        preconditioner_kw: Dict,
-                        u: np.ndarray,
-                        ) -> Tuple[np.ndarray, Any, Any, Any, np.ndarray, np.ndarray, np.ndarray]:
-    """
-    Assemble and solve all physical (FE) problems for the current iterate. Does the following steps:
-
-    1. computes scaled element stiffness matrices based on physical variables (e. g. xPhys),
-    2. assembles the global stiffness matrix 
-    3. adds design dependent force contributions (e. g. body-forces) to the right-hand side
-    4. applies boundary conditions 
-    5. solves the linear system for all load cases simultaneously 
-    
-    The returned objects are everything needed by the subsequent adjoint analysis and sensitivity computation.
-
-    Parameters
-    ----------
-    xPhys : np.ndarray, shape (n, k)
-        Physical element densities.
-    KE : np.ndarray, shape (dof_el, dof_el)
-        Reference element stiffness matrix (unscaled).
-    iK : np.ndarray
-        Row indices for sparse global stiffness assembly.
-    jK : np.ndarray
-        Column indices for sparse global stiffness assembly.
-    ndof : int
-        Total number of degrees of freedom.
-    n : int
-        Total number of elements.
-    edofMat : np.ndarray, shape (n, dof_el)
-        Element degree-of-freedom connectivity matrix.
-    f : np.ndarray, shape (ndof, n_lc)
-        External nodal force array for all load cases.
-    fixed : np.ndarray or list of np.ndarray
-        Indices of fixed (Dirichlet) DOFs. A single array is shared across
-        all load cases; a list provides per-load-case DOFs (future extension).
-    free : np.ndarray or list of np.ndarray
-        Indices of free DOFs, complementary to ``fixed``.
-    springs : Any
-        Spring data passed to :func:`assemble_matrix`. ``None`` if unused.
-    matinterpol : callable
-        Material interpolation ``scale = matinterpol(xPhys, **matinterpol_kw)``.
-    matinterpol_kw : dict
-        Keyword arguments forwarded to ``matinterpol``.
-    assembly_mode : str
-        Stiffness assembly mode. ``"full"`` uses the full element matrix;
-        ``"lower"`` exploits symmetry and only uses half of the off-diagonal.
-    assm_indcs : np.ndarray or None
-        Lower-triangular index pairs used when ``assembly_mode == "lower"``.
-    body_forces_kw : dict
-        Body-force specification. Supported keys: ``"strain_uniform"`` and
-        ``"density_coupled"``.
-    fe_strain : np.ndarray or None
-        Element load vectors for uniform strain body forces, shape
-        ``(n, dof_el, n_lc)``. Required when ``"strain_uniform"`` is in
-        ``body_forces_kw``.
-    fe_dens : np.ndarray or None
-        Element load vectors for density-coupled body forces, shape
-        ``(n, dof_el, n_lc)``. Required when ``"density_coupled"`` is in
-        ``body_forces_kw``.
-    lin_solver : str
-        Name of the linear solver backend.
-    lin_solver_kw : dict
-        Additional keyword arguments for the linear solver.
-    preconditioner : str or None
-        Name of the preconditioner, or ``None`` for no preconditioning.
-    preconditioner_kw : dict
-        Additional keyword arguments for the preconditioner.
-    u : np.ndarray, shape (ndof, n_lc)
-        Displacement field used as the initial guess; updated in-place.
-
-    Returns
-    -------
-    u : np.ndarray, shape (ndof, n_lc)
-        Updated displacement field for all load cases.
-    K : Any
-        Assembled, BC-reduced stiffness matrix (solver-specific format).
-        Reused for all adjoint solves within the same outer iteration.
-    fact : Any
-        Factorization of ``K`` returned by the linear solver. Passed back
-        to :func:`solve_lin` via ``factorization=fact`` for efficient adjoint
-        solves without re-factorization.
-    precond : Any
-        Preconditioner object, or ``None`` if no preconditioner was used.
-    Kes : np.ndarray, shape (n, dof_el, dof_el)
-        Scaled element stiffness matrices ``KE * scale``. Required by
-        objective and constraint functions.
-    rhs : np.ndarray, shape (ndof, n_lc)
-        Full right-hand side ``f + f_body`` before boundary conditions.
-    f_body : np.ndarray, shape (ndof, n_lc)
-        Body-force contribution to the right-hand side. Needed separately
-        for density-coupled body-force sensitivity terms.
-    """
-    # update physical properties of the elements and thus the entries
-    # of the elements
-    scale = matinterpol(xPhys=xPhys,
-                        **matinterpol_kw)
-    Kes = KE[None,:,:]*scale[:,:,None]
-    if assembly_mode == "full":
-        # this here is more memory efficient than Kes.flatten() as it
-        # provides a view onto the original Kes array instead of a copy
-        sK = Kes.reshape(np.prod(Kes.shape))
-    elif assembly_mode == "lower":
-        sK = Kes[:,
-                 assm_indcs[:,0],
-                 assm_indcs[:,1]].reshape(n*int(KE.shape[-1]/2*(KE.shape[-1]+1)))
-    # setup and solve FE problem
-    # assemble system matrix
-    K = assemble_matrix(sK=sK,iK=iK,jK=jK,
-                        ndof=ndof,solver=lin_solver,
-                        springs=springs)
-    # assemble forces due to body forces
-    f_body = np.zeros(f.shape)
-    u0 = None
-    for bodyforce in body_forces_kw.keys():
-        # assume each strain is a column vector in Voigt notation
-        if "strain_uniform" in body_forces_kw.keys():
-            fes = fe_strain[None,:,:]*scale[:,:,None]
-            np.add.at(f_body,
-                        edofMat,
-                        fes)
-        if "density_coupled" in body_forces_kw.keys():
-            fes = fe_dens[None,:,:]*simp(xPhys=xPhys, eps=0., penal=1.)[:,:,None]
-            np.add.at(f_body,
-                        edofMat,
-                        fes)
-    # assemble right hand side
-    rhs = f+f_body
-    # apply boundary conditions to matrix
-    K = apply_bc(K=K,solver=lin_solver,
-                    free=free,fixed=fixed)
-    # solve linear system. fact is a factorization and precond a preconditioner
-    u[free, :], fact, precond = solve_lin(K=K, 
-                                    rhs=rhs[free],
-                                    rhs0=u[free,:],
-                                    solver=lin_solver,
-                                    solver_kw=lin_solver_kw,
-                                    preconditioner=preconditioner,
-                                    preconditioner_kw=preconditioner_kw)
-    return u, K, fact, precond, Kes, rhs, f_body
+# 
+from topoptlab.topology_opt.mesh import create_mesh
 
 def initialize_design(n: int,
                       initial_guess: Union[None, Dict[str, np.ndarray]],
@@ -468,13 +111,14 @@ def main(nelx: int, nely: int,
          nelz: Union[None,int] = None,
          initial_guess: Union[None,Dict[str, np.ndarray]] = None,
          filter_mode: str = "convolution",
-         lin_solver_kw: Dict = {"name": "scipy-direct"},
+         lin_solver_kw: Union[Dict, List[Dict]] = {"name": "scipy-direct"},
          preconditioner_kw: Dict = {"name": None},
          assembly_mode: str = "full",
-         materials_kw: Dict = {"E": 1.},
+         materials_kw: Dict = {"E": 1.}, 
          body_forces_kw: Dict = {},
          bcs: Callable = mbb_2d,
-         solver_kw: Dict = {},
+         problems: Union[None, List[Union[Callable, List[Callable]]]] = None,
+         solver_kw: Union[Dict, List[Dict]] = {},
          solver_coupling: Union[None, List[str]] = None,
          lk: Union[None,Callable] = None,
          l: Union[float,List,np.ndarray] = 1.,
@@ -691,39 +335,21 @@ def main(nelx: int, nely: int,
         log = EmptyLogger()
     # total number of design elements
     n_el = int(np.prod([nelx, nely, nelz][:ndim]))
-    #
-    if isinstance(l, float):
-        l = np.array([l for i in np.arange(ndim)])
     # bundle all mesh-related information; irregular-mesh support will extend this
-    if mesh_file is None:
-        if ndim == 2:
-            _mapping = partial(map_eltoimg,  
-                               nelx=nelx, 
-                               nely=nely)
-            _invmapping = partial(map_imgtoel,  
-                                  nelx=nelx, 
-                                  nely=nely)
-        else:
-            _mapping = partial(map_eltovoxel, 
-                               nelx=nelx, 
-                               nely=nely, 
-                               nelz=nelz)
-            _invmapping = partial(map_voxeltoel, 
-                                  nelx=nelx, 
-                                  nely=nely, 
-                                  nelz=nelz)
-        mesh_kw = {"nelx": nelx,
-                   "nely": nely,
-                   "nelz": nelz,
-                   "ndim": ndim,
-                   "l": l,
-                   "n_el": n_el,
-                   "cellVolume": float(np.prod(l) * n_el),
-                   "mapping": _mapping,
-                   "invmapping": _invmapping}
-    else:
-        raise NotImplementedError("Cannot handle irregular meshes right now.")
+    mesh_kw = create_mesh(nelx = nelx,  
+                          nely = nely, 
+                          nelz = nelz, 
+                          l = l.,
+                          mesh_file = None, 
+                          logger = log)
     mapping, invmapping = mesh_kw["mapping"], mesh_kw["invmapping"]
+    l = mesh_kw["l"]
+    # initialize problem solvers now that logger and mesh dims are known
+    # canonicalize bcs 
+    problems = initialize_problems(problems=problems, 
+                                   bcs=bcs, 
+                                   mesh_kw=mesk_kw, 
+                                   logger=log)
     # Allocate design variables (as array), initialize and allocate sens.
     x, xPhys = initialize_design(n=n_el, initial_guess=initial_guess, volfrac=volfrac, n_mat=n_mat)
     # precompute prescribed-element masks for filter policy corrections
@@ -733,7 +359,7 @@ def main(nelx: int, nely: int,
         active_mask = el_flags == 2
         prescribed_mask = (el_flags == 1) | (el_flags == 2) 
     # initialize arrays for gradients
-    dobj = np.zeros( x.shape,order="F")
+    dobj = np.zeros(x.shape,order="F")
     # build and validate constraint list
     if constraints is None:
         constraints = []
@@ -801,17 +427,29 @@ def main(nelx: int, nely: int,
     else:
         raise ValueError("Unknown optimizer: ", optimizer)
     # prepare FEM data structures
-    lk, KE, n_nodaldof, ndof, edofMat, iK, jK, assm_indcs, fe_strain, fe_dens = \
-        prepare_phys_problems(mesh=mesh_kw, 
-                              lk=lk, 
-                              body_forces_kw=body_forces_kw,
-                              assembly_mode=assembly_mode, 
-                              obj_kw=obj_kw)
-    # set up boundary conditions
-    u, f, fixed, free, springs = bcs(nelx=nelx, 
-                                     nely=nely, 
-                                     nelz=nelz, 
-                                     ndof=ndof)
+    ### this later needs to get deleted
+    # mesh/DOF info pulled from the first solver — all setup was done at construction
+    if isinstance(problems[0], ProblemSolver):
+        _solver0 = problems[0]  
+    else: 
+        _solver0 = problems[0][0]
+    f = _solver0.f        # load vector shape drives adj and load-case loop
+    free = _solver0.free     # needed for self-adjoint branch
+    KE = _solver0._KE0    # forwarded to obj_func
+    edofMat = _solver0.edofMat  # forwarded to obj_func
+    u = np.zeros_like(f) # placeholder; overwritten from state each iteration
+    #
+    if solver_coupling is None:
+        solver_coupling = ["weak"] * len(problems)
+    if isinstance(solver_kw, dict):
+        solver_kw = [solver_kw] * len(problems)
+    if isinstance(lin_solver_kw, dict):
+        lin_solver_kw = [lin_solver_kw] * len(problems)
+    #
+    state = {}
+    parameters = {"xPhys": xPhys}
+    fe_strain = None
+    fe_dens = None
     # initialize filters
     ft = prepare_filters(ft=ft,
                          **mesh_kw,
@@ -892,29 +530,17 @@ def main(nelx: int, nely: int,
         # solve FEM, calculate obj. func. and gradients.
         if optimizer in ["oc","mma","ocm","ocg","gcmma"]:
             ### solve physical problems
-            u, K, fact, precond, Kes, rhs, f_body = solve_phys_problems(xPhys=xPhys,
-                                                                        KE=KE,
-                                                                        iK=iK,
-                                                                        jK=jK,
-                                                                        ndof=ndof,
-                                                                        n=n_el,
-                                                                        edofMat=edofMat,
-                                                                        f=f,
-                                                                        fixed=fixed,
-                                                                        free=free,
-                                                                        springs=springs,
-                                                                        matinterpol=matinterpol,
-                                                                        matinterpol_kw=matinterpol_kw,
-                                                                        assembly_mode=assembly_mode,
-                                                                        assm_indcs=assm_indcs,
-                                                                        body_forces_kw=body_forces_kw,
-                                                                        fe_strain=fe_strain,
-                                                                        fe_dens=fe_dens,
-                                                                        lin_solver=lin_solver,
-                                                                        lin_solver_kw=lin_solver_kw,
-                                                                        preconditioner=preconditioner,
-                                                                        preconditioner_kw=preconditioner_kw,
-                                                                        u=u)
+            parameters["xPhys"] = xPhys
+            state = solver_loop(problems,
+                                state,
+                                ntimesteps=1,
+                                coupling=solver_coupling,
+                                parameters=parameters,
+                                solver_kw=solver_kw,
+                                lin_solver_kw=lin_solver_kw,
+                                logger=log)
+            u    = state[_solver0.fieldname]
+            Kes  = _solver0._terms["Kes"]
             #
             for i in range(f.shape[1]): 
                 log.debug("FEM: it.: {0}, problem: {1}, min. u: {2:.12f}, med. u: {3:.12f}, max. u: {4:.12f}".format(
@@ -946,35 +572,21 @@ def main(nelx: int, nely: int,
                     #dobj[:] += rhs_adj
                     adj[free,i] = rhs_adj[free,0]
                 else:
-                    adj[free,i:i+1],_,_ = solve_lin(K,
-                                            rhs=rhs_adj[free,i:i+1],
-                                            rhs0=adj[free,i:i+1],
-                                            solver=lin_solver,
-                                            solver_kw=lin_solver_kw,
-                                            factorization=fact,
-                                            P=precond,
-                                            preconditioner=preconditioner,
-                                            preconditioner_kw=preconditioner_kw)
-                # standard contribution of element stiffness/conductivity
-                dobj_offset = np.matvec(KE,u[edofMat,i])
-                # contribution due to force induced by strain
-                if "strain_uniform" in body_forces_kw.keys():
-                    dobj_offset -= fe_strain[None,:,i]
-                # generic density dependent element wise force
-                if f0 is not None:
-                    dobj_offset -= f0[None,:,i]
-                #
-                dobj[:,0] += (matinterpol_dx(xPhys=xPhys, **matinterpol_kw)*\
-                                adj[edofMat,i]*dobj_offset).sum(axis=1)
-                # update sensitivity for quantities that do not need a small
-                # offset to avoid degeneracy of the FE problem
-                if "density_coupled" in body_forces_kw.keys():
-                    dobj[:,0] -= simp_dx(xPhys=xPhys, eps=0., penal=1.)[:,0]*\
-                                            np.dot(adj[edofMat,i],fe_dens[:,i])
+                    adj_out = _solver0.adjoint(rhs=rhs_adj,
+                                                state=state,
+                                                parameters=parameters,
+                                                solver_kw=solver_kw[0],
+                                                logger=log)
+                    adj[:, i:i+1] = adj_out[f"adj_{_solver0.fieldname}"]
                 #
                 log.debug("adj: it.: {0}, problem: {1}, min. adj: {2:.12f}, med. adj: {3:.12f}, max. adj: {4:.12f}".format(
                            loop,i,np.min(adj[:,i]),np.median(adj[:,i]),np.max(adj[:,i])))
-
+            else:
+                dobj[:] += _solver0.sensitivity(state=state,
+                                                parameters=parameters,
+                                                adjoint=adj,
+                                                solver_kw=solver_kw[0],
+                                                logger=log)
         # optimizer is unknown.
         else:
             raise NotImplementedError("Unknown optimizer.")
@@ -1007,26 +619,19 @@ def main(nelx: int, nely: int,
                     adj[free,j] = rhs_adj_c[free,0]
                 # adjoint problem needs to be solved
                 else:
-                    adj[free,j:j+1],_,_ = solve_lin(K,
-                                            rhs=rhs_adj_c[free,j:j+1],
-                                            rhs0=adj[free,j:j+1],
-                                            solver=lin_solver,
-                                            solver_kw=lin_solver_kw,
-                                            factorization=fact,
-                                            P=precond,
-                                            preconditioner=preconditioner,
-                                            preconditioner_kw=preconditioner_kw)
-                # accumulate sensitivity via chain rule through material interpolation
-                dconstr_offset = np.matvec(KE, u[edofMat,j])
-                if "strain_uniform" in body_forces_kw.keys():
-                    dconstr_offset -= fe_strain[None,:,j]
-                if f0 is not None:
-                    dconstr_offset -= f0[None,:,j]
-                dconstr[:,0] += (matinterpol_dx(xPhys=xPhys, **matinterpol_kw)*\
-                                    adj[edofMat,j]*dconstr_offset).sum(axis=1)
-                if "density_coupled" in body_forces_kw.keys():
-                    dconstr[:,0] -= simp_dx(xPhys=xPhys, eps=0., penal=1.)[:,0]*\
-                                    np.dot(adj[edofMat,j],fe_dens[:,j])
+                    adj_out = _solver0.adjoint(rhs=rhs_adj_c,
+                                                state=state,
+                                                parameters=parameters,
+                                                solver_kw=solver_kw[0],
+                                                logger=log)
+                    adj[:, j:j+1] = adj_out[f"adj_{_solver0.fieldname}"]
+            else:
+                dsens_c = _solver0.sensitivity(state=state,
+                                                parameters=parameters,
+                                                adjoint=adj,
+                                                solver_kw=solver_kw[0],
+                                                logger=log)
+                dconstr[:, 0] += dsens_c["dL_dxPhys"][:, 0]
             # apply constraint type sign
             if c["type"] == "leq":
                 constrs[k, 0] = val - c["value"]

@@ -89,18 +89,19 @@ from topoptlab.example_bc.heat_conduction import heatplate_2d
 from topoptlab.elements.poisson_2d import lk_poisson_2d
 
 @pytest.mark.parametrize('obj_ref',
-                         [(473.7336997084),])
+                         [(4514336.0304701794),])
 
 def test_compliance_heat(obj_ref):
     """
     Heatplate 2d test.
     """
     #
-    nelx, nely, volfrac, ft, rmin, filter_mode = 40,40,0.4,0,1.2,"matrix"
+    nelx, nely, volfrac, ft, rmin, filter_mode = 40,40,0.4,1,1.2,"matrix"
     #
     _, _, _, obj = main(nelx=nelx, nely=nely, volfrac=volfrac,
                   rmin=rmin, ft=ft, filter_mode=filter_mode,
                   optimizer="oc",
+                  matinterpol_kw={"eps":1e-3, "penal": 3.},
                   bcs=heatplate_2d, lk=lk_poisson_2d,
                   output_kw = {"file": None,
                                "display": False,
