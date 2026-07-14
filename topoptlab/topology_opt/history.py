@@ -1,7 +1,47 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import List, Union
+import inspect
+from typing import Dict, List, Tuple, Union
 #
 import numpy as np
+
+def initialize_history(max_history: int,
+                       accelerator_kw: Dict,
+                       continuation_kw: Union[None, Dict],
+                       convergence_kw: Dict,
+                       x: np.ndarray,
+                       xPhys: np.ndarray,
+                       constrs: np.ndarray) -> Tuple[int, Union[None, Dict], Dict]:
+    """
+    Allocate the iteration history dict and finalize ``max_history``.
+
+    Also seeds ``continuation_kw["stop_flag"]`` if continuation is active.
+
+    Returns
+    -------
+    max_history : int
+        Effective history length after accounting for the accelerator.
+    continuation_kw : dict or None
+        Input dict extended with ``"stop_flag"``, or None unchanged.
+    hist : dict
+        ``{"xhist", "xPhys_hist", "obj_hist", "constrs_hist"}`` pre-filled
+        with ``max_history`` copies of the initial iterates.
+    """
+    max_history = int(np.maximum(max_history, accelerator_kw.get("max_history", 0)))
+    _cont_params = [inspect.signature(f).parameters
+                    for f in (continuation_kw["funcs"]
+                              if continuation_kw is not None else [])]
+    _need_xPhys_hist = any("xPhys_hist" in p for p in _cont_params)
+    if not _need_xPhys_hist and "mode" in convergence_kw.keys():
+        _need_xPhys_hist = convergence_kw["mode"] == "xPhys"
+    if continuation_kw is not None:
+        continuation_kw["stop_flag"] = [False] * len(continuation_kw["funcs"])
+    hist = {"xhist":        [x.copy() for _ in np.arange(max_history)],
+            "xPhys_hist":   [xPhys.copy() for _ in np.arange(max_history)]
+                            if _need_xPhys_hist else None,
+            "obj_hist":     [0. for _ in np.arange(max_history)],
+            "constrs_hist": [constrs.copy() for _ in np.arange(max_history)]}
+    return max_history, continuation_kw, hist
+
 
 def update_history(xhist: List, 
                    x: np.ndarray,

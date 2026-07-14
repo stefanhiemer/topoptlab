@@ -9,7 +9,7 @@ if __name__ == "__main__":
     volfrac = 0.4
     rmin = 0.03 * nelx
     penal = 3.0
-    ft = 0  # ft==0 -> sens, ft==1 -> dens
+    ft = 1  # ft==0 -> sens, ft==1 -> dens
     display = False
     export = False
     write_log = True
@@ -42,12 +42,12 @@ if __name__ == "__main__":
          ft=ft, 
          filter_mode="matrix", 
          optimizer="oc", 
-         nouteriter=1,
-         matinterpol_kw={"eps": 1e-9, "penal": penal},
+         nouteriter=1000,
+         matinterpol_kw={"eps": 1e-3, "penal": penal},
          problems=[solver],
          output_kw={"file": "heatplate_2d_solver",
                     "display": display,
                     "export": export,
                     "write_log": write_log,
                     "profile": False,
-                    "verbosity": 1})
+                    "verbosity": 20})

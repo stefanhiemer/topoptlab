@@ -163,6 +163,8 @@ class HeatEquation(FEMSolver):
                 state: Dict = {},
                 parameters: Dict = {},
                 solver_kw: Dict = {},
+                lin_solver_kw: Dict = {},
+                preconditioner_kw: Dict = {},
                 logger: BaseLogger = None,
                 ) -> Dict:
         """Solve K_TT^T lambda = rhs, reusing the cached factorization."""
@@ -175,11 +177,11 @@ class HeatEquation(FEMSolver):
             K=self._system["K_TT"],
             rhs=rhs[self.free, :],
             rhs0=None,
-            solver=solver_kw.get("lin_solver", "cvxopt-cholmod"),
-            solver_kw={k: v for k, v in solver_kw.items() if k != "lin_solver"},
+            solver=lin_solver_kw["name"],
+            solver_kw={k: v for k, v in lin_solver_kw.items() if k != "name"},
             factorization=self._fact,
-            preconditioner=solver_kw.get("preconditioner", None),
-            preconditioner_kw=solver_kw.get("preconditioner_kw", {}),
+            preconditioner=preconditioner_kw["name"],
+            preconditioner_kw={k: v for k, v in preconditioner_kw.items() if k != "name"},
             P=self._precond,
             logger=logger)
         adj = adj[:, 0] if scalar else adj
@@ -189,13 +191,12 @@ class HeatEquation(FEMSolver):
                           system: Dict,
                           state: Dict = {},
                           parameters: Dict = {},
-                          solver_kw: Dict = {},
+                          lin_solver_kw: Dict = {},
                           logger: BaseLogger = None,
                           ) -> Dict:
         """Enforce Dirichlet BCs; returns reduced {K_TT, f_T}."""
-        lin_solver = solver_kw.get("lin_solver", "cvxopt-cholmod")
         K_bc = apply_bc(K=system["K_TT"],
-                        solver=lin_solver,
+                        solver=lin_solver_kw["name"],
                         free=self.free,
                         fixed=self.fixed)
         return {"K_TT": K_bc, "f_T": system["f_T"]}
@@ -204,8 +205,7 @@ class HeatEquation(FEMSolver):
                         terms: Dict,
                         state: Dict = {},
                         parameters: Dict = {},
-                        lin_solver_kw = {},
-                        solver_kw: Dict = {},
+                        lin_solver_kw: Dict = {},
                         logger: BaseLogger = None,
                         ) -> Dict:
         """Accumulate element contributions then assemble once to global system."""
@@ -237,7 +237,8 @@ class HeatEquation(FEMSolver):
                             ndof=self.ndof,
                             solver=lin_solver_kw["name"],
                             springs=self._springs)
-        return {"K_TT": K, "f_T": f}
+        return {"K_TT": K, 
+                "f_T": f}
 
     def core_terms(self,
                    state: Dict = {},
@@ -250,11 +251,11 @@ class HeatEquation(FEMSolver):
         ### conductivity (always)
         if self.interpolation_mode == "scaling":
             scale = self.matinterpol(xPhys=parameters["xPhys"],
-                                     **self.matinterpol_kw)
+                                     **parameters["matinterpol_kw"])
             terms["Kes"] = self._KE0[None, :, :] * scale[:, :, None]
         elif self.interpolation_mode == "hashin":
             terms["Kes"] = self.matinterpol(xPhys=parameters["xPhys"],
-                                            **self.matinterpol_kw)
+                                            **parameters["matinterpol_kw"])
         else:
             raise ValueError(f"Unknown interpolation_mode: {self.interpolation_mode!r}")
         ### mass matrix: rho * c_p * Me0 (transient or convection)
@@ -379,7 +380,7 @@ class HeatEquation(FEMSolver):
                     solver_kw: Dict = {},
                     logger: BaseLogger = None,
                     ) -> Dict:
-        """Compute dL/dxPhys via the material interpolation chain rule."""
+        """Compute dL/dxPhys via the chain rule."""
         xPhys = parameters["xPhys"]
         T = state[self.fieldname]
         if adjoint.ndim == 1:
@@ -389,7 +390,8 @@ class HeatEquation(FEMSolver):
         n_bc = T.shape[1]
         dL = np.zeros((xPhys.shape[0], 1), order="F")
         if self.interpolation_mode == "scaling":
-            scale_dx = self.matinterpol_dx(xPhys=xPhys, **self.matinterpol_kw)
+            scale_dx = self.matinterpol_dx(xPhys=xPhys,
+                                           **parameters["matinterpol_kw"])
             for i in range(n_bc):
                 dobj_offset = np.matvec(self._KE0, T[self.edofMat, i])
                 dL[:, 0] += (scale_dx * adjoint[self.edofMat, i] * dobj_offset).sum(axis=1)
@@ -411,6 +413,7 @@ class HeatEquation(FEMSolver):
                              regular_mesh: bool = True,
                              ) -> None:
         """Select element lk callable, compute K_E0 and all assembly indices."""
+        #
         if isinstance(formulation, dict):
             lk = formulation["lk"]
         elif formulation == "galerkin" and regular_mesh:
@@ -458,7 +461,8 @@ class HeatEquation(FEMSolver):
                               system: Dict,
                               state: Dict = {},
                               parameters: Dict = {},
-                              solver_kw: Dict = {},
+                              lin_solver_kw: Dict = {},
+                              preconditioner_kw: Dict = {},
                               logger: BaseLogger = None,
                               ) -> Dict[str, Any]:
         """Solve K_TT T = f_T; caches factorization for adjoint reuse."""
@@ -467,11 +471,11 @@ class HeatEquation(FEMSolver):
             K=system["K_TT"],
             rhs=system["f_T"][self.free],
             rhs0=self.T[self.free, :],
-            solver=solver_kw.get("lin_solver", "cvxopt-cholmod"),
-            solver_kw={k: v for k, v in solver_kw.items() if k != "lin_solver"},
+            solver=lin_solver_kw["name"],
+            solver_kw={k: v for k, v in lin_solver_kw.items() if k != "name"},
             factorization=self._fact,
-            preconditioner=solver_kw.get("preconditioner", None),
-            preconditioner_kw=solver_kw.get("preconditioner_kw", {}),
+            preconditioner=preconditioner_kw["name"],
+            preconditioner_kw={k: v for k, v in preconditioner_kw.items() if k != "name"},
             P=self._precond,
             logger=logger)
         self._system = system

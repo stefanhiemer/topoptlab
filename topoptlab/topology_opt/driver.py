@@ -51,6 +51,9 @@ from mmapy import mmasub, gcmmasub, asymp, concheck, raaupdate
 from topoptlab.problem_solver import ProblemSolver
 # 
 from topoptlab.topology_opt.mesh import create_mesh
+from topoptlab.topology_opt.history import initialize_history, update_history
+from topoptlab.topology_opt.solver_routines import adjoint_loop, initialize_problems, solver_loop
+from topoptlab.topology_opt.plotting import initialize_plotting
 
 def initialize_design(n: int,
                       initial_guess: Union[None, Dict[str, np.ndarray]],
@@ -98,6 +101,72 @@ def initialize_design(n: int,
     else:
         xPhys = initial_guess["xPhys"]
     return x, xPhys
+
+def initialize_optimizer(optimizer: str,
+                         optimizer_kw: Dict,
+                         x: np.ndarray,
+                         xPhys: np.ndarray,
+                         n_constr: int,
+                         n_el: int,
+                         ft,
+                         el_flags,
+                         prescribed_mask,
+                         volfrac) -> Tuple[Dict, np.ndarray, np.ndarray, int]:
+    """
+    Validate and set up optimizer state before the optimization loop.
+
+    Calls ``check_optimizer_kw`` to fill defaults, sets ``max_history``, and
+    for MMA/GCMMA clamps passive/active element bounds in ``optimizer_kw`` and
+    adjusts ``x``/``xPhys`` accordingly.  For OC variants the Lagrange
+    multiplier accumulator ``g`` is stored as ``optimizer_kw["g"]`` so callers
+    do not need a separate variable.
+
+    Returns
+    -------
+    optimizer_kw : dict
+        Populated and (for MMA/GCMMA) bounds-adjusted optimizer parameters.
+    x : np.ndarray
+        Design variables, possibly clamped for passive/active elements.
+    xPhys : np.ndarray
+        Physical densities, possibly clamped for passive/active elements.
+    max_history : int
+        Number of previous iterates the optimizer requires.
+    """
+    optimizer_kw = check_optimizer_kw(optimizer=optimizer,
+                                      n=x.shape[0],
+                                      ft=ft,
+                                      n_constr=n_constr,
+                                      optimizer_kw=optimizer_kw)
+    if optimizer in ["oc", "ocm"]:
+        if n_constr != 1:
+            raise ValueError(f"Optimizers 'oc' and 'ocm' support exactly one constraint, "
+                             f"got {n_constr}.")
+        optimizer_kw["g"] = 0
+        max_history = 2
+    elif optimizer == "ocg":
+        optimizer_kw["g"] = 0
+        max_history = 2
+    elif optimizer in ["mma", "gcmma"]:
+        max_history = 3
+        if el_flags is not None:
+            mask = el_flags == 1
+            optimizer_kw["xmin"][mask] = 0.
+            optimizer_kw["xmax"][mask] = 0. + 1e-9
+            x[mask, 0] = 0.
+            xPhys[mask, 0] = 0.
+            mask = el_flags == 2
+            optimizer_kw["xmin"][mask] = 1. - 1e-9
+            optimizer_kw["xmax"][mask] = 1.
+            x[mask, :] = 1.
+            xPhys[mask, :] = 1.
+            if volfrac is not None:
+                x_free = np.clip(volfrac * n_el / (~prescribed_mask).sum(), 0., 1.)
+                x[~prescribed_mask, 0] = x_free
+                xPhys[~prescribed_mask, 0] = x_free
+    else:
+        raise ValueError("Unknown optimizer: ", optimizer)
+    return optimizer_kw, x, xPhys, max_history
+
 
 # MAIN DRIVER
 def main(nelx: int, nely: int,
@@ -188,6 +257,9 @@ def main(nelx: int, nely: int,
         backend).  When ``problems`` is used, a list of dicts (one per
         problem) is accepted so that the linear solver can be changed per
         problem or updated by a continuation strategy between iterations.
+    solver_kw: dict or list of dict
+        all information for the specific ProblemSolver at hand. Usually gives details
+        about physical discretization, which effects to include etc.
     bcs : str or callable
         returns the boundary conditions
     lk : None or callable
@@ -291,13 +363,16 @@ def main(nelx: int, nely: int,
         profiler = Profile() 
         profiler.enable()
     # extract linear solver and preconditioner
-    lin_solver = lin_solver_kw["name"]
-    preconditioner = preconditioner_kw["name"]
-    lin_solver_kw = dict_without(lin_solver_kw, "name")
-    preconditioner_kw = dict_without(preconditioner_kw, "name")
+    if isinstance(lin_solver_kw, dict):
+        lin_solver_kw = len(problems)*[lin_solver_kw]
+    if isinstance(preconditioner_kw, dict): 
+        preconditioner_kw = len(problems)*[preconditioner_kw]
+    if isinstance(solver_kw, dict): 
+        solver_kw = len(problems)*[solver_kw]
     # normalize materials_kw: single dict → one-element list
     if isinstance(materials_kw, dict):
         materials_kw = [materials_kw]
+    #
     n_mat = len(materials_kw)
     #
     if nelz is None:
@@ -339,7 +414,7 @@ def main(nelx: int, nely: int,
     mesh_kw = create_mesh(nelx = nelx,  
                           nely = nely, 
                           nelz = nelz, 
-                          l = l.,
+                          l = l,
                           mesh_file = None, 
                           logger = log)
     mapping, invmapping = mesh_kw["mapping"], mesh_kw["invmapping"]
@@ -348,10 +423,13 @@ def main(nelx: int, nely: int,
     # canonicalize bcs 
     problems = initialize_problems(problems=problems, 
                                    bcs=bcs, 
-                                   mesh_kw=mesk_kw, 
+                                   mesh_kw=mesh_kw, 
+                                   solver_kw=solver_kw,
                                    logger=log)
     # Allocate design variables (as array), initialize and allocate sens.
-    x, xPhys = initialize_design(n=n_el, initial_guess=initial_guess, volfrac=volfrac, n_mat=n_mat)
+    x, xPhys = initialize_design(n=n_el, 
+                                 initial_guess=initial_guess, 
+                                 volfrac=volfrac, n_mat=n_mat)
     # precompute prescribed-element masks for filter policy corrections
     passive_mask, active_mask, prescribed_mask = None, None, None
     if el_flags is not None:
@@ -383,49 +461,18 @@ def main(nelx: int, nely: int,
     _constr_filter_mask = np.array([c["filter"] for c in constraints], dtype=bool)
     constrs  = np.zeros( (n_constr, 1) )
     dconstrs = np.zeros((n_el, n_constr))
-    # initialize history length needed for optimizer
-    optimizer_kw = check_optimizer_kw(optimizer=optimizer,
-                                      n=x.shape[0],
-                                      ft=ft,
-                                      n_constr=n_constr,
-                                      optimizer_kw=optimizer_kw)
-    if optimizer in ["oc","ocm"]:
-        # legacy OC: only a single constraint (volume fraction) is supported
-        if n_constr != 1:
-            raise ValueError(f"Optimizers 'oc' and 'ocm' support exactly one constraint, "
-                             f"got {n_constr}.")
-        # must be initialized to use the NGuyen/Paulino OC approach
-        g = 0
-        max_history = 2
-    elif optimizer == "ocg":
-        # must be initialized to use the NGuyen/Paulino OC approach
-        g = 0
-        max_history = 2
-    elif optimizer in ["mma","gcmma"]:
-        # mma needs results of the two previous iterations
-        max_history = 3 
-        # handle element element flags
-        if el_flags is not None:
-            # passive
-            mask = el_flags == 1
-            optimizer_kw["xmin"][mask] = 0.
-            optimizer_kw["xmax"][mask] = 0.+1e-9
-            x[mask,0] = 0.
-            xPhys[mask,0] = 0.
-            # active
-            mask = el_flags == 2
-            optimizer_kw["xmin"][mask] = 1.- 1e-9
-            optimizer_kw["xmax"][mask] = 1.
-            x[mask, :] = 1.
-            xPhys[mask, :] = 1.
-            # redistribute volfrac over free elements so that passive elements
-            # (contributing 0) add material to the free set
-            if volfrac is not None:
-                x_free = np.clip(volfrac * n_el / (~prescribed_mask).sum(), 0., 1.)
-                x[~prescribed_mask, 0] = x_free
-                xPhys[~prescribed_mask, 0] = x_free
-    else:
-        raise ValueError("Unknown optimizer: ", optimizer)
+    # initialize optimizer state
+    optimizer_kw, x, xPhys, max_history = initialize_optimizer(
+                                             optimizer=optimizer,
+                                             optimizer_kw=optimizer_kw,
+                                             x=x,
+                                             xPhys=xPhys,
+                                             n_constr=n_constr,
+                                             n_el=n_el,
+                                             ft=ft,
+                                             el_flags=el_flags,
+                                             prescribed_mask=prescribed_mask,
+                                             volfrac=volfrac)
     # prepare FEM data structures
     ### this later needs to get deleted
     # mesh/DOF info pulled from the first solver — all setup was done at construction
@@ -447,7 +494,7 @@ def main(nelx: int, nely: int,
         lin_solver_kw = [lin_solver_kw] * len(problems)
     #
     state = {}
-    parameters = {"xPhys": xPhys}
+    parameters = {"xPhys": xPhys, "matinterpol_kw": matinterpol_kw}
     fe_strain = None
     fe_dens = None
     # initialize filters
@@ -481,43 +528,19 @@ def main(nelx: int, nely: int,
             raise ValueError("Number of density based body forces and boundary conditions is incompatible. Last dimension must be equal.")
     # initialize display functions
     if output_kw["display"]:
-        # Initialize plot and plot the initial design
-        plt.ion()  # Ensure that redrawing is possible
-        if ndim == 2:
-            fig,ax = plt.subplots(1,1)
-            im = ax.imshow(mapping(-xPhys), cmap='gray',
-                           interpolation='none', norm=Normalize(vmin=-1, vmax=0))
-            plotfunc = im.set_array
-        elif ndim == 3:
-            raise NotImplementedError("Plotting in 3D not implemented.")
-        ax.tick_params(axis='both',
-                       which='both',
-                       bottom=False,
-                       left=False,
-                       labelbottom=False,
-                       labelleft=False)
-        ax.axis("off")
-        fig.show()
+        plotfunc = initialize_plotting(xPhys=xPhys, mapping=mapping, ndim=ndim)
     #
     if output_kw["output_movie"]:
         output_kw["mov_ndigits"] = len(str(nouteriter))
-    # initialize iteration history by copying initial guesses
-    max_history = int(np.maximum(max_history,
-                                 accelerator_kw.get("max_history", 0)))
-    # check if history of xPhys is needed
-    _cont_params = [inspect.signature(f).parameters
-                    for f in (continuation_kw["funcs"]
-                              if continuation_kw is not None else [])]
-    _need_xPhys_hist = any("xPhys_hist" in p for p in _cont_params)
-    if not _need_xPhys_hist and "mode" in convergence_kw.keys():
-        _need_xPhys_hist = convergence_kw["mode"] == "xPhys"
-    if continuation_kw is not None:
-        continuation_kw["stop_flag"] = [False] * len(continuation_kw["funcs"])
-    hist = {"xhist":        [x.copy() for i in np.arange(max_history)],
-            "xPhys_hist":   [xPhys.copy() for i in np.arange(max_history)]
-                            if _need_xPhys_hist else None,
-            "obj_hist":     [0. for i in np.arange(max_history)],
-            "constrs_hist": [constrs.copy() for i in np.arange(max_history)]}
+    # initialize iteration history
+    max_history, continuation_kw, hist = initialize_history(
+                                            max_history=max_history,
+                                            accelerator_kw=accelerator_kw,
+                                            continuation_kw=continuation_kw,
+                                            convergence_kw=convergence_kw,
+                                            x=x,
+                                            xPhys=xPhys,
+                                            constrs=constrs)
     # initialize adjoint variables
     adj = np.zeros(f.shape)
     # seed filter_kw with any initial filter state (e.g. eta from EtaProjectorXu2010)
@@ -538,9 +561,10 @@ def main(nelx: int, nely: int,
                                 parameters=parameters,
                                 solver_kw=solver_kw,
                                 lin_solver_kw=lin_solver_kw,
+                                preconditioner_kw=preconditioner_kw,
                                 logger=log)
-            u    = state[_solver0.fieldname]
-            Kes  = _solver0._terms["Kes"]
+            u = state[_solver0.fieldname]
+            Kes = _solver0._terms["Kes"]
             #
             for i in range(f.shape[1]): 
                 log.debug("FEM: it.: {0}, problem: {1}, min. u: {2:.12f}, med. u: {3:.12f}, max. u: {4:.12f}".format(
@@ -573,15 +597,17 @@ def main(nelx: int, nely: int,
                     adj[free,i] = rhs_adj[free,0]
                 else:
                     adj_out = _solver0.adjoint(rhs=rhs_adj,
-                                                state=state,
-                                                parameters=parameters,
-                                                solver_kw=solver_kw[0],
-                                                logger=log)
+                                               state=state,
+                                               parameters=parameters,
+                                               solver_kw=solver_kw[0],
+                                               lin_solver_kw=lin_solver_kw[0],
+                                               preconditioner_kw=preconditioner_kw[0],
+                                               logger=log)
                     adj[:, i:i+1] = adj_out[f"adj_{_solver0.fieldname}"]
                 #
                 log.debug("adj: it.: {0}, problem: {1}, min. adj: {2:.12f}, med. adj: {3:.12f}, max. adj: {4:.12f}".format(
                            loop,i,np.min(adj[:,i]),np.median(adj[:,i]),np.max(adj[:,i])))
-            else:
+
                 dobj[:] += _solver0.sensitivity(state=state,
                                                 parameters=parameters,
                                                 adjoint=adj,
@@ -620,12 +646,14 @@ def main(nelx: int, nely: int,
                 # adjoint problem needs to be solved
                 else:
                     adj_out = _solver0.adjoint(rhs=rhs_adj_c,
-                                                state=state,
-                                                parameters=parameters,
-                                                solver_kw=solver_kw[0],
-                                                logger=log)
+                                               state=state,
+                                               parameters=parameters,
+                                               solver_kw=solver_kw[0],
+                                               lin_solver_kw=lin_solver_kw[0],
+                                               preconditioner_kw=preconditioner_kw[0],
+                                               logger=log)
                     adj[:, j:j+1] = adj_out[f"adj_{_solver0.fieldname}"]
-            else:
+
                 dsens_c = _solver0.sensitivity(state=state,
                                                 parameters=parameters,
                                                 adjoint=adj,
@@ -688,26 +716,26 @@ def main(nelx: int, nely: int,
                              logger=log)
         # optimality criteria
         if optimizer=="oc":
-            (x[:,0], g) = oc_top88(x=x[:,0], 
-                                   volfrac=constraints[0]["value"],
-                                   dc=dobj[:,0], 
-                                   dv=dconstrs[:,0]*x[:,0].shape[0], 
-                                   g=g,
-                                   el_flags=el_flags)
+            (x[:,0], optimizer_kw["g"]) = oc_top88(x=x[:,0],
+                                                    volfrac=constraints[0]["value"],
+                                                    dc=dobj[:,0],
+                                                    dv=dconstrs[:,0]*x[:,0].shape[0],
+                                                    g=optimizer_kw["g"],
+                                                    el_flags=el_flags)
         elif optimizer=="ocm":
-            (x[:,0], g) = oc_mechanism(x=x[:,0], 
-                                       volfrac=constraints[0]["value"],
-                                       dc=dobj[:,0], 
-                                       dv=dconstrs[:,0]*x[:,0].shape[0], 
-                                       g=g,
-                                       el_flags=el_flags)
+            (x[:,0], optimizer_kw["g"]) = oc_mechanism(x=x[:,0],
+                                                        volfrac=constraints[0]["value"],
+                                                        dc=dobj[:,0],
+                                                        dv=dconstrs[:,0]*x[:,0].shape[0],
+                                                        g=optimizer_kw["g"],
+                                                        el_flags=el_flags)
         elif optimizer=="ocg":
-            (x[:,0], g) = oc_generalized(x=x[:,0], 
-                                         volfrac=constraints[0]["value"],
-                                         dc=dobj[:,0], 
-                                         dv=dconstrs[:,0]*x[:,0].shape[0], 
-                                         g=g,
-                                         el_flags=el_flags)
+            (x[:,0], optimizer_kw["g"]) = oc_generalized(x=x[:,0],
+                                                          volfrac=constraints[0]["value"],
+                                                          dc=dobj[:,0],
+                                                          dv=dconstrs[:,0]*x[:,0].shape[0],
+                                                          g=optimizer_kw["g"],
+                                                          el_flags=el_flags)
         # method of moving asymptotes
         elif optimizer=="mma":
             xmma,ymma,zmma,lam,xsi,eta_mma,mu,zet,s,low,upp = mmasub(m=optimizer_kw["nconstr"],

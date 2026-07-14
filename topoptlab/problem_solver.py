@@ -44,6 +44,8 @@ class ProblemSolver(ABC):
                 state: Dict = {},
                 parameters: Dict = {},
                 solver_kw: Dict = {},
+                lin_solver_kw: Dict = {},
+                preconditioner_kw: Dict = {},
                 logger: BaseLogger = None,
                 ) -> Any:
         """Solve the adjoint system for the given right-hand side."""

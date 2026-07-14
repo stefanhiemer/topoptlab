@@ -37,7 +37,7 @@ class FEMSolver(ProblemSolver):
                           system: Dict,
                           state: Dict = {},
                           parameters: Dict = {},
-                          solver_kw: Dict = {},
+                          lin_solver_kw: Dict = {},
                           logger: BaseLogger = None,
                           ) -> Dict:
         """Enforce BCs, MPCs, periodicity, hanging nodes.  Returns modified system."""
@@ -47,12 +47,13 @@ class FEMSolver(ProblemSolver):
                  state: Dict = {},
                  parameters: Dict = {},
                  solver_kw: Dict = {},
+                 lin_solver_kw: Dict = {},
                  logger: BaseLogger = None,
                  ) -> Dict:
         """Collect all terms, assemble to global algebraic system, enforce BC and constraints."""
         self._terms = self.collect_terms(state, parameters, solver_kw, logger)
-        system = self.assemble_system(self._terms, state, parameters, solver_kw, logger)
-        system = self.apply_constraints(system, state, parameters, solver_kw, logger)
+        system = self.assemble_system(self._terms, state, parameters, lin_solver_kw, logger)
+        system = self.apply_constraints(system, state, parameters, lin_solver_kw, logger)
         return system
 
     def assemble_blocks(self,
@@ -73,7 +74,7 @@ class FEMSolver(ProblemSolver):
                         terms: Dict,
                         state: Dict = {},
                         parameters: Dict = {},
-                        solver_kw: Dict = {},
+                        lin_solver_kw: Dict = {},
                         logger: BaseLogger = None,
                         ) -> Dict:
         """Assemble local terms into the global algebraic system."""
@@ -216,19 +217,28 @@ class FEMSolver(ProblemSolver):
               state: Dict = {},
               parameters: Dict = {},
               solver_kw: Dict = {},
+              lin_solver_kw: Dict = {},
+              preconditioner_kw: Dict = {},
               logger: BaseLogger = None,
               ) -> Dict[str, Any]:
-        return self.solve_discrete_system(system, state, parameters, solver_kw, logger)
+        return self.solve_discrete_system(system, state, parameters,
+                                          lin_solver_kw, preconditioner_kw, logger)
 
     @abstractmethod
     def solve_discrete_system(self,
                               system: Dict,
                               state: Dict = {},
                               parameters: Dict = {},
-                              solver_kw: Dict = {},
+                              lin_solver_kw: Dict = {},
+                              preconditioner_kw: Dict = {},
                               logger: BaseLogger = None,
                               ) -> Dict[str, Any]:
-        """Drive the actual linear / nonlinear / eigenvalue solve."""
+        """Drive the actual linear / nonlinear / eigenvalue solve.
+
+        lin_solver_kw must contain at least ``"name"``; additional keys are
+        forwarded as solver-specific options.  preconditioner_kw must contain
+        at least ``"name"`` (may be None to disable).
+        """
         ...
 
     def source_terms(self,

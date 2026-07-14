@@ -65,6 +65,7 @@ def converged(old: Dict, new: Dict, atol: float = 1e-8) -> bool:
 def initialize_problems(problems: List, 
                         bcs: List[Callable], 
                         mesh_kw: Dict, 
+                        solver_kw: List[Dict],
                         logger: Union[None,BaseLogger] = None
                         ) -> None:
 
@@ -72,21 +73,23 @@ def initialize_problems(problems: List,
         bcs = [bcs]
     if not (isinstance(bcs,list) and (len(bcs) == len(problems))):
         raise ValueError("Each problem needs a boundary condition. ",
-                            "len(bcs) != len(problems): ", 
-                            len(bcs), len(problems))
+                         "len(bcs) != len(problems): ", 
+                         len(bcs), len(problems))
     for i,problem in enumerate(problems):
         #
         if isinstance(problem, list) and all([callable(item) for item in problem]):
             problems[i] = [solver(**mesh_kw,
-                                    bc=bcs[i],
-                                    logger=log) \
+                                  **solver_kw[i], 
+                                  bc=bcs[i],
+                                  logger=logger) \
                             for solver in problem]
         elif callable(problem):
             problems[i] = problem(**mesh_kw,
-                                    bc=bcs[i], 
-                                    logger=log)
+                                  **solver_kw[i], 
+                                  bc=bcs[i], 
+                                  logger=logger)
         else:
-            raise TypeError("Before initialization ")
+            raise TypeError("Do not initialize the solvers before handing them to main().")
         #
         if isinstance(problems[i], ProblemSolver):
             pass 
@@ -105,6 +108,7 @@ def solver_loop(problems: List,
                 state: Dict,
                 ntimesteps: int,
                 lin_solver_kw: List[Dict],
+                preconditioner_kw: List[Dict],
                 nproblem_solves: int = 100,
                 coupling: List = None,
                 parameters: Dict = {},
@@ -146,20 +150,25 @@ def solver_loop(problems: List,
                 solvers = [problem] if isinstance(problem, ProblemSolver) else problem
                 for solver in solvers:
                     if solver.implicit:
-                        system = solver.assemble(state, 
-                                                 parameters, 
-                                                 solver_kw[i], 
+                        system = solver.assemble(state,
+                                                 parameters,
+                                                 solver_kw[i],
+                                                 lin_solver_kw[i],
                                                  logger)
-                        out = solver.solve(system, 
-                                           state, 
-                                           parameters, 
-                                           solver_kw[i], 
+                        out = solver.solve(system,
+                                           state,
+                                           parameters,
+                                           solver_kw[i],
+                                           lin_solver_kw[i],
+                                           preconditioner_kw[i],
                                            logger)
                     else:
-                        out = solver.solve({}, 
-                                           state, 
-                                           parameters, 
-                                           solver_kw[i], 
+                        out = solver.solve({},
+                                           state,
+                                           parameters,
+                                           solver_kw[i],
+                                           lin_solver_kw[i],
+                                           preconditioner_kw[i],
                                            logger)
                     state.update(out)
             #
@@ -169,20 +178,24 @@ def solver_loop(problems: List,
                     state_old = copy_relevant_fields(state, problem)
                     for solver in problem:
                         if solver.implicit:
-                            system = solver.assemble(state, 
-                                                     parameters, 
-                                                     solver_kw[i], 
+                            system = solver.assemble(state,
+                                                     parameters,
+                                                     solver_kw[i],
                                                      logger)
-                            out    = solver.solve(system, 
-                                                  state, 
-                                                  parameters, 
-                                                  solver_kw[i], 
+                            out    = solver.solve(system,
+                                                  state,
+                                                  parameters,
+                                                  solver_kw[i],
+                                                  lin_solver_kw[i],
+                                                  preconditioner_kw[i],
                                                   logger)
                         else:
-                            out = solver.solve({}, 
-                                               state, 
-                                               parameters, 
-                                               solver_kw[i], 
+                            out = solver.solve({},
+                                               state,
+                                               parameters,
+                                               solver_kw[i],
+                                               lin_solver_kw[i],
+                                               preconditioner_kw[i],
                                                logger)
                         state.update(out)
                     if converged(state_old, state):
@@ -191,9 +204,10 @@ def solver_loop(problems: List,
             elif coupling[i] == "monolithic":
                 system = {}
                 for solver in problem:
-                    system.update(solver.assemble(state, 
-                                                  parameters, 
-                                                  solver_kw[i], 
+                    system.update(solver.assemble(state,
+                                                  parameters,
+                                                  solver_kw[i],
+                                                  lin_solver_kw[i],
                                                   logger))
                 global_system = assemble_global_block_system(system=system,
                                                              state=state,
@@ -215,6 +229,8 @@ def adjoint_loop(problems: List,
                  coupling: Union[None,str,List[str]] = None,
                  parameters: Dict = {},
                  solver_kw: List[Dict] = None,
+                 lin_solver_kw: List[Dict] = None,
+                 preconditioner_kw: List[Dict] = None,
                  logger = None,
                  ) -> Dict:
     """
@@ -256,6 +272,8 @@ def adjoint_loop(problems: List,
                                               state=state,
                                               parameters=parameters,
                                               solver_kw=solver_kw[i],
+                                              lin_solver_kw=lin_solver_kw[i],
+                                              preconditioner_kw=preconditioner_kw[i],
                                               logger=logger)
                     adj.update(adj_out)
                 # list of solvers: adjoint in reverse sequence
@@ -265,6 +283,8 @@ def adjoint_loop(problems: List,
                                                  state=state,
                                                  parameters=parameters,
                                                  solver_kw=solver_kw[i],
+                                                 lin_solver_kw=lin_solver_kw[i],
+                                                 preconditioner_kw=preconditioner_kw[i],
                                                  logger=logger)
                         adj.update(adj_out)
             #
@@ -277,6 +297,8 @@ def adjoint_loop(problems: List,
                                                  state=state,
                                                  parameters=parameters,
                                                  solver_kw=solver_kw[i],
+                                                 lin_solver_kw=lin_solver_kw[i],
+                                                 preconditioner_kw=preconditioner_kw[i],
                                                  logger=logger)
                         adj.update(adj_out)
                     if converged(adj_old, adj):
@@ -289,8 +311,8 @@ def adjoint_loop(problems: List,
                 for solver in problem:
                     local = solver.assemble_blocks(state, parameters,
                                                    solver_kw[i], logger)
-                    blocks_T.update(transpose_blocks(local.get("blocks", {})))
-                    rhs_adj.update(local.get("adj_rhs", {}))
+                    blocks_T.update(transpose_blocks(local["blocks"]))
+                    rhs_adj.update(local["adj_rhs"])
                 system_T = assemble_global_block_system(blocks=blocks_T,
                                                         rhs=rhs_adj,
                                                         state=state,
