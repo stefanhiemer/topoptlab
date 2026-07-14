@@ -139,6 +139,11 @@ def bossak(M: csc_array,
     with the discretization of the identity operator M (often called mass 
     matrix), the damping matrix B and matrix of the discretization of the 
     operator D which we call K.
+
+    We use helper scalars:
+
+       beta = 1/4 * (1-alpha)**2 
+       gamma = 1/2 - alpha
     
     Parameters
     ----------
@@ -182,12 +187,12 @@ def bossak(M: csc_array,
         vector of the right hand side
     """
     #
-    lhs = (1-alpha) / (beta*h**2) * M + gamma / (beta*h) * B + K
+    lhs = (1.-alpha) / (beta*h**2) * M + gamma / (beta*h) * B + K
     #
-    rhs = f 
-    rhs += M@( (1-alpha) / (beta*h**2) * phi + gamma / (beta*h) * v +\
-               (1-alpha) / (2*beta) * a )
-    rhs += B@( gamma / (beta*h) * phi + (gamma/beta - 1) * v + (1- gamma/(2*beta))*h*a )
+    rhs = f.copy() +\
+          M@( (1.-alpha) / (beta*h**2) * phi + gamma / (beta*h) * v +\
+               (1.-alpha) / (2.*beta) * a ) +\
+          B@( gamma / (beta*h) * phi + (gamma/beta - 1) * v + (1- gamma/(2*beta))*h*a )
     return lhs, rhs
 
 def bossak_update_derivatives(phi: np.ndarray, 
@@ -234,13 +239,11 @@ def bossak_update_derivatives(phi: np.ndarray,
 
     Returns
     -------
-    lhs : csc_array
-        First one is multiplied with the forces and the stiffness matrix, the 
-        others on the right hand side with the mass matrix and the history of 
-        the function.
-    rhs : np.ndarray
-        vector of the right hand side
+    a_new : np.ndarray
+        updated second derivative.
+    v_new : np.ndarray
+        updated first derivative.
     """
-    a_new = 1 / (beta*h**2) * (phi - phi_old) - 1 / (beta*h) * v + (1 - 1/(2*beta)*a) 
+    a_new = 1 / (beta*h**2) * (phi - phi_old) - 1 / (beta*h) * v + ((1 - 1/(2*beta))*a) 
     v_new = v + h * ( (1-gamma)*a + gamma * a_new )
     return a_new, v_new
