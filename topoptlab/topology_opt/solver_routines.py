@@ -181,6 +181,7 @@ def solver_loop(problems: List,
                             system = solver.assemble(state,
                                                      parameters,
                                                      solver_kw[i],
+                                                     lin_solver_kw[i],
                                                      logger)
                             out    = solver.solve(system,
                                                   state,
@@ -268,7 +269,7 @@ def adjoint_loop(problems: List,
             if coupling[i] == "weak":
                 # single solver
                 if isinstance(problem, ProblemSolver):
-                    adj_out = problem.adjoint(rhs=adj_rhs,
+                    adj_out = problem.adjoint(rhs=adj_rhs[problem.fieldname],
                                               state=state,
                                               parameters=parameters,
                                               solver_kw=solver_kw[i],
@@ -279,7 +280,7 @@ def adjoint_loop(problems: List,
                 # list of solvers: adjoint in reverse sequence
                 else:
                     for solver in reversed(problem):
-                        adj_out = solver.adjoint(rhs=adj_rhs,
+                        adj_out = solver.adjoint(rhs=adj_rhs[solver.fieldname],
                                                  state=state,
                                                  parameters=parameters,
                                                  solver_kw=solver_kw[i],
@@ -293,7 +294,7 @@ def adjoint_loop(problems: List,
                 for solve_iter in range(nproblem_solves):
                     adj_old = copy_relevant_fields(adj, problem)
                     for solver in reversed(problem):
-                        adj_out = solver.adjoint(rhs=adj_rhs,
+                        adj_out = solver.adjoint(rhs=adj_rhs[solver.fieldname],
                                                  state=state,
                                                  parameters=parameters,
                                                  solver_kw=solver_kw[i],
