@@ -54,8 +54,6 @@ def convert_to_code(matrix: MatrixFunction,
     #
     lines = symfemMatrixFunc_to_str(matrxfnc=matrix)
     #
-    
-    #
     if npndarray:
         lines,delta = to_npndarray(lines=lines, 
                                    max_line_length=max_line_length)
@@ -79,12 +77,12 @@ def convert_to_code(matrix: MatrixFunction,
     for matrix in matrices:
         if npndarray:
             lines = sub(matrix + r'(\d)(\d)',
-                  lambda m: matrix +  f'[{int(m.group(1))-1},{int(m.group(2))-1}]',
-                  lines)
+                        lambda m: matrix +  f'[{int(m.group(1))-1},{int(m.group(2))-1}]',
+                        lines)
         elif npcolumnstack:
             lines = sub(matrix + r'(\d)(\d)',
-                  lambda m: matrix +  f'[:,{int(m.group(1))-1},{int(m.group(2))-1}]',
-                  lines)
+                        lambda m: matrix +  f'[:,{int(m.group(1))-1},{int(m.group(2))-1}]',
+                        lines)
     # replace entries ala "c1" with corresponding array entries c[0]
     for vector in vectors:
         lines = sub(vector + r'(\d)',
@@ -97,8 +95,8 @@ def convert_to_code(matrix: MatrixFunction,
                         lines)
         for matrix in matrices:
             lines = sub(matrix + r'(\d)(\d)',
-                  lambda m: matrix +  f'[:,{int(m.group(1))-1},{int(m.group(2))-1}]',
-                  lines)
+                        lambda m: matrix +  f'[:,{int(m.group(1))-1},{int(m.group(2))-1}]',
+                        lines)
     return lines
 
 def to_npndarray(lines: List, 

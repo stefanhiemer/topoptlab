@@ -75,6 +75,8 @@ class HeatEquation(FEMSolver):
         Key used for the temperature field in state / output dicts.
     """
 
+    _default_interpol_prop = "heat conductivity"
+
     def __init__(self,
                  nelx: int,
                  nely: int,
@@ -94,7 +96,7 @@ class HeatEquation(FEMSolver):
                  interpolation_mode: str = "scaling",
                  matinterpol: Callable = simp,
                  matinterpol_dx: Callable = simp_dx,
-                 matinterpol_kw: Dict = {"eps": 1e-9, "penal": 3.0},
+                 interpol_kw: Dict = {},
                  material_kw: Union[Dict, List[Dict]] = {"heat conductivity": 1.0},
                  fieldname: str = "T",
                  logger: BaseLogger = None,
@@ -148,11 +150,15 @@ class HeatEquation(FEMSolver):
         # unpack BC
         self.T, self.f, self.fixed, self.free, self._springs = bc(
             nelx=nelx, nely=nely, nelz=nelz, ndof=self.ndof)
-        # set up material interpolation
-        self.interpolation_mode = interpolation_mode
-        self.matinterpol = matinterpol
-        self.matinterpol_dx = matinterpol_dx
-        self.matinterpol_kw = matinterpol_kw
+        # build per-property interpolation spec; property-specific entries override the global default
+        self.interpol_kw = {}
+        for prop in ("conductivity","density","heat capacity"):
+            if prop in interpol_kw: 
+                self.interpol_kw[prop] = interpol_kw[prop]  
+            else:
+                self.interpol_kw[prop] = {"mode": interpolation_mode, 
+                                          "func": matinterpol, 
+                                          "func_dx": matinterpol_dx}
         #
         self._fact = None
         self._precond = None
@@ -218,12 +224,14 @@ class HeatEquation(FEMSolver):
             sK = terms["Kes"].reshape(nel * n_entries)
             if "Mes" in terms:
                 sK += terms["Mes"].reshape(nel, n_entries)
-        else:
+        elif self.assembly_mode == "lower":
             n_entries = dof_el * (dof_el + 1) // 2
             sK = terms["Kes"][:, self._assm_indcs[:, 0], self._assm_indcs[:, 1]].copy()
             if "Mes" in terms:
                 sK += terms["Mes"][:, self._assm_indcs[:, 0], self._assm_indcs[:, 1]]
             sK = sK.reshape(nel * n_entries)
+        else:
+            raise ValueError("Unkown assembly_mode: ", self.assembly_mode)
         ### ii) collect local rhs element contributions and sum at element level
         f = self.f.copy()
         if "f_source" in terms:
@@ -249,15 +257,15 @@ class HeatEquation(FEMSolver):
         """Scaled element matrices for all active physics."""
         terms = {}
         ### conductivity (always)
-        if self.interpolation_mode == "scaling":
-            scale = self.matinterpol(xPhys=parameters["xPhys"],
-                                     **parameters["matinterpol_kw"])
+        cond = self.interpol_kw["conductivity"]
+        kw = parameters["interpol_kw"]["conductivity"]
+        if cond["mode"] == "scaling":
+            scale = cond["func"](xPhys=parameters["xPhys"], **kw)
             terms["Kes"] = self._KE0[None, :, :] * scale[:, :, None]
-        elif self.interpolation_mode == "hashin":
-            terms["Kes"] = self.matinterpol(xPhys=parameters["xPhys"],
-                                            **parameters["matinterpol_kw"])
+        elif cond["mode"] == "hashin":
+            terms["Kes"] = cond["func"](xPhys=parameters["xPhys"], **kw)
         else:
-            raise ValueError(f"Unknown interpolation_mode: {self.interpolation_mode!r}")
+            raise ValueError(f"Unknown conductivity interpolation mode: {cond['mode']!r}")
         ### mass matrix: rho * c_p * Me0 (transient or convection)
         if self.transient or self.convection:
             raise NotImplementedError("Element mass matrix for transient/convection not yet implemented.")
@@ -265,19 +273,17 @@ class HeatEquation(FEMSolver):
 
     def log_material_interpolation(self,
                                    logger: BaseLogger = None) -> Dict:
-        """Log and return the material interpolation parameters."""
+        """Log and return the per-property interpolation configuration."""
         logger = logger or EmptyLogger()
-        props = {"interpolation_mode": self.interpolation_mode,
-                 "matinterpol": getattr(self.matinterpol,
-                                        "__name__", str(self.matinterpol)),
-                 "matinterpol_dx": getattr(self.matinterpol_dx,
-                                           "__name__", str(self.matinterpol_dx)),
-                 **self.matinterpol_kw}
         lines = [f"Material interpolation (heat equation) for field: {self.fieldname}"]
-        for k, v in props.items():
-            lines.append(f"  {k}: {v}")
+        for prop, interp in self.interpol_kw.items():
+            func_name = getattr(interp["func"], "__name__", str(interp["func"]))
+            func_dx_name = getattr(interp["func_dx"], "__name__", str(interp["func_dx"]))
+            lines.append(f"  {prop}: mode={interp['mode']}"
+                         f", func={func_name}, func_dx={func_dx_name}"
+                         f", kw={interp['kw']}")
         logger.info("\n".join(lines))
-        return props
+        return self.interpol_kw
 
     def log_material_properties(self,
                                 logger: BaseLogger = None) -> Dict:
@@ -373,14 +379,14 @@ class HeatEquation(FEMSolver):
     def output_keys(self) -> tuple:
         return (self.fieldname,)
 
-    def sensitivity(self,
-                    state: Dict = {},
-                    parameters: Dict = {},
-                    adjoint: Any = None,
-                    solver_kw: Dict = {},
-                    logger: BaseLogger = None,
-                    ) -> Dict:
-        """Compute dL/dxPhys via the chain rule."""
+    def core_terms_dx(self,
+                      state: Dict = {},
+                      parameters: Dict = {},
+                      adjoint: Any = None,
+                      solver_kw: Dict = {},
+                      logger: BaseLogger = None,
+                      ) -> Dict:
+        """Element-wise sensitivity of the conductivity contribution."""
         xPhys = parameters["xPhys"]
         T = state[self.fieldname]
         if adjoint.ndim == 1:
@@ -388,20 +394,19 @@ class HeatEquation(FEMSolver):
         if T.ndim == 1:
             T = T[:, None]
         n_bc = T.shape[1]
-        dL = np.zeros((xPhys.shape[0], 1), order="F")
-        if self.interpolation_mode == "scaling":
-            scale_dx = self.matinterpol_dx(xPhys=xPhys,
-                                           **parameters["matinterpol_kw"])
+        cond = self.interpol_kw["conductivity"]
+        kw = parameters["interpol_kw"]["conductivity"]
+        dL_core = np.zeros((xPhys.shape[0], 1), order="F")
+        if cond["mode"] == "scaling":
+            scale_dx = cond["func_dx"](xPhys=xPhys, **kw)
             for i in range(n_bc):
-                dobj_offset = np.matvec(self._KE0, T[self.edofMat, i])
-                dL[:, 0] += (scale_dx * adjoint[self.edofMat, i] * dobj_offset).sum(axis=1)
-                # dL[:, 0] += (scale_dx *
-                #              (adjoint[self.edofMat, i] *
-                #               (self._KE0 @ T[self.edofMat, i].T).T)
-                #              ).sum(axis=1)
-        elif self.interpolation_mode == "hashin":
+                dL_core[:, 0] += (scale_dx *
+                                  adjoint[self.edofMat, i] *
+                                  np.matvec(self._KE0, T[self.edofMat, i])
+                                  ).sum(axis=1)
+        elif cond["mode"] == "hashin":
             raise NotImplementedError("Hashin–Shtrikman sensitivity not yet implemented.")
-        return dL
+        return {"dL_core": dL_core}
 
     def setup_discretization(self,
                              *,
@@ -496,3 +501,12 @@ class HeatEquation(FEMSolver):
         if self.viscous_heating:
             raise NotImplementedError("Viscous heating element assembly not yet implemented.")
         return terms
+
+    def source_terms_dx(self,
+                        state: Dict = {},
+                        parameters: Dict = {},
+                        adjoint: Any = None,
+                        solver_kw: Dict = {},
+                        logger: BaseLogger = None,
+                        ) -> Dict:
+        return {}

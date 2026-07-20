@@ -13,7 +13,6 @@ from topoptlab.symbolic.strain_measures import small_strain_matrix
 
 def stiffness_matrix(ndim : int,
                      c : Union[None,MatrixFunction], 
-                     plane_stress : bool = False,
                      element_type : str ="Lagrange",
                      order : int = 1) -> MatrixFunction:
     """
@@ -25,8 +24,6 @@ def stiffness_matrix(ndim : int,
         number of spatial dimensions. Must be between 1 and 3.
     c : None or symfem.functions.MatrixFunction
         stiffness tensor . if None, generic stiffness tensor is assumed.
-    plane_stress : bool
-        if True, plane_stress is assumed. Only relevant for 2D.
     element_type : str
         type of element.
     order : int
@@ -78,8 +75,6 @@ def strainforces(ndim : int,
         number of spatial dimensions. Must be between 1 and 3.
     c : None or symfem.functions.MatrixFunction
         stiffness tensor . if None, generic stiffness tensor is assumed.
-    plane_stress : bool
-        if True, plane_stress is assumed. Only relevant for 2D.
     element_type : str
         type of element.
     order : int

@@ -54,4 +54,4 @@ def initialize_plotting(xPhys: np.ndarray,
                    labelleft=False)
     ax.axis("off")
     fig.show()
-    return plotfunc
+    return fig, plotfunc

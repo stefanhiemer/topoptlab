@@ -10,7 +10,7 @@ if __name__ == "__main__":
         print(str(dim)+"D")
         print(convert_to_code(stiffness_matrix(c=stifftens_isotropic(ndim=dim,
                                                             plane_stress=True), 
-                                               plane_stress=True, ndim=dim),
+                                               ndim=dim),
                               matrices=["c"],
                               vectors=["l","g"]),"\n")
     # stiffness matrix anisotropic linear elasticity
@@ -25,8 +25,8 @@ if __name__ == "__main__":
     for dim in range(1,4):
         print(str(dim)+"D")
         print(convert_to_code(strainforces(c=stifftens_isotropic(ndim=dim,
-                                                            plane_stress=True), 
-                                           plane_stress=True, ndim=dim),
+                                                                 plane_stress=True), 
+                                           ndim=dim),
                               matrices=["c"],
                               vectors=["l","g", "eps"]),"\n") 
     for dim in range(1,4):

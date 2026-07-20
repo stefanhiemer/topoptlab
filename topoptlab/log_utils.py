@@ -570,12 +570,51 @@ def log_material_properties(material_kw: Dict,
                             logger: Union[None,BaseLogger] = None,
                             ) -> Tuple[list,str]:
     """
-    Needs sorted list of symmetries. The more general, the later in the list. E. g
-    ["isotropic","orthotropic","triclinc"].
+    Detect the symmetry class of each material in ``material_kw``, cast all
+    properties to the most general symmetry present, log the process, and
+    return the converted tensors.
 
-    1. finds symmetry class needed for specific elements.
-    2. use symmetry class to cast properties to representation needed for elements.
-    3. logs process
+    ``symmetries`` must be ordered from least to most general, e.g.
+    ``["isotropic", "orthotropic", "triclinic"]``.  The function identifies
+    each material's symmetry by checking which key set in ``names`` matches
+    the keys present in that material's dict, then promotes all materials to
+    the most general symmetry found across the full list.
+
+    Parameters
+    ----------
+    material_kw : list of dict
+        One dict per material.  Each dict maps property name strings to values,
+        e.g. ``{"Young's modulus": 1.0, "Poisson's ratio": 0.3}``.
+    symmetries : list of str
+        Symmetry class names in increasing generality.
+    names : list of list of str
+        ``names[i]`` is the set of property keys that identifies symmetry class
+        ``i``.
+    arg_names : list of list of str
+        ``arg_names[i]`` gives the keyword argument names passed to the
+        converter functions for symmetry class ``i``.  Must be the same length
+        as ``names[i]`` and in the same order.
+    converter_functions : list of list of callable
+        ``converter_functions[j][k](**prop)`` converts a material of symmetry
+        class ``j`` to the effective symmetry class ``k``.  Entries where
+        ``j > k`` are never reached and may be ``None``.
+    logger : BaseLogger or None
+        Logger used to record the detected symmetry and property values.
+        Defaults to ``EmptyLogger`` if ``None``.
+
+    Returns
+    -------
+    props : list
+        Converted per-material property objects (one per entry in
+        ``material_kw``), all cast to the effective symmetry class.
+    symmetry : str
+        The effective (most general) symmetry class name.
+
+    Raises
+    ------
+    ValueError
+        If ``material_kw`` is empty, or if a material's symmetry class cannot
+        be uniquely identified from its keys.
     """
     #
     if len(material_kw) == 0:
@@ -586,25 +625,28 @@ def log_material_properties(material_kw: Dict,
     mat_syminds = []
     mat_symmetries = []
     props = []
-    #
+    # loop over each material
     for i,mat_kw in enumerate(material_kw):
-        # find symmetry
-        keys = mat_kw.keys() 
-        sym_flag = [all(x in keys for x in sym_name) for sym_name in names] 
-        #
+        # find symmetry by checking that one of the material properties is found
+        sym_flag = [any([x in mat_kw.keys() for x in sym_name]) \
+                    for sym_name in names] 
         if sum(sym_flag) == 1:
             mat_syminds.append(sym_flag.index(True))
             mat_symmetries.append(symmetries[mat_syminds[-1]])
         else:
             raise ValueError(f"Symmetry for material {i} could not uniquely be identified.")
         # collect material values to dictionary useable for casting
-        prop = {arg_name: mat_kw[key] for key,arg_name in \
-                      zip(names[mat_syminds[-1]], arg_names[mat_syminds[-1]])}
+        prop = dict()
+        for key, arg_name in \
+                zip(names[mat_syminds[-1]], arg_names[mat_syminds[-1]]): 
+            if key in mat_kw.keys():
+                prop[arg_name] = mat_kw[key]
         props.append(prop)
         # logging properties as read
         logger.info(f"material {i}")
         for key in names[mat_syminds[-1]]:
-            logger.info(f"{key}: {mat_kw[key]}")
+            if key in mat_kw.keys():
+                logger.info(f"{key}: {mat_kw[key]}")
     #
     symmetry_index = max(mat_syminds)
     symmetry = symmetries[symmetry_index]
@@ -615,51 +657,3 @@ def log_material_properties(material_kw: Dict,
              in zip(mat_syminds,props)]
     return props, symmetry
 
-if __name__ == "__main__":
-    #
-    {"symmetries": ["isotropic", 
-                    "orthotropic", 
-                    "anisotropic"], 
-     "names": [["heat conductivity"], 
-               ["heat conductivity x", 
-                "heat conductivity y", 
-                "heat conductivity z"], 
-               ["heat conductivity tensor"]],
-     "arg_names": [["k"],
-                   ["kx","ky","kz"], 
-                   ["k"]]}
-    #
-    scalar_names = ["heat conductivity"]
-    scalar_names = ["Young's modulus", 
-                    "Poisson's ratio", 
-                    "shear modulus",
-                    "bulk modulus",
-                    "first Lame constant",
-                    "P-wave modulus"]
-    # list of scalar props
-    arg_names = ["k"]
-    arg_names = ["E","nu","G","K","lam","M"]
-    #
-    orthotropic_names = ["heat conductivity x", 
-                         "heat conductivity y", 
-                         "heat conductivity z"]
-    orthotropic_names = ["Young's modulus x", 
-                         "Young's modulus y", 
-                         "Young's modulus z", 
-                         "Poisson's ratio xy", 
-                         "Poisson's ratio xz", 
-                         "Poisson's ratio yz",
-                         "shear modulus xy", 
-                         "shear modulus xz", 
-                         "shear modulus yz"]
-    # list of orthotropic props
-    arg_names = ["kx","ky","kz"]
-    arg_names = ["Ex","Ey","Ez", 
-                 "nu_xy", "nu_xz", "nu_yz",
-                 "G_xy", "G_xz", "G_yz"]
-    #
-    aniso_names = ["heat conductivity tensor"]
-    aniso_names = ["stiffness tensor"]
-    #
-    arg_names = ["k"]
-    arg_names = ["c"]

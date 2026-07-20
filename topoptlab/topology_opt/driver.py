@@ -174,17 +174,16 @@ def main(nelx: int, nely: int,
          rmin: float, 
          ft: [int,TOFilter,List[TOFilter]] = 1,
          filter_kw: Union[Dict,List] = {},
-         simulation_kw: Dict = {"grid": "regular",
-                                "element order": 1,
-                                "meshfile": None},
+         simulation_kw: Dict = {"type": "stationary",
+                                "coordinate_system": "cartesian"},
          nelz: Union[None,int] = None,
          initial_guess: Union[None,Dict[str, np.ndarray]] = None,
          filter_mode: str = "convolution",
          lin_solver_kw: Union[Dict, List[Dict]] = {"name": "scipy-direct"},
          preconditioner_kw: Dict = {"name": None},
          assembly_mode: str = "full",
-         materials_kw: Dict = {"E": 1.}, 
-         body_forces_kw: Dict = {},
+         materials_kw: Dict = {"Young's modulus": 1., 
+                               "Poisson's ratio": 0.3}, 
          bcs: Callable = mbb_2d,
          problems: Union[None, List[Union[Callable, List[Callable]]]] = None,
          solver_kw: Union[Dict, List[Dict]] = {},
@@ -195,7 +194,7 @@ def main(nelx: int, nely: int,
          obj_kw: Dict = {},
          matinterpol: Callable = simp,
          matinterpol_dx: Callable = simp_dx,
-         matinterpol_kw: Dict = {"eps": 1e-9, "penal": 3.},
+         matinterpol_kw: Union[None, Dict, List[Dict]] = None,
          el_flags: Union[None,np.ndarray] = None,
          el_flags_policy: Union[None,Dict] = None,
          constraints: Union[None,List[Dict]] = None,
@@ -374,6 +373,7 @@ def main(nelx: int, nely: int,
         materials_kw = [materials_kw]
     #
     n_mat = len(materials_kw)
+    simulation_kw["n_mat"] = n_mat
     #
     if nelz is None:
         ndim = 2
@@ -419,6 +419,11 @@ def main(nelx: int, nely: int,
                           logger = log)
     mapping, invmapping = mesh_kw["mapping"], mesh_kw["invmapping"]
     l = mesh_kw["l"]
+    # Allocate design variables (as array), initialize and allocate sens.
+    x, xPhys = initialize_design(n=n_el, 
+                                 initial_guess=initial_guess, 
+                                 volfrac=volfrac, 
+                                 n_mat=n_mat)
     # initialize problem solvers now that logger and mesh dims are known
     # canonicalize bcs 
     problems = initialize_problems(problems=problems, 
@@ -426,10 +431,6 @@ def main(nelx: int, nely: int,
                                    mesh_kw=mesh_kw, 
                                    solver_kw=solver_kw,
                                    logger=log)
-    # Allocate design variables (as array), initialize and allocate sens.
-    x, xPhys = initialize_design(n=n_el, 
-                                 initial_guess=initial_guess, 
-                                 volfrac=volfrac, n_mat=n_mat)
     # precompute prescribed-element masks for filter policy corrections
     passive_mask, active_mask, prescribed_mask = None, None, None
     if el_flags is not None:
@@ -494,9 +495,22 @@ def main(nelx: int, nely: int,
         lin_solver_kw = [lin_solver_kw] * len(problems)
     #
     state = {}
-    parameters = {"xPhys": xPhys, "matinterpol_kw": matinterpol_kw}
-    fe_strain = None
-    fe_dens = None
+    interpol_kw = []
+    for i, prob in enumerate(problems):
+        if isinstance(prob, list):
+            s = prob[0]
+        else:
+            s = prob
+        kw = dict(s.default_interpol_kw)
+        if matinterpol_kw is None:
+            pass
+        elif isinstance(matinterpol_kw, list):
+            kw.update(matinterpol_kw[i])
+        else:
+            kw.update(matinterpol_kw)
+        interpol_kw.append(kw)
+    #
+    parameters = {"xPhys": xPhys}
     # initialize filters
     ft = prepare_filters(ft=ft,
                          **mesh_kw,
@@ -518,17 +532,10 @@ def main(nelx: int, nely: int,
                 xTilde.append(initial_guess[key])
     else:
         xTilde = None
-    # check that boundary conditions and body forces are compatible
-    f0 = None
-    if fe_strain is not None:
-        if f.shape[-1] != fe_strain.shape[-1]:
-            raise ValueError("Number of applied strains and boundary conditions is incompatible. Last dimension must be equal.")
-    if fe_dens is not None:
-        if f.shape[-1] != fe_dens.shape[-1]:
-            raise ValueError("Number of density based body forces and boundary conditions is incompatible. Last dimension must be equal.")
     # initialize display functions
     if output_kw["display"]:
-        plotfunc = initialize_plotting(xPhys=xPhys, mapping=mapping, ndim=ndim)
+        fig, plotfunc = initialize_plotting(xPhys=xPhys, 
+                                            **mesh_kw)
     #
     if output_kw["output_movie"]:
         output_kw["mov_ndigits"] = len(str(nouteriter))
@@ -562,6 +569,7 @@ def main(nelx: int, nely: int,
                                 solver_kw=solver_kw,
                                 lin_solver_kw=lin_solver_kw,
                                 preconditioner_kw=preconditioner_kw,
+                                interpol_kw=interpol_kw,
                                 logger=log)
             u = state[_solver0.fieldname]
             Kes = _solver0._terms["Kes"]
@@ -596,13 +604,17 @@ def main(nelx: int, nely: int,
                     #dobj[:] += rhs_adj
                     adj[free,i] = rhs_adj[free,0]
                 else:
-                    adj_out = _solver0.adjoint(rhs=rhs_adj,
-                                               state=state,
-                                               parameters=parameters,
-                                               solver_kw=solver_kw[0],
-                                               lin_solver_kw=lin_solver_kw[0],
-                                               preconditioner_kw=preconditioner_kw[0],
-                                               logger=log)
+                    adj_out = adjoint_loop(problems,
+                                           state,
+                                           adj_rhs={_solver0.fieldname: rhs_adj},
+                                           ntimesteps=1,
+                                           coupling=solver_coupling,
+                                           parameters=parameters,
+                                           solver_kw=solver_kw,
+                                           lin_solver_kw=lin_solver_kw,
+                                           preconditioner_kw=preconditioner_kw,
+                                           interpol_kw=interpol_kw,
+                                           logger=log)
                     adj[:, i:i+1] = adj_out[f"adj_{_solver0.fieldname}"]
                 #
                 log.debug("adj: it.: {0}, problem: {1}, min. adj: {2:.12f}, med. adj: {3:.12f}, max. adj: {4:.12f}".format(
@@ -612,7 +624,7 @@ def main(nelx: int, nely: int,
                                                 parameters=parameters,
                                                 adjoint=adj,
                                                 solver_kw=solver_kw[0],
-                                                logger=log)
+                                                logger=log)["dL_dxPhys"]
         # optimizer is unknown.
         else:
             raise NotImplementedError("Unknown optimizer.")
@@ -645,13 +657,17 @@ def main(nelx: int, nely: int,
                     adj[free,j] = rhs_adj_c[free,0]
                 # adjoint problem needs to be solved
                 else:
-                    adj_out = _solver0.adjoint(rhs=rhs_adj_c,
-                                               state=state,
-                                               parameters=parameters,
-                                               solver_kw=solver_kw[0],
-                                               lin_solver_kw=lin_solver_kw[0],
-                                               preconditioner_kw=preconditioner_kw[0],
-                                               logger=log)
+                    adj_out = adjoint_loop(problems,
+                                           state,
+                                           adj_rhs={_solver0.fieldname: rhs_adj_c},
+                                           ntimesteps=1,
+                                           coupling=solver_coupling,
+                                           parameters=parameters,
+                                           solver_kw=solver_kw,
+                                           lin_solver_kw=lin_solver_kw,
+                                           preconditioner_kw=preconditioner_kw,
+                                           interpol_kw=interpol_kw,
+                                           logger=log)
                     adj[:, j:j+1] = adj_out[f"adj_{_solver0.fieldname}"]
 
                 dsens_c = _solver0.sensitivity(state=state,
@@ -781,10 +797,13 @@ def main(nelx: int, nely: int,
                 dfdx=dconstrs.T,
                 **optimizer_kw)
             # inner loop: tighten approximation until conservative
-            u_inner = u.copy()
+            state_inner = dict(state)
             for _inner in range(ninneriter):
                 # apply forward filter to xmma without touching xTilde/xPhys
-                xTilde_tmp = [t.copy() for t in xTilde]
+                if xTilde is not None:
+                    xTilde_tmp = [t.copy() for t in xTilde]
+                else:
+                    xTilde_tmp = None
                 xTilde_tmp, xPhys_new = filter_design_variables(x=xmma,
                                                                 xTilde=xTilde_tmp,
                                                                 xPhys=xPhys.copy(),
@@ -794,26 +813,19 @@ def main(nelx: int, nely: int,
                                                                 passive_mask=passive_mask,
                                                                 active_mask=active_mask)
                 # solve FEM at xmma
-                u_inner, K_inner, fact_inner, precond_inner, Kes_new, _, _ = \
-                    solve_phys_problems(xPhys=xPhys_new,
-                                        KE=KE,
-                                        iK=iK, jK=jK,
-                                        ndof=ndof, n=n_el,
-                                        edofMat=edofMat,
-                                        f=f,
-                                        fixed=fixed, free=free, springs=springs,
-                                        matinterpol=matinterpol,
-                                        matinterpol_kw=matinterpol_kw,
-                                        assembly_mode=assembly_mode,
-                                        assm_indcs=assm_indcs,
-                                        body_forces_kw=body_forces_kw,
-                                        fe_strain=fe_strain,
-                                        fe_dens=fe_dens,
-                                        lin_solver=lin_solver,
-                                        lin_solver_kw=lin_solver_kw,
-                                        preconditioner=preconditioner,
-                                        preconditioner_kw=preconditioner_kw,
-                                        u=u_inner)
+                parameters_inner = {**parameters, "xPhys": xPhys_new}
+                state_inner = solver_loop(problems,
+                                          state_inner,
+                                          ntimesteps=1,
+                                          coupling=solver_coupling,
+                                          parameters=parameters_inner,
+                                          solver_kw=solver_kw,
+                                          lin_solver_kw=lin_solver_kw,
+                                          preconditioner_kw=preconditioner_kw,
+                                          interpol_kw=interpol_kw,
+                                          logger=log)
+                u_inner = state_inner[_solver0.fieldname]
+                Kes_new = _solver0._terms["Kes"]
                 # evaluate objective at xmma
                 obj_new = 0.
                 for i in np.arange(f.shape[1]):
@@ -828,7 +840,7 @@ def main(nelx: int, nely: int,
                                                         matinterpol_kw=matinterpol_kw,
                                                         mapping=mapping, 
                                                         invmapping=invmapping,
-                                                        cellVolume=mesh["cellVolume"],
+                                                        cellVolume=mesh_kw["cellVolume"],
                                                         **obj_kw)
                     if self_adj_new is None:
                         break
@@ -847,7 +859,7 @@ def main(nelx: int, nely: int,
                                                                matinterpol_kw=matinterpol_kw,
                                                                mapping=mapping, 
                                                                invmapping=invmapping,
-                                                               cellVolume=mesh["cellVolume"],
+                                                               cellVolume=mesh_kw["cellVolume"],
                                                                **c["kw"])
                         if self_adj_c_new is None:
                             break
@@ -898,7 +910,7 @@ def main(nelx: int, nely: int,
                                                         fval=constrs,
                                                         dfdx=dconstrs.T,
                                                         **optimizer_kw)
-                x = xmma.copy()
+            x = xmma.copy()
         #
         log.debug("Post Density Update: it.: {0}, med(x): {1:.10f}, mean(x): {2:.10f}, med(xPhys): {3:.10f}".format(
                    loop, np.median(x),np.mean(x), np.median(xPhys)))
@@ -934,10 +946,9 @@ def main(nelx: int, nely: int,
         change = convergence_kw["change_func"](**hist,**convergence_kw)
         # plot to screen
         if output_kw["display"]:
-            if ndim == 2:
-                plotfunc(mapping(-xPhys))
+            plotfunc(mapping(-xPhys))
             fig.canvas.draw()
-            plt.pause(0.01)
+            plt.pause(0.001)
         #
         if output_kw["output_movie"]:
             export_vtk(filename="_".join([output_kw["file"],
@@ -968,6 +979,8 @@ def main(nelx: int, nely: int,
         #
         nodal_variables = {"u": u, 
                            "f": f}
+        #
+        springs = None
         if springs is not None:
             spring_array = np.zeros((u.shape[0],1))
             spring_array[springs[0],0] = springs[1]

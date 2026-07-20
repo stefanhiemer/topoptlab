@@ -2,6 +2,8 @@
 from abc import abstractmethod
 from typing import Any, Callable, Dict, List, Tuple, Union
 
+import numpy as np
+
 from topoptlab.problem_solver import ProblemSolver
 from topoptlab.log_utils import BaseLogger, EmptyLogger, log_material_properties  # noqa: F401
 
@@ -88,12 +90,30 @@ class FEMSolver(ProblemSolver):
                         ) -> Dict:
         return {}
 
+    def auxiliary_terms_dx(self,
+                           state: Dict = {},
+                           parameters: Dict = {},
+                           adjoint: Any = None,
+                           solver_kw: Dict = {},
+                           logger: BaseLogger = None,
+                           ) -> Dict:
+        return {}
+
     def boundary_terms(self,
                        state: Dict = {},
                        parameters: Dict = {},
                        solver_kw: Dict = {},
                        logger: BaseLogger = None,
                        ) -> Dict:
+        return {}
+
+    def boundary_terms_dx(self,
+                          state: Dict = {},
+                          parameters: Dict = {},
+                          adjoint: Any = None,
+                          solver_kw: Dict = {},
+                          logger: BaseLogger = None,
+                          ) -> Dict:
         return {}
 
     def collect_terms(self,
@@ -110,6 +130,22 @@ class FEMSolver(ProblemSolver):
         terms.update(self.auxiliary_terms(state, parameters, solver_kw, logger))
         return terms
 
+    def collect_terms_dx(self,
+                         state: Dict = {},
+                         parameters: Dict = {},
+                         adjoint: Any = None,
+                         solver_kw: Dict = {},
+                         logger: BaseLogger = None,
+                         ) -> Dict:
+        """Collect element-wise sensitivity contributions from all term hooks."""
+        terms_dx = {}
+        terms_dx.update(self.core_terms_dx(state, parameters, adjoint, solver_kw, logger))
+        terms_dx.update(self.source_terms_dx(state, parameters, adjoint, solver_kw, logger))
+        terms_dx.update(self.boundary_terms_dx(state, parameters, adjoint, solver_kw, logger))
+        terms_dx.update(self.constraint_terms_dx(state, parameters, adjoint, solver_kw, logger))
+        terms_dx.update(self.auxiliary_terms_dx(state, parameters, adjoint, solver_kw, logger))
+        return terms_dx
+
     def constraint_terms(self,
                          state: Dict = {},
                          parameters: Dict = {},
@@ -118,12 +154,30 @@ class FEMSolver(ProblemSolver):
                          ) -> Dict:
         return {}
 
+    def constraint_terms_dx(self,
+                            state: Dict = {},
+                            parameters: Dict = {},
+                            adjoint: Any = None,
+                            solver_kw: Dict = {},
+                            logger: BaseLogger = None,
+                            ) -> Dict:
+        return {}
+
     def core_terms(self,
                    state: Dict = {},
                    parameters: Dict = {},
                    solver_kw: Dict = {},
                    logger: BaseLogger = None,
                    ) -> Dict:
+        return {}
+
+    def core_terms_dx(self,
+                      state: Dict = {},
+                      parameters: Dict = {},
+                      adjoint: Any = None,
+                      solver_kw: Dict = {},
+                      logger: BaseLogger = None,
+                      ) -> Dict:
         return {}
 
     def derived_quantities(self,
@@ -241,12 +295,35 @@ class FEMSolver(ProblemSolver):
         """
         ...
 
+    def sensitivity(self,
+                    state: Dict = {},
+                    parameters: Dict = {},
+                    adjoint: Any = None,
+                    solver_kw: Dict = {},
+                    logger: BaseLogger = None,
+                    ) -> Dict:
+        """Compute dL/dxPhys by summing element-wise contributions from all term hooks."""
+        terms_dx = self.collect_terms_dx(state, parameters, adjoint, solver_kw, logger)
+        dL = np.zeros((parameters["xPhys"].shape[0], 1), order="F")
+        for val in terms_dx.values():
+            dL += val
+        return {"dL_dxPhys": dL}
+
     def source_terms(self,
                      state: Dict = {},
                      parameters: Dict = {},
                      solver_kw: Dict = {},
                      logger: BaseLogger = None,
                      ) -> Dict:
+        return {}
+
+    def source_terms_dx(self,
+                        state: Dict = {},
+                        parameters: Dict = {},
+                        adjoint: Any = None,
+                        solver_kw: Dict = {},
+                        logger: BaseLogger = None,
+                        ) -> Dict:
         return {}
 
     def transient(self,

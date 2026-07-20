@@ -109,6 +109,7 @@ def solver_loop(problems: List,
                 ntimesteps: int,
                 lin_solver_kw: List[Dict],
                 preconditioner_kw: List[Dict],
+                interpol_kw: List[Dict],
                 nproblem_solves: int = 100,
                 coupling: List = None,
                 parameters: Dict = {},
@@ -144,6 +145,7 @@ def solver_loop(problems: List,
     for tstep in np.arange(ntimesteps):
         # iterate problem groups in forward order
         for i, problem in enumerate(problems):
+            parameters["interpol_kw"] = interpol_kw[i]
             #
             if coupling[i] == "weak":
                 # single solver or list of solvers solved once in sequence
@@ -232,6 +234,7 @@ def adjoint_loop(problems: List,
                  solver_kw: List[Dict] = None,
                  lin_solver_kw: List[Dict] = None,
                  preconditioner_kw: List[Dict] = None,
+                 interpol_kw: List[Dict] = None,
                  logger = None,
                  ) -> Dict:
     """
@@ -265,6 +268,7 @@ def adjoint_loop(problems: List,
     for tstep in reversed(range(ntimesteps)):
         # adjoint groups are solved in reverse order of the forward pass
         for i, problem in reversed(list(enumerate(problems))):
+            parameters["interpol_kw"] = interpol_kw[i]
             #
             if coupling[i] == "weak":
                 # single solver

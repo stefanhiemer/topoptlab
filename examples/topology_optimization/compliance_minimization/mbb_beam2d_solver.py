@@ -1,19 +1,24 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 from topoptlab.topology_opt.driver import main
-from topoptlab.example_bc.heat_conduction import heatplate_2d
-from topoptlab.fem_solvers.heat_equation import HeatEquation
+from topoptlab.fem_solvers.linear_elasticity import LinearElasticity
+from topoptlab.example_bc.lin_elast import mbb_2d
+from topoptlab.filter.filter import TOFilter
+from topoptlab.filter.density_filter import DensityFilter
+from topoptlab.filter.sensitivity_filter import SensitivityFilter
+
+import numpy as np
 
 if __name__ == "__main__":
-    nelx = 40
-    nely = nelx
-    volfrac = 0.4
-    rmin = 0.03 * nelx
+    nelx = 60
+    nely = int(nelx / 3)
+    volfrac = 0.5
+    rmin = 0.04 * nelx
     penal = 3.0
-    ft = 1  # ft==0 -> sens, ft==1 -> dens
-    display = False
-    export = True
+    ft = 0
+    display = True
+    export = False
     write_log = True
-
+    #
     import sys
     if len(sys.argv) > 1:
         nelx = int(sys.argv[1])
@@ -34,20 +39,23 @@ if __name__ == "__main__":
     if len(sys.argv) > 9:
         write_log = bool(int(sys.argv[9]))
     #
-    solver = HeatEquation
-    #
     main(nelx=nelx, nely=nely, volfrac=volfrac,
+         problems=[LinearElasticity],
+         bcs=mbb_2d,
+         solver_kw={"material_kw": {"Young's modulus": 1.0, "Poisson's ratio": 0.3}},
+         matinterpol_kw={"eps": 1e-9, "penal": penal},
          rmin=rmin,
-         bcs=heatplate_2d,
-         ft=ft, 
-         filter_mode="matrix", 
-         optimizer="oc", 
-         nouteriter=1000,
-         matinterpol_kw={"eps": 1e-3, "penal": penal},
-         problems=[solver],
-         output_kw={"file": "heatplate_2d_solver",
+         ft=ft,
+         filter_kw={},
+         filter_mode="matrix",
+         optimizer="oc",
+         assembly_mode="full",
+         nouteriter=2000,
+         output_kw={"file": "mbb_2d_elasticity",
                     "display": display,
                     "export": export,
                     "write_log": write_log,
                     "profile": False,
-                    "verbosity": 20})
+                    "verbosity": 20,
+                    "output_movie": False,
+                    "save_pdf": True})

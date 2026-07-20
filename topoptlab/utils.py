@@ -288,23 +288,34 @@ def check_simulation_params(simulation_kw: Dict) -> None:
     Parameters
     ----------
     simulation_kw : dictionary
-        contains general information about simulation. At the moment, only
-        "grid","element order", "meshfile" are supported with contents 
-        "regular",1,None.
+        contains general information about the simulation. Recognised keys:
+
+        - ``"type"``              : ``"stationary"`` | ``"transient"``
+        - ``"coordinate_system"`` : ``"cartesian"``
+
+        Required additionally when ``"type"`` is ``"transient"``:
+
+        - ``"ntimesteps"`` : int   — number of time steps
+        - ``"dt"``         : float — fixed time step size, **or**
+          ``"t_end"``      : float — final time (exactly one of the two)
+        - ``"dt_init"``    : float — initial time-step guess for adaptive solvers
 
     Returns
     -------
     None
-    
     """
-    admissible = [["regular"],
-                  [1],
-                  [None]]
-    keys = ["grid","element order", "meshfile"]
-    for i,key in enumerate(keys):
-        if not simulation_kw[key] in admissible[i]:
-            raise ValueError(f"{key} must be one of those: {admissible[i]}")
-    return
+    admissible = [["stationary", "transient"],
+                  ["cartesian"]]
+    keys = ["type", "coordinate_system"]
+    for key, values in zip(keys, admissible):
+        if simulation_kw[key] not in values:
+            raise ValueError(f"simulation_kw['{key}'] must be one of {values}")
+    if simulation_kw["type"] == "transient":
+        for key in ("ntimesteps", "dt_init"):
+            if key not in simulation_kw:
+                raise ValueError(f"simulation_kw['{key}'] is required for transient simulations")
+        if ("dt" in simulation_kw) == ("t_end" in simulation_kw):
+            raise ValueError("transient simulation_kw must contain exactly one of 'dt' or 't_end'")
 
 
 def even_spaced_ternary(npoints: int) -> np.ndarray:
