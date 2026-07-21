@@ -49,9 +49,10 @@ from topoptlab.param_continuation import run_continuation
 from mmapy import mmasub, gcmmasub, asymp, concheck, raaupdate
 # 
 from topoptlab.problem_solver import ProblemSolver
-# 
+# import workflow routines
 from topoptlab.topology_opt.mesh import create_mesh
 from topoptlab.topology_opt.history import initialize_history, update_history
+from topoptlab.topology_opt.optimizer import initialize_optimizer
 from topoptlab.topology_opt.solver_routines import adjoint_loop, initialize_problems, solver_loop
 from topoptlab.topology_opt.plotting import initialize_plotting
 
@@ -102,71 +103,77 @@ def initialize_design(n: int,
         xPhys = initial_guess["xPhys"]
     return x, xPhys
 
-def initialize_optimizer(optimizer: str,
-                         optimizer_kw: Dict,
-                         x: np.ndarray,
-                         xPhys: np.ndarray,
-                         n_constr: int,
-                         n_el: int,
-                         ft,
-                         el_flags,
-                         prescribed_mask,
-                         volfrac) -> Tuple[Dict, np.ndarray, np.ndarray, int]:
-    """
-    Validate and set up optimizer state before the optimization loop.
-
-    Calls ``check_optimizer_kw`` to fill defaults, sets ``max_history``, and
-    for MMA/GCMMA clamps passive/active element bounds in ``optimizer_kw`` and
-    adjusts ``x``/``xPhys`` accordingly.  For OC variants the Lagrange
-    multiplier accumulator ``g`` is stored as ``optimizer_kw["g"]`` so callers
-    do not need a separate variable.
-
-    Returns
-    -------
-    optimizer_kw : dict
-        Populated and (for MMA/GCMMA) bounds-adjusted optimizer parameters.
-    x : np.ndarray
-        Design variables, possibly clamped for passive/active elements.
-    xPhys : np.ndarray
-        Physical densities, possibly clamped for passive/active elements.
-    max_history : int
-        Number of previous iterates the optimizer requires.
-    """
-    optimizer_kw = check_optimizer_kw(optimizer=optimizer,
-                                      n=x.shape[0],
-                                      ft=ft,
-                                      n_constr=n_constr,
-                                      optimizer_kw=optimizer_kw)
-    if optimizer in ["oc", "ocm"]:
-        if n_constr != 1:
-            raise ValueError(f"Optimizers 'oc' and 'ocm' support exactly one constraint, "
-                             f"got {n_constr}.")
-        optimizer_kw["g"] = 0
-        max_history = 2
-    elif optimizer == "ocg":
-        optimizer_kw["g"] = 0
-        max_history = 2
-    elif optimizer in ["mma", "gcmma"]:
-        max_history = 3
-        if el_flags is not None:
-            mask = el_flags == 1
-            optimizer_kw["xmin"][mask] = 0.
-            optimizer_kw["xmax"][mask] = 0. + 1e-9
-            x[mask, 0] = 0.
-            xPhys[mask, 0] = 0.
-            mask = el_flags == 2
-            optimizer_kw["xmin"][mask] = 1. - 1e-9
-            optimizer_kw["xmax"][mask] = 1.
-            x[mask, :] = 1.
-            xPhys[mask, :] = 1.
-            if volfrac is not None:
-                x_free = np.clip(volfrac * n_el / (~prescribed_mask).sum(), 0., 1.)
-                x[~prescribed_mask, 0] = x_free
-                xPhys[~prescribed_mask, 0] = x_free
+def initialize_materialinterpolation(matinterpol_kw: Union[Dict, 
+                                                           List[Dict]],
+                                     problems: List[Union[Callable, 
+                                                          List[Callable]]]
+                                    ) -> List[Dict]:
+    # ensure list has right length and types
+    if isinstance(materials_kw, list):
+        #
+        if len(problems) != len(materials_kw):
+            raise ValueError("len(problems) != len(materials_kw): ", 
+                                len(problems), len(materials_kw))
+        #
+        i = 0
+        for mat_kw, problem in zip(materials_kw,problems):
+            # weak/strong coupled
+            if isinstance(problem, ProblemSolver) and  
+                not isinstance(mat_kw, dict):
+                raise TypeError(f"problem {i}'s materials_kw is not a dictionary: ", 
+                                type(mat_kw)) 
+            # monolithically joined solver
+            elif isinstance(problem, list) and \
+                    not isinstance(mat_kw, list):
+                raise TypeError(f"problem {i}'s materials_kw is not a list: ", 
+                                type(mat_kw)) 
+            elif isinstance(problem, list) and isinstance(mat_kw, list):
+                #
+                if len(problem) != len(mat_kw):
+                    raise ValueError(f"len(problems[i]) != len(materials_kw[i]): ", 
+                                     len(problem), len(mat_kw))
+                #
+                j = 0
+                for prob,kw in zip(problem, mat_kw):
+                    #
+                    if not isinstance(prob, ProblemSolver):
+                        raise TypeError(f"sub-problem {j} of problem {i} ", 
+                                        f"should be of type ProblemSolver, but is type ", 
+                                        type(prob))
+                    elif not isinstance(kw, dict):
+                        raise TypeError(f"sub-item {j} of the {i}-th item of materials_kw "
+                                        f"is not a dictionary: ", 
+                                        type(kw))
+                    j += 1 
+            else:
+                raise TypeError()
+            i += 1
+    # convert single dictionary to list or list of lists
+    elif isinstance(materials_kw, Dict) :
+        interpol_kw = []
+        for problem in problems:
+            if isinstance(problem, list):
+                interpol_kw.append([materials_kw for i in range(len(problem))])
+            elif isinstance(problem, ProblemSolver):
+                interpol_kw(materials_kw)
+            else:
+                raise TypeError(f"problem {i} should be of type list or dictionary.", 
+                                "Current type: ", type(problem))
     else:
-        raise ValueError("Unknown optimizer: ", optimizer)
-    return optimizer_kw, x, xPhys, max_history
+        raise TypeError("materials_kw should be dict or list of dict ", 
+                        "or list of list of dicts. Current type: ", 
+                        type(materials_kw))
+    # 
+    for problem in problems:
+        # monolithically constructed solver
+        if isinstance(problem, list):
+            for solver in problem:
+                solver.default_interpol_kw.copy()
+        # weak/strong coupled solvers
+        elif isinstance(problem, ProblemSolver):
+            problem.default_interpol_kw.copy()
 
+    return interpol_kw
 
 # MAIN DRIVER
 def main(nelx: int, nely: int,
@@ -495,6 +502,7 @@ def main(nelx: int, nely: int,
         lin_solver_kw = [lin_solver_kw] * len(problems)
     #
     state = {}
+    #
     interpol_kw = []
     for i, prob in enumerate(problems):
         if isinstance(prob, list):
@@ -629,8 +637,8 @@ def main(nelx: int, nely: int,
         else:
             raise NotImplementedError("Unknown optimizer.")
         # constraints, constraint gradients and adjoint analysis
-        constrs[:,:] = 0.
-        dconstrs[:,:] = 0.
+        constrs[:] = 0.
+        dconstrs[:] = 0.
         for k, c in enumerate(constraints):
             val = 0.
             dconstr = np.zeros(x.shape, order="F")
@@ -718,8 +726,8 @@ def main(nelx: int, nely: int,
                   np.min(dconstrs)))
         # scale objective and its gradient if requested
         if "scale_factor" in obj_kw and obj_kw["scale_factor"] is not None:
-            obj   *= obj_kw["scale_factor"]
-            dobj  *= obj_kw["scale_factor"]
+            obj *= obj_kw["scale_factor"]
+            dobj *= obj_kw["scale_factor"]
         # scale each constraint and its gradient by its own factor if requested
         for k, c in enumerate(constraints):
             if c["scale_factor"] is not None:

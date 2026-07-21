@@ -62,13 +62,47 @@ def converged(old: Dict, new: Dict, atol: float = 1e-8) -> bool:
     r = np.concatenate([new[k].ravel() - old[k].ravel() for k in old])
     return res_norm(r, atol=atol)
 
-def initialize_problems(problems: List, 
-                        bcs: List[Callable], 
-                        mesh_kw: Dict, 
+def initialize_problems(problems: List[Union[Callable, List[Callable]]],
+                        bcs: Union[Callable, List[Callable]],
+                        mesh_kw: Dict,
                         solver_kw: List[Dict],
                         logger: Union[None,BaseLogger] = None
-                        ) -> None:
+                        ) -> List[Union[ProblemSolver, List[ProblemSolver]]]:
+    """
+    Instantiate each problem group's solver class(es) into ``ProblemSolver``
+    instances, in place.
 
+    Each entry of ``problems`` is either a single (uninitialized) solver
+    class or a list of solver classes forming a coupled group. Every group
+    is paired with its own boundary condition callable and keyword
+    arguments, and instantiated as
+    ``solver(**mesh_kw, 
+             **solver_kw[i], 
+             bc=bcs[i], 
+             logger=logger)``.
+
+    Parameters
+    ----------
+    problems : list of callable or list of list of callable
+        One entry per problem group: either a single uninitialized solver
+        class, or a list of solver classes forming a coupled group.
+    bcs : callable or list of callable
+        Boundary condition callable(s), one per problem group. A single
+        callable is broadcast to a one-element list.
+    mesh_kw : dict
+        Mesh/discretization keyword arguments forwarded to every solver.
+    solver_kw : list of dict
+        Per-problem-group keyword arguments forwarded to the solver
+        constructor(s).
+    logger : BaseLogger or None
+        Logger forwarded to every solver constructor.
+
+    Returns
+    -------
+    problems : list of ProblemSolver or list of list of ProblemSolver
+        The same list, with every entry replaced in place by its
+        instantiated solver(s).
+    """
     if callable(bcs):
         bcs = [bcs]
     if not (isinstance(bcs,list) and (len(bcs) == len(problems))):
@@ -101,7 +135,6 @@ def initialize_problems(problems: List,
             raise TypeError("After initialization problems should be a list of ProblemSolvers or ",
                             f"a list-of-lists of ProblemSolvers. type at index {i}: ",
                             type(problems[i]))
-
     return problems
 
 def solver_loop(problems: List,
