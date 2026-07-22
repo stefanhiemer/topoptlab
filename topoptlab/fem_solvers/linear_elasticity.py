@@ -183,22 +183,20 @@ class LinearElasticity(FEMSolver):
                     "interpolation spec in interpol_kw; "
                     "the recommended default is Hashin-Shtrikman bounds.")
         # build per-property interpolation spec
+        self.interpol_kw = {}
         default_spec = {"mode": interpolation_mode,
                         "func": matinterpol,
                         "func_dx": matinterpol_dx}
-        if "Young's modulus" in interpol_kw:
-            self.interpol_kw["Young's modulus"] = {**default_spec, **interpol_kw["Young's modulus"]}
+        if interpolation_mode == "scaling":
+            ym_call_defaults = {"eps": 1e-9, "penal": 3.0}
         else:
-            self.interpol_kw["Young's modulus"] = {**default_spec}
-        if "density" in interpol_kw:
-            self.interpol_kw["density"] = {**default_spec, **interpol_kw["density"]}
-        else:
-            self.interpol_kw["density"] = {**default_spec}
-        if "body force" in interpol_kw:
-            self.interpol_kw["body force"] = {**default_spec, "eps": 0., "penal": 1.,
-                                              **interpol_kw["body force"]}
-        else:
-            self.interpol_kw["body force"] = {**default_spec, "eps": 0., "penal": 1.}
+            ym_call_defaults = {}
+        ym_user = interpol_kw["Young's modulus"] if "Young's modulus" in interpol_kw else {}
+        self.interpol_kw["Young's modulus"] = {**default_spec, **ym_call_defaults, **ym_user}
+        dens_user = interpol_kw["density"] if "density" in interpol_kw else {}
+        self.interpol_kw["density"] = {**default_spec, **ym_call_defaults, **dens_user}
+        bf_user = interpol_kw["body force"] if "body force" in interpol_kw else {}
+        self.interpol_kw["body force"] = {**default_spec, "eps": 0., "penal": 1., **bf_user}
         # thermal expansion coupling
         self._fTe = None
         if self.thermal_expansion:
@@ -306,7 +304,7 @@ class LinearElasticity(FEMSolver):
                    ) -> Dict:
         """Scaled element stiffness and (if transient) mass matrices."""
         elast = self.interpol_kw["Young's modulus"]
-        kw = self._kw_for("Young's modulus", parameters)
+        kw = self.resolve_interpol_kw("Young's modulus", parameters)
         if elast["mode"] == "scaling":
             if elast["func"] is not None:
                 scale = elast["func"](xPhys=parameters["xPhys"], **kw)
@@ -408,21 +406,6 @@ class LinearElasticity(FEMSolver):
     def output_keys(self) -> tuple:
         return (self.fieldname,)
 
-    @property
-    def default_interpol_kw(self) -> Dict:
-        """Per-property call-time kwargs derived from construction-time defaults."""
-        skip = frozenset({"mode", "func", "func_dx"})
-        return {p: {k: v for k, v in spec.items() if k not in skip}
-                for p, spec in self.interpol_kw.items()}
-
-    def _kw_for(self, prop: str, parameters: Dict) -> Dict:
-        """Call-time kwargs: stored defaults overridden by runtime parameters."""
-        skip = frozenset({"mode", "func", "func_dx"})
-        kw = {k: v for k, v in self.interpol_kw[prop].items() if k not in skip}
-        if "interpol_kw" in parameters and prop in parameters["interpol_kw"]:
-            kw.update(parameters["interpol_kw"][prop])
-        return kw
-
     def core_terms_dx(self,
                       state: Dict = {},
                       parameters: Dict = {},
@@ -439,7 +422,7 @@ class LinearElasticity(FEMSolver):
         if adjoint.ndim != 2:
             raise ValueError(f"adjoint must be 2D (ndof, n_rhs), got shape {adjoint.shape}")
         elast = self.interpol_kw["Young's modulus"]
-        kw = self._kw_for("Young's modulus", parameters)
+        kw = self.resolve_interpol_kw("Young's modulus", parameters)
         dL_core = np.zeros((xPhys.shape[0], 1), order="F")
         if elast["func_dx"] is not None:
             scale_dx = elast["func_dx"](xPhys=xPhys, **kw)
@@ -598,7 +581,7 @@ class LinearElasticity(FEMSolver):
         """Thermal expansion, strain-induced, and gravity body-force load vectors."""
         terms = {}
         elast = self.interpol_kw["Young's modulus"]
-        kw = self._kw_for("Young's modulus", parameters)
+        kw = self.resolve_interpol_kw("Young's modulus", parameters)
         # thermal expansion
         if self.thermal_expansion and self._T_fieldname in state:
             T = state[self._T_fieldname]
@@ -631,7 +614,7 @@ class LinearElasticity(FEMSolver):
         # gravity body forces (own interpolation, linear by default)
         if self._FE_grav0 is not None:
             gravity = self.interpol_kw["body force"]
-            grav_kw = self._kw_for("body force", parameters)
+            grav_kw = self.resolve_interpol_kw("body force", parameters)
             if gravity["func"] is not None:
                 scale_g = gravity["func"](xPhys=parameters["xPhys"], **grav_kw)
             else:
@@ -659,7 +642,7 @@ class LinearElasticity(FEMSolver):
         if adjoint.ndim == 1:
             adjoint = adjoint[:, None]
         elast = self.interpol_kw["Young's modulus"]
-        kw = self._kw_for("Young's modulus", parameters)
+        kw = self.resolve_interpol_kw("Young's modulus", parameters)
         dL_source = np.zeros((xPhys.shape[0], 1), order="F")
         # thermal expansion sensitivity
         if has_thermal and elast["func_dx"] is not None:
@@ -677,7 +660,7 @@ class LinearElasticity(FEMSolver):
         # gravity sensitivity
         if has_gravity:
             gravity = self.interpol_kw["body force"]
-            grav_kw = self._kw_for("body force", parameters)
+            grav_kw = self.resolve_interpol_kw("body force", parameters)
             if gravity["func_dx"] is not None:
                 scale_g_dx = gravity["func_dx"](xPhys=xPhys, **grav_kw)
                 adj_el = adjoint[self.edofMat, 0]

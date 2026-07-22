@@ -253,6 +253,34 @@ class FEMSolver(ProblemSolver):
         """Define the material model and log its properties."""
         raise NotImplementedError
 
+    @property
+    def default_interpol_kw(self) -> Dict:
+        """Per-property call-time kwargs derived from construction choices.
+
+        Strips ``mode``, ``func``, and ``func_dx`` from each entry in
+        ``self.interpol_kw`` and returns only the kwargs that are passed to
+        the interpolation function at call time (e.g. ``eps``, ``penal``).
+        Used by ``initialize_materialinterpolation`` as the baseline before
+        applying user overrides.
+        """
+        skip = frozenset({"mode", "func", "func_dx"})
+        return {p: {k: v for k, v in spec.items() if k not in skip}
+                for p, spec in self.interpol_kw.items()}
+
+    def resolve_interpol_kw(self, prop: str, parameters: Dict) -> Dict:
+        """Return the call-time kwargs for ``prop`` to pass to the interpolation function.
+
+        Starts from the construction-time defaults stored in
+        ``self.interpol_kw[prop]`` and overrides them with any runtime values
+        in ``parameters["interpol_kw"][prop]`` (e.g. updated ``penal`` during
+        continuation).
+        """
+        skip = frozenset({"mode", "func", "func_dx"})
+        kw = {k: v for k, v in self.interpol_kw[prop].items() if k not in skip}
+        if "interpol_kw" in parameters and prop in parameters["interpol_kw"]:
+            kw.update(parameters["interpol_kw"][prop])
+        return kw
+
     @abstractmethod
     def setup_discretization(self,
                              *,

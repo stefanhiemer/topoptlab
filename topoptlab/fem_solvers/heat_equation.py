@@ -152,13 +152,16 @@ class HeatEquation(FEMSolver):
             nelx=nelx, nely=nely, nelz=nelz, ndof=self.ndof)
         # build per-property interpolation spec; property-specific entries override the global default
         self.interpol_kw = {}
-        for prop in ("conductivity","density","heat capacity"):
-            if prop in interpol_kw: 
-                self.interpol_kw[prop] = interpol_kw[prop]  
-            else:
-                self.interpol_kw[prop] = {"mode": interpolation_mode, 
-                                          "func": matinterpol, 
-                                          "func_dx": matinterpol_dx}
+        default_spec = {"mode": interpolation_mode,
+                        "func": matinterpol,
+                        "func_dx": matinterpol_dx}
+        if interpolation_mode == "scaling":
+            call_defaults = {"eps": 1e-9, "penal": 3.0}
+        else:
+            call_defaults = {}
+        for prop in ("conductivity", "density", "heat capacity"):
+            user = interpol_kw[prop] if prop in interpol_kw else {}
+            self.interpol_kw[prop] = {**default_spec, **call_defaults, **user}
         #
         self._fact = None
         self._precond = None
@@ -258,7 +261,7 @@ class HeatEquation(FEMSolver):
         terms = {}
         ### conductivity (always)
         cond = self.interpol_kw["conductivity"]
-        kw = parameters["interpol_kw"]["conductivity"]
+        kw = self.resolve_interpol_kw("conductivity", parameters)
         if cond["mode"] == "scaling":
             scale = cond["func"](xPhys=parameters["xPhys"], **kw)
             terms["Kes"] = self._KE0[None, :, :] * scale[:, :, None]
@@ -279,9 +282,11 @@ class HeatEquation(FEMSolver):
         for prop, interp in self.interpol_kw.items():
             func_name = getattr(interp["func"], "__name__", str(interp["func"]))
             func_dx_name = getattr(interp["func_dx"], "__name__", str(interp["func_dx"]))
+            skip = frozenset({"mode", "func", "func_dx"})
+            call_kw = {k: v for k, v in interp.items() if k not in skip}
             lines.append(f"  {prop}: mode={interp['mode']}"
                          f", func={func_name}, func_dx={func_dx_name}"
-                         f", kw={interp['kw']}")
+                         f", default_kw={call_kw}")
         logger.info("\n".join(lines))
         return self.interpol_kw
 
@@ -395,7 +400,7 @@ class HeatEquation(FEMSolver):
             T = T[:, None]
         n_bc = T.shape[1]
         cond = self.interpol_kw["conductivity"]
-        kw = parameters["interpol_kw"]["conductivity"]
+        kw = self.resolve_interpol_kw("conductivity", parameters)
         dL_core = np.zeros((xPhys.shape[0], 1), order="F")
         if cond["mode"] == "scaling":
             scale_dx = cond["func_dx"](xPhys=xPhys, **kw)

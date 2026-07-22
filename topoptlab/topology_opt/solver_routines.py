@@ -142,7 +142,7 @@ def solver_loop(problems: List,
                 ntimesteps: int,
                 lin_solver_kw: List[Dict],
                 preconditioner_kw: List[Dict],
-                interpol_kw: List[Dict],
+                interpol_kw: List[Union[Dict, List[Dict]]],
                 nproblem_solves: int = 100,
                 coupling: List = None,
                 parameters: Dict = {},
@@ -169,21 +169,27 @@ def solver_loop(problems: List,
                             (implicit solvers only).
     parameters : Dict
         Design variables / fixed problem parameters (read-only).
-    context : Dict
-        Solver metadata forwarded to every solver; augmented with
-        ``"tstep"`` and ``"solve_iter"`` at runtime.
+    interpol_kw : list
+        One entry per problem group: a ``dict`` for a single solver, or a
+        ``list`` of dicts (one per solver) for coupled/monolithic groups.
+        Written into ``parameters["interpol_kw"]`` before each solver call.
     """
     # TO DO: check that all lists have same length
     #
     for tstep in np.arange(ntimesteps):
         # iterate problem groups in forward order
         for i, problem in enumerate(problems):
-            parameters["interpol_kw"] = interpol_kw[i]
             #
             if coupling[i] == "weak":
                 # single solver or list of solvers solved once in sequence
-                solvers = [problem] if isinstance(problem, ProblemSolver) else problem
-                for solver in solvers:
+                if isinstance(problem, ProblemSolver):
+                    solvers = [problem]
+                    ikw_list = [interpol_kw[i]]
+                else:
+                    solvers = problem
+                    ikw_list = interpol_kw[i]
+                for solver, ikw in zip(solvers, ikw_list):
+                    parameters["interpol_kw"] = ikw
                     if solver.implicit:
                         system = solver.assemble(state,
                                                  parameters,
@@ -211,7 +217,8 @@ def solver_loop(problems: List,
                 # partitioned Picard iteration
                 for solve_iter in np.arange(nproblem_solves):
                     state_old = copy_relevant_fields(state, problem)
-                    for solver in problem:
+                    for solver, ikw in zip(problem, interpol_kw[i]):
+                        parameters["interpol_kw"] = ikw
                         if solver.implicit:
                             system = solver.assemble(state,
                                                      parameters,
@@ -239,7 +246,8 @@ def solver_loop(problems: List,
             #
             elif coupling[i] == "monolithic":
                 system = {}
-                for solver in problem:
+                for solver, ikw in zip(problem, interpol_kw[i]):
+                    parameters["interpol_kw"] = ikw
                     system.update(solver.assemble(state,
                                                   parameters,
                                                   solver_kw[i],
@@ -267,7 +275,7 @@ def adjoint_loop(problems: List,
                  solver_kw: List[Dict] = None,
                  lin_solver_kw: List[Dict] = None,
                  preconditioner_kw: List[Dict] = None,
-                 interpol_kw: List[Dict] = None,
+                 interpol_kw: List[Union[Dict, List[Dict]]] = None,
                  logger = None,
                  ) -> Dict:
     """
@@ -293,19 +301,21 @@ def adjoint_loop(problems: List,
         ``"monolithic"``  – solve transposed global block adjoint system.
     parameters : dict
         Design variables / fixed problem parameters (read-only).
-    context : dict
-        Solver metadata; augmented with ``"tstep"`` and ``"solve_iter"``.
+    interpol_kw : list
+        One entry per problem group: a ``dict`` for a single solver, or a
+        ``list`` of dicts (one per solver) for coupled/monolithic groups.
+        Written into ``parameters["interpol_kw"]`` before each solver call.
     """
     adj = {}
     #
     for tstep in reversed(range(ntimesteps)):
         # adjoint groups are solved in reverse order of the forward pass
         for i, problem in reversed(list(enumerate(problems))):
-            parameters["interpol_kw"] = interpol_kw[i]
             #
             if coupling[i] == "weak":
                 # single solver
                 if isinstance(problem, ProblemSolver):
+                    parameters["interpol_kw"] = interpol_kw[i]
                     adj_out = problem.adjoint(rhs=adj_rhs[problem.fieldname],
                                               state=state,
                                               parameters=parameters,
@@ -316,7 +326,8 @@ def adjoint_loop(problems: List,
                     adj.update(adj_out)
                 # list of solvers: adjoint in reverse sequence
                 else:
-                    for solver in reversed(problem):
+                    for solver, ikw in zip(reversed(problem), reversed(interpol_kw[i])):
+                        parameters["interpol_kw"] = ikw
                         adj_out = solver.adjoint(rhs=adj_rhs[solver.fieldname],
                                                  state=state,
                                                  parameters=parameters,
@@ -330,7 +341,8 @@ def adjoint_loop(problems: List,
                 # partitioned adjoint Picard iteration
                 for solve_iter in range(nproblem_solves):
                     adj_old = copy_relevant_fields(adj, problem)
-                    for solver in reversed(problem):
+                    for solver, ikw in zip(reversed(problem), reversed(interpol_kw[i])):
+                        parameters["interpol_kw"] = ikw
                         adj_out = solver.adjoint(rhs=adj_rhs[solver.fieldname],
                                                  state=state,
                                                  parameters=parameters,
@@ -346,7 +358,8 @@ def adjoint_loop(problems: List,
                 # collect transposed blocks from each solver
                 blocks_T = {}
                 rhs_adj  = {}
-                for solver in problem:
+                for solver, ikw in zip(problem, interpol_kw[i]):
+                    parameters["interpol_kw"] = ikw
                     local = solver.assemble_blocks(state, parameters,
                                                    solver_kw[i], logger)
                     blocks_T.update(transpose_blocks(local["blocks"]))

@@ -103,76 +103,101 @@ def initialize_design(n: int,
         xPhys = initial_guess["xPhys"]
     return x, xPhys
 
-def initialize_materialinterpolation(matinterpol_kw: Union[Dict, 
-                                                           List[Dict]],
-                                     problems: List[Union[Callable, 
-                                                          List[Callable]]]
-                                    ) -> List[Dict]:
-    # ensure list has right length and types
-    if isinstance(materials_kw, list):
-        #
-        if len(problems) != len(materials_kw):
-            raise ValueError("len(problems) != len(materials_kw): ", 
-                                len(problems), len(materials_kw))
-        #
-        i = 0
-        for mat_kw, problem in zip(materials_kw,problems):
-            # weak/strong coupled
-            if isinstance(problem, ProblemSolver) and  
-                not isinstance(mat_kw, dict):
-                raise TypeError(f"problem {i}'s materials_kw is not a dictionary: ", 
-                                type(mat_kw)) 
-            # monolithically joined solver
-            elif isinstance(problem, list) and \
-                    not isinstance(mat_kw, list):
-                raise TypeError(f"problem {i}'s materials_kw is not a list: ", 
-                                type(mat_kw)) 
-            elif isinstance(problem, list) and isinstance(mat_kw, list):
-                #
+def initialize_materialinterpolation(
+        matinterpol_kw: Union[None, Dict, List[Union[Dict, List[Dict]]]],
+        problems: List[Union[ProblemSolver, List[ProblemSolver]]]
+        ) -> List[Union[Dict, List[Dict]]]:
+    """
+    Build per-problem interpolation keyword dicts from solver defaults and
+    user overrides.
+
+    Parameters
+    ----------
+    matinterpol_kw : None, dict, or list
+        Per-property call-time kwargs (e.g. ``{"Young's modulus": {"eps": 1e-9,
+        "penal": 3.}}``).  Accepted forms:
+
+        ``None``
+            Use each solver's stored defaults with no overrides.
+        ``dict``
+            One shared dict applied to every problem group.
+        ``list``
+            One entry per problem group: a ``dict`` for single or weakly/
+            strongly coupled solvers, or a ``list`` of dicts (one per solver)
+            for monolithic groups.
+
+    problems : list
+        Initialized problem groups.  Each entry is either a single
+        ``ProblemSolver`` or a list of ``ProblemSolver`` instances
+        (monolithic coupling).
+
+    Returns
+    -------
+    list
+        One entry per problem group: a ``dict`` for single/coupled solvers or
+        a ``list`` of dicts for monolithic groups.
+    """
+    if isinstance(matinterpol_kw, list):
+        if len(problems) != len(matinterpol_kw):
+            raise ValueError("len(problems) != len(matinterpol_kw): ",
+                             len(problems), len(matinterpol_kw))
+        for i, (problem, mat_kw) in enumerate(zip(problems, matinterpol_kw)):
+            if isinstance(problem, ProblemSolver):
+                if not isinstance(mat_kw, dict):
+                    raise TypeError(f"problem {i}'s matinterpol_kw is not a dict: ",
+                                    type(mat_kw))
+            elif isinstance(problem, list):
+                if not isinstance(mat_kw, list):
+                    raise TypeError(f"problem {i}'s matinterpol_kw is not a list: ",
+                                    type(mat_kw))
                 if len(problem) != len(mat_kw):
-                    raise ValueError(f"len(problems[i]) != len(materials_kw[i]): ", 
+                    raise ValueError(f"len(problems[{i}]) != len(matinterpol_kw[{i}]): ",
                                      len(problem), len(mat_kw))
-                #
-                j = 0
-                for prob,kw in zip(problem, mat_kw):
-                    #
+                for j, (prob, mkw) in enumerate(zip(problem, mat_kw)):
                     if not isinstance(prob, ProblemSolver):
-                        raise TypeError(f"sub-problem {j} of problem {i} ", 
-                                        f"should be of type ProblemSolver, but is type ", 
+                        raise TypeError(f"problems[{i}][{j}] is not a ProblemSolver: ",
                                         type(prob))
-                    elif not isinstance(kw, dict):
-                        raise TypeError(f"sub-item {j} of the {i}-th item of materials_kw "
-                                        f"is not a dictionary: ", 
-                                        type(kw))
-                    j += 1 
+                    if not isinstance(mkw, dict):
+                        raise TypeError(f"matinterpol_kw[{i}][{j}] is not a dict: ",
+                                        type(mkw))
+        # build from solver defaults + user overrides
+        interpol_kw = []
+        for problem, mat_kw in zip(problems, matinterpol_kw):
+            if isinstance(problem, list):
+                group_kw = []
+                for s, mkw in zip(problem, mat_kw):
+                    kw = dict(s.default_interpol_kw)
+                    kw.update(mkw)
+                    group_kw.append(kw)
+                interpol_kw.append(group_kw)
             else:
-                raise TypeError()
-            i += 1
-    # convert single dictionary to list or list of lists
-    elif isinstance(materials_kw, Dict) :
+                kw = dict(problem.default_interpol_kw)
+                kw.update(mat_kw)
+                interpol_kw.append(kw)
+    elif isinstance(matinterpol_kw, dict):
         interpol_kw = []
         for problem in problems:
             if isinstance(problem, list):
-                interpol_kw.append([materials_kw for i in range(len(problem))])
-            elif isinstance(problem, ProblemSolver):
-                interpol_kw(materials_kw)
+                group_kw = []
+                for s in problem:
+                    kw = dict(s.default_interpol_kw)
+                    kw.update(matinterpol_kw)
+                    group_kw.append(kw)
+                interpol_kw.append(group_kw)
             else:
-                raise TypeError(f"problem {i} should be of type list or dictionary.", 
-                                "Current type: ", type(problem))
+                kw = dict(problem.default_interpol_kw)
+                kw.update(matinterpol_kw)
+                interpol_kw.append(kw)
+    elif matinterpol_kw is None:
+        interpol_kw = []
+        for problem in problems:
+            if isinstance(problem, list):
+                interpol_kw.append([dict(s.default_interpol_kw) for s in problem])
+            else:
+                interpol_kw.append(dict(problem.default_interpol_kw))
     else:
-        raise TypeError("materials_kw should be dict or list of dict ", 
-                        "or list of list of dicts. Current type: ", 
-                        type(materials_kw))
-    # 
-    for problem in problems:
-        # monolithically constructed solver
-        if isinstance(problem, list):
-            for solver in problem:
-                solver.default_interpol_kw.copy()
-        # weak/strong coupled solvers
-        elif isinstance(problem, ProblemSolver):
-            problem.default_interpol_kw.copy()
-
+        raise TypeError("matinterpol_kw must be None, a dict, or a list; "
+                        f"got {type(matinterpol_kw)}")
     return interpol_kw
 
 # MAIN DRIVER
