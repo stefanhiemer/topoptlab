@@ -12,7 +12,7 @@ import pytest
 
 def test_stiffnessmatrix(dim,c,sol):
     code = convert_to_code(stiffness_matrix(c=c, 
-                                           plane_stress=True, ndim=dim),
+                                            ndim=dim),
                           matrices=["c"],vectors=["l","g"], 
                           npndarray=True,npcolumnstack=False)
     assert sol == code
@@ -28,7 +28,7 @@ from topoptlab.symbolic.lin_elasticity import strainforces
 
 def test_strainforces(dim,c,sol):
     code = convert_to_code(strainforces(c=c, 
-                                       plane_stress=True, ndim=dim),
+                                        ndim=dim),
                           matrices=["c"],vectors=["l","g", "eps"], 
                           npndarray=True,npcolumnstack=False)
     assert sol == code

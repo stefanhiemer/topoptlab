@@ -1,17 +1,26 @@
 from functools import partial
 from numpy import ones, asarray
-from numpy.random import seed,rand
+from numpy.random import seed,rand,default_rng
 from numpy.testing import assert_almost_equal, assert_allclose
 from scipy.ndimage import convolve
 from scipy.sparse import spmatrix,sparray
 
 import pytest
+import numpy as np
 
 from topoptlab.filter.kernels import hat_kernel
-from topoptlab.filter.convolution_filter import assemble_convolution_filter 
-from topoptlab.filter.matrix_filter import assemble_matrix_filter
+from topoptlab.filter.convolution_filter import assemble_convolution_filter, ConvolutionFilter
+from topoptlab.filter.matrix_filter import assemble_matrix_filter, MatrixFilter
+from topoptlab.filter.helmholtz_filter import HelmholtzFilter
 from topoptlab.filter.density_filter import DensityFilter
 from topoptlab.filter.sensitivity_filter import SensitivityFilter
+from topoptlab.filter.haeviside_projectors import (
+    HaevisideProjectorGuest2004,
+    HaevisideProjectorSigmund2007,
+    EtaProjectorXu2010,
+    MultiEtaProjectorXu2010,
+)
+from topoptlab.filter.simplex_filter import SimplexFilter
 from topoptlab.utils import map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel
 from topoptlab.example_bc.lin_elast import mbb_2d
 from topoptlab.topology_optimization import main
@@ -197,3 +206,76 @@ def test_volume_conservation(n,beta,volfrac,filter,finder,kwargs):
     assert_almost_equal(xPhys.mean(),
                         volfrac)
     return
+
+@pytest.mark.parametrize('filt, filter_kw, x_shape',
+                         [(MatrixFilter(**{"nelx": 6,
+                                           "nely": 4,
+                                           "n_constr": 1,
+                                           "rmin": 1.5},
+                                        kernel_fn=hat_kernel),
+                           {}, None),
+                          (HelmholtzFilter(**{"nelx": 6,
+                                              "nely": 4,
+                                              "n_constr": 1,
+                                              "rmin": 1.5}),
+                           {}, None),
+                          (ConvolutionFilter(**{"nelx": 6,
+                                                "nely": 4,
+                                                "n_constr": 1,
+                                                "rmin": 1.5},
+                                             kernel_fn=hat_kernel),
+                           {}, None),
+                          (DensityFilter(**{"nelx": 6,
+                                            "nely": 4,
+                                            "n_constr": 1,
+                                            "rmin": 1.5}),
+                           {}, None),
+                          (HaevisideProjectorGuest2004(n_constr=1),
+                           {'beta': 5}, None),
+                          (HaevisideProjectorSigmund2007(n_constr=1),
+                           {'beta': 5}, None),
+                          (EtaProjectorXu2010(n_constr=1,
+                                              volfrac=0.4,
+                                              adapt_eta=False,
+                                              eta=0.4),
+                           {'beta': 5,
+                            'volfrac': None}, None),
+                          (MultiEtaProjectorXu2010(n_constr=1,
+                                                   volfrac=0.4,
+                                                   n_etas=3,
+                                                   adapt_eta=False),
+                           {'beta': 5}, None),
+                          (SimplexFilter(n_constr=1),
+                           {}, (6 * 4, 2)),
+                          ])
+def test_apply_filter_dx(filt,
+                         filter_kw,
+                         x_shape,
+                         nelx=6,
+                         nely=4,
+                         rmin=1.5,
+                         beta=5.,
+                         nc=1):
+    """
+    Verify apply_filter_dx via a central finite-difference directional derivative.
+
+    Checks <J(x)^T g, v> ≈ <g, J(x) v> where J is the Jacobian of apply_filter.
+    """
+    n = nelx * nely
+    mkw = dict(nelx=nelx, nely=nely, n_constr=nc, rmin=rmin)
+    if filt is None:
+        filt = MatrixFilter(**mkw, kernel_fn=hat_kernel)
+    if x_shape is None:
+        x_shape = (n, 1)
+    if filter_kw is None:
+        filter_kw = {}
+    rng = default_rng(0)
+    x  = rng.uniform(0.01, 0.99, x_shape)
+    g  = rng.standard_normal(x_shape)
+    v  = rng.standard_normal(x_shape)
+    eps = 1e-6
+    xf = filt.apply_filter(x, **filter_kw)
+    fd = np.sum(g * (filt.apply_filter(x + eps * v, **filter_kw) -
+                     filt.apply_filter(x - eps * v, **filter_kw))) / (2 * eps)
+    dx = filt.apply_filter_dx(x=x, x_filtered=xf, dx_filtered=g, **filter_kw)
+    assert_allclose(np.sum(dx * v), fd, rtol=1e-4)

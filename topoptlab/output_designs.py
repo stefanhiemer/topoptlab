@@ -4,33 +4,47 @@ import numpy as np
 
 from meshio import Mesh
 
+from topoptlab.log_utils import BaseLogger, EmptyLogger
+
 def threshold(xPhys: np.ndarray,
-              volfrac: float) -> np.ndarray:
+              volfrac: Union[float,np.ndarray], 
+              logger: Union[None,BaseLogger] = None) -> np.ndarray:
     """
     Threshold grey scale design to black and white design.
 
     Parameters
     ----------
-    xPhys : np.array, shape (nel)
+    xPhys : np.ndarray
         element densities for topology optimization used for scaling the 
-        material properties. 
-    volfrac : float
+        material properties. shape (nel,n_mat) 
+    volfrac : float or np.ndarray
         volume fraction.
+    logger : EmptyLogger or SimpleLogger
+        logger for writing information to logfile.
 
     Returns
     -------
-    xPhys : np.array, shape (nel)
+    xThresh : np.ndarray, shape (nel)
         thresholded element densities for topology optimization used for scaling the 
         material properties. 
 
     """
-    indices = np.flip(np.argsort(xPhys[:,0]))
-    vt = np.floor(volfrac*xPhys.shape[0]).astype(int)
-    xThresh = np.zeros(xPhys.shape,order="F")
-    xThresh[indices[:vt]] = 1.
-    xThresh[indices[vt:]] = 0.
-    
-    print("Thresholded Vol.: {0:.5f}".format(vt/xThresh.shape[0]))
+    #
+    volfrac = np.atleast_1d(volfrac)
+    xThresh = np.zeros(xPhys.shape, order="F")
+    #
+    vt_fracs = []
+    for i in np.arange(xPhys.shape[1]):
+        indices = np.flip(np.argsort(xPhys[:,i]))
+        vt = np.floor(volfrac[i]*xPhys.shape[0]).astype(int)
+        xThresh[indices[:vt],i] = 1.
+        xThresh[indices[vt:],i] = 0.
+        vt_fracs.append(vt/xThresh.shape[0])
+    msg = "Thresholded Vol.: {}".format(", ".join(["{:.5f}".format(v)  for v in vt_fracs]))
+    if logger is None:
+        print(msg)
+    else:
+        logger.info(msg)
     return xThresh
 
 def export_vtk(filename: str, 

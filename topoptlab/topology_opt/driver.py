@@ -1008,6 +1008,11 @@ def main(nelx: int, nely: int,
                                 logger=log):
                 break
     ### Optimization loop finished
+    # treshold design
+    #xThresh = threshold(xPhys,volfrac)
+    # TO DO: compute and log performance on thresholded design
+
+    # export design
     if output_kw["export"]:
         #
         nodal_variables = {"u": u, 

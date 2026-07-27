@@ -24,12 +24,13 @@ from topoptlab.elements.bodyforce_2d import lf_bodyforce_2d,\
                                             _lf_bodyforce_2d
 from topoptlab.elements.bodyforce_3d import lf_bodyforce_3d,\
                                             _lf_bodyforce_3d
-from topoptlab.elements.heatexpansion_2d import _fk_heatexp_2d
-from topoptlab.elements.heatexpansion_3d import _fk_heatexp_3d
+from topoptlab.elements.heatexpansion_2d import fk_heatexp_aniso_2d, _fk_heatexp_2d
+from topoptlab.elements.heatexpansion_3d import fk_heatexp_aniso_3d, _fk_heatexp_3d
 from topoptlab.elements.mass_vector_2d import lm_mass_2d
 from topoptlab.elements.mass_vector_3d import lm_mass_3d
 from topoptlab.stiffness_tensors import isotropic_2d, isotropic_3d, orthotropic_2d, orthotropic_3d
-from topoptlab.material_interpolation import simp, simp_dx
+from topoptlab.material_interpolation import simp, simp_dx, \
+    heatexpcoeff_binary_iso, heatexpcoeff_binary_iso_dx
 from topoptlab.solve_linsystem import solve_lin
 from topoptlab.log_utils import BaseLogger, EmptyLogger
 from topoptlab.utils import identity
@@ -102,11 +103,17 @@ class LinearElasticity(FEMSolver):
           - anisotropic : ``{"stiffness tensor": C}``
         For transient problems, ``"density"`` must additionally be provided.
     thermal_expansion_kw : dict or None
-        Activates thermal expansion coupling.  Required keys:
+        Activates thermal expansion.  Required keys:
           - ``"thermal expansion tensor"``: np.ndarray, shape ``(ndim, ndim)``
             or ``(nel, ndim, ndim)`` for per-element expansion.
-        Optional keys:
-          - ``"T_fieldname"`` (default ``"T"``): state key of the temperature field.
+        Mutually exclusive optional keys — choose one:
+          - ``"delta_T"``: float.  Uniform temperature change applied to the whole
+            domain.  ΔT is a fixed external parameter; no coupled heat solver is
+            needed and no coupling adjoint is produced.
+          - ``"T_fieldname"`` (default ``"T"``): state key of the temperature field
+            supplied by a coupled ``HeatEquation`` solver.  In the adjoint pass a
+            ``dL/dT`` coupling term is produced and must be fed to the heat adjoint
+            RHS by the driver.
     fieldname : str
         Key used for the displacement field in state / output dicts.
     """
@@ -136,7 +143,7 @@ class LinearElasticity(FEMSolver):
                  thermal_expansion_kw: Union[None, Dict] = None,
                  body_forces_kw: Dict = {},
                  fieldname: str = "u",
-                 logger: BaseLogger = None,
+                 logger: Union[None,BaseLogger] = None,
                  **kwargs: Any) -> None:
         self.fieldname = fieldname
         self.ndim = ndim
@@ -199,6 +206,7 @@ class LinearElasticity(FEMSolver):
         self.interpol_kw["body force"] = {**default_spec, "eps": 0., "penal": 1., **bf_user}
         # thermal expansion coupling
         self._fTe = None
+        self._th_rh_kw = None  # set below for isotropic materials
         if self.thermal_expansion:
             if thermal_expansion_kw is None:
                 raise ValueError("thermal_expansion=True requires thermal_expansion_kw to be set.")
@@ -307,7 +315,8 @@ class LinearElasticity(FEMSolver):
         kw = self.resolve_interpol_kw("Young's modulus", parameters)
         if elast["mode"] == "scaling":
             if elast["func"] is not None:
-                scale = elast["func"](xPhys=parameters["xPhys"], **kw)
+                scale = elast["func"](xPhys=parameters["xPhys"], 
+                                      **self.resolve_interpol_kw("Young's modulus", parameters))
             else:
                 scale = np.ones((parameters["xPhys"].shape[0], 1))
             terms = {"Kes": self._KE0 * scale[:, :, None]}
@@ -316,7 +325,8 @@ class LinearElasticity(FEMSolver):
         elif elast["mode"] == "hashin":
             if elast["func"] is None:
                 raise ValueError("hashin mode requires a func; set func=None only for scaling mode.")
-            terms = {"Kes": self._KE0 * elast["func"](xPhys=parameters["xPhys"], **kw)}
+            terms = {"Kes": self._KE0 * elast["func"](xPhys=parameters["xPhys"], 
+                     **self.resolve_interpol_kw("Young's modulus", parameters))}
             if self.transient:
                 raise NotImplementedError("Mass matrix not supported for hashin mode.")
         else:
@@ -441,8 +451,13 @@ class LinearElasticity(FEMSolver):
                              ndim: int,
                              coordinate_system: str = "cartesian",
                              regular_mesh: bool = True,
+                             refcell_needed: bool = False,
                              ) -> None:
         """Select element lk callable, compute _KE0 and assembly indices."""
+        #
+        if refcell_needed:
+            pass
+        #
         if isinstance(formulation, dict):
             raise NotImplementedError("Custom formulation dict not yet supported.")
         elif formulation == "galerkin" and regular_mesh:
@@ -450,8 +465,6 @@ class LinearElasticity(FEMSolver):
             if len(self.material_kw) != 1:
                 raise NotImplementedError("Per-element material assignment not yet supported.")
             if ndim == 2:
-                self.xe_ref = self.l * np.array([[[-1., -1.], [1., -1.],
-                                                  [1., 1.], [-1., 1.]]]) / 2
                 create_edofMat = create_edofMat2d
                 if (element_type, order) == ("quadrilateral", 1):
                     if self.symmetry == "isotropic":
@@ -465,9 +478,6 @@ class LinearElasticity(FEMSolver):
                     raise ValueError(
                         f"No built-in lk for element_type={element_type!r}, order={order}.")
             else:
-                self.xe_ref = self.l * np.array([[[-1, -1, -1], [1, -1, -1], [1, 1, -1],
-                                                  [-1, 1, -1], [-1, -1, 1], [1, -1, 1],
-                                                  [1, 1, 1], [-1, 1, 1]]]) / 2
                 create_edofMat = create_edofMat3d
                 if (element_type, order) == ("hexahedron", 1):
                     if self.symmetry == "isotropic":
@@ -536,17 +546,49 @@ class LinearElasticity(FEMSolver):
                 self._FE_grav0 = lf_bodyforce_3d(b=b, l=self.l)[None]
 
     def _setup_thermal_coupling(self, thermal_expansion_kw: Dict) -> None:
-        """Precompute the thermal-expansion coupling matrices KeET (nel, dof_u, dof_T)."""
+        """Precompute thermal-expansion coupling matrices and determine temperature source."""
+        # Rosen-Hashin parameters for the alpha interpolation (isotropic only)
+        if self.symmetry == "isotropic":
+            E = self.material_kw[0]["Young's modulus"]
+            nu = self.material_kw[0]["Poisson's ratio"]
+            K_s = E / (3.0 * (1.0 - 2.0 * nu))
+            eps = self.interpol_kw["Young's modulus"].get("eps", 1e-9)
+            self._th_rh_kw = {"K_s": K_s, "Kmin": eps * K_s, "Kmax": K_s}
         a = thermal_expansion_kw["thermal expansion tensor"]
-        self._T_fieldname = thermal_expansion_kw.get("T_fieldname", "T")
         if a.ndim == 2:
-            a = np.tile(a[None], (self.nel, 1, 1))
-        c_ref = np.tile(self.C[0][None], (self.nel, 1, 1))
-        xe_all = np.tile(self.xe_ref, (self.nel, 1, 1))
-        if self.ndim == 2:
-            self._KeET = _fk_heatexp_2d(xe=xe_all, c=c_ref, a=a)
+            if self.ndim == 2:
+                KeET_ref = fk_heatexp_aniso_2d(c=self.C[0], a=a, l=self.l)
+            else:
+                KeET_ref = fk_heatexp_aniso_3d(c=self.C[0], a=a, l=self.l)
+            self._KeET = np.tile(KeET_ref[None], (self.nel, 1, 1))
         else:
-            self._KeET = _fk_heatexp_3d(xe=xe_all, c=c_ref, a=a)
+            if self.ndim == 2:
+                self._KeET = np.stack([
+                    fk_heatexp_aniso_2d(c=self.C[0], a=a[e], l=self.l)
+                    for e in range(self.nel)
+                ])
+            else:
+                self._KeET = np.stack([
+                    fk_heatexp_aniso_3d(c=self.C[0], a=a[e], l=self.l)
+                    for e in range(self.nel)
+                ])
+        # scalar uniform ΔT: precompute constant element load via partition of unity
+        # (summing KeET over T DOFs collapses N_T to 1 for a uniform temperature).
+        # No coupling adjoint is produced — ΔT is a fixed external parameter.
+        if "delta_T" in thermal_expansion_kw:
+            self._T_fieldname = None
+            self._delta_T = thermal_expansion_kw["delta_T"]
+            self._fTe = self._KeET.sum(axis=-1, keepdims=True) * self._delta_T
+        # field mode: temperature comes from a coupled HeatEquation solver each
+        # forward pass.  The adjoint pass must produce a dL/dT coupling term and
+        # feed it to the heat adjoint RHS (responsibility of the driver).
+        else:
+            if "T_fieldname" in thermal_expansion_kw:
+                self._T_fieldname = thermal_expansion_kw["T_fieldname"]
+            else:
+                self._T_fieldname = "T"
+            self._delta_T = None
+            self._fTe = None  # set each forward pass in source_terms
 
     def solve_discrete_system(self,
                               system: Dict,
@@ -582,24 +624,40 @@ class LinearElasticity(FEMSolver):
         terms = {}
         elast = self.interpol_kw["Young's modulus"]
         kw = self.resolve_interpol_kw("Young's modulus", parameters)
-        # thermal expansion
-        if self.thermal_expansion and self._T_fieldname in state:
-            T = state[self._T_fieldname]
-            if T.ndim == 1:
-                T = T[:, None]
-            n_rhs = T.shape[1]
+        # thermal expansion: scale_C (stiffness) * scale_alpha (Rosen-Hashin)
+        if self.thermal_expansion:
             if elast["func"] is not None:
-                scale = elast["func"](xPhys=parameters["xPhys"], **kw)
+                scale_C = elast["func"](xPhys=parameters["xPhys"], **kw)
             else:
-                scale = np.ones((parameters["xPhys"].shape[0], 1))
-            fTe = self._KeET @ T[self.edofMatT]
-            self._fTe = fTe
+                scale_C = np.ones((parameters["xPhys"].shape[0], 1))
+            if self._th_rh_kw is not None:
+                scale_alpha = heatexpcoeff_binary_iso(
+                    xPhys=parameters["xPhys"],
+                    K=scale_C * self._th_rh_kw["K_s"],
+                    Kmin=self._th_rh_kw["Kmin"],
+                    Kmax=self._th_rh_kw["Kmax"],
+                    amin=0., amax=1.)
+                scale = scale_C * scale_alpha
+            else:
+                scale = scale_C
             fT = np.zeros(self.f.shape)
-            for i in range(n_rhs):
-                np.add.at(fT[:, i], self.edofMat.flatten(),
-                          (scale * fTe[:, :, i]).flatten())
+            if self._T_fieldname is None:
+                # scalar uniform ΔT — fTe precomputed at setup, same for every load case
+                for i in range(fT.shape[1]):
+                    np.add.at(fT[:, i], self.edofMat.flatten(),
+                              (scale * self._fTe[:, :, 0]).flatten())
+            elif self._T_fieldname in state:
+                # field mode: temperature field from coupled HeatEquation
+                T = state[self._T_fieldname]
+                if T.ndim == 1:
+                    T = T[:, None]
+                fTe = self._KeET @ T[self.edofMatT]
+                self._fTe = fTe
+                for i in range(T.shape[1]):
+                    np.add.at(fT[:, i], self.edofMat.flatten(),
+                              (scale * fTe[:, :, i]).flatten())
             terms["f_thermal"] = fT
-        # strain-induced body forces (same SIMP scale as stiffness)
+        # strain-induced body forces: stiffness interpolation (prescribed eigenstrain)
         if self._FE_strain0 is not None:
             if elast["func"] is not None:
                 scale = elast["func"](xPhys=parameters["xPhys"], **kw)
@@ -644,13 +702,39 @@ class LinearElasticity(FEMSolver):
         elast = self.interpol_kw["Young's modulus"]
         kw = self.resolve_interpol_kw("Young's modulus", parameters)
         dL_source = np.zeros((xPhys.shape[0], 1), order="F")
-        # thermal expansion sensitivity
+        # thermal expansion sensitivity: product rule d/dx(scale_C * scale_alpha)
         if has_thermal and elast["func_dx"] is not None:
-            scale_dx = elast["func_dx"](xPhys=xPhys, **kw)
-            for i in range(self._fTe.shape[-1]):
-                adj_el = adjoint[self.edofMat, i]
-                dL_source[:, 0] -= (scale_dx[:, 0] * (adj_el * self._fTe[:, :, i]).sum(axis=1))
-        # strain-induced sensitivity (same SIMP scale as stiffness)
+            scale_C = elast["func"](xPhys=xPhys, **kw)
+            scale_C_dx = elast["func_dx"](xPhys=xPhys, **kw)
+            if self._th_rh_kw is not None:
+                K_eff = scale_C * self._th_rh_kw["K_s"]
+                dK_eff_dx = scale_C_dx * self._th_rh_kw["K_s"]
+                scale_alpha = heatexpcoeff_binary_iso(
+                    xPhys=xPhys,
+                    K=K_eff,
+                    Kmin=self._th_rh_kw["Kmin"],
+                    Kmax=self._th_rh_kw["Kmax"],
+                    amin=0., amax=1.)
+                dalpha_dx = heatexpcoeff_binary_iso_dx(
+                    xPhys=xPhys,
+                    K=K_eff,
+                    dKdx=dK_eff_dx,
+                    Kmin=self._th_rh_kw["Kmin"],
+                    Kmax=self._th_rh_kw["Kmax"],
+                    amin=0., amax=1.)
+                combined_dx = scale_C_dx * scale_alpha + scale_C * dalpha_dx
+            else:
+                combined_dx = scale_C_dx
+            if self._T_fieldname is None:
+                fTe_el = self._fTe[:, :, 0]
+                for i in range(adjoint.shape[1]):
+                    adj_el = adjoint[self.edofMat, i]
+                    dL_source[:, 0] -= combined_dx[:, 0] * (adj_el * fTe_el).sum(axis=1)
+            else:
+                for i in range(self._fTe.shape[-1]):
+                    adj_el = adjoint[self.edofMat, i]
+                    dL_source[:, 0] -= combined_dx[:, 0] * (adj_el * self._fTe[:, :, i]).sum(axis=1)
+        # strain-induced sensitivity: stiffness interpolation (prescribed eigenstrain)
         if has_strain and elast["func_dx"] is not None:
             scale_dx = elast["func_dx"](xPhys=xPhys, **kw)
             for i in range(self._FE_strain0.shape[-1]):
@@ -668,6 +752,81 @@ class LinearElasticity(FEMSolver):
                                     * (adj_el * self._FE_grav0[0, :, 0]).sum(axis=1))
         return {"dL_source": dL_source}
 
+def discretization_regular(nelx: int,
+                           nely: Union[None,int],
+                           nelz: Union[None,int],
+                           ndim: int,  
+                           material_kw: Dict, 
+                           refcell_needed: bool = False,
+                           scalar_needed: bool = False) -> int:
+
+    ndof = int(np.prod(np.array([nelx, nely, nelz][:ndim]) + 1)) * ndim
+    if len(material_kw) != 1:
+        raise NotImplementedError("Per-element material assignment not yet supported.")
+    if refcell_needed:
+        xe_ref = ref_cell(ndim=ndim, 
+                          l=l)
+    else:
+        xe_ref = None
+    #
+    if ndim == 2:
+        create_edofMat = create_edofMat2d
+        if (element_type, order) == ("quadrilateral", 1):
+            if self.symmetry == "isotropic":
+                E = material_kw[0]["Young's modulus"]
+                nu = material_kw[0]["Poisson's ratio"]
+                KE = lk_linear_elast_2d(
+                    E=E, nu=nu, plane_stress=self.plane_stress, l=self.l)[None]
+            else:
+                KE = lk_linear_elast_aniso_2d(c=C[0], 
+                                              l=self.l)[None]
+        else:
+            raise ValueError(
+                f"No built-in lk for element_type={element_type!r}, order={order}.")
+    else:
+        create_edofMat = create_edofMat3d
+        if (element_type, order) == ("hexahedron", 1):
+            if self.symmetry == "isotropic":
+                E = self.material_kw[0]["Young's modulus"]
+                nu = self.material_kw[0]["Poisson's ratio"]
+                self._KE0 = lk_linear_elast_3d(E=E, nu=nu, l=self.l)[None]
+            else:
+                self._KE0 = lk_linear_elast_aniso_3d(c=self.C[0], l=self.l)[None]
+        else:
+            raise ValueError(
+                f"No built-in lk for element_type={element_type!r}, order={order}.")
+    edofMat = create_edofMat(nelx=self.nelx, nely=self.nely, nelz=self.nelz,
+                             nnode_dof=ndim)[0]
+    edofMat_scalar = create_edofMat(nelx=self.nelx, nely=self.nely, nelz=self.nelz,
+                                    nnode_dof=1)[0]
+    self.iK, self.jK = create_matrixinds(self.edofMat, mode=self.assembly_mode)
+    if self.assembly_mode == "lower":
+        assm = np.column_stack(np.tril_indices_from(self._KE0[0]))
+        self._assm_indcs = assm[np.lexsort((assm[:, 0], assm[:, 1]))]
+    else:
+        self._assm_indcs = None
+    if self.transient:
+        if ndim == 2:
+            self._ME0 = lm_mass_2d(p=1., l=self.l)[None]
+        else:
+            self._ME0 = lm_mass_3d(p=1., l=self.l)[None]
+
+    return ndof
+
+def ref_cell(ndim,
+             l) -> np.ndarray:
+    if ndim == 1:
+        xe = l * np.array([[-1.],[1.]])/2
+    elif ndim == 2:
+        xe = l * np.array([[[-1., -1.], [1., -1.],
+                            [1., 1.], [-1., 1.]]]) / 2 
+    elif ndim == 3:
+        xe = l * np.array([[[-1, -1, -1], [1, -1, -1], [1, 1, -1],
+                            [-1, 1, -1], [-1, -1, 1], [1, -1, 1],
+                            [1, 1, 1], [-1, 1, 1]]]) / 2
+    else:
+        raise ValueError("ndim must be in [1,2,3]: ", ndim)
+    return xe
 
 def log_stiffness():
 

@@ -47,8 +47,7 @@ from topoptlab.convergence_criteria import max_design_change
 from topoptlab.param_continuation import run_continuation
 #
 from mmapy import mmasub, gcmmasub, asymp, concheck, raaupdate
-# 
-from topoptlab.problem_solver import ProblemSolver
+
 from topoptlab.linear_solvers import res_norm
 from topoptlab.block_assembly import (assemble_global_block_system,
                                       solve_global_block_system,
@@ -398,7 +397,7 @@ def solve_phys_problems(xPhys: np.ndarray,
     rhs = f+f_body
     # apply boundary conditions to matrix
     K = apply_bc(K=K,solver=lin_solver,
-                    free=free,fixed=fixed)
+                 free=free,fixed=fixed)
     # solve linear system. fact is a factorization and precond a preconditioner
     u[free, :], fact, precond = solve_lin(K=K, 
                                     rhs=rhs[free],
@@ -877,10 +876,10 @@ def main(nelx: int, nely: int,
         _need_xPhys_hist = convergence_kw["mode"] == "xPhys"
     if continuation_kw is not None:
         continuation_kw["stop_flag"] = [False] * len(continuation_kw["funcs"])
-    hist = {"xhist":        [x.copy() for i in np.arange(max_history)],
-            "xPhys_hist":   [xPhys.copy() for i in np.arange(max_history)]
-                            if _need_xPhys_hist else None,
-            "obj_hist":     [0. for i in np.arange(max_history)],
+    hist = {"xhist": [x.copy() for i in np.arange(max_history)],
+            "xPhys_hist": [xPhys.copy() for i in np.arange(max_history)]
+                           if _need_xPhys_hist else None,
+            "obj_hist": [0. for i in np.arange(max_history)],
             "constrs_hist": [constrs.copy() for i in np.arange(max_history)]}
     # initialize adjoint variables
     adj = np.zeros(f.shape)

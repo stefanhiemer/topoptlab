@@ -116,9 +116,10 @@ class HelmholtzFilter(TOFilter):
         """
         return self.TF.T @ self.lu_solve(self.TF@x) #x
         
-    def apply_filter_dx(self, 
-                        x_filtered : np.ndarray, 
-                        dx_filtered : np.ndarray) -> np.ndarray:
+    def apply_filter_dx(self,
+                        x_filtered : np.ndarray,
+                        dx_filtered : np.ndarray,
+                        **kwargs: Any) -> np.ndarray:
         """
         Apply filter to the sensitivities with respect to filtered variables 
         x_filtered using the chain rule. The same trick is used as for applying 

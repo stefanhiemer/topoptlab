@@ -3,7 +3,7 @@ from typing import Any,Tuple,Union
 from functools import partial
 
 import numpy as np
-from scipy.ndimage import grey_opening, grey_closing
+from scipy.ndimage import grey_opening, grey_closing, convolve
 from scipy.interpolate import CubicHermiteSpline
 
 from topoptlab.geometries import sphere, ball
@@ -70,7 +70,7 @@ def level_indicator(x: np.ndarray,
                                   extrapolate="periodic")
     elif isinstance(x_i,np.ndarray) and len(x_i.shape)==1:
         # midpoints
-        x_mid = (x_i[1:]-x_i[:-1])/2
+        x_mid = (x_i[1:]+x_i[:-1])/2
         x_knots = np.column_stack((x_i, np.append(x_mid,np.zeros(1)))).flatten()[:-1]
         #
         herm = CubicHermiteSpline(x=x_knots,
@@ -79,7 +79,7 @@ def level_indicator(x: np.ndarray,
                                   extrapolate=None)
     else:
         raise NotImplementedError("Input inconsistent.")
-    return herm(x).mean(axis=0)
+    return np.array([herm(x[:,i]).mean() for i in np.arange(x.shape[1])])
 
 def lengthscale_violations(x: np.ndarray,
                            r: float,
