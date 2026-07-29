@@ -50,58 +50,12 @@ from mmapy import mmasub, gcmmasub, asymp, concheck, raaupdate
 # 
 from topoptlab.problem_solver import ProblemSolver
 # import workflow routines
-from topoptlab.topology_opt.mesh import create_mesh
+from topoptlab.topology_opt.mesh import create_mesh 
+from topoptlab.topology_opt.design import initialize_design
 from topoptlab.topology_opt.history import initialize_history, update_history
 from topoptlab.topology_opt.optimizer import initialize_optimizer
 from topoptlab.topology_opt.solver_routines import adjoint_loop, initialize_problems, solver_loop
 from topoptlab.topology_opt.plotting import initialize_plotting
-
-def initialize_design(n: int,
-                      initial_guess: Union[None, Dict[str, np.ndarray]],
-                      volfrac: Union[None, float],
-                      n_mat: int = 1) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    Initialize design variables x and physical densities xPhys.
-
-    Parameters
-    ----------
-    n : int
-        Total number of design elements.
-    initial_guess : dict or None
-        Optional initial values.  Recognised keys:
-
-        ``"x"``
-            Initial design variables, shape (n, n_mat).  Defaults to uniform
-            ``volfrac`` (or 0.5 if ``volfrac`` is None).
-        ``"xPhys"``
-            Initial physical densities, shape (n, n_mat).  Defaults to a copy
-            of ``x``.
-
-    volfrac : float or None
-        Volume fraction used to fill ``x`` when no initial guess is given.
-        If None, defaults to 0.5.
-    n_mat : int
-        Number of materials; determines the second axis of x and xPhys.
-
-    Returns
-    -------
-    x : np.ndarray, shape (n, n_mat)
-        Design variables.
-    xPhys : np.ndarray, shape (n, n_mat)
-        Physical densities.
-    """
-    if initial_guess is None or "x" not in initial_guess:
-        x = np.full(shape=(n, n_mat),
-                    fill_value=volfrac if volfrac is not None else 0.5,
-                    dtype=float,
-                    order='F')
-    else:
-        x = initial_guess["x"]
-    if initial_guess is None or "xPhys" not in initial_guess:
-        xPhys = x.copy()
-    else:
-        xPhys = initial_guess["xPhys"]
-    return x, xPhys
 
 def initialize_materialinterpolation(
         matinterpol_kw: Union[None, Dict, List[Union[Dict, List[Dict]]]],
@@ -210,6 +164,7 @@ def main(nelx: int, nely: int,
                                 "coordinate_system": "cartesian"},
          nelz: Union[None,int] = None,
          initial_guess: Union[None,Dict[str, np.ndarray]] = None,
+         design_parameterization_kw: Dict = {},
          filter_mode: str = "convolution",
          lin_solver_kw: Union[Dict, List[Dict]] = {"name": "scipy-direct"},
          preconditioner_kw: Dict = {"name": None},
@@ -452,10 +407,11 @@ def main(nelx: int, nely: int,
     mapping, invmapping = mesh_kw["mapping"], mesh_kw["invmapping"]
     l = mesh_kw["l"]
     # Allocate design variables (as array), initialize and allocate sens.
-    x, xPhys = initialize_design(n=n_el, 
-                                 initial_guess=initial_guess, 
-                                 volfrac=volfrac, 
-                                 n_mat=n_mat)
+    x, xPhys = initialize_design(n=n_el,
+                                 initial_guess=initial_guess,
+                                 volfrac=volfrac,
+                                 n_mat=n_mat,
+                                 **design_parameterization_kw)
     # initialize problem solvers now that logger and mesh dims are known
     # canonicalize bcs 
     problems = initialize_problems(problems=problems, 
@@ -474,15 +430,19 @@ def main(nelx: int, nely: int,
     # build and validate constraint list
     if constraints is None:
         constraints = []
-    # legacy: if volfrac is given, prepend the volume fraction inequality
+    # legacy: if volfrac is given, prepend one volume fraction constraint per material
     if volfrac is not None:
-        constraints = [{"name": "volume fraction",
-                        "func": volume_fraction_constraint,
-                        "type": "leq",
-                        "value": volfrac,
-                        "kw":   {}}] + list(constraints)
+        volfrac_arr = np.atleast_1d(volfrac)
+        vf_constraints = [{"name": f"volume fraction {i}",
+                           "func": volume_fraction_constraint,
+                           "type": "leq",
+                           "value": float(volfrac_arr[i] if len(volfrac_arr) > 1 else volfrac_arr[0]),
+                           "kw":   {"col_ind": i}}
+                          for i in range(n_mat)]
         if ft == 0:
-            constraints[0]["filter"] = False
+            for c in vf_constraints:
+                c["filter"] = False
+        constraints = vf_constraints + list(constraints)
     # fill missing optional keys and check types
     check_constraints(constraints)
     # MMA/GCMMA only handle inequalities: split equality constraints into two
