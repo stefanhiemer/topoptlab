@@ -12,6 +12,7 @@ def initialize_design(n: int,
                       volfrac: Union[None, float],
                       n_mat: int = 1,
                       n_x_channels: Union[None, int] = None,
+                      fill_val: Union[None, float, np.ndarray] = None,
                       **kwargs) -> Tuple[np.ndarray, np.ndarray]:
     """
     Initialize design variables x and physical densities xPhys.
@@ -48,19 +49,20 @@ def initialize_design(n: int,
     if initial_guess is None or \
        "x" not in initial_guess:
         #
-        if volfrac is None:
-            fill_val = 0.5
-        elif isinstance(volfrac,float) or \
-             (isinstance(volfrac,np.ndarray) and \
-              len(volfrac) == 0) or \
-             (isinstance(volfrac,np.ndarray) and \
-              len(volfrac) == 1):
-            fill_val = np.squeeze(volfrac)
-        elif isinstance(volfrac,np.ndarray):
-            fill_val = volfrac/volfrac.shape[0]
-        else:
-            raise TypeError("volfrac must be of type float or np.ndarray. Current type: ", 
-                            type(volfrac))
+        if fill_val is None:
+            if volfrac is None:
+                fill_val = 0.5
+            elif isinstance(volfrac,float) or \
+                 (isinstance(volfrac,np.ndarray) and \
+                  len(volfrac) == 0) or \
+                 (isinstance(volfrac,np.ndarray) and \
+                  len(volfrac) == 1):
+                fill_val = np.squeeze(volfrac)
+            elif isinstance(volfrac,np.ndarray):
+                fill_val = volfrac/volfrac.shape[0]
+            else:
+                raise TypeError("volfrac must be of type float or np.ndarray. Current type: ",
+                                type(volfrac))
         #
         x = np.full(shape=(n, n_x_channels),
                     fill_value=fill_val,

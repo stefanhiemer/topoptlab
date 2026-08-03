@@ -32,7 +32,7 @@ def gray_indicator(x: np.ndarray) -> np.ndarray:
         intermediate density indicator.
 
     """
-    return 4*(x*(1-x)).mean(axis=0)
+    return 4*(x*(1-x)).mean()
 
 def level_indicator(x: np.ndarray, 
                     x_i: [None,np.ndarray] = None, 

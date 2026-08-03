@@ -156,7 +156,7 @@ def initialize_materialinterpolation(
 
 # MAIN DRIVER
 def main(nelx: int, nely: int,
-         volfrac: float, #penal: float, 
+         volfrac: Union[float, np.ndarray], #penal: float,
          rmin: float, 
          ft: [int,TOFilter,List[TOFilter]] = 1,
          filter_kw: Union[Dict,List] = {},
@@ -169,8 +169,8 @@ def main(nelx: int, nely: int,
          lin_solver_kw: Union[Dict, List[Dict]] = {"name": "scipy-direct"},
          preconditioner_kw: Dict = {"name": None},
          assembly_mode: str = "full",
-         materials_kw: Dict = {"Young's modulus": 1., 
-                               "Poisson's ratio": 0.3}, 
+         materials_kw: Union[Dict, List[Dict]] = [{"Young's modulus": 1.,
+                                                   "Poisson's ratio": 0.3}],
          bcs: Callable = mbb_2d,
          problems: Union[None, List[Union[Callable, List[Callable]]]] = None,
          solver_kw: Union[Dict, List[Dict]] = {},
@@ -235,9 +235,12 @@ def main(nelx: int, nely: int,
     assembly_mode : str
         whether full or only lower triangle of linear system / matrix is
         created.
-    materials_kw : dict
-        dictionary containing all materials and their properties. Conventions 
-        must still be determined.
+    materials_kw : list of dict
+        One dict per material, each containing the material constants (e.g.
+        ``"Young's modulus"``, ``"Poisson's ratio"``).  A single dict is
+        accepted for backward compatibility and treated as a one-material list.
+        ``n_mat`` is inferred as ``len(materials_kw)`` after normalization.
+        Must be consistent with ``log_material_properties`` in log_utils.py.
     lin_solver_kw : dict or list of dict
         Linear solver configuration.  Must contain ``"name"`` (solver
         backend).  When ``problems`` is used, a list of dicts (one per
@@ -426,7 +429,7 @@ def main(nelx: int, nely: int,
         active_mask = el_flags == 2
         prescribed_mask = (el_flags == 1) | (el_flags == 2) 
     # initialize arrays for gradients
-    dobj = np.zeros(x.shape,order="F")
+    dobj = np.zeros(xPhys.shape, order="F")
     # build and validate constraint list
     if constraints is None:
         constraints = []
@@ -453,7 +456,7 @@ def main(nelx: int, nely: int,
     # build filter mask: one bool per constraint row
     _constr_filter_mask = np.array([c["filter"] for c in constraints], dtype=bool)
     constrs  = np.zeros( (n_constr, 1) )
-    dconstrs = np.zeros((n_el, n_constr))
+    dconstrs = np.zeros((n_el * xPhys.shape[1], n_constr), order="F")
     # initialize optimizer state
     optimizer_kw, x, xPhys, max_history = initialize_optimizer(
                                              optimizer=optimizer,
@@ -591,7 +594,7 @@ def main(nelx: int, nely: int,
                 # if problem not self adjoint, solve for adjoint variables and
                 # calculate derivatives, else use analytical solution
                 if self_adj is None:
-                    dobj[:,0] += rhs_adj 
+                    dobj += rhs_adj.reshape(dobj.shape, order='F')
                     break
                 elif self_adj:
                     #dobj[:] += rhs_adj
@@ -725,6 +728,8 @@ def main(nelx: int, nely: int,
                              logger=log)
         # optimality criteria
         if optimizer=="oc":
+            if n_mat > 1:
+                raise NotImplementedError("OC optimizer only supports single-material (n_mat=1).")
             (x[:,0], optimizer_kw["g"]) = oc_top88(x=x[:,0],
                                                     volfrac=constraints[0]["value"],
                                                     dc=dobj[:,0],
@@ -732,6 +737,8 @@ def main(nelx: int, nely: int,
                                                     g=optimizer_kw["g"],
                                                     el_flags=el_flags)
         elif optimizer=="ocm":
+            if n_mat > 1:
+                raise NotImplementedError("OC optimizer only supports single-material (n_mat=1).")
             (x[:,0], optimizer_kw["g"]) = oc_mechanism(x=x[:,0],
                                                         volfrac=constraints[0]["value"],
                                                         dc=dobj[:,0],
@@ -739,6 +746,8 @@ def main(nelx: int, nely: int,
                                                         g=optimizer_kw["g"],
                                                         el_flags=el_flags)
         elif optimizer=="ocg":
+            if n_mat > 1:
+                raise NotImplementedError("OC optimizer only supports single-material (n_mat=1).")
             (x[:,0], optimizer_kw["g"]) = oc_generalized(x=x[:,0],
                                                           volfrac=constraints[0]["value"],
                                                           dc=dobj[:,0],
@@ -748,46 +757,46 @@ def main(nelx: int, nely: int,
         # method of moving asymptotes
         elif optimizer=="mma":
             xmma,ymma,zmma,lam,xsi,eta_mma,mu,zet,s,low,upp = mmasub(m=optimizer_kw["nconstr"],
-                                                                     n=x.shape[0],
+                                                                     n=x.size,
                                                                      iter=loop,
-                                                                     xval=x,
-                                                                     xold1=hist["xhist"][-1],
-                                                                     xold2=hist["xhist"][-2],
+                                                                     xval=x.reshape(-1, 1, order='F'),
+                                                                     xold1=hist["xhist"][-1].reshape(-1, 1, order='F'),
+                                                                     xold2=hist["xhist"][-2].reshape(-1, 1, order='F'),
                                                                      f0val=obj,
-                                                                     df0dx=dobj,
+                                                                     df0dx=dobj.reshape(-1, 1, order='F'),
                                                                      fval=constrs,
-                                                                     dfdx=dconstrs.T,
+                                                                     dfdx=dconstrs.reshape(-1, n_constr, order='F').T,
                                                                      **optimizer_kw)
 
             # update asymptotes
             optimizer_kw["low"] = low
             optimizer_kw["upp"] = upp
-            x = xmma.copy()
+            x = xmma.reshape(n_el, -1, order='F')
         # globally convergent method of moving asymptotes
         elif optimizer == "gcmma":
             # update asymptotes and raa parameters
             optimizer_kw["low"], optimizer_kw["upp"], \
             optimizer_kw["raa0"], optimizer_kw["raa"] = asymp(
                 outeriter=loop,
-                n=x.shape[0],
-                xval=x,
-                xold1=hist["xhist"][-1],
-                xold2=hist["xhist"][-2],
-                df0dx=dobj,
-                dfdx=dconstrs.T,
+                n=x.size,
+                xval=x.reshape(-1, 1, order='F'),
+                xold1=hist["xhist"][-1].reshape(-1, 1, order='F'),
+                xold2=hist["xhist"][-2].reshape(-1, 1, order='F'),
+                df0dx=dobj.reshape(-1, 1, order='F'),
+                dfdx=dconstrs.reshape(-1, n_constr, order='F').T,
                 **optimizer_kw)
             # first subproblem solve
             xmma,ymma,zmma,lam,xsi,eta_mma,mu,zet,s,f0app,fapp = gcmmasub(
                 m=optimizer_kw["nconstr"],
-                n=x.shape[0],
+                n=x.size,
                 iter=loop,
-                xval=x,
-                xold1=hist["xhist"][-1],
-                xold2=hist["xhist"][-2],
+                xval=x.reshape(-1, 1, order='F'),
+                xold1=hist["xhist"][-1].reshape(-1, 1, order='F'),
+                xold2=hist["xhist"][-2].reshape(-1, 1, order='F'),
                 f0val=obj,
-                df0dx=dobj,
+                df0dx=dobj.reshape(-1, 1, order='F'),
                 fval=constrs,
-                dfdx=dconstrs.T,
+                dfdx=dconstrs.reshape(-1, n_constr, order='F').T,
                 **optimizer_kw)
             # inner loop: tighten approximation until conservative
             state_inner = dict(state)
@@ -885,7 +894,7 @@ def main(nelx: int, nely: int,
                 # tighten approximation and resolve subproblem
                 optimizer_kw["raa0"], optimizer_kw["raa"] = raaupdate(
                                                         xmma=xmma,
-                                                        xval=x,
+                                                        xval=x.reshape(-1, 1, order='F'),
                                                         f0valnew=float(obj_new),
                                                         fvalnew=constrs_new,
                                                         f0app=f0app,
@@ -893,17 +902,17 @@ def main(nelx: int, nely: int,
                                                         **optimizer_kw)
                 xmma,ymma,zmma,lam,xsi,eta_mma,mu,zet,s,f0app,fapp = gcmmasub(
                                                         m=optimizer_kw["nconstr"],
-                                                        n=x.shape[0],
+                                                        n=x.size,
                                                         iter=loop,
-                                                        xval=x,
-                                                        xold1=hist["xhist"][-1],
-                                                        xold2=hist["xhist"][-2],
+                                                        xval=x.reshape(-1, 1, order='F'),
+                                                        xold1=hist["xhist"][-1].reshape(-1, 1, order='F'),
+                                                        xold2=hist["xhist"][-2].reshape(-1, 1, order='F'),
                                                         f0val=obj,
-                                                        df0dx=dobj,
+                                                        df0dx=dobj.reshape(-1, 1, order='F'),
                                                         fval=constrs,
-                                                        dfdx=dconstrs.T,
+                                                        dfdx=dconstrs.reshape(-1, n_constr, order='F').T,
                                                         **optimizer_kw)
-            x = xmma.copy()
+            x = xmma.reshape(n_el, -1, order='F')
         #
         log.debug("Post Density Update: it.: {0}, med(x): {1:.10f}, mean(x): {2:.10f}, med(xPhys): {3:.10f}".format(
                    loop, np.median(x),np.mean(x), np.median(xPhys)))

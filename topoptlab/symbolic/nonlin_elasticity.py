@@ -20,7 +20,6 @@ def tangentstiffness_matrix(ndim : int,
                             u : Union[None,MatrixFunction],
                             material_model: Union[None,Callable],
                             material_constants: Dict,
-                            plane_stress : bool = False,
                             element_type : str ="Lagrange",
                             order : int = 1) -> MatrixFunction:
     """
@@ -39,8 +38,6 @@ def tangentstiffness_matrix(ndim : int,
     material_constants : dict
         contains the material constants needed to calculate 2. PK stress and 
         constitutive tensor. Keys must match arguments of material_model.
-    plane_stress : bool
-        if True, plane_stress is assumed. Only relevant for 2D.
     element_type : str
         type of element.
     order : int

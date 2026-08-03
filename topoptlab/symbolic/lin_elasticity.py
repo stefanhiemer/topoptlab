@@ -12,7 +12,7 @@ from topoptlab.symbolic.matrix_utils import simplify_matrix, \
 from topoptlab.symbolic.strain_measures import small_strain_matrix
 
 def stiffness_matrix(ndim : int,
-                     c : Union[None,MatrixFunction], 
+                     c : Union[None,MatrixFunction],
                      element_type : str ="Lagrange",
                      order : int = 1) -> MatrixFunction:
     """

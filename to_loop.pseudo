@@ -1,0 +1,128 @@
+def inner_iterations():
+    if needed(obj, constraints, optimizer):
+     obj_new = 0
+     constraints_new = zeros_like(constraints)  
+     # apply filters to get physical designs
+     physical_designs_new = ft(x_new)
+     for inner in range(inner_loops):
+      #
+      for xPhys in physical_designs_new: 
+         # e. g. set up new FE problem based on current xphys
+         update_problem(xPhys)
+         # 
+         solution = solve_problem()
+         if xPhys contributes to obj:
+            obj_new += obj_func(solution)
+         for i,constraint in enumerate(constraints):
+            if xPhys contributes to constraint:
+               constraints_new[i] += constraint_func[i](solution)
+      # if design meets certain (improvement) criteria, break inner loop
+      if good_design(x,obj,obj_new,constraints,constraint_new):
+         obj = obj_new.copy()
+         constraints = constraints_new.copy()
+         break
+      # otherwise make changes to proposal 
+      else:
+         x_new = optimizer(x,obj_new,constraints_new, 
+                           obj, constraints,
+                           dobj,dconstraints)
+   return x_new 
+
+def main():
+
+   initialize_mesh # read mesh file or create default cuboid mesh
+initialize_design_variables #
+ft = initialize_filters #
+initialize_problems # create edofMat for FE, setup everything that does not
+need the design variables that can be reused in every design iteration 
+initialize_plotting # prepare plotting during design iterations
+initialie_temp_varaibles # initialize the arrays holding gradients, etc.
+for design_iter in range(n_outeriter):
+   obj = 0
+   constraints[:] = 0
+   dobj[:] = 0
+   dconstraints[:] = 0
+   # a single abstract design might result in a number of different physical realizations 
+   for xPhys in physical_designs:
+      # for stochastic optimization we need to resample a design a number of times
+      # obj and constraints formulated in terms of differentiable summary statistics
+      # they have to be updated incrementally to keep memory demand in check if many 
+      # samplings are done  
+      obj_samples, constrs_samples = 0, zeros(n_constrs)
+      dobj_samples, dconstrs_samples = zeros(n), zeros(n,n_constrs)
+      for sample in samplings: 
+         # e. g. set up new FE problem based on current xphys
+         update_problem(xPhys,sample)
+         # 
+         solution = solve_problem()
+         # not every xPhys or sample must contribute to the objective. might just
+         # contribute to a constraint or vice versa
+         if xPhys and sample contributes to obj:
+            obj_samples += incr_update(obj_func(solution))
+            dobj_samples += incr_update(adjoint_analysis_obj(solution))
+         for i,constraint in enumerate(constraints):
+            if xPhys and sample contributes to constraint[i]:
+               constrs_samples[i] += incr_update(constraint_func[i](solution,xPhys,sample))
+               dconstrs_samples[:,i] += incr_update(adjoint_analysis_constraint(solution,xPhys,sample))
+      # since we incrementally update summary statistics, we have to finish them
+      obj_samples, constrs_samples = finish_summarystats(obj_samples, constrs_samples)
+      dobj_samples, dconstrs_samples = finish_summarystats(dobj_samples, dconstrs_samples)
+      # map gradients back to original, abstract design variables
+      dobj += map_to_design(dobj_samples,ft)
+      dconstraints += map_to_design(dconstrs_samples,ft)
+      # update objs and constraints
+      obj += obj_samples
+      constraints += constrs_samples
+   # apply optimizer to get a proposal for new design variables
+   x_new = optimizer(x,obj,constraints,dobj,dconstraints)
+   # inner iterations for optimizers like GCMMA
+   x_new = inner_iterations
+   # accept design variables
+   x = x_new.copy()
+   # apply filters to get physical designs
+   physical_designs = ft(x)
+   # 
+   log_current_status()
+   # 
+   convergence_and_continuation_check
+# check objective and constraints on final black-white design
+obj=0
+constraints[:] = 0
+solutions = []
+xThreshs = []
+for xPhys in physical_designs:
+   #
+   xThresh = threshold(xPhys)
+   xThreshs.append(xThresh)
+   # for stochastic optimization we need to resample a design a number of times
+   # obj and constraints formulated in terms of differentiable summary statistics
+   # they have to be updated incrementally to keep memory demand in check if many 
+   # samplings are done 
+   obj_samples, constrs_samples = 0, zeros(n_constrs)
+   for sample in samplings: 
+      # e. g. set up new FE problem based on current xphys
+      update_problem(xThresh,sample)
+      # 
+      solution = solve_problem()
+      # not every xThresh or sample must contribute to the objective. might just
+      # contribute to a constraint or vice versa
+      if xThresh and sample contributes to obj:
+         obj_samples += incr_update(obj_func(solution))
+      for i,constraint in enumerate(constraints):
+         if xThresh and sample contributes to constraint[i]:
+            constrs_samples[i] += incr_update(constraint_func[i](solution,xThresh,sample))
+   # since we incrementally update summary statistics, we have to finish them
+   obj_samples, constrs_samples = finish_summarystats(obj_samples, constrs_samples)
+   # update objs and constraints
+   obj += obj_samples
+   constraints += constrs_samples
+   solutions.append(solution)
+#
+log_final_status(obj,constraints,...)
+#
+export_design(x,
+              physical_designs,
+              xThreshs,
+              solutions,
+              ...)
+
