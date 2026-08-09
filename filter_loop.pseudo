@@ -1,0 +1,103 @@
+# Filter routes connect abstract design variables to physical fields.
+# Each route maps one named design variable through a filter chain to one named physical field.
+# Multiple routes may share the same input (gradients accumulate) or produce different outputs.
+#
+# Examples:
+#
+#   single-material density:
+#     ("x",   [DensFilter, HaevicideProj],  "xPhys")
+#
+#   density + coating (two routes from same input, different outputs):
+#     ("x",   [DensFilter, HaevicideProj],  "xPhys_core")
+#     ("x",   [DensFilter, CoatingFilter],  "xPhys_coat")
+#
+#   mixed TO + orientation control:
+#     ("x",   [DensFilter, HaevicideProj],  "xPhys")
+#     ("phi", [SmoothingFilter],            "phi_phys")
+#
+#   mixed TO + boundary condition control:
+#     ("x",   [DensFilter, HaevicideProj],  "xPhys")
+#     ("bcs", [],                           "bcs_phys")   # identity: no filter
+#
+# filter_routes is an ordered dict:
+#   { route_name: (input_key, filter_chain, output_key), ... }
+#
+# design_vars is a dict:
+#   { "x":   array(n_el, n_x_ch),
+#     "phi": array(n_el, n_phi_ch),
+#     "bcs": array(n_bc, n_bc_ch), ... }
+#
+# physical_designs is a dict:
+#   { "xPhys":      array(n_el, n_mat),
+#     "xPhys_coat": array(n_el, n_coat),
+#     "phi_phys":   array(n_el, n_phi), ... }
+
+
+# ---- forward pass ----
+
+def forward_filter(design_vars, filter_routes):
+    physical_designs = {}
+    xTildes = {}  # intermediate fields per route, needed by backward pass
+    for route_name, (input_key, filter_chain, output_key) in filter_routes.items():
+        x = design_vars[input_key]
+        if len(filter_chain) == 0:
+            # identity route (e.g. raw BCs passed straight through)
+            physical_designs[output_key] = x.copy()
+            xTildes[route_name] = []
+        else:
+            xTilde_route = []
+            for f in filter_chain[:-1]:
+                x = f.apply(x, ...)
+                xTilde_route.append(x)
+            physical_designs[output_key] = filter_chain[-1].apply(x, ...)
+            xTildes[route_name] = xTilde_route
+    return physical_designs, xTildes
+
+
+# ---- backward pass ----
+
+def backward_filter(dL_dPhys, design_vars, filter_routes, physical_designs, xTildes):
+    # dL_dPhys: dict mapping output_key -> gradient w.r.t. that physical field
+    # accumulates into dL_dDesign, one entry per design variable
+    dL_dDesign = {key: zeros_like(v) for key, v in design_vars.items()}
+    for route_name, (input_key, filter_chain, output_key) in filter_routes.items():
+        dx = dL_dPhys[output_key]
+        xTilde_route = xTildes[route_name]
+        if len(filter_chain) == 0:
+            # identity route: gradient passes straight through
+            dL_dDesign[input_key] += dx
+        else:
+            for i in reversed(range(len(filter_chain))):
+                x_in_i  = design_vars[input_key] if i == 0 else xTilde_route[i-1]
+                x_out_i = physical_designs[output_key] if i == len(filter_chain)-1 \
+                          else xTilde_route[i]
+                dx = filter_chain[i].apply_adjoint(x=x_in_i,
+                                                   x_filtered=x_out_i,
+                                                   dx_filtered=dx,
+                                                   ...)
+            dL_dDesign[input_key] += dx
+    return dL_dDesign
+
+
+# ---- optimizer interface ----
+# MMA/GCMMA need a single flat design vector and matching bounds.
+# flatten/unflatten handle the dict <-> flat-vector conversion.
+
+def flatten(design_vars):
+    # concatenate all design variable arrays in a fixed order (Fortran layout)
+    return concatenate([v.ravel(order='F') for v in design_vars.values()])
+
+def unflatten(x_flat, design_vars_template):
+    # split flat vector back into dict of arrays matching the template shapes
+    design_vars = {}
+    offset = 0
+    for key, v in design_vars_template.items():
+        n = v.size
+        design_vars[key] = x_flat[offset:offset+n].reshape(v.shape, order='F')
+        offset += n
+    return design_vars
+
+def flatten_bounds(xmin_dict, xmax_dict):
+    xmin = concatenate([v.ravel(order='F') for v in xmin_dict.values()])
+    xmax = concatenate([v.ravel(order='F') for v in xmax_dict.values()])
+    return xmin, xmax

@@ -620,6 +620,33 @@ def generalized_stress(u: np.ndarray,
     stress = B@u[edofMat,i]
     return
 
+def twopoint(xPhys: np.ndarray, 
+             shift: Tuple,
+             invmapping: Callable,
+             mapping: Callable, 
+             **kwargs: Any
+             ) -> Tuple[float, np.ndarray, np.ndarray]:
+    #
+    x = mapping(xPhys)
+    ndim = len(x.shape)-1
+    #
+    if ndim != len(shift):
+        raise ValueError("shift must have length == dim.", 
+                         "Current length: ")
+    S2 = np.mean(x * np.roll(x, 
+                             shift, 
+                             axis=tuple([0,1,2][:ndim])))
+
+    # derivative of S2 wrt x
+    grad = (np.roll(x, 
+                    shift, 
+                    axis=tuple([0,1,2][:ndim])) +
+            np.roll(x, 
+                    tuple(-s for s in shift), 
+                    axis=tuple([0,1,2][:ndim]))) / x.size 
+    
+    return S2, grad, None
+
 if __name__ == "__main__":
 
     from topoptlab.utils import map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel

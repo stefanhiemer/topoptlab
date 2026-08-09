@@ -105,8 +105,8 @@ def lengthscale_violations(x: np.ndarray,
 
     Parameters
     ----------
-    x : np.ndarray shape (n)
-        design variables.
+    x : np.ndarray
+        design variables shape (n,n_mat).
     r : float
         radius of sphere that determines length scale.
     nelx : int
@@ -124,33 +124,52 @@ def lengthscale_violations(x: np.ndarray,
         lengthscale violations in void phase.
 
     """
-    
+    if nelz is None:
+        ndim = 2
+    else:
+        ndim = 3
     #
     r = int(r)
     l = 1+int(2*r)
     #
     if nelz is None:
-        x = map_eltoimg(quant=x, nelx=nelx, nely=nely)
+        x = map_eltoimg(quant=x, 
+                        nelx=nelx, 
+                        nely=nely)
         structure = sphere(nelx=l, nely=l,
                            center=(np.median([0,l-1]),
                                    np.median([0,l-1])),
                            radius=r, fill_value=1.)
-        structure = map_eltoimg(quant=structure, nelx=l, nely=l)
+        structure = map_eltoimg(quant=structure, 
+                                nelx=l, 
+                                nely=l)
     else:
-        x = map_eltovoxel(quant=x, nelx=nelx, nely=nely, nelz=nelz)
+        x = map_eltovoxel(quant=x, 
+                          nelx=nelx, 
+                          nely=nely, 
+                          nelz=nelz)
         structure = ball(nelx=l, nely=l, nelz=l,
-                           center=(np.median([0,l-1]),
-                                   np.median([0,l-1]),
-                                   np.median([0,l-1])),
-                           radius=r, fill_value=1.)
-        structure = map_eltovoxel(quant=structure, nelx=l, nely=l, nelz=l)
+                         center=(np.median([0,l-1]),
+                                 np.median([0,l-1]),
+                                 np.median([0,l-1])),
+                         radius=r, fill_value=1.)
+        structure = map_eltovoxel(quant=structure, 
+                                  nelx=l, 
+                                  nely=l, 
+                                  nelz=l)
     #
-    solidviolation = x-grey_opening(x,size=structure.shape,
+    solidviolation = x-grey_opening(x, 
+                                    size=structure.shape,
                                     structure=structure,
-                                    mode="nearest",cval=0.)
-    voidviolation = grey_closing(x,size=structure.shape,
+                                    mode="nearest",
+                                    axes=(0,1,2)[:ndim],
+                                    cval=0.)
+    voidviolation = grey_closing(x,
+                                 size=structure.shape,
                                  structure=structure,
-                                 mode="nearest",cval=0.)-x
+                                 mode="nearest",
+                                 axes=(0,1,2)[:ndim],
+                                 cval=0.)-x
     return solidviolation, voidviolation
 
 def baseplate_kernel(baseplate: str,

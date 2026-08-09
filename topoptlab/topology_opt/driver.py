@@ -554,76 +554,72 @@ def main(nelx: int, nely: int,
     # optimization loop
     for loop in np.arange(nouteriter):
         # solve FEM, calculate obj. func. and gradients.
-        if optimizer in ["oc","mma","ocm","ocg","gcmma"]:
-            ### solve physical problems
-            parameters["xPhys"] = xPhys
-            state = solver_loop(problems,
-                                state,
-                                ntimesteps=1,
-                                coupling=solver_coupling,
-                                parameters=parameters,
-                                solver_kw=solver_kw,
-                                lin_solver_kw=lin_solver_kw,
-                                preconditioner_kw=preconditioner_kw,
-                                interpol_kw=interpol_kw,
-                                logger=log)
-            u = state[_solver0.fieldname]
-            Kes = _solver0._terms["Kes"]
+        ### solve physical problems
+        parameters["xPhys"] = xPhys
+        state = solver_loop(problems,
+                            state,
+                            ntimesteps=1,
+                            coupling=solver_coupling,
+                            parameters=parameters,
+                            solver_kw=solver_kw,
+                            lin_solver_kw=lin_solver_kw,
+                            preconditioner_kw=preconditioner_kw,
+                            interpol_kw=interpol_kw,
+                            logger=log)
+        u = state[_solver0.fieldname]
+        Kes = _solver0._terms["Kes"]
+        #
+        for i in range(f.shape[1]): 
+            log.debug("FEM: it.: {0}, problem: {1}, min. u: {2:.12f}, med. u: {3:.12f}, max. u: {4:.12f}".format(
+                    loop,i,np.min(u[:,i]),np.median(u[:,i]),np.max(u[:,i])))
+        # objective and sensitivities with regards to object
+        obj = 0
+        dobj[:] = 0.
+        for i in np.arange(f.shape[1]):
+            # obj. value, selfadjoint variables, self adjoint flag
+            obj,rhs_adj,self_adj = obj_func(obj=obj, 
+                                            i=i,
+                                            xPhys=xPhys,
+                                            u=u,
+                                            KE=KE, 
+                                            edofMat=edofMat,
+                                            Kes=Kes,
+                                            matinterpol=matinterpol,
+                                            matinterpol_kw=matinterpol_kw,
+                                            mapping=mapping, 
+                                            invmapping=invmapping,
+                                            cellVolume=mesh_kw["cellVolume"],
+                                            **obj_kw)
+            # if problem not self adjoint, solve for adjoint variables and
+            # calculate derivatives, else use analytical solution
+            if self_adj is None:
+                dobj += rhs_adj.reshape(dobj.shape, order='F')
+                break
+            elif self_adj:
+                #dobj[:] += rhs_adj
+                adj[free,i] = rhs_adj[free,0]
+            else:
+                adj_out = adjoint_loop(problems,
+                                        state,
+                                        adj_rhs={_solver0.fieldname: rhs_adj},
+                                        ntimesteps=1,
+                                        coupling=solver_coupling,
+                                        parameters=parameters,
+                                        solver_kw=solver_kw,
+                                        lin_solver_kw=lin_solver_kw,
+                                        preconditioner_kw=preconditioner_kw,
+                                        interpol_kw=interpol_kw,
+                                        logger=log)
+                adj[:, i:i+1] = adj_out[f"adj_{_solver0.fieldname}"]
             #
-            for i in range(f.shape[1]): 
-                log.debug("FEM: it.: {0}, problem: {1}, min. u: {2:.12f}, med. u: {3:.12f}, max. u: {4:.12f}".format(
-                        loop,i,np.min(u[:,i]),np.median(u[:,i]),np.max(u[:,i])))
-            # objective and sensitivities with regards to object
-            obj = 0
-            dobj[:] = 0.
-            for i in np.arange(f.shape[1]):
-                # obj. value, selfadjoint variables, self adjoint flag
-                obj,rhs_adj,self_adj = obj_func(obj=obj, 
-                                                i=i,
-                                                xPhys=xPhys,
-                                                u=u,
-                                                KE=KE, 
-                                                edofMat=edofMat,
-                                                Kes=Kes,
-                                                matinterpol=matinterpol,
-                                                matinterpol_kw=matinterpol_kw,
-                                                mapping=mapping, 
-                                                invmapping=invmapping,
-                                                cellVolume=mesh_kw["cellVolume"],
-                                                **obj_kw)
-                # if problem not self adjoint, solve for adjoint variables and
-                # calculate derivatives, else use analytical solution
-                if self_adj is None:
-                    dobj += rhs_adj.reshape(dobj.shape, order='F')
-                    break
-                elif self_adj:
-                    #dobj[:] += rhs_adj
-                    adj[free,i] = rhs_adj[free,0]
-                else:
-                    adj_out = adjoint_loop(problems,
-                                           state,
-                                           adj_rhs={_solver0.fieldname: rhs_adj},
-                                           ntimesteps=1,
-                                           coupling=solver_coupling,
-                                           parameters=parameters,
-                                           solver_kw=solver_kw,
-                                           lin_solver_kw=lin_solver_kw,
-                                           preconditioner_kw=preconditioner_kw,
-                                           interpol_kw=interpol_kw,
-                                           logger=log)
-                    adj[:, i:i+1] = adj_out[f"adj_{_solver0.fieldname}"]
-                #
-                log.debug("adj: it.: {0}, problem: {1}, min. adj: {2:.12f}, med. adj: {3:.12f}, max. adj: {4:.12f}".format(
-                           loop,i,np.min(adj[:,i]),np.median(adj[:,i]),np.max(adj[:,i])))
+            log.debug("adj: it.: {0}, problem: {1}, min. adj: {2:.12f}, med. adj: {3:.12f}, max. adj: {4:.12f}".format(
+                        loop,i,np.min(adj[:,i]),np.median(adj[:,i]),np.max(adj[:,i])))
 
-                dobj[:] += _solver0.sensitivity(state=state,
-                                                parameters=parameters,
-                                                adjoint=adj,
-                                                solver_kw=solver_kw[0],
-                                                logger=log)["dL_dxPhys"]
-        # optimizer is unknown.
-        else:
-            raise NotImplementedError("Unknown optimizer.")
+            dobj[:] += _solver0.sensitivity(state=state,
+                                            parameters=parameters,
+                                            adjoint=adj,
+                                            solver_kw=solver_kw[0],
+                                            logger=log)["dL_dxPhys"]
         # constraints, constraint gradients and adjoint analysis
         constrs[:] = 0.
         dconstrs[:] = 0.
