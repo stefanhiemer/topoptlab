@@ -50,15 +50,13 @@ def _lf_bodyforce(xe: np.ndarray,
     #
     xi,eta,zeta = [_x[:,0] for _x in np.split(x, 3, axis=1)]
     # shape functions have shape (nq,8)
-    N = np.kron(shape_functions(xi=xi, eta=eta, zeta=zeta)[:,:,None], 
+    N = np.kron(shape_functions(xi=xi, eta=eta, zeta=zeta)[:,:,None],
                 np.eye(ndim))
-    #
-    integral = N[None,:,:,:] @ b[:,None,None,:].transpose(0,1,3,2)
     # calculate determinant of jacobian
     J = jacobian(xi=xi,eta=eta,zeta=zeta,xe=xe,all_elems=True)
-    detJ = (J[:,0,0]*(J[:,1,1]*J[:,2,2] - J[:,1,2]*J[:,2,1])-
-            J[:,0,1]*(J[:,1,0]*J[:,2,2] - J[:,1,2]*J[:,2,0])+
-            J[:,0,2]*(J[:,1,0]*J[:,2,1] - J[:,1,1]*J[:,2,0])).reshape(nel,nq)
+    detJ = np.linalg.det(J).reshape(nel,nq)
+    #
+    integral = N[None,:,:,:] @ b[:,None,None,:].transpose(0,1,3,2)
     # multiply by determinant and quadrature
     fe = (w[None,:,None,None]*integral*detJ[:,:,None,None]).sum(axis=1)
     #

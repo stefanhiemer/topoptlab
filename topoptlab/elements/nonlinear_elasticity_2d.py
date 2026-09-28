@@ -115,28 +115,8 @@ def _lk_nonlinear_elast_2d(xe: np.ndarray,
     # multiply by determinant and quadrature
     Ke = (w[None,:,None,None]*integral*detJ[:,:,None,None]).sum(axis=1)
     fe = (w[None,:,None]*fe*detJ[:,:,None]).sum(axis=1)
-    
-    #print("geo: ", (w[None,:,None,None]*B_h.transpose([0,1,3,2])@S@B_h*detJ[:,:,None,None]).sum(axis=1))
-    #print("material: ", (w[None,:,None,None]*B_dE.transpose([0,1,3,2])@c@B_dE*detJ[:,:,None,None]).sum(axis=1))
     # multiply thickness
     if ndim == 2:
         return t[:,None,None] * Ke, t[:,None,None] * fe 
     else:
         return Ke, fe
-
-if __name__ == "__main__":
-    
-    from topoptlab.material_models.stvenant import stvenant_matmodel
-    from topoptlab.material_models.neohooke import neohookean_matmodel
-    from topoptlab.stiffness_tensors import isotropic_2d
-    
-    #
-    nel = 2
-    print(_lk_nonlinear_elast_2d(xe = np.array([[[-1,-1],[1,-1],[1,1],[-1,1]]]),
-                           material_constants= {"c": np.ones((3,3)), 
-                                                "h": np.ones((nel,1)),
-                                                "mu": np.ones((nel,1))},
-                           material_model=stvenant_matmodel,
-                           ue = np.array([[0.,0.,0.,1.,
-                                           0.,0.,0.,1.],
-                                          ])))

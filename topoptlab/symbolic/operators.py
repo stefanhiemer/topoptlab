@@ -14,7 +14,8 @@ from topoptlab.symbolic.matrix_utils import generate_constMatrix,\
                                             inverse, integrate
 from topoptlab.symbolic.parametric_map import jacobian
 
-def aniso_laplacian(ndim: int, K: Union[None,MatrixFunction] = None,
+def aniso_laplacian(ndim: int, 
+                    K: Union[None,MatrixFunction] = None,
                     element_type: str = "Lagrange",
                     order: int = 1) -> MatrixFunction:
     """
