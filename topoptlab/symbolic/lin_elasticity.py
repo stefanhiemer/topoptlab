@@ -82,8 +82,8 @@ def strainforces(ndim : int,
 
     Returns
     -------
-    nodal_forces : list
-        symbolic force vector .
+    fe : symfem.functions.MatrixFunction
+        symbolic force vector.
 
     """
     #

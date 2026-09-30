@@ -206,8 +206,8 @@ def stvenant_cauchy(F : Union[None,MatrixFunction],
 
     Returns
     -------
-    S : symfem.functions.MatrixFunction
-        symbolic 2. Piola-Kirchhoff stress (2PK) in Voigt notation.
+    sigma : symfem.functions.MatrixFunction
+        symbolic Cauchy stress.
 
     """
     #
@@ -227,12 +227,12 @@ def stvenant_cauchy(F : Union[None,MatrixFunction],
     #
     if not is_voigt(M=E,ndim=ndim):
         E = to_voigt(E)
-    # anisotropic stiffness tensor or equivalent in Voigt notation 
+    # anisotropic stiffness tensor or equivalent in Voigt notation
     if c is None:
         c = generate_constMatrix(ncol=int((ndim**2 + ndim) /2),
                                  nrow=int((ndim**2 + ndim) /2),
-                                 name="c", 
-                                 symmetric=True) 
+                                 name="c",
+                                 symmetric=True)
     return pk2_to_cauchy(S=stress_2pk(E=E,
                                       F=F,
                                       c=c,

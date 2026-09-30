@@ -9,7 +9,7 @@ from topoptlab.symbolic.matrix_utils import simplify_matrix
 
 def mass(scalarfield: bool,
          ndim: int,
-         element_type: str="Lagrange",
+         element_type: str = "Lagrange",
          order: int = 1) -> MatrixFunction:
     """
     Symbolically compute the mass matrix.
@@ -27,8 +27,8 @@ def mass(scalarfield: bool,
 
     Returns
     -------
-    stiffness_matrix : symfem.functions.MatrixFunction
-        symbolic stiffness matrix as list of lists .
+    mass_matrix : symfem.functions.MatrixFunction
+        symbolic mass matrix.
 
     """
     #

@@ -4,64 +4,6 @@ from warnings import warn
 
 import numpy as np
 
-from topoptlab.fem import get_integrpoints
-from topoptlab.elements.trilinear_hexahedron import bmatrix
-
-def _lk_linear_elast_3d(xe: np.ndarray, c: np.ndarray,
-                        quadr_method: str = "gauss-legendre",
-                        nquad: int = 2,
-                        **kwargs: Any) -> np.ndarray:
-    """
-    Create element stiffness matrix for 2D isotropic linear elasticity with
-    bilinear quadrilateral Lagrangian elements in plane stress.
-
-    Parameters
-    ----------
-    xe : np.ndarray, shape (nels,8,2)
-        coordinates of element nodes. Please look at the
-        definition/function of the shape function, then the node ordering is
-        clear.
-    c : np.ndarray, shape (nels,9,9) or
-        stiffness tensor.
-    quadr_method: str or callable
-        name of quadrature method or function/callable that returns coordinates of
-        quadrature points and weights. Check function get_integrpoints for
-        available options.
-    nquad : int
-        number of quadrature points
-
-    Returns
-    -------
-    Ke : np.ndarray, shape (nels,24,24)
-        element stiffness matrix.
-
-    """
-    #
-    if len(xe.shape) == 2:
-        xe = xe[None,:,:]
-    nel = xe.shape[0]
-    #
-    if len(c.shape) == 2:
-        c = c[None,:,:]
-    #
-    x,w=get_integrpoints(ndim=3,nq=nquad,method=quadr_method)
-    nq =w.shape[0]
-    #
-    xi,eta,zeta = [_x[:,0] for _x in np.split(x, 3,axis=1)]
-    #
-    nel = xe.shape[0]
-    nq =w.shape[0]
-    #
-    B,detJ = bmatrix(xi=xi, eta=eta, zeta=zeta, xe=xe,
-                     all_elems=True,
-                     return_detJ=True)
-    detJ = detJ.reshape(nel,nq)
-    B = B.reshape(nel, nq,  B.shape[-2], B.shape[-1])
-    #
-    integral = B.transpose([0,1,3,2])@c[:,None,:,:]@B
-    # multiply by determinant and quadrature
-    return (w[None,:,None,None]*integral*detJ[:,:,None,None]).sum(axis=1)
-
 def lk_linear_elast_3d(E: float = 1, nu:float = 0.3,
                        l: np.ndarray = np.array([1.,1.,1.]), 
                        g: np.ndarray = np.array([0.,0.]),
@@ -1263,64 +1205,6 @@ def lk_linear_elast_aniso_3d(c: np.ndarray,
            -c[2,0]*l[1]/12 - c[2,0]*l[1]*l[2]*np.tan(g[1])/(9*l[0]) + c[2,4]*l[0]*l[1]/(9*l[2]) + c[2,4]*l[1]*np.tan(g[1])/6 + c[2,4]*l[1]*l[2]*np.tan(g[1])**2/(9*l[0]) + c[2,5]*l[0]/12 + c[2,5]*l[1]*np.tan(g[0])/12 + c[2,5]*l[2]*np.tan(g[1])/12 + c[2,5]*l[1]*l[2]*np.tan(g[0])*np.tan(g[1])/(9*l[0]) - c[3,0]*l[2]/12 - c[3,0]*l[1]*l[2]*np.tan(g[0])/(9*l[0]) + c[3,4]*l[0]/12 + c[3,4]*l[1]*np.tan(g[0])/12 + c[3,4]*l[2]*np.tan(g[1])/12 + c[3,4]*l[1]*l[2]*np.tan(g[0])*np.tan(g[1])/(9*l[0]) + c[3,5]*l[0]*l[2]/(9*l[1]) + c[3,5]*l[2]*np.tan(g[0])/6 + c[3,5]*l[1]*l[2]*np.tan(g[0])**2/(9*l[0]) + c[4,0]*l[1]*l[2]/(9*l[0]) - c[4,4]*l[1]/12 - c[4,4]*l[1]*l[2]*np.tan(g[1])/(9*l[0]) - c[4,5]*l[2]/12 - c[4,5]*l[1]*l[2]*np.tan(g[0])/(9*l[0]),
            c[2,1]*l[0]/12 + c[2,1]*l[1]*np.tan(g[0])/12 + c[2,1]*l[2]*np.tan(g[1])/12 + c[2,1]*l[1]*l[2]*np.tan(g[0])*np.tan(g[1])/(9*l[0]) + c[2,3]*l[0]*l[1]/(9*l[2]) + c[2,3]*l[1]*np.tan(g[1])/6 + c[2,3]*l[1]*l[2]*np.tan(g[1])**2/(9*l[0]) - c[2,5]*l[1]/12 - c[2,5]*l[1]*l[2]*np.tan(g[1])/(9*l[0]) + c[3,1]*l[0]*l[2]/(9*l[1]) + c[3,1]*l[2]*np.tan(g[0])/6 + c[3,1]*l[1]*l[2]*np.tan(g[0])**2/(9*l[0]) + c[3,3]*l[0]/12 + c[3,3]*l[1]*np.tan(g[0])/12 + c[3,3]*l[2]*np.tan(g[1])/12 + c[3,3]*l[1]*l[2]*np.tan(g[0])*np.tan(g[1])/(9*l[0]) - c[3,5]*l[2]/12 - c[3,5]*l[1]*l[2]*np.tan(g[0])/(9*l[0]) - c[4,1]*l[2]/12 - c[4,1]*l[1]*l[2]*np.tan(g[0])/(9*l[0]) - c[4,3]*l[1]/12 - c[4,3]*l[1]*l[2]*np.tan(g[1])/(9*l[0]) + c[4,5]*l[1]*l[2]/(9*l[0]),
            c[2,2]*l[0]*l[1]/(9*l[2]) + c[2,2]*l[1]*np.tan(g[1])/6 + c[2,2]*l[1]*l[2]*np.tan(g[1])**2/(9*l[0]) + c[2,3]*l[0]/12 + c[2,3]*l[1]*np.tan(g[0])/12 + c[2,3]*l[2]*np.tan(g[1])/12 + c[2,3]*l[1]*l[2]*np.tan(g[0])*np.tan(g[1])/(9*l[0]) - c[2,4]*l[1]/12 - c[2,4]*l[1]*l[2]*np.tan(g[1])/(9*l[0]) + c[3,2]*l[0]/12 + c[3,2]*l[1]*np.tan(g[0])/12 + c[3,2]*l[2]*np.tan(g[1])/12 + c[3,2]*l[1]*l[2]*np.tan(g[0])*np.tan(g[1])/(9*l[0]) + c[3,3]*l[0]*l[2]/(9*l[1]) + c[3,3]*l[2]*np.tan(g[0])/6 + c[3,3]*l[1]*l[2]*np.tan(g[0])**2/(9*l[0]) - c[3,4]*l[2]/12 - c[3,4]*l[1]*l[2]*np.tan(g[0])/(9*l[0]) - c[4,2]*l[1]/12 - c[4,2]*l[1]*l[2]*np.tan(g[1])/(9*l[0]) - c[4,3]*l[2]/12 - c[4,3]*l[1]*l[2]*np.tan(g[0])/(9*l[0]) + c[4,4]*l[1]*l[2]/(9*l[0])]])
-
-def _lf_strain_3d(xe: np.ndarray, eps: np.ndarray, c: np.ndarray,
-                  quadr_method: str = "gauss-legendre",
-                  nquad: int = 2,
-                  **kwargs: Any) -> np.ndarray:
-    """
-    Compute nodal forces on trilinear hexahedral Lagrangian element
-    (1st order) due to a uniform strain via numerical integration.
-    We assume anisotropic elasticity.
-
-    Parameters
-    ----------
-    xe : np.ndarray, shape (nels,8,3)
-        coordinates of element nodes. Please look at the
-        definition/function of the shape function, then the node ordering is
-        clear.
-    eps : np.ndarray shape (nels,6) or (6)
-        uniform strain in Voigt notation.
-    c : np.ndarray, shape (6,6)
-        stiffness tensor in Voigt notation.
-    quadr_method: str or callable
-        name of quadrature method or function/callable that returns coordinates of
-        quadrature points and weights. Check function get_integrpoints for
-        available options.
-    nquad : int
-        number of quadrature points
-
-    Returns
-    -------
-    fe : np.ndarray, shape (nels,24,1)
-        nodal forces.
-
-    """
-    #
-    if len(xe.shape) == 3:
-        xe = xe[None,:,:]
-    nel = xe.shape[0]
-    #
-    if (len(eps.shape) == 1) or (eps.shape[0] == 1):
-        eps = np.full((xe.shape[0],6), eps)
-    #
-    if len(c.shape) == 2:
-        c = c[None,:,:]
-    #
-    x,w=get_integrpoints(ndim=3,nq=nquad,method=quadr_method)
-    nq =w.shape[0]
-    #
-    xi,eta = [_x[:,0] for _x in np.split(x, 3,axis=1)]
-    #
-    B,detJ = bmatrix(xi=xi, eta=eta, xe=xe,
-                     all_elems=True,
-                     return_detJ=True)
-    detJ = detJ.reshape(nel,nq)
-    B = B.reshape(nel, nq,  B.shape[-2], B.shape[-1])
-    #
-    integral = B.transpose([0,1,3,2])@c[:,None,:,:]@eps[:,None,None,:].transpose(0,1,3,2)
-    # multiply by determinant and quadrature
-    return (w[None,:,None,None]*integral*detJ[:,:,None,None]).sum(axis=1)
 
 def lf_strain_3d(eps: np.ndarray, E: float = 1., nu: float = 0.3,
                  l: np.ndarray = np.array([1.,1.,1.]), 

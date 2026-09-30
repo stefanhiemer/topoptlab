@@ -3,7 +3,8 @@ from numpy.testing import assert_almost_equal
 
 import pytest
 
-from topoptlab.elements.linear_elasticity_2d import _lk_linear_elast_2d,lk_linear_elast_2d
+from topoptlab.elements.linear_elasticity import _lk_linear_elast
+from topoptlab.elements.linear_elasticity_2d import lk_linear_elast_2d
 from topoptlab.stiffness_tensors import isotropic_2d
 
 @pytest.mark.parametrize('Es, nus, c, xe, l, g',
@@ -34,7 +35,7 @@ def test_isotrop_linelast_2d(Es,nus,c,xe,l,g):
     Kes = stack([lk_linear_elast_2d(E=E,nu=nu,l=array([l,l]),g=array([g]))\
                  for E,nu in zip(Es,nus)])
     #
-    assert_almost_equal(_lk_linear_elast_2d(xe=xe,c=c),
+    assert_almost_equal(_lk_linear_elast(xe=xe,c=c),
                         Kes)
     return
 
@@ -71,12 +72,12 @@ def test_anisotrop_linelast_2d(c,xe,l,g):
         Kes = stack([lk_linear_elast_aniso_2d(c=c[i],l=array([l,l]),g=array([g])) \
                      for i in range(c.shape[0])])
     #
-    assert_almost_equal(_lk_linear_elast_2d(xe=xe,c=c),
+    assert_almost_equal(_lk_linear_elast(xe=xe,c=c),
                         Kes)
     return
 
 from topoptlab.stiffness_tensors import isotropic_3d
-from topoptlab.elements.linear_elasticity_3d import _lk_linear_elast_3d,lk_linear_elast_3d
+from topoptlab.elements.linear_elasticity_3d import lk_linear_elast_3d
 
 @pytest.mark.parametrize('Es, nus, cs, xe, l, g',
                          [([1.],[0.3],isotropic_3d(E=1.,nu=0.3),
@@ -112,7 +113,7 @@ def isotrop_linelast_3d(E,nu,cs,xe,l,g):
                                         l=array([l,l,l]),g=array([g,g])) \
                      for _E,_nu in zip(E,nu)])
     #
-    assert_almost_equal(_lk_linear_elast_3d(xe=xe,c=cs),
+    assert_almost_equal(_lk_linear_elast(xe=xe,c=cs),
                         Kes)
     return
 
@@ -149,6 +150,6 @@ def anisotrop_linelast_3d(cs,xe,l,g):
         Kes = stack([lk_linear_elast_aniso_3d(c=c,l=array([l,l,l]),g=array([g,g])) \
                      for c in cs])
     #
-    assert_almost_equal(_lk_linear_elast_3d(xe=xe,c=cs),
+    assert_almost_equal(_lk_linear_elast(xe=xe,c=cs),
                         Kes)
     return

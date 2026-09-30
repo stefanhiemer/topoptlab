@@ -421,11 +421,9 @@ def lagrangian_strainvar(ndim: int,
     ndim : int
         number of spatial dimensions. Must be between 1 and 3.
     F : None or symfem.functions.MatrixFunction
-        symbolic deformation gradient of shape (ndim,ndim). If not None, then 
-        all the other arguments are ignored and the strain is calculated with 
+        symbolic deformation gradient of shape (ndim,ndim). If not None, then
+        all the other arguments are ignored and the strain is calculated with
         the provided F.
-    u0 : None or symfem.functions.MatrixFunction
-        current displacements
     element_type : str
         type of element.
     order : int
@@ -434,7 +432,7 @@ def lagrangian_strainvar(ndim: int,
     Returns
     -------
     C : symfem.MatrixFunction
-        symbolic Cauchy strain of shape (ndim,ndim) 
+        symbolic Cauchy strain of shape (ndim,ndim)
 
     """
     #
@@ -445,8 +443,8 @@ def lagrangian_strainvar(ndim: int,
         F = def_grad(ndim=ndim,
                      element_type=element_type,
                      order=order)
-    return (cauchy_strain(ndim=ndim, 
-                         F=F, 
+    return (cauchy_strain(ndim=ndim,
+                         F=F,
                          element_type=element_type,
                          order=order)-eye(ndim)).__mul__(Rational(1,2))
 
@@ -480,7 +478,7 @@ def finger_strain(ndim: int,
     """
     #
     if F.shape[0] == ndim**2 and F.shape[1] == 1:
-        F = to_square(M=F,order="F")
+        F = to_square(v=F,order="F")
     #
     C = cauchy_strain(ndim=ndim,
                       F=F,
@@ -519,10 +517,10 @@ def green_strain(ndim: int,
     """
     #
     if F.shape[0] == ndim**2 and F.shape[1] == 1:
-        F = to_square(M=F,order="F")
+        F = to_square(v=F,order="F")
     #
-    F = def_grad(ndim=ndim,
-                 F=F,
-                 element_type=element_type,
-                 order=order)
+    if F is None:
+        F = def_grad(ndim=ndim,
+                     element_type=element_type,
+                     order=order)
     return simplify_matrix(F@F.transpose())

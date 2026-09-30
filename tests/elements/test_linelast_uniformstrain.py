@@ -3,7 +3,8 @@ from numpy.testing import assert_almost_equal
 
 import pytest
 
-from topoptlab.elements.linear_elasticity_2d import _lf_strain_2d,lf_strain_2d
+from topoptlab.elements.linear_elasticity import _lf_strain
+from topoptlab.elements.linear_elasticity_2d import lf_strain_2d
 from topoptlab.stiffness_tensors import isotropic_2d
 
 @pytest.mark.parametrize('eps, Es, nus, c, xe, l, g',
@@ -34,7 +35,7 @@ def test_isotrop_linelast_2d(eps,Es,nus,c,xe,l,g):
     Kes = stack([lf_strain_2d(eps=eps,E=E,nu=nu,l=array([l,l]),g=array([g]))\
                  for E,nu in zip(Es,nus)])
     #
-    assert_almost_equal(_lf_strain_2d(eps=eps,xe=xe,c=c),
+    assert_almost_equal(_lf_strain(eps=eps,xe=xe,c=c),
                         Kes)
     return
 
@@ -71,12 +72,12 @@ def test_anisotrop_linelast_2d(eps,c,xe,l,g):
         Kes = stack([lf_strain_aniso_2d(eps=eps,c=c[i],l=array([l,l]),g=array([g])) \
                      for i in range(c.shape[0])])
     #
-    assert_almost_equal(_lf_strain_2d(eps=eps,xe=xe,c=c),
+    assert_almost_equal(_lf_strain(eps=eps,xe=xe,c=c),
                         Kes)
     return
 
 from topoptlab.stiffness_tensors import isotropic_3d
-from topoptlab.elements.linear_elasticity_3d import _lf_strain_3d,lf_strain_3d
+from topoptlab.elements.linear_elasticity_3d import lf_strain_3d
 
 @pytest.mark.parametrize('eps, Es, nus, cs, xe, l, g',
                          [(array([1.,0.,0.]),[1.],[0.3],isotropic_3d(E=1.,nu=0.3),
@@ -112,10 +113,10 @@ def isotrop_linelast_3d(eps,E,nu,cs,xe,l,g):
                                   l=array([l,l,l]),g=array([g,g])) \
                      for _E,_nu in zip(E,nu)])
     #
-    assert_almost_equal(_lf_strain_3d(eps=eps,xe=xe,c=cs),
+    assert_almost_equal(_lf_strain(eps=eps,xe=xe,c=cs),
                         Kes)
     return
-    
+
 from topoptlab.elements.linear_elasticity_3d import lf_strain_aniso_3d
 
 @pytest.mark.parametrize('eps, c, xe, l, g',
@@ -148,6 +149,6 @@ def anisotrop_linelast_3d(eps,cs,xe,l,g):
         Kes = stack([lf_strain_aniso_3d(eps=eps,c=c,l=array([l,l,l]),g=array([g,g])) \
                      for c in cs])
     #
-    assert_almost_equal(_lf_strain_3d(eps=eps,xe=xe,c=cs),
+    assert_almost_equal(_lf_strain(eps=eps,xe=xe,c=cs),
                         Kes)
     return

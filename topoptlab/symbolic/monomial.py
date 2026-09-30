@@ -2,24 +2,29 @@
 from symfem.functions import MatrixFunction
 from symfem.symbols import x
 
-from topoptlab.symbolic.cell import base_cell 
+from topoptlab.symbolic.cell import base_cell
 from topoptlab.symbolic.shapefunction_matrix import shape_function_matrix
 from topoptlab.symbolic.code_conversion import convert_to_code
 from topoptlab.symbolic.parametric_map import jacobian
 from topoptlab.symbolic.matrix_utils import generate_constMatrix, simplify_matrix
 
-def monomial(mononomial_order,
-             scalarfield,
-             ndim,
-             element_type="Lagrange",
-             order=1):
+def monomial(mononomial_order: int,
+             scalarfield: bool,
+             ndim: int,
+             element_type: str = "Lagrange",
+             order: int = 1) -> MatrixFunction:
     """
-    Symbolically compute the mass matrix.
+    Symbolically compute the element matrix for the linearization of a
+    monomial nonlinear (reaction) term u^n of a scalar field u, i.e.
+
+        integral N (N^T u)^(n-1) N^T dOmega,
+
+    with n = mononomial_order.
 
     Parameters
     ----------
-    mononomial_order : int 
-        order of the monomial
+    mononomial_order : int
+        order n of the monomial term u^n.
     scalarfield : bool
         if True, assume scalarfield. If not assume vector field.
     ndim : int
@@ -31,8 +36,8 @@ def monomial(mononomial_order,
 
     Returns
     -------
-    stiffness_matrix : symfem.functions.MatrixFunction
-        symbolic stiffness matrix as list of lists .
+    monomial_matrix : symfem.functions.MatrixFunction
+        symbolic monomial matrix as list of lists.
 
     """
     if mononomial_order < 2:
@@ -68,5 +73,5 @@ if __name__ == "__main__":
         print(convert_to_code(monomial(mononomial_order=3,
                                        scalarfield=True,
                                        ndim = dim),
-                              vectors=["l"], 
+                              vectors=["l"],
                               vectors_ele=["u"]),"\n")

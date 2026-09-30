@@ -7,14 +7,15 @@ from re import sub
 from symfem.functions import MatrixFunction
 
 def convert_to_code(matrix: MatrixFunction,
-                    matrices: List = [], 
+                    matrices: List = [],
                     vectors: List = [],
-                    matrices_ele: List = [], 
+                    matrices_ele: List = [],
                     vectors_ele: List = [],
                     np_functions: List = ["cos","sin","tan","exp"],
                     npndarray: bool = False,
                     npcolumnstack: bool = True,
-                    max_line_length: int = 200) -> str:
+                    max_line_length: int = 200,
+                    indent: int = 0) -> str:
     """
     Convert the printed expression by symfem to strings that can be
     converted to code.
@@ -43,6 +44,11 @@ def convert_to_code(matrix: MatrixFunction,
     max_line_length : int
         counts number of length until first "]". If larger than the specified
         value, line breaks occur at every ",", otherwise at every "],".
+    indent : int
+        number of columns the first line will be shifted by once placed into
+        its final location (e. g. after a "    return " prefix). Continuation
+        lines are padded so they still align under the opening bracket at
+        that location instead of column 0.
 
     Returns
     -------
@@ -55,21 +61,23 @@ def convert_to_code(matrix: MatrixFunction,
     lines = symfemMatrixFunc_to_str(matrxfnc=matrix)
     #
     if npndarray:
-        lines,delta = to_npndarray(lines=lines, 
-                                   max_line_length=max_line_length)
+        lines,delta = to_npndarray(lines=lines,
+                                   max_line_length=max_line_length,
+                                   indent=indent)
     elif npcolumnstack:
-        lines,delta = to_npcolumn_stack(lines=lines, 
-                                        max_line_length=max_line_length, 
-                                        shape=matrix.shape)
+        lines,delta = to_npcolumn_stack(lines=lines,
+                                        max_line_length=max_line_length,
+                                        shape=matrix.shape,
+                                        indent=indent)
     else:
         #
         first_line = lines.split("],",1)[0]
         # add line break after every comma
         if len(first_line) > max_line_length:
-            lines = lines.replace(",",",\n")
+            lines = lines.replace(",",",\n"+" "*indent)
         # add line break after every "],"
         else:
-            lines = lines.replace("],","],\n")
+            lines = lines.replace("],","],\n"+" "*indent)
     # add numpy prefix to functions
     for npfunc in np_functions:
         lines = lines.replace(npfunc,"np."+npfunc)
@@ -85,7 +93,7 @@ def convert_to_code(matrix: MatrixFunction,
                         lines)
     # replace entries ala "c1" with corresponding array entries c[0]
     for vector in vectors:
-        lines = sub(vector + r'(\d)',
+        lines = sub(vector + r'(\d+)',
                     lambda m: vector + f'[{int(m.group(1))-1}]',
                     lines)
     if npcolumnstack:
@@ -99,8 +107,9 @@ def convert_to_code(matrix: MatrixFunction,
                         lines)
     return lines
 
-def to_npndarray(lines: List, 
-                 max_line_length: int) -> Tuple[List,int]:
+def to_npndarray(lines: List,
+                 max_line_length: int,
+                 indent: int = 0) -> Tuple[List,int]:
     """
     Convert the collected symfem string output to np.ndarray conform strings
     and formatting.
@@ -112,6 +121,10 @@ def to_npndarray(lines: List,
     max_line_length : int
         counts number of length until first "]". If larger than the specified
         value, line breaks occur at every ",", otherwise at every "],".
+    indent : int
+        number of columns the first line will be shifted by once placed into
+        its final location. Continuation lines are padded so they still
+        align under the opening bracket at that location instead of column 0.
 
     Returns
     -------
@@ -122,7 +135,7 @@ def to_npndarray(lines: List,
     #
     first_line = lines.split("],",1)[0]
     #
-    delta = len("np.array("+first_line) - len(first_line)
+    delta = indent + len("np.array("+first_line) - len(first_line)
     # add np.array
     lines = "np.array(" + lines
     lines = lines[:-1] + ")"
@@ -135,11 +148,12 @@ def to_npndarray(lines: List,
         lines = lines.replace("],","],\n"+"".join([" "]*delta))
     return lines,delta
 
-def to_npcolumn_stack(lines: List, 
-                      max_line_length: int, 
-                      shape: Tuple) -> Tuple[List,int]:
+def to_npcolumn_stack(lines: List,
+                      max_line_length: int,
+                      shape: Tuple,
+                      indent: int = 0) -> Tuple[List,int]:
     """
-    Convert the collected symfem string output to np.column_stack conform 
+    Convert the collected symfem string output to np.column_stack conform
     strings and formatting.
 
     Parameters
@@ -149,9 +163,13 @@ def to_npcolumn_stack(lines: List,
     max_line_length : int
         counts number of length until first "]". If larger than the specified
         value, line breaks occur at every ",", otherwise at every "],".
-    shape : tuple 
+    shape : tuple
         shape of elemental matrix.
-        
+    indent : int
+        number of columns the first line will be shifted by once placed into
+        its final location. Continuation lines are padded so they still
+        align under the opening bracket at that location instead of column 0.
+
     Returns
     -------
     lines : str
@@ -161,7 +179,7 @@ def to_npcolumn_stack(lines: List,
     #
     first_line = lines.split("],",1)[0]
     #
-    delta = len("np.column_stack("+first_line) - len(first_line)
+    delta = indent + len("np.column_stack("+first_line) - len(first_line)
     # add np.column_stack 
     lines = "np.column_stack((" + lines
     lines = lines[:-1] + "))"
@@ -178,6 +196,76 @@ def to_npcolumn_stack(lines: List,
     lines = lines.replace("[","")
     lines = lines.replace("]","")
     return lines,delta
+
+def wrap_function(name: str,
+                  signature: str,
+                  matrix: MatrixFunction,
+                  matrices: List = [],
+                  vectors: List = [],
+                  matrices_ele: List = [],
+                  vectors_ele: List = [],
+                  np_functions: List = ["cos","sin","tan","exp"],
+                  npndarray: bool = False,
+                  npcolumnstack: bool = True,
+                  max_line_length: int = 200,
+                  indent: str = "    ") -> str:
+    """
+    Wrap the code generated by convert_to_code into a full function
+    definition without a docstring. The signature is used verbatim, so
+    typing, defaults and **kwargs must already be included in it. Continuation
+    lines of the returned array expression are aligned exactly as they would
+    be if the raw convert_to_code output had been pasted directly after the
+    "return " keyword.
+
+    Parameters
+    ----------
+    name : str
+        name of the function.
+    signature : str
+        function signature exactly as it should appear between the
+        parentheses of the "def" statement, e. g.
+        "p: float = 1., l: np.ndarray = np.array([1.,1.]), **kwargs: Any".
+    matrix : symfem.functions.MatrixFunction
+        symfem output.
+    matrices : list
+        see convert_to_code.
+    vectors : list
+        see convert_to_code.
+    matrices_ele : list
+        see convert_to_code.
+    vectors_ele : list
+        see convert_to_code.
+    np_functions : list
+        see convert_to_code.
+    npndarray : bool
+        see convert_to_code.
+    npcolumnstack : bool
+        see convert_to_code.
+    max_line_length : int
+        see convert_to_code.
+    indent : str
+        indentation used for the function body.
+
+    Returns
+    -------
+    function_str : str
+        full function definition (no docstring) that can be copy pasted into
+        a module.
+
+    """
+    #
+    prefix = indent + "return "
+    body = convert_to_code(matrix=matrix,
+                           matrices=matrices,
+                           vectors=vectors,
+                           matrices_ele=matrices_ele,
+                           vectors_ele=vectors_ele,
+                           np_functions=np_functions,
+                           npndarray=npndarray,
+                           npcolumnstack=npcolumnstack,
+                           max_line_length=max_line_length,
+                           indent=len(prefix))
+    return f"def {name}({signature}):\n{prefix}{body}\n"
 
 def symfemMatrixFunc_to_str(matrxfnc: MatrixFunction) -> str:
     """

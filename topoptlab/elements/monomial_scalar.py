@@ -5,16 +5,16 @@ import numpy as np
 
 from topoptlab.fem import get_integrpoints
 
-def _lf_bodyforce(xe: np.ndarray,
-                  b: Union[None,np.ndarray] = None,
-                  quadr_method: str = "gauss-legendre",
-                  nquad: int = 1,
-                  shape_functions: Union[None,Callable] = None,
-                  jacobian: Union[None,Callable] = None,
-                  **kwargs: Any) -> np.ndarray:
+def _lm_monomial(xe: np.ndarray, u: np.ndarray, n: int,
+                 p: np.ndarray = np.array([1.]),
+                 quadr_method: str = "gauss-legendre",
+                 nquad: int = 3,
+                 shape_functions: Union[None,Callable] = None,
+                 jacobian: Union[None,Callable] = None,
+                 **kwargs: Any) -> np.ndarray:
     """
-    Compute nodal forces on Lagrangian elements (1st order) due to
-    bodyforce (e. g. gravity) via numerical integration.
+    Create element matrix for a monomial of a scalar field with Lagrangian
+    elements. The special case for polynomial of order 1 is the mass matrix.
 
     Parameters
     ----------
@@ -22,9 +22,12 @@ def _lf_bodyforce(xe: np.ndarray,
         coordinates of element nodes. Please look at the
         definition/function of the shape function, then the node ordering is
         clear.
-    b : np.ndarray of shape (nels,ndim) or (ndim) or None
-        density of element. If None, defaults to unit gravity in -y direction
-        (0,-1) or (0,-1,0), depending on ndim.
+    u : np.ndarray, shape (nels,n_nodes)
+        nodal scalar field variable.
+    n : int
+        polynomial order.
+    p : np.ndarray of shape (nels) or (1)
+        scalar prefactor for each element.
     quadr_method: str or callable
         name of quadrature method or function/callable that returns coordinates of
         quadrature points and weights. Check function get_integrpoints for
@@ -44,20 +47,24 @@ def _lf_bodyforce(xe: np.ndarray,
 
     Returns
     -------
-    fe : np.ndarray, shape (nels,n_nodes*ndim,1)
-        nodal forces.
+    Ke : np.ndarray, shape (nels,n_nodes,n_nodes)
+        element polynomial matrix.
 
     """
     #
-    if len(xe.shape) == 2:
-        xe = xe[None,:,:]
+    if len(xe.shape) == 2 and len(u.shape)==1:
+        xe,u = xe[None,:,:],u[None,:]
+    if len(u.shape) == 1:
+        u = u[None,:]
+    if xe.shape[0]-1 >= u.shape[0]:
+        nel = xe.shape[0]
+    else:
+        nel = u.shape[0]
     #
-    nel,n_nodes,ndim = xe.shape
+    ndim = xe.shape[-1]
     #
-    if b is None:
-        b = np.array([0.,-1.] + [0.]*(ndim-2))
-    if (len(b.shape) == 1) or (b.shape[0] == 1):
-        b = np.full((xe.shape[0],ndim), b)
+    if isinstance(p,float) or (p.shape[0] == 1 and xe.shape[0] !=1):
+        p = np.full(nel, p)
     # shape functions
     if shape_functions is None:
         if ndim == 2:
@@ -75,19 +82,19 @@ def _lf_bodyforce(xe: np.ndarray,
         else:
             raise NotImplementedError(f"only dimensions 2 and 3 implemented. current ndim {ndim}")
     #
-    x,w=  get_integrpoints(ndim=ndim, nq=nquad, method=quadr_method)
+    x,w=get_integrpoints(ndim=ndim,nq=nquad,method=quadr_method)
     nq =w.shape[0]
     #
     xi,eta,zeta = [x[:,i] for i in range(ndim)] + [None]*(3-ndim)
-    # shape functions have shape (nq,n_nodes)
-    N = np.kron(shape_functions(xi=xi, eta=eta, zeta=zeta)[:,:,None],
-                np.eye(ndim))
+    # (nq,n_nodes)
+    N = shape_functions(xi=xi,eta=eta,zeta=zeta)
+    #
+    integral = N[None,:,:,None]@N[None,:,:,None].transpose([0,1,3,2])
     # calculate determinant of jacobian
     J = jacobian(xi=xi,eta=eta,zeta=zeta,xe=xe,all_elems=True)
     detJ = np.linalg.det(J).reshape(nel,nq)
-    #
-    integral = N[None,:,:,:] @ b[:,None,None,:].transpose(0,1,3,2)
     # multiply by determinant and quadrature
-    fe = (w[None,:,None,None]*integral*detJ[:,:,None,None]).sum(axis=1)
+    factor = ((u@N.transpose())**(n-1))[:,:,None,None]
+    Ke = (w[None,:,None,None]*integral*factor*detJ[:,:,None,None]).sum(axis=1)
     #
-    return fe
+    return p[:,None,None] * Ke

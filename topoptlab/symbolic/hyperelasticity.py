@@ -63,15 +63,15 @@ def calculate_2pk(eng_density: ScalarFunction,
 
     Parameters
     ----------
-    E : None or MatrixFunction
-        Lagrangian strain in Voigt notation. 
+    eng_density : symfem.functions.ScalarFunction
+        strain energy density.
     F : None or symfem.functions.MatrixFunction
-        symbolic deformation gradient of shape (ndim,ndim). If E is None, then 
+        symbolic deformation gradient of shape (ndim,ndim). If E is None, then
         then E is calculated with the provided F.
-    c : None or MatrixFunction
-        stiffness tensor in Voigt notation.  
+    E : None or MatrixFunction
+        Lagrangian strain in Voigt notation.
     ndim : None or int
-        number of spatial dimensions. Only needed if the other two arguments 
+        number of spatial dimensions. Only needed if the other two arguments
         are None, otherwise ignored.
 
     Returns

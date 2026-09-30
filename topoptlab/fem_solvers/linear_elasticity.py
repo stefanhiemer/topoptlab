@@ -10,20 +10,14 @@ from topoptlab.elements.bilinear_quadrilateral import create_edofMat as create_e
 from topoptlab.elements.trilinear_hexahedron import create_edofMat as create_edofMat3d
 from topoptlab.elements.linear_elasticity_2d import lk_linear_elast_2d,\
                                                     lk_linear_elast_aniso_2d,\
-                                                    _lk_linear_elast_2d,\
                                                     lf_strain_2d,\
-                                                    lf_strain_aniso_2d,\
-                                                    _lf_strain_2d
+                                                    lf_strain_aniso_2d
 from topoptlab.elements.linear_elasticity_3d import lk_linear_elast_3d,\
                                                     lk_linear_elast_aniso_3d,\
-                                                    _lk_linear_elast_3d,\
                                                     lf_strain_3d,\
-                                                    lf_strain_aniso_3d,\
-                                                    _lf_strain_3d
-from topoptlab.elements.bodyforce_2d import lf_bodyforce_2d,\
-                                            _lf_bodyforce_2d
-from topoptlab.elements.bodyforce_3d import lf_bodyforce_3d,\
-                                            _lf_bodyforce_3d
+                                                    lf_strain_aniso_3d
+from topoptlab.elements.bodyforce_2d import lf_bodyforce_2d
+from topoptlab.elements.bodyforce_3d import lf_bodyforce_3d
 from topoptlab.elements.heatexpansion_2d import fk_heatexp_aniso_2d, _fk_heatexp_2d
 from topoptlab.elements.heatexpansion_3d import fk_heatexp_aniso_3d, _fk_heatexp_3d
 from topoptlab.elements.mass_vector_2d import lm_mass_2d

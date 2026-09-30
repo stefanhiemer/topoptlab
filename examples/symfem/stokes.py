@@ -18,4 +18,4 @@ if __name__ == "__main__":
         print(convert_to_code(strainforces(c=shear_viscosity(ndim=dim),
                                            ndim=dim),
                               matrices=["c"],
-                              vectors=["l","g", "eps"]),"\n") 
+                              vectors=["l","g", "eps"]),"\n")

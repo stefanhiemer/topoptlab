@@ -31,7 +31,7 @@ def principal_invariants(A: MatrixFunction) -> Tuple:
     ndim = A.shape[0]
 
     if ndim == 1:
-        return A[0, 0]
+        return (A[0, 0],)
     elif ndim == 2:
         return trace(A), A.det()
     elif ndim == 3:
@@ -66,7 +66,7 @@ def main_invariants(A: MatrixFunction) -> Tuple:
     ndim = A.shape[0]
 
     if ndim == 1:
-        return A[0, 0]
+        return (A[0, 0],)
     elif ndim == 2:
         return trace(A), A.det()
     elif ndim == 3:

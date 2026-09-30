@@ -3,7 +3,8 @@ from numpy.testing import assert_almost_equal
 
 import pytest
 
-from topoptlab.elements.poisson_2d import _lk_poisson_2d, lk_poisson_2d
+from topoptlab.elements.poisson import _lk_poisson
+from topoptlab.elements.poisson_2d import lk_poisson_2d
 
 @pytest.mark.parametrize('ks, xe, l, g',
                          [([1.],
@@ -27,7 +28,7 @@ def test_isotrop_poisson_2d(ks,xe,l,g):
     Kes = stack([lk_poisson_2d(k=k,l=array([l,l]),g=array([g])) for k in ks])
     #
     ks = array(ks)[:,None,None]*eye(2)[None,:,:]
-    assert_almost_equal(_lk_poisson_2d(xe=xe,k=ks),
+    assert_almost_equal(_lk_poisson(xe=xe,k=ks),
                         Kes)
     return
 
@@ -63,11 +64,11 @@ def test_anisotrop_poisson_2d(ks,xe,l,g):
         Kes = stack([lk_poisson_aniso_2d(k=ks[i],l=array([l,l]),g=array([g])) \
                      for i in range(ks.shape[0])])
     #
-    assert_almost_equal(_lk_poisson_2d(xe,k=ks),
+    assert_almost_equal(_lk_poisson(xe,k=ks),
                         Kes)
     return
 
-from topoptlab.elements.poisson_3d import _lk_poisson_3d,lk_poisson_3d
+from topoptlab.elements.poisson_3d import lk_poisson_3d
 
 @pytest.mark.parametrize('ks, xe, l, g',
                          [([1.],
@@ -97,7 +98,7 @@ def test_isotrop_poisson_3d(ks,xe,l,g):
     #
     ks = array(ks)[:,None,None]*eye(3)[None,:,:]
     #
-    assert_almost_equal(_lk_poisson_3d(xe,k=ks),
+    assert_almost_equal(_lk_poisson(xe,k=ks),
                         Kes)
     return
 
@@ -135,7 +136,7 @@ def test_anisotrop_poisson_3d(ks,xe,l,g):
         Kes = stack([lk_poisson_aniso_3d(k=ks[i],l=array([l,l,l]),g=array([g,g])) \
                      for i in range(ks.shape[0])])
     #
-    assert_almost_equal(_lk_poisson_3d(xe,k=ks),
+    assert_almost_equal(_lk_poisson(xe,k=ks),
                         Kes)
     return
 
@@ -150,16 +151,9 @@ def test_anisotrop_poisson_3d(ks,xe,l,g):
 def test_consist(xe):
     ndim = xe.shape[-1]
     k = stack([ eye(ndim)*(i+1) for i in range(xe.shape[0])] )
-    if ndim == 2:
-        #
-        Kes = vstack([_lk_poisson_2d(xe[i],k=k[i]) for i in range(xe.shape[0])])
-        #
-        assert_almost_equal(_lk_poisson_2d(xe,k=k),
-                            Kes)
-    elif ndim == 3:
-        #
-        Kes = vstack([_lk_poisson_3d(xe[i],k=k[i]) for i in range(xe.shape[0])])
-        #
-        assert_almost_equal(_lk_poisson_3d(xe,k=k),
-                            Kes)
+    #
+    Kes = vstack([_lk_poisson(xe[i],k=k[i]) for i in range(xe.shape[0])])
+    #
+    assert_almost_equal(_lk_poisson(xe,k=k),
+                        Kes)
     return

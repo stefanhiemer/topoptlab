@@ -7,8 +7,8 @@ from topoptlab.elements.isoparam_mapping import invjacobian, \
                                                 _collect_invjacobian
 from topoptlab.elements.check_functions import check_inputs
 
-def hessian_matrix(xi: np.ndarray, 
-                   eta: Union[None,np.ndarray], 
+def hessian_matrix(xi: np.ndarray,
+                   eta: Union[None,np.ndarray],
                    zeta: Union[None,np.ndarray],
                    xe: np.ndarray,
                    shape_functions_dxi: Union[Callable,np.ndarray],
@@ -77,12 +77,12 @@ def hessian_matrix(xi: np.ndarray,
                                all_elems=all_elems)
     # collect inverse jacobian
     Jinv,Jdet = _collect_invjacobian(xi=xi, 
-                                      eta=eta, 
-                                      xe=xe,
-                                      shape_functions_dxi=shape_functions_dxi,
-                                      invjacobian=invjacobian,  
-                                      zeta=zeta, 
-                                      return_detJ=return_detJ)
+                                     eta=eta, 
+                                     xe=xe,
+                                     shape_functions_dxi=shape_functions_dxi,
+                                     invjacobian=invjacobian,  
+                                     zeta=zeta, 
+                                     return_detJ=return_detJ)
     # collect hessian in ref. space
     B_hessian = shape_functions_hessian(xi=xi, eta=eta, zeta=zeta) 
     # apply isop. map

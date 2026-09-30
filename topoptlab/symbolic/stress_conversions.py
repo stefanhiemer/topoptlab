@@ -199,8 +199,6 @@ def pk2_to_pk1(S: MatrixFunction,
         second Piola-Kirchhoff stress tensor of shape (ndim,ndim).
     F : symfem.functions.MatrixFunction
         deformation gradient of shape (ndim,ndim).
-    Fdet : None or symfem.functions.ScalarFunction
-        determinant of deformation gradient.
 
     Returns
     -------

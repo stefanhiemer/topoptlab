@@ -220,7 +220,6 @@ def jacobian(xi: Union[float,np.ndarray],
     """
     # check coordinates and node data for consistency
     xe,xi,_,_ = check_inputs(xi=xi,xe=xe,all_elems=all_elems)
-    print(xe.shape,shape_functions_dxi(xi=xi).shape)
     return shape_functions_dxi(xi=xi).transpose([0,2,1]) @ xe
 
 def invjacobian(xi: np.ndarray, 

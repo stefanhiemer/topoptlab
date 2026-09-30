@@ -195,8 +195,8 @@ def linearize(r: MatrixFunction,
 
     Parameters
     ----------
-    r : int
-        number of spatial dimensions. Must be between 1 and 3.
+    r : symfem.functions.MatrixFunction
+        symbolic residual of shape (n_nodes,1).
     symbols : list
         list of sympy symbols.
 

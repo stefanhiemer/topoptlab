@@ -18,7 +18,7 @@ def shear_viscosity(ndim: int) -> MatrixFunction:
     """
     eta = symbols("eta")
     if ndim == 1:
-        return MatrixFunction([[E]])
+        return MatrixFunction([[eta]])
     elif ndim == 2:
         return eta*MatrixFunction([[1,0,0],
                                    [0,1,0],

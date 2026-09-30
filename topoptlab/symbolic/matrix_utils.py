@@ -942,7 +942,7 @@ def is_square(M: MatrixFunction) -> bool:
     Parameters
     ----------
     M : symfem.functions.MatrixFunction
-        matrix function. 
+        matrix function.
 
     Returns
     -------
@@ -950,6 +950,22 @@ def is_square(M: MatrixFunction) -> bool:
         True, if M is a square matrixn.
     """
     return M.shape[0] == M.shape[1]
+
+def check_square(M: MatrixFunction) -> None:
+    """
+    Raise a ValueError if MatrixFunction M is not a square matrix.
+
+    Parameters
+    ----------
+    M : symfem.functions.MatrixFunction
+        matrix function.
+
+    Returns
+    -------
+    None
+    """
+    if not is_square(M):
+        raise ValueError("M must be square. Current shape: ", M.shape)
 
 def matrix_equal(A: MatrixFunction, B: MatrixFunction) -> bool:
     """

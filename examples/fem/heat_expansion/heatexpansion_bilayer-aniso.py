@@ -13,9 +13,8 @@ from topoptlab.example_bc.lin_elast import threepointbending_2d,xcenteredbeam_2d
 from topoptlab.example_bc.heat_conduction import rectangle_2d
 # different elements/physics
 from topoptlab.stiffness_tensors import isotropic_2d, orthotropic_2d
-from topoptlab.elements.linear_elasticity_2d import _lk_linear_elast_2d
-from topoptlab.elements.linear_elasticity_3d import _lk_linear_elast_3d
-from topoptlab.elements.poisson_2d import _lk_poisson_2d
+from topoptlab.elements.linear_elasticity import _lk_linear_elast
+from topoptlab.elements.poisson import _lk_poisson
 from topoptlab.elements.poisson_3d import lk_poisson_3d
 from topoptlab.elements.heatexpansion_2d import _fk_heatexp_2d
 # generic functions for solving phys. problem
@@ -121,8 +120,8 @@ def fem_heat_expansion(nelx, nely, nelz=None,
     ks = np.tile(np.stack(ks),(nelx,1,1))
     # get element stiffness matrix and element of freedom matrix
     if ndim == 2:
-        KE = _lk_linear_elast_2d(xe=xe,c=cs)
-        KT = _lk_poisson_2d(xe=xe,k=ks)
+        KE = _lk_linear_elast(xe=xe,c=cs)
+        KT = _lk_poisson(xe=xe,k=ks)
         # infer nodal degrees of freedom assuming that we have 4/8 nodes in 2/3
         nE_ndof = int(KE.shape[-1]/4)
         nT_ndof = int(KT.shape[-1]/4)
@@ -135,7 +134,7 @@ def fem_heat_expansion(nelx, nely, nelz=None,
         TedofMat, n1, n2, n3, n4 = create_edofMat2d(nelx=nelx,nely=nely,
                                                     nnode_dof=nT_ndof)
     elif ndim == 3:
-        KE = _lk_linear_elast_3d()
+        KE = _lk_linear_elast()
         KT = lk_poisson_3d()
         # infer nodal degrees of freedom assuming that we have 4/8 nodes in 2/3
         nE_ndof = int(KE.shape[-1]/8)

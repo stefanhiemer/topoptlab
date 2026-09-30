@@ -3,62 +3,6 @@ from typing import Any
 
 import numpy as np
 
-from topoptlab.fem import get_integrpoints
-from topoptlab.elements.trilinear_hexahedron import invjacobian,shape_functions_dxi
-
-def _lk_poisson_3d(xe: np.ndarray, k: np.ndarray,
-                   quadr_method: str = "gauss-legendre",
-                   nquad: int = 2,
-                   **kwargs: Any) -> np.ndarray:
-    """
-    Create element stiffness matrix for 3D Laplacian operator with bilinear
-    quadrilateral elements. 
-    
-    Parameters
-    ----------
-    xe : np.ndarray, shape (nels,4,2)
-        coordinates of element nodes. Please look at the 
-        definition/function of the shape function, then the node ordering is 
-        clear.
-    k : np.ndarray, shape (nels,3,3) or 
-        conductivity tensor or something equivalent.
-    quadr_method: str or callable
-        name of quadrature method or function/callable that returns coordinates of 
-        quadrature points and weights. Check function get_integrpoints for 
-        available options. 
-    nquad : int
-        number of quadrature points
-        
-    Returns
-    -------
-    Ke : np.ndarray, shape (nels,8,8)
-        element stiffness matrix.
-        
-    """
-    #
-    if len(xe.shape) == 2:
-        xe = xe[None,:,:]
-    nel = xe.shape[0]
-    #
-    if len(k.shape) == 2:
-        k = k[None,:,:]
-    #
-    x,w=get_integrpoints(ndim=3,nq=nquad,method=quadr_method)
-    nq =w.shape[0]
-    #
-    xi,eta,zeta = [_x[:,0] for _x in np.split(x, 3,axis=1)]
-    #
-    Jinv,detJ = invjacobian(xi=xi,eta=eta,zeta=zeta,xe=xe,
-                            all_elems=True,return_det=True)
-    Jinv = Jinv.reshape(nel,nq,3,3)
-    detJ = detJ.reshape(nel,nq)
-    gradN = shape_functions_dxi(xi=xi,eta=eta,zeta=zeta)[None,:,:,:]@\
-            Jinv.transpose((0,1,3,2))
-    #
-    integral = gradN@k[:,None,:,:]@gradN.transpose([0,1,3,2])
-    # multiply by determinant and quadrature
-    return (w[None,:,None,None]*integral*detJ[:,:,None,None]).sum(axis=1)
-
 def lk_poisson_3d(k: float = 1.,
                   l: np.ndarray= np.array([1.,1.,1.]), 
                   g: np.ndarray = np.array([0.,0.]) ) -> np.ndarray:

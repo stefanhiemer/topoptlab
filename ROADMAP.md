@@ -1,15 +1,28 @@
+symbolic features
+- [ ] handle material properties consistently in API
+- [ ] allow direct file creation of analytic elements
+- [ ] convert integrals to common form, split common form into parts, solve in parallel, reverse substitution, simplify
+- [ ] extract prefactors from VectorFunctions and MatrixFunctions
+- [ ] for solving integrals, pass from sympy to FRICAS, integrate, pass back  
+- [ ] use quadrature rules
+
+
 features
 
 - [ ] inverse homogenization
-- [ ] stress constraints
 - [ ] multimaterial optimization
 - [ ] anisotropic / orientation variable optimization
-- [ ] anisotropic hyperelasticity
-- [ ] include Globally Convergent Method of Moving symptotes (GCMMA) into TO main
+- [ ] bodyfitted meshes e. g. via ParaView
+
+into TO main
 - [ ] unstructured meshes from GMSH
 - [ ] add aggregation functions
 
 generalizations
+- [ ] elements to same form
+- [ ] add 1d elements
+- [ ] add 1D to topology optimization
+- [ ] generalize stress constraints to arbitrary failure criteria
 - [ ] wrap different physical phenomena in FEM_Phys class
 - [ ] generalize boundary conditions
 - [ ] generalize filters to multimaterial optimization

@@ -166,8 +166,8 @@ def _choose_branch(piecewise_part) -> Expr:
     
     Parameters
     ----------
-    expression : Expr
-        sympy expression with Piecewise.
+    piecewise_part : Expr
+        sympy Piecewise expression.
 
     Returns
     -------

@@ -8,8 +8,8 @@ from topoptlab.fem_solvers.fem_solver import FEMSolver
 from topoptlab.fem import assemble_matrix, apply_bc, create_matrixinds
 from topoptlab.elements.bilinear_quadrilateral import create_edofMat as create_edofMat2d
 from topoptlab.elements.trilinear_hexahedron import create_edofMat as create_edofMat3d
-from topoptlab.elements.poisson_2d import lk_poisson_2d, _lk_poisson_2d
-from topoptlab.elements.poisson_3d import lk_poisson_3d, _lk_poisson_3d
+from topoptlab.elements.poisson_2d import lk_poisson_2d
+from topoptlab.elements.poisson_3d import lk_poisson_3d
 from topoptlab.material_interpolation import simp, simp_dx
 from topoptlab.solve_linsystem import solve_lin
 from topoptlab.log_utils import BaseLogger, EmptyLogger
@@ -449,9 +449,6 @@ class HeatEquation(FEMSolver):
                                           nelz=self.nelz,
                                           nnode_dof=1)[0]
         elif formulation == "galerkin" and not regular_mesh:
-            _lk_map = {("quadrilateral", 1): _lk_poisson_2d,
-                       ("hexahedron", 1): _lk_poisson_3d}
-            lk = _lk_map.get((element_type, order))
             raise NotImplementedError(
                 "Irregular mesh not yet supported for galerkin formulation.")
         else:

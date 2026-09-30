@@ -153,19 +153,21 @@ def hessian_matrix(scalarfield : bool,
     
     Parameters
     ----------
-    scalar_field : bool
-        if True, scalarfield is assumed. Otherwise vectorfield with ndim 
+    scalarfield : bool
+        if True, scalarfield is assumed. Otherwise vectorfield with ndim
         components.
-    ndim : int 
+    ndim : int
         number of spatial dimensions
+    integrate : bool
+        if True, integrate the Hessian matrix over the element.
     element_type : str
         type of element.
     order : int
         order of element.
-        
+
     Returns
     -------
-    B_hessian : np.ndarray, shape (ndim**3,nnodes*ndim)
+    B_hessian : symfem.functions.MatrixFunction, shape (ndim**2,n_nodes*ndim)
         matrix to create hessian matrix.
 
     """

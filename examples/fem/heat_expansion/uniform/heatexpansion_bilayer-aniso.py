@@ -8,8 +8,9 @@ from topoptlab.elements.trilinear_hexahedron import create_edofMat as create_edo
 from topoptlab.example_bc.lin_elast import selffolding_2d, selffolding_3d
 # different elements/physics
 from topoptlab.stiffness_tensors import orthotropic_2d, orthotropic_3d
-from topoptlab.elements.linear_elasticity_2d import _lk_linear_elast_2d,_lf_strain_2d
-from topoptlab.elements.linear_elasticity_3d import _lk_linear_elast_3d,_lf_strain_3d
+from topoptlab.elements.linear_elasticity import _lk_linear_elast
+from topoptlab.elements.linear_elasticity_2d import lf_strain_2d
+from topoptlab.elements.linear_elasticity_3d import lf_strain_3d
 from topoptlab.elements.bodyforce_2d import lf_bodyforce_2d
 from topoptlab.elements.bodyforce_3d import lf_bodyforce_3d
 from topoptlab.elements.heatexpansion_2d import _fk_heatexp_2d
@@ -138,7 +139,7 @@ def fem_heat_expansion(nelx, nely, nelz=None,
     # get element stiffness matrix and element of freedom matrix
     nT_ndof = 1
     if ndim == 2:
-        KE = _lk_linear_elast_2d(xe=xe,c=cs)
+        KE = _lk_linear_elast(xe=xe,c=cs)
         # infer nodal degrees of freedom assuming that we have 4/8 nodes in 2/3
         nE_ndof = int(KE.shape[-1]/4)
         # number of degrees of freedom
@@ -150,7 +151,7 @@ def fem_heat_expansion(nelx, nely, nelz=None,
         TedofMat, n1, n2, n3, n4 = create_edofMat2d(nelx=nelx,nely=nely,
                                                     nnode_dof=1)
     elif ndim == 3:
-        KE = _lk_linear_elast_3d(xe=xe,c=cs)
+        KE = _lk_linear_elast(xe=xe,c=cs)
         # infer nodal degrees of freedom assuming that we have 4/8 nodes in 2/3
         nE_ndof = int(KE.shape[-1]/8)
         # number of degrees of freedom
@@ -172,9 +173,9 @@ def fem_heat_expansion(nelx, nely, nelz=None,
         if "strain_uniform" in body_forces_kw.keys():
             # fetch functions to create body force
             if ndim == 2:
-                lf = _lf_strain_2d
+                lf = lf_strain_2d
             elif ndim == 3:
-                lf = _lf_strain_3d
+                lf = lf_strain_3d
             # calculate forces for each strain
             fe_strain = []
             if len(body_forces_kw["strain_uniform"].shape) == 1:

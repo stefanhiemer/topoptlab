@@ -21,7 +21,7 @@ def _lk_poisson(xe: np.ndarray,
         coordinates of element nodes. Please look at the
         definition/function of the shape function, then the node ordering is
         clear.
-    k : np.ndarray, shape (nels,ndim,ndim) or
+    k : np.ndarray, shape (nels,ndim,ndim) or (ndim,ndim)
         conductivity tensor or something equivalent.
     quadr_method: str or callable
         name of quadrature method or function/callable that returns coordinates of
@@ -71,7 +71,7 @@ def _lk_poisson(xe: np.ndarray,
     x,w=get_integrpoints(ndim=ndim, nq=nquad, method=quadr_method)
     nq =w.shape[0]
     #
-    xi,eta,zeta = [_x[:,0] for _x in np.split(x, 3,axis=1)]
+    xi,eta,zeta = [x[:,i] for i in range(ndim)] + [None]*(3-ndim)
     #
     Jinv,detJ = invjacobian(xi=xi, eta=eta, zeta=zeta,
                             xe=xe,

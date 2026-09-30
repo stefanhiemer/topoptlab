@@ -272,10 +272,11 @@ def shape_functions_hessian(xi: np.ndarray,
     hessian[:, :, 1, 0] = 0.25 * np.array([+1, -1, +1, -1], dtype=float)[None, :] 
     return hessian
 
-def jacobian(xi: np.ndarray, 
-             eta: np.ndarray, 
+def jacobian(xi: np.ndarray,
+             eta: np.ndarray,
              xe: np.ndarray,
-             all_elems: bool = False) -> np.ndarray:
+             all_elems: bool = False,
+             **kwargs: Any) -> np.ndarray:
     """
     Jacobian for quadratic bilinear Lagrangian element.
 
@@ -400,7 +401,8 @@ def invjacobian_rectangle(a: float, b: float) -> np.ndarray:
     return 2 * np.array([[1/a,0],[0,1/b]])
 
 def bmatrix(xi: np.ndarray, eta: np.ndarray, xe: np.ndarray,
-            all_elems: bool = False, return_detJ: bool = False
+            all_elems: bool = False, return_detJ: bool = False,
+            **kwargs: Any
             ) -> np.ndarray:
     """
     B matrix for bilinear quadrilateral Lagrangian element to calculate

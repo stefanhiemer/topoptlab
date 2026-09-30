@@ -12,7 +12,7 @@ from topoptlab.elements.trilinear_hexahedron import apply_pbc as apply_pbc3d
 # different elements/physics
 from topoptlab.elements.mass_scalar_2d import lm_mass_2d
 from topoptlab.elements.poisson_2d import lk_poisson_2d
-from topoptlab.elements.monomial_scalar_2d import _lm_monomial_2d
+from topoptlab.elements.monomial_scalar import _lm_monomial
 # generic functions for solving phys. problem
 from topoptlab.fem import assemble_matrix,apply_bc
 # boundary condition
@@ -158,7 +158,7 @@ def fem_cahn(nelx, nely, nelz=None, n_steps=10000,
     # time integration
     for step in np.arange(n_steps):
         # build the cubic part
-        Aes = _lm_monomial_2d(xe=xe,u=c[edofMat],n=3)
+        Aes = _lm_monomial(xe=xe,u=c[edofMat],n=3)
         if assembly_mode == "full":
             sA = Aes.reshape(np.prod(Aes.shape))
         AE = assemble_matrix(sK=sA,iK=iK,jK=jK,

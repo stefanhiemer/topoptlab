@@ -4,7 +4,7 @@ from numpy.testing import assert_almost_equal
 
 import pytest
 
-from topoptlab.elements.linear_elasticity_2d import _lk_linear_elast_2d,lk_linear_elast_2d,lk_linear_elast_aniso_2d
+from topoptlab.elements.linear_elasticity_2d import lk_linear_elast_2d,lk_linear_elast_aniso_2d
 from topoptlab.elements.bilinear_quadrilateral import create_edofMat as edofMat2d
 from topoptlab.elements.trilinear_hexahedron import create_edofMat as edofMat3d
 from topoptlab.fem import create_matrixinds

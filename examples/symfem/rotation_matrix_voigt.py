@@ -51,7 +51,8 @@ if __name__ == "__main__":
               for i in range(nv)]
     Rv = MatrixFunction(Rv)
     Rv = simplify_matrix(Rv)
-    print(convert_to_code(Rv,npndarray=False,
+    print(convert_to_code(Rv,
+                          npndarray=False,
                           max_line_length=100))
     with open(f"Rv_{ndim}.pickle","wb") as f:
         pickle.dump(Rv,f,protocol=5)
