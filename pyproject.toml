@@ -28,7 +28,7 @@ dependencies = ["numpy",
                 "tqdm"]
 
 [project.optional-dependencies]
-tests = ['pytest']
+tests = ['pytest', 'coverage']
 docs = [
     "sphinx>=7.0",
     "sphinx-rtd-theme>=1.3",

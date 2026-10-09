@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 from typing import Any, Callable, Dict, Tuple, Union
 from warnings import warn
+from itertools import product as iterproduct
 
 import numpy as np
 from scipy.ndimage import correlate, convolve
@@ -9,14 +10,14 @@ from topoptlab.aggregation import softmax_pnorm, softmax_pnorm_dx,\
                                   softmax_ks, softmax_ks_dx
 from topoptlab.design_analysis import baseplate_slice, baseplate_kernel
 
-def compliance(xPhys: np.ndarray, 
-               u: np.ndarray, 
-               KE: np.ndarray, 
-               edofMat: np.ndarray, 
+def compliance(xPhys: np.ndarray,
+               u: np.ndarray,
+               KE: np.ndarray,
+               edofMat: np.ndarray,
                i: int,
                matinterpol: Callable, #matinterpol_dx : Callable,
                matinterpol_kw: Dict,
-               obj: float, 
+               obj: float,
                **kwargs: Any) -> Tuple[float,np.ndarray,bool]:
     """
     Update objective and gradient for stiffness maximization / compliance
@@ -25,7 +26,7 @@ def compliance(xPhys: np.ndarray,
     Parameters
     ----------
     xPhys : np.ndarray
-        SIMP densities of shape (nel).
+        SIMP densities of shape (nel, n_mat).
     u : np.ndarray
         state variable (displacement, temperature) of shape (ndof).
     KE : np.ndarray
@@ -59,15 +60,15 @@ def compliance(xPhys: np.ndarray,
     #return obj, dc, True #
     return obj,-u[:,i:i+1], True
 
-def compliance_squarederror(xPhys: np.ndarray, 
-                            u: np.ndarray, 
+def compliance_squarederror(xPhys: np.ndarray,
+                            u: np.ndarray,
                             c0: float,
-                            KE: np.ndarray, 
-                            edofMat: np.ndarray, 
+                            KE: np.ndarray,
+                            edofMat: np.ndarray,
                             i: int,
                             matinterpol: Callable, #matinterpol_dx : Callable,
                             matinterpol_kw: Dict,
-                            obj: float, 
+                            obj: float,
                             **kwargs: Any
                             ) -> Tuple[float,np.ndarray,bool]:
     """
@@ -115,9 +116,9 @@ def compliance_squarederror(xPhys: np.ndarray,
         delta = c - c0[i]
     obj += delta**2
     #dc = 2*delta * (-1) * penal*xPhys**(penal-1)*(Amax-Amin)*ce
-    return obj, -u * (c-c0), True 
+    return obj, -u * (c-c0), True
 
-def vol_frac(xPhys: np.ndarray, 
+def vol_frac(xPhys: np.ndarray,
              el_vols: Union[None,float,np.ndarray] = None,
              col_ind: int = 0,
              **kwargs: Any) -> Tuple[float,np.ndarray,bool]:
@@ -130,10 +131,10 @@ def vol_frac(xPhys: np.ndarray,
         vol = el_vols.sum()
         return (xPhys*el_vols)[:,col_ind].sum(axis=0) / vol, el_vols/vol, None 
 
-def var_maximization(u: np.ndarray, 
-                     l: np.ndarray, 
+def var_maximization(u: np.ndarray,
+                     l: np.ndarray,
                      i: int,
-                     obj: float, 
+                     obj: float,
                      **kwargs: Any
                      ) -> Tuple[float,np.ndarray,bool]:
     """
@@ -168,13 +169,13 @@ def var_maximization(u: np.ndarray,
     obj += u[l[:,i]!=0].sum()
     return obj, l, False
 
-def var_squarederror(u: np.ndarray, 
-                     u0: np.ndarray, 
-                     l: np.ndarray, 
+def var_squarederror(u: np.ndarray,
+                     u0: np.ndarray,
+                     l: np.ndarray,
                      i: int,
-                     obj: float, 
+                     obj: float,
                      **kwargs: Any
-                     )-> Tuple[float,np.ndarray,bool]:
+                     ) -> Tuple[float,np.ndarray,bool]:
     """
     Update objective and gradient for forcing a state variable to a specific
     values at certain points. The mechanic version of this is the compliant
@@ -213,17 +214,19 @@ def var_squarederror(u: np.ndarray,
     rhs_adj[mask,0] = (-2)*(u[mask,i]-u0) / u0.shape[0]
     return obj, rhs_adj , False
 
-def _inverse_homogenization(u: np.ndarray, 
-                            u0: np.ndarray, 
-                            edofMat: np.ndarray, 
-                            i: int, 
+def _inverse_homogenization(u: np.ndarray,
+                            u0: np.ndarray,
+                            edofMat: np.ndarray,
+                            i: int,
                             j: int,
                             KE: np.ndarray,
-                            cellVolume: float, 
+                            cellVolume: float,
                             xPhys: np.ndarray,
-                            Amax, Amin, penal,
-                                        results, obj,
-                                        **kwargs):
+                            Amax, Amin, 
+                            penal,
+                            results, 
+                            obj,
+                            **kwargs: Any) -> Tuple[float,np.ndarray,bool]:
     """
     Update objective and gradient for stiffness maximization / compliance
     minimization. 
@@ -352,8 +355,8 @@ def stress_pnorm(u: np.ndarray,
         Element strain-displacement matrix.
     C_es : ndarray of shape (ne, nvoigt, nvoigt)
         Interpolated constitutive matrix for each element.
-    xPhys : np.ndarray, shape (ne, 1)
-        Physical density field.
+    xPhys : np.ndarray
+        Physical density field of shape (nel, n_mat).
     stress_vm : np.ndarray, shape (ne, 1)
         Element-wise von Mises stress.
     dsvm : np.ndarray, shape (ne, nvoigt)
@@ -464,7 +467,7 @@ def am_angle(xPhys: np.ndarray,
     Parameters
     ----------
     xPhys : np.ndarray
-        Physical element densities of shape ``(nel, 1)``.
+        Physical element densities of shape (nel, n_mat).
     p : float
         Exponent used for the smooth p-norm maximum over the supporting
         stencil.
@@ -560,7 +563,7 @@ def support(xPhys: np.ndarray,
     Parameters
     ----------
     xPhys : np.ndarray
-        Physical densities of shape ``(nel, 1)``.
+        Physical densities of shape (nel, n_mat).
     baseplate : str
         Baseplate/build direction.
     ndim : int
@@ -601,51 +604,284 @@ def support(xPhys: np.ndarray,
     #
     return np.sum(xPhys[unsupported] ** 2), dg_dx, None
 
-def generalized_stress(u: np.ndarray,
-                       i: int,
-                       edofMat: np.ndarray,
-                       B: np.ndarray,
-                       C_es: np.ndarray,
-                       xPhys: np.ndarray,
-                       stress_vm: np.ndarray,
-                       dsvm: np.ndarray,
-                       penal_sig: float,
-                       Pnorm: float,
-                       obj: float,
-                       dscale: np.ndarray,
-                       cs: np.ndarray,
-                       strain: np.ndarray,
-                       **kwargs: Any) -> Tuple[float, np.ndarray, np.ndarray, bool]:
-    #
-    stress = B@u[edofMat,i]
-    return
+def n_point_correlation(xPhys: np.ndarray,
+                        rcut: Union[None,float],
+                        invmapping: Callable,
+                        mapping: Callable,
+                        n: int = 3,
+                        iso: Union[bool,np.ndarray] = True,
+                        **kwargs: Any) -> Tuple[np.ndarray, np.ndarray, None]:
+    """
+    n-point correlation function of the density field. For material
+    indices ``(c_0,...,c_{n-1})`` and lag vector ``d``,
 
-def twopoint(xPhys: np.ndarray, 
-             shift: Tuple,
-             invmapping: Callable,
-             mapping: Callable, 
-             **kwargs: Any
-             ) -> Tuple[float, np.ndarray, np.ndarray]:
+        S_n^{c_0...c_{n-1}}(d) = < x_{c_0}(r) * x_{c_1}(r+d) * ... *
+                                    x_{c_{n-1}}(r+(n-1)*d) >_r,
+
+    averaged periodically (``np.roll``) and aggregated over every lag
+    vector ``d`` with ``0 < |d| <= rcut`` (or the whole grid if ``rcut`` is
+    None). Returns the full tensor over material combinations, shape
+    ``(n_mat,)*n``; reducing it to a scalar objective (e.g. by summing
+    specific combinations, or a p-norm) is the job of a separate function.
+
+    Parameters
+    ----------
+    xPhys : np.ndarray
+        Physical densities of shape (nel, n_mat).
+    rcut : None or float
+        cut-off radius beyond which correlation is not calculated. If None,
+        correlation is calculated across the entire sample.
+    invmapping : Callable
+        Map image/voxel arrays back to element layout.
+    mapping : Callable
+        Map element arrays to image/voxel layout.
+    n : int
+        order of the correlation function. Must be >= 3 (use
+        :func:`two_point_correlation` for n=2).
+    iso : bool or np.ndarray
+        if True, assume a statistically isotropic medium (one lag vector
+        per point-group symmetry orbit, weighted by orbit size); if False,
+        weight every lag vector equally; or an explicit per-lag-vector
+        weight array.
+
+    Returns
+    -------
+    n_point_correlation : np.ndarray, shape (n_mat,)*n
+        n point correlation tensor, one entry per material combination.
+    n_point_correlation_dx : np.ndarray, shape (n_mat,)*n + (nel,n_mat)
+        derivative of each entry of the n point correlation tensor with
+        respect to element volume fractions.
+    None
+        No adjoint right-hand side.
+
+    """
+    #
+    if n < 3:
+        raise ValueError(f"n must be >= 3. Current n: {n}")
     #
     x = mapping(xPhys)
-    ndim = len(x.shape)-1
+    ndim = len(x.shape) - 1
+    n_mat = x.shape[-1]
+    axes = tuple(range(ndim))
+    shape = x.shape[:ndim]
+    # candidate lag vectors (excluding the zero vector)
+    if rcut is None:
+        # 
+        ranges = [range(s) for s in shape]
+    else:
+        r = int(np.floor(rcut))
+        ranges = [range(-r, r+1) for _ in range(ndim)]
+    lags = [d for d in iterproduct(*ranges) if any(d)]
+    if rcut is not None:
+        lags = [d for d in lags if np.linalg.norm(d) <= rcut]
+    if len(lags) == 0:
+        raise ValueError(f"rcut={rcut} excludes every non-zero lag vector on this grid.")
     #
-    if ndim != len(shift):
-        raise ValueError("shift must have length == dim.", 
-                         "Current length: ")
-    S2 = np.mean(x * np.roll(x, 
-                             shift, 
-                             axis=tuple([0,1,2][:ndim])))
+    if isinstance(iso, bool) and iso:
+        # one representative per symmetry orbit weighted by orbit size.
+        if rcut is None:
+            signed = lambda d: tuple(c if c <= s//2 else c-s for c,s in zip(d,shape))
+        else:
+            signed = lambda d: d
+        orbits = {}
+        for d in lags:
+            key = tuple(sorted(abs(c) for c in signed(d)))
+            orbits.setdefault(key, []).append(d)
+        lags = [orbit[0] for orbit in orbits.values()]
+        weights = np.array([len(orbit) for orbit in orbits.values()], 
+                           dtype=float)
+    elif isinstance(iso, bool):
+        weights = np.ones(len(lags))
+    else:
+        weights = np.asarray(iso, dtype=float)
+        if weights.shape[0] != len(lags):
+            raise ValueError("iso must have one weight per generated lag vector: "
+                             f"{len(lags)}. Current length: {weights.shape[0]}")
+    weights = weights / weights.sum()
+    #
+    combos = list(iterproduct(range(n_mat), repeat=n))
+    value = np.zeros((n_mat,)*n)
+    grad = np.zeros(shape + (n_mat,)*n + (n_mat,))
+    for d, w in zip(lags, weights):
+        # shifted[j](r) = x(r + j*d)
+        shifted = [np.roll(x,
+                           tuple(-j*c for c in d),
+                           axis=axes) for j in range(n)]
+        for combo in combos:
+            factors = [shifted[k][...,combo[k]] for k in range(n)]
+            # prefix[k] = prod_{j<k} factors[j]; suffix[k] = prod_{j>k} factors[j]
+            prefix = [np.ones(shape)]
+            for k in range(n-1):
+                prefix.append(prefix[-1] * factors[k])
+            suffix = [np.ones(shape)]
+            for k in range(n-1, 0, -1):
+                suffix.append(suffix[-1] * factors[k])
+            suffix.reverse()
+            #
+            term = prefix[-1] * factors[-1]
+            value[combo] += w * term.mean()
+            # d S_n^{combo}(d) / dx(s,c) = sum_{k: combo[k]==c}
+            #                              roll(prod_{j!=k} shifted[j][...,combo[j]], k*d)
+            for k in range(n):
+                other = prefix[k] * suffix[k]
+                grad[(...,)+combo+(combo[k],)] += w * np.roll(other,
+                                                               tuple(k*c for c in d),
+                                                               axis=axes)
+    #
+    grad = np.moveaxis(invmapping(grad/np.prod(shape)), 0, n)
+    #
+    return value, grad, None
 
-    # derivative of S2 wrt x
-    grad = (np.roll(x, 
-                    shift, 
-                    axis=tuple([0,1,2][:ndim])) +
-            np.roll(x, 
-                    tuple(-s for s in shift), 
-                    axis=tuple([0,1,2][:ndim]))) / x.size 
-    
-    return S2, grad, None
+def two_point_correlation(xPhys: np.ndarray,
+                          rcut: Union[None,float],
+                          invmapping: Callable,
+                          mapping: Callable,
+                          iso: Union[bool,np.ndarray] = True,
+                          **kwargs: Any) -> Tuple[np.ndarray, np.ndarray, None]:
+    """
+    Two-point correlation tensor (the ``n=2`` case of
+    :func:`n_point_correlation`, computed without looping over lag vectors):
+
+    - ``rcut=None``: via FFT (Wiener-Khinchin), with ``W`` the lag weight
+      map (same shape as the grid):
+
+          y_c(r)    = IFFT( conj(FFT(W)) * FFT(x_c) )(r)
+          conv_c(r) = IFFT( FFT(x_c) * FFT(W) )(r)
+
+      value[c0,c1] = mean_r[ x_{c0}(r) * y_{c1}(r) ] / sum(W); ``conv_c``
+      is the adjoint of ``y_c`` used for the gradient.
+    - ``rcut`` a float: via ``scipy.ndimage.correlate`` with a small kernel
+      holding the per-lag weight,
+
+          mean_r[ x_{c0}(r) * correlate(x_{c1}, weights=kernel, mode="wrap")(r) ],
+
+      with ``convolve`` as the adjoint for the gradient.
+
+    ``iso`` as in :func:`n_point_correlation`, except a custom array must be
+    a full weight map (shape of the grid for ``rcut=None``, or
+    ``(2*floor(rcut)+1,)*ndim`` for finite ``rcut``) rather than a per-lag
+    list.
+
+    Parameters
+    ----------
+    xPhys : np.ndarray
+        Physical densities of shape (nel, n_mat).
+    rcut : None or float
+        cut-off radius beyond which correlation is not calculated. If None,
+        correlation is calculated across the entire sample via FFT.
+    invmapping : Callable
+        Map image/voxel arrays back to element layout.
+    mapping : Callable
+        Map element arrays to image/voxel layout.
+    iso : bool or np.ndarray
+        whether to assume a statistically isotropic medium, or an explicit
+        weight map to use instead (see above for its required shape).
+
+    Returns
+    -------
+    two_point_correlation : np.ndarray, shape (n_mat,n_mat)
+        two point correlation tensor, one entry per material combination.
+    two_point_correlation_dx : np.ndarray, shape (n_mat,n_mat,nel,n_mat)
+        derivative of each entry of the two point correlation tensor with
+        respect to element volume fractions.
+    None
+        No adjoint right-hand side.
+
+    """
+    #
+    x = mapping(xPhys)
+    ndim = len(x.shape) - 1
+    n_mat = x.shape[-1]
+    axes = tuple(range(ndim))
+    shape = x.shape[:ndim]
+    #
+    if rcut is None:
+        # fft
+        if isinstance(iso, bool) and iso:
+            ranges = [range(s) for s in shape]
+            orbits = {}
+            for d in iterproduct(*ranges):
+                if not any(d):
+                    continue
+                signed = tuple(c if c <= s//2 else c-s for c,s in zip(d,shape))
+                key = tuple(sorted(abs(c) for c in signed))
+                orbits.setdefault(key, []).append(d)
+            W = np.zeros(shape)
+            for orbit in orbits.values():
+                W[orbit[0]] = len(orbit)
+        elif isinstance(iso, bool):
+            W = np.ones(shape)
+            W[(0,)*ndim] = 0.
+        else:
+            W = np.asarray(iso, dtype=float)
+            if W.shape != shape:
+                raise ValueError(f"iso must be a weight map of shape {shape}. "
+                                 f"Current shape: {W.shape}")
+        Wsum = W.sum()
+        if Wsum == 0:
+            raise ValueError("The lag-vector weight map is all zero.")
+        # x and W are real-valued, so rfftn/irfftn.
+        X = [np.fft.rfftn(x[...,c], axes=axes) for c in range(n_mat)]
+        FW = np.fft.rfftn(W, axes=axes)
+        # y[...,c] = CORR(x_c,W)(r) = sum_d W(d)*x_c(r+d)
+        y = np.stack([np.fft.irfftn(np.conj(FW)*X[c], s=shape, axes=axes)
+                      for c in range(n_mat)], axis=-1)
+        # conv[...,c] = CONV(x_c,W)(r) = sum_r' x_c(r')*W(r-r')
+        conv = np.stack([np.fft.irfftn(X[c]*FW, s=shape, axes=axes)
+                         for c in range(n_mat)], axis=-1)
+        norm = np.prod(shape) * Wsum
+    else:
+        # 
+        r = int(np.floor(rcut))
+        ranges = [range(-r, r+1) for _ in range(ndim)]
+        lags = [d for d in iterproduct(*ranges) if any(d)]
+        lags = [d for d in lags if np.linalg.norm(d) <= rcut]
+        if len(lags) == 0:
+            raise ValueError(f"rcut={rcut} excludes every non-zero lag vector on this grid.")
+        #
+        ksize = 2*r+1
+        if isinstance(iso, bool) and iso:
+            orbits = {}
+            for d in lags:
+                key = tuple(sorted(abs(c) for c in d))
+                orbits.setdefault(key, []).append(d)
+            use_lags = [orbit[0] for orbit in orbits.values()]
+            w = np.array([len(orbit) for orbit in orbits.values()], dtype=float)
+        elif isinstance(iso, bool):
+            use_lags = lags
+            w = np.ones(len(lags))
+        else:
+            kernel = np.asarray(iso, dtype=float)
+            if kernel.shape != (ksize,)*ndim:
+                raise ValueError(f"iso must be a kernel of shape {(ksize,)*ndim}. "
+                                 f"Current shape: {kernel.shape}")
+            use_lags = None
+        if use_lags is not None:
+            kernel = np.zeros((ksize,)*ndim)
+            for d, wd in zip(use_lags, w):
+                kernel[tuple(dc+r for dc in d)] = wd
+        Wsum = kernel.sum()
+        if Wsum == 0:
+            raise ValueError("The lag-vector weight kernel is all zero.")
+        #
+        y = np.stack([correlate(x[...,c], weights=kernel, mode="wrap")
+                      for c in range(n_mat)], axis=-1)
+        conv = np.stack([convolve(x[...,c], weights=kernel, mode="wrap")
+                         for c in range(n_mat)], axis=-1)
+        norm = np.prod(shape) * Wsum
+    #
+    value = np.zeros((n_mat,n_mat))
+    # spatial axes leading (for invmapping), then (c0,c1) combo axes, then
+    # material-at-s last, matching the layout used in n_point_correlation.
+    grad_img = np.zeros(shape + (n_mat,n_mat) + (n_mat,))
+    for c0 in range(n_mat):
+        for c1 in range(n_mat):
+            value[c0,c1] = (x[...,c0]*y[...,c1]).sum() / norm
+            grad_img[...,c0,c1,c0] += y[...,c1] / norm
+            grad_img[...,c0,c1,c1] += conv[...,c0] / norm
+    grad = np.moveaxis(invmapping(grad_img), 0, 2)
+    #
+    return value, grad, None
 
 if __name__ == "__main__":
 

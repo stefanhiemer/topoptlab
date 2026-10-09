@@ -18,13 +18,17 @@ from topoptlab.symbolic.parametric_map import jacobian
 def advection(ndim: int, 
               v: Union[None,MatrixFunction] = None,
               element_type: str = "Lagrange",
+              velocity: bool = False,
               order: int = 1) -> MatrixFunction:
     """
-    Symbolically compute the advection matrix given velocity field v 
+    Symbolically compute the advection matrix given velocity field v
     
-    nabla^T @ K(phi) @ nabla phi,
+     v.T @ nabla phi,
     
-    of a scalar field phi.
+    of a scalar field phi. If velocity is True, we instead compute the weak form needed
+    for solving for the velocity
+
+       (nabla phi).T@phi
 
     Parameters
     ----------
@@ -49,8 +53,10 @@ def advection(ndim: int,
                                                element_type=element_type,
                                                order=order)
     #
-    if v is None:
+    if v is None and not velocity:
         v = generate_constMatrix(ncol=1, nrow=ndim*len(basis), name="v")
+    else:
+        phi = generate_constMatrix(ncol=1, nrow=len(basis), name="phi")
     # shape functions for scalar field phi
     N = shape_function_matrix(basis=basis,nedof=1,mode="col")
     # shape functions for velocities
@@ -60,8 +66,11 @@ def advection(ndim: int,
                           return_J=False, return_inv=True, return_det=True)
     gradN = VectorFunction(basis).grad(ndim)@Jinv.transpose()
     #
-    integrand = N@v.transpose()@N_v@gradN.transpose() * Jdet
-    return simplify_matrix(integrate(M=integrand,
+    if velocity:
+        integrand = N@phi.transpose()@gradN@N_v.transpose()
+    else:
+        integrand = N@v.transpose()@N_v@gradN.transpose()
+    return simplify_matrix(integrate(M=integrand*Jdet,
                                      domain=ref,
                                      variables=x,
                                      dummy_vars=t,

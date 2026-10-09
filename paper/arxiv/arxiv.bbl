@@ -1,0 +1,209 @@
+\begin{thebibliography}{24}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Aln{\ae}s et~al.(2014)Aln{\ae}s, Logg, {\O}lgaard, Rognes, and
+  Wells]{alnaes2014unified}
+Martin~S Aln{\ae}s, Anders Logg, Kristian~B {\O}lgaard, Marie~E Rognes, and
+  Garth~N Wells.
+\newblock Unified form language: A domain-specific language for weak
+  formulations of partial differential equations.
+\newblock \emph{ACM Transactions on Mathematical Software (TOMS)}, 40\penalty0
+  (2):\penalty0 1--37, 2014.
+\newblock \doi{10.1145/2566630}.
+
+\bibitem[Andersen et~al.(2020)Andersen, Dahl, and
+  Vandenberghe]{andersen2020cvxopt}
+Martin Andersen, Joachim Dahl, and Lieven Vandenberghe.
+\newblock Cvxopt: Convex optimization.
+\newblock \emph{Astrophysics Source Code Library}, pages ascl--2008, 2020.
+\newblock URL \url{https://cvxopt.org}.
+
+\bibitem[Andreassen and Andreasen(2014)]{andreassen2014determine}
+Erik Andreassen and Casper~Schousboe Andreasen.
+\newblock How to determine composite material properties using numerical
+  homogenization.
+\newblock \emph{Computational Materials Science}, 83:\penalty0 488--495, 2014.
+\newblock \doi{10.1016/j.commatsci.2013.09.006}.
+
+\bibitem[Andreassen et~al.(2011)Andreassen, Clausen, Schevenels, Lazarov, and
+  Sigmund]{andreassen2011efficient}
+Erik Andreassen, Anders Clausen, Mattias Schevenels, Boyan~S Lazarov, and Ole
+  Sigmund.
+\newblock Efficient topology optimization in matlab using 88 lines of code.
+\newblock \emph{Structural and Multidisciplinary Optimization}, 43\penalty0
+  (1):\penalty0 1--16, 2011.
+\newblock \doi{10.1007/s00158-010-0594-7}.
+
+\bibitem[Arndt et~al.(2021)Arndt, Bangerth, Davydov, Heister, Heltai,
+  Kronbichler, Maier, Pelteret, Turcksin, and Wells]{arndt2021deal}
+Daniel Arndt, Wolfgang Bangerth, Denis Davydov, Timo Heister, Luca Heltai,
+  Martin Kronbichler, Matthias Maier, Jean-Paul Pelteret, Bruno Turcksin, and
+  David Wells.
+\newblock The {deal.II} finite element library: Design, features, and insights.
+\newblock \emph{Computers \& Mathematics with Applications}, 81:\penalty0
+  407--422, 2021.
+\newblock \doi{10.1016/j.camwa.2020.02.022}.
+
+\bibitem[Baratta et~al.(2023)Baratta, Dean, Dokken, Habera, HALE, Richardson,
+  Rognes, Scroggs, Sime, and Wells]{baratta2023dolfinx}
+Igor~A Baratta, Joseph~P Dean, J{\o}rgen~S Dokken, Michal Habera, Jack HALE,
+  Chris~N Richardson, Marie~E Rognes, Matthew~W Scroggs, Nathan Sime, and
+  Garth~N Wells.
+\newblock Dolfinx: the next generation fenics problem solving environment.
+\newblock 2023.
+\newblock \doi{10.5281/zenodo.10447666}.
+
+\bibitem[Bendsoe and Sigmund(2003)]{bendsoe2003topology}
+Martin~Philip Bendsoe and Ole Sigmund.
+\newblock \emph{Topology optimization: theory, methods, and applications}.
+\newblock Springer Science \& Business Media, 2003.
+\newblock \doi{10.1007/978-3-662-05086-6}.
+
+\bibitem[Bruns and Tortorelli(2001)]{bruns2001topology}
+Tyler~E Bruns and Daniel~A Tortorelli.
+\newblock Topology optimization of non-linear elastic structures and compliant
+  mechanisms.
+\newblock \emph{Computer methods in applied mechanics and engineering},
+  190\penalty0 (26-27):\penalty0 3443--3459, 2001.
+\newblock \doi{10.1016/S0045-7825(00)00278-4}.
+
+\bibitem[Deetman(2025)]{deetman2024gcmma}
+Arjen Deetman.
+\newblock Gcmma-mma-python: Python implementation of the method of moving
+  asymptotes, May 2025.
+\newblock URL \url{https://doi.org/10.5281/zenodo.15459165}.
+
+\bibitem[Ferrari and Sigmund(2020)]{ferrari2020new}
+Federico Ferrari and Ole Sigmund.
+\newblock A new generation 99 line {M}atlab code for compliance topology
+  optimization and its extension to 3d.
+\newblock \emph{Structural and Multidisciplinary Optimization}, 62\penalty0
+  (4):\penalty0 2211--2228, 2020.
+\newblock \doi{10.1007/s00158-020-02629-w}.
+
+\bibitem[Guest et~al.(2004)Guest, Pr{\'e}vost, and
+  Belytschko]{guest2004achieving}
+James~K Guest, Jean~H Pr{\'e}vost, and Ted Belytschko.
+\newblock Achieving minimum length scale in topology optimization using nodal
+  design variables and projection functions.
+\newblock \emph{International journal for numerical methods in engineering},
+  61\penalty0 (2):\penalty0 238--254, 2004.
+\newblock \doi{10.1002/nme.1064}.
+
+\bibitem[Langelaar(2017)]{langelaar2017additive}
+Matthijs Langelaar.
+\newblock An additive manufacturing filter for topology optimization of
+  print-ready designs.
+\newblock \emph{Structural and multidisciplinary optimization}, 55:\penalty0
+  871--883, 2017.
+\newblock \doi{10.1007/s00158-016-1522-2}.
+
+\bibitem[Malinen and R{\aa}back(2013)]{malinen2013elmer}
+Mika Malinen and Peter R{\aa}back.
+\newblock Elmer finite element solver for multiphysics and multiscale problems.
+\newblock \emph{Multiscale modelling methods for applications in material
+  science}, 19:\penalty0 101--113, 2013.
+\newblock No DOI found.
+
+\bibitem[Scroggs(2021)]{scroggs2021symfem}
+Matthew~W Scroggs.
+\newblock Symfem: a symbolic finite element definition library.
+\newblock \emph{Journal of Open Source Software}, 6\penalty0 (64):\penalty0
+  3556, 2021.
+\newblock \doi{10.21105/joss.03556}.
+
+\bibitem[Scroggs et~al.(2022{\natexlab{a}})Scroggs, Baratta, Richardson, and
+  Wells]{scroggs2022basix}
+Matthew~W Scroggs, Igor~A Baratta, Chris~N Richardson, and Garth~N Wells.
+\newblock Basix: a runtime finite element basis evaluation library.
+\newblock \emph{Journal of Open Source Software}, 7\penalty0 (73):\penalty0
+  3982, 2022{\natexlab{a}}.
+\newblock \doi{10.21105/joss.03982}.
+
+\bibitem[Scroggs et~al.(2022{\natexlab{b}})Scroggs, Dokken, Richardson, and
+  Wells]{scroggs2022construction}
+Matthew~W Scroggs, J{\o}rgen~S Dokken, Chris~N Richardson, and Garth~N Wells.
+\newblock Construction of arbitrary order finite element degree-of-freedom maps
+  on polygonal and polyhedral cell meshes.
+\newblock \emph{ACM Transactions on Mathematical Software (TOMS)}, 48\penalty0
+  (2):\penalty0 1--23, 2022{\natexlab{b}}.
+\newblock \doi{10.1145/3524456}.
+
+\bibitem[Sigmund(1997)]{sigmund1997design}
+Ole Sigmund.
+\newblock On the design of compliant mechanisms using topology optimization.
+\newblock \emph{Journal of Structural Mechanics}, 25\penalty0 (4):\penalty0
+  493--524, 1997.
+\newblock \doi{10.1080/08905459708945415}.
+
+\bibitem[Sigmund(2001)]{sigmund200199}
+Ole Sigmund.
+\newblock A 99 line topology optimization code written in {M}atlab.
+\newblock \emph{Structural and multidisciplinary optimization}, 21\penalty0
+  (2):\penalty0 120--127, 2001.
+\newblock \doi{10.1007/s001580050176}.
+
+\bibitem[Sigmund(2007)]{sigmund2007morphology}
+Ole Sigmund.
+\newblock Morphology-based black and white filters for topology optimization.
+\newblock \emph{Structural and Multidisciplinary Optimization}, 33:\penalty0
+  401--424, 2007.
+\newblock \doi{10.1007/s00158-006-0087-x}.
+
+\bibitem[Svanberg(1987)]{svanberg1987}
+Krister Svanberg.
+\newblock The method of moving asymptotes—a new method for structural
+  optimization.
+\newblock \emph{International journal for numerical methods in engineering},
+  24\penalty0 (2):\penalty0 359--373, 1987.
+\newblock \doi{10.1002/nme.1620240207}.
+
+\bibitem[Svanberg(2002)]{svanberg2002class}
+Krister Svanberg.
+\newblock A class of globally convergent optimization methods based on
+  conservative convex separable approximations.
+\newblock \emph{SIAM journal on optimization}, 12\penalty0 (2):\penalty0
+  555--573, 2002.
+\newblock \doi{10.1137/S1052623499362822}.
+
+\bibitem[Virtanen et~al.(2020)Virtanen, Gommers, Oliphant, Haberland, Reddy,
+  Cournapeau, Burovski, Peterson, Weckesser, Bright, {van der Walt}, Brett,
+  Wilson, Millman, Mayorov, Nelson, Jones, Kern, Larson, Carey, Polat, Feng,
+  Moore, {VanderPlas}, Laxalde, Perktold, Cimrman, Henriksen, Quintero, Harris,
+  Archibald, Ribeiro, Pedregosa, {van Mulbregt}, and {SciPy 1.0
+  Contributors}]{2020SciPy-NMeth}
+Pauli Virtanen, Ralf Gommers, Travis~E. Oliphant, Matt Haberland, Tyler Reddy,
+  David Cournapeau, Evgeni Burovski, Pearu Peterson, Warren Weckesser, Jonathan
+  Bright, St{\'e}fan~J. {van der Walt}, Matthew Brett, Joshua Wilson, K.~Jarrod
+  Millman, Nikolay Mayorov, Andrew R.~J. Nelson, Eric Jones, Robert Kern, Eric
+  Larson, C~J Carey, {\.I}lhan Polat, Yu~Feng, Eric~W. Moore, Jake
+  {VanderPlas}, Denis Laxalde, Josef Perktold, Robert Cimrman, Ian Henriksen,
+  E.~A. Quintero, Charles~R. Harris, Anne~M. Archibald, Ant{\^o}nio~H. Ribeiro,
+  Fabian Pedregosa, Paul {van Mulbregt}, and {SciPy 1.0 Contributors}.
+\newblock {SciPy} 1.0: Fundamental algorithms for scientific computing in
+  {P}ython.
+\newblock \emph{Nature Methods}, 17:\penalty0 261--272, 2020.
+\newblock \doi{10.1038/s41592-019-0686-2}.
+
+\bibitem[Wang et~al.(2021)Wang, Zhao, Zhou, Sigmund, and
+  Zhang]{wang2021comprehensive}
+Chao Wang, Zhi Zhao, Ming Zhou, Ole Sigmund, and Xiaojia~Shelly Zhang.
+\newblock A comprehensive review of educational articles on structural and
+  multidisciplinary optimization.
+\newblock \emph{Structural and Multidisciplinary Optimization}, 64\penalty0
+  (5):\penalty0 2827--2880, 2021.
+\newblock \doi{10.1007/s00158-021-03050-7}.
+
+\bibitem[Xu et~al.(2010)Xu, Cai, and Cheng]{xu2010volume}
+Shengli Xu, Yuanwu Cai, and Gengdong Cheng.
+\newblock Volume preserving nonlinear density filter based on heaviside
+  functions.
+\newblock \emph{Structural and Multidisciplinary Optimization}, 41\penalty0
+  (4):\penalty0 495--505, 2010.
+\newblock \doi{10.1007/s00158-009-0452-7}.
+
+\end{thebibliography}

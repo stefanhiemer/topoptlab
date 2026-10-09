@@ -6,6 +6,9 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
 
   tests:
@@ -24,7 +27,22 @@ jobs:
       - run: python -m pip install -U pip
       # If you have heavy/optional native deps, keep CI lean:
       - run: pip install .[tests]
-      - name: Pytest (exclude slow)
+      - name: Pytest (exclude slow) with coverage
         env:
           TOPOPTLAB_SKIP_HEAVY: "1"
-        run: pytest -q -m "not slow" --maxfail=1 --disable-warnings
+        run: coverage run -m pytest -q -m "not slow" --maxfail=1 --disable-warnings
+      - name: Update coverage badge in README
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          PCT=$(coverage report --format=total 2>/dev/null)
+          if [ "$PCT" -ge 80 ]; then COLOR=brightgreen
+          elif [ "$PCT" -ge 50 ]; then COLOR=yellow
+          else COLOR=red
+          fi
+          sed -i -E "s#(coverage-)[0-9]+(%25-)[a-z]+#\1${PCT}\2${COLOR}#" README.md
+          if ! git diff --quiet -- README.md; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git commit -am "docs: update coverage badge to ${PCT}% [skip ci]" -- README.md
+            git push
+          fi
