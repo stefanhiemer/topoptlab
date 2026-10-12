@@ -5,11 +5,11 @@ import numpy as np
 
 from topoptlab.optimizer.stepsize import barzilai_borwein_short
 
-def gradient_descent(x: np.ndarray, 
-                     dobj: np.ndarray, 
-                     xmin: Union[float,np.ndarray], 
-                     xmax: Union[float,np.ndarray], 
-                     xold: Union[None,np.ndarray] = None, 
+def gradient_descent(x: np.ndarray,
+                     dobj: np.ndarray,
+                     xmin: Union[float,np.ndarray],
+                     xmax: Union[float,np.ndarray],
+                     xold: Union[None,np.ndarray] = None,
                      dobjold: Union[None,np.ndarray] = None,
                      stepsize_func: Callable = barzilai_borwein_short,
                      stepsize_kw: Dict = {},
