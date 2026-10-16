@@ -1,130 +1,194 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
+from typing import Any, Union
 import numpy as np
+from scipy.sparse import issparse, sparray, spmatrix
 
-
-def bc_correction(f: np.ndarray,
-                  dx: float,
-                  ax: int,
-                  neumann_mask_lo: np.ndarray,
-                  flux_lo: np.ndarray,
-                  neumann_mask_hi: np.ndarray,
-                  flux_hi: np.ndarray) -> np.ndarray:
+def laplacian_bc(L: np.ndarray,
+                 phi: Union[None,np.ndarray] = None,
+                 free: Union[None,np.ndarray] = None,
+                 fixed: Union[None,np.ndarray] = None,
+                 dirichlet_inds: Union[None,np.ndarray] = None,
+                 dirichlet_vals: Union[None,np.ndarray] = None,
+                 neumann_inds: Union[None,np.ndarray] = None,
+                 neumann_vals: Union[None,np.ndarray] = None,
+                 robin_inds: Union[None,np.ndarray] = None,
+                 robin_alpha: Union[None,np.ndarray] = None,
+                 robin_beta: Union[None,np.ndarray] = None,
+                 **kwargs: Any) -> np.ndarray:
     """
-    Neumann boundary correction for a finite-difference Laplacian along one axis.
-
-    The ghost-point construction df/dn = g gives f_{-1} = f_1 - 2*dx*g, which
-    adds a correction -2*g/dx at the low boundary and +2*g/dx at the high
-    boundary. Only entries where the mask is True are corrected.
+    Apply boundary conditions to a Laplacian field.
 
     Parameters
     ----------
-    f : np.ndarray
-        function values on the full grid.
-    dx : float
-        lattice spacing.
-    ax : int
-        axis along which the correction is applied.
-    neumann_mask_lo : np.ndarray
-        boolean mask on the low boundary face (shape of f with axis ax removed).
-    flux_lo : np.ndarray
-        prescribed flux df/dn at the low boundary face, same shape as mask.
-    neumann_mask_hi : np.ndarray
-        boolean mask on the high boundary face, same shape as mask.
-    flux_hi : np.ndarray
-        prescribed flux df/dn at the high boundary face, same shape as mask.
+    L : np.ndarray
+        Laplacian values computed with periodic boundary conditions,
+        same shape as the field.
+    phi : np.ndarray
+        scalar field, same shape as L. Only needed for Robin bc.
+    free : None or np.ndarray
+        boolean mask, same shape as L, True where no bc is applied.
+    fixed : None or np.ndarray
+        boolean mask, same shape as L, True at zero-Dirichlet nodes.
+    dirichlet_inds : None or np.ndarray
+        boolean mask, same shape as L, True at prescribed-value Dirichlet nodes.
+    dirichlet_vals : None or np.ndarray
+        prescribed values, same shape as L.
+    neumann_inds : None or np.ndarray
+        boolean mask, same shape as L, True at Neumann boundary nodes.
+    neumann_vals : None or np.ndarray
+        flux correction values (-2*g/dx), same shape as L.
+    robin_inds : None or np.ndarray
+        boolean mask, same shape as L, True at Robin boundary nodes.
+    robin_alpha : None or np.ndarray
+        field coefficient (-2*a/(b*dx)), same shape as L.
+    robin_beta : None or np.ndarray
+        constant term (2*g/(b*dx)), same shape as L.
 
     Returns
     -------
-    correction : np.ndarray shape same as f
-        correction array to be added to the Laplacian.
+    L : np.ndarray
+        Laplacian values with corrected boundary conditions.
     """
-    correction = np.zeros_like(f)
-    idx_lo = [slice(None)] * f.ndim
-    idx_lo[ax] = 0
-    idx_lo = tuple(idx_lo)
-    idx_hi = [slice(None)] * f.ndim
-    idx_hi[ax] = -1
-    idx_hi = tuple(idx_hi)
-    correction[idx_lo] -= (2.0 / dx) * np.where(neumann_mask_lo, flux_lo, 0.0)
-    correction[idx_hi] += (2.0 / dx) * np.where(neumann_mask_hi, flux_hi, 0.0)
-    return correction
+    # fixed: zero out so those nodes do not update during time-stepping
+    if fixed is not None:
+        L[fixed] = 0.
+    # dirichlet: zero out at prescribed DOFs (caller enforces u = dirichlet_vals)
+    if dirichlet_inds is not None:
+        L[dirichlet_inds] = 0.
+    # neumann: add flux correction at boundary DOFs
+    if neumann_inds is not None and neumann_vals is not None:
+        L[neumann_inds] += neumann_vals[neumann_inds]
+    # robin: a*u + b*du/dn = g  →  correction = alpha*phi + beta
+    # with alpha = -2*a/(b*dx), beta = 2*g/(b*dx)
+    if robin_inds is not None and robin_alpha is not None and robin_beta is not None:
+        L[robin_inds] += robin_alpha[robin_inds] * phi[robin_inds] + robin_beta[robin_inds]
+    return L
 
+def gradient_1d(f: np.ndarray,
+                dx: float) -> np.ndarray:
+    """
+    Gradient operator in 1D on even spaced line with periodic boundary conditions.
+    Discretization is done via central difference.
+
+    Parameters
+    ----------
+    f : np.ndarray shape (ngrid_x) or (ngrid_x,n_channel)
+        function values.
+    dx : float
+        lattice spacing.
+
+    Returns
+    -------
+    grad : np.ndarray shape (ngrid_x,1) or (ngrid_x,n_channel,1)
+        gradient values.
+    """
+    return np.stack([np.roll(f, -1, axis=0) - np.roll(f, 1, axis=0)], axis=-1) / (2 * dx)
+
+
+def gradient_2d(f: np.ndarray,
+                dx: float) -> np.ndarray:
+    """
+    Gradient operator in 2D on rectangular even spaced grid with periodic
+    boundary conditions. Discretization is done via central difference.
+
+    Parameters
+    ----------
+    f : np.ndarray shape (ngrid_y,ngrid_x) or (ngrid_y,ngrid_x,n_channel)
+        function values.
+    dx : float
+        lattice spacing.
+
+    Returns
+    -------
+    grad : np.ndarray shape (ngrid_y,ngrid_x,2) or (ngrid_y,ngrid_x,n_channel,2)
+        gradient values.
+    """
+    return np.stack([np.roll(f, -1, axis=0) - np.roll(f, 1, axis=0),
+                     np.roll(f, -1, axis=1) - np.roll(f, 1, axis=1)], axis=-1) / (2 * dx)
+
+
+def gradient_3d(f: np.ndarray,
+                dx: float) -> np.ndarray:
+    """
+    Gradient operator in 3D on rectangular even spaced grid with periodic
+    boundary conditions. Discretization is done via central difference.
+
+    Parameters
+    ----------
+    f : np.ndarray shape (ngrid_z,ngrid_y,ngrid_x) or (ngrid_z,ngrid_y,ngrid_x,n_channel)
+        function values.
+    dx : float
+        lattice spacing.
+
+    Returns
+    -------
+    grad : np.ndarray shape (ngrid_z,ngrid_y,ngrid_x,3) or (ngrid_z,ngrid_y,ngrid_x,n_channel,3)
+        gradient values.
+    """
+    return np.stack([np.roll(f, -1, axis=0) - np.roll(f, 1, axis=0),
+                     np.roll(f, -1, axis=1) - np.roll(f, 1, axis=1),
+                     np.roll(f, -1, axis=2) - np.roll(f, 1, axis=2)], axis=-1) / (2 * dx)
+
+
+def laplacian_1d(f: np.ndarray,
+                 dx: float) -> np.ndarray:
+    """
+    Laplacian operator in 1D on even spaced line with periodic boundary conditions.
+    Discretization is done via central difference.
+
+    Parameters
+    ----------
+    f : np.ndarray shape (ngrid_x) or (ngrid_x,n_channel)
+        function values.
+    dx : float
+        lattice spacing
+
+    Returns
+    -------
+    L : np.ndarray shape (ngrid_x) or (ngrid_x,n_channel)
+        Laplacian values.
+    """
+    return (np.roll(f, 1, axis=0) + np.roll(f, -1, axis=0) - 2*f) / dx**2
 
 def laplacian_2d(f: np.ndarray,
-                 dx: float,
-                 pbc: np.ndarray = None) -> np.ndarray:
+                 dx: float) -> np.ndarray:
     """
-    Laplacian operator in 2D on rectangular even spaced grid.
-    Discretization is done via central difference.
+    Laplacian operator in 2D on rectangular even spaced grid with periodic boundary
+    conditions. Discretization is done via central difference.
 
     Parameters
     ----------
-    f : np.ndarray 
-        function values shape (ngrid_x,ngrid_y).
+    f : np.ndarray shape (ngrid_y,ngrid_x) or (ngrid_y,ngrid_x,n_channel)
+        function values.
     dx : float
-        lattice spacing.
-    pbc : np.ndarray shape (2,), optional
-        boolean array indicating periodic boundary conditions per axis.
-        Defaults to [True, True]. For axes where pbc is False, zero-flux
-        Neumann boundary conditions are applied.
+        lattice spacing
 
     Returns
     -------
-    laplacian : np.ndarray shape (ngrid_x,ngrid_y)
-        laplacian values.
+    L : np.ndarray shape (ngrid_y,ngrid_x) or (ngrid_y,ngrid_x,n_channel)
+        Laplacian values.
     """
-    if pbc is None:
-        pbc = [True, True]
-    result = np.zeros_like(f)
-    for ax in range(2):
-        f_fwd = np.roll(f, 1, axis=ax)
-        f_bwd = np.roll(f, -1, axis=ax)
-        if not pbc[ax]:
-            idx_lo = [slice(None), slice(None)]
-            idx_lo[ax] = 0
-            idx_hi = [slice(None), slice(None)]
-            idx_hi[ax] = -1
-            f_fwd[tuple(idx_lo)] = f[tuple(idx_lo)]
-            f_bwd[tuple(idx_hi)] = f[tuple(idx_hi)]
-        result += f_fwd + f_bwd - 2 * f
-    return result / dx**2
-
+    return (np.roll(f, 1, axis=0) + np.roll(f, -1, axis=0) +\
+            np.roll(f, 1, axis=1) + np.roll(f, -1, axis=1) - 4*f) / dx**2
 
 def laplacian_3d(f: np.ndarray,
-                 dx: float,
-                 pbc: np.ndarray = None) -> np.ndarray:
+                 dx: float) -> np.ndarray:
     """
-    Laplacian operator in 3D on rectangular even spaced grid.
-    Discretization is done via central difference.
+    Laplacian operator in 3D on rectangular even spaced grid with periodic boundary
+    conditions. Discretization is done via central difference.
 
     Parameters
     ----------
-    f : np.ndarray 
-        function values shape (ngrid_x,ngrid_y,ngrid_z).
+    f : np.ndarray shape (ngrid_z,ngrid_y,ngrid_x) or (ngrid_z,ngrid_y,ngrid_x,n_channel)
+        function values.
     dx : float
-        lattice spacing.
-    pbc : np.ndarray shape (3,), optional
-        boolean array indicating periodic boundary conditions per axis.
-        Defaults to [True, True, True]. For axes where pbc is False, zero-flux
-        Neumann boundary conditions are applied.
+        lattice spacing
 
     Returns
     -------
-    laplacian : np.ndarray 
-        laplacian values shape (ngrid_x,ngrid_y,ngrid_z).
+    L : np.ndarray shape (ngrid_z,ngrid_y,ngrid_x) or (ngrid_z,ngrid_y,ngrid_x,n_channel)
+        Laplacian values.
     """
-    if pbc is None:
-        pbc = [True, True, True]
-    result = np.zeros_like(f)
-    for ax in range(3):
-        f_fwd = np.roll(f, 1, axis=ax)
-        f_bwd = np.roll(f, -1, axis=ax)
-        if not pbc[ax]:
-            idx_lo = [slice(None), slice(None), slice(None)]
-            idx_lo[ax] = 0
-            idx_hi = [slice(None), slice(None), slice(None)]
-            idx_hi[ax] = -1
-            f_fwd[tuple(idx_lo)] = f[tuple(idx_lo)]
-            f_bwd[tuple(idx_hi)] = f[tuple(idx_hi)]
-        result += f_fwd + f_bwd - 2 * f
-    return result / dx**2
+    return (np.roll(f, 1, axis=0) + np.roll(f, -1, axis=0) +\
+            np.roll(f, 1, axis=1) + np.roll(f, -1, axis=1) +\
+            np.roll(f, 1, axis=2) + np.roll(f, -1, axis=2) - 6*f) / dx**2

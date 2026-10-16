@@ -1,11 +1,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from functools import partial
 from typing import Callable, Dict
 
 import numpy as np
 import matplotlib.pyplot as plt
 
-from topoptlab.fdm import laplacian_2d, laplacian_3d
+from topoptlab.fdm import laplacian_1d, laplacian_2d, laplacian_3d, laplacian_bc
 from topoptlab.optimizer.gradient_descent import gradient_descent
 from topoptlab.log_utils import SimpleLogger
 from topoptlab.utils import default_outputkw
@@ -53,6 +52,49 @@ def analytic_c_t(ndim: int,
     elif ndim == 3:
         return np.tile(c_t_1d[:, None, None], (1, grid_size, grid_size))
 
+
+def apply_finite_bc(L: np.ndarray,
+                    phi: np.ndarray,
+                    dx: float,
+                    neumann_mask: np.ndarray,
+                    bc_pairs: list) -> np.ndarray:
+    """
+    Correct a PBC Laplacian for zero-flux Neumann BCs at arbitrary boundary nodes.
+
+    Iterates over faces; for each face the correction
+
+        nv[face_mask] += (phi[face_mask] - phi[ghost_coords][face_mask]) / dx²
+
+    cancels the wrong PBC ghost and substitutes the zero-flux one.  Iterating
+    per face means corner nodes accumulate one correction per incident face.
+
+    Parameters
+    ----------
+    L : np.ndarray
+        Laplacian computed with periodic boundary conditions.
+    phi : np.ndarray
+        scalar field at the same time step as L, same shape as L.
+    dx : float
+        lattice spacing.
+    neumann_mask : np.ndarray, bool, same shape as phi
+        True at every boundary node across all faces.
+    bc_pairs : list of (face_mask, ghost_coords)
+        face_mask  — bool array, same shape as phi, True on this face only.
+        ghost_coords — tuple of ndim int arrays, each same shape as phi,
+                       giving the index of the PBC ghost node for each position.
+
+    Returns
+    -------
+    L : np.ndarray
+        Laplacian with zero-flux Neumann corrections applied.
+    """
+    nv = np.zeros_like(phi)
+    for face_mask, ghost_coords in bc_pairs:
+        nv[face_mask] += (phi[face_mask] -
+                          phi[tuple(gc[face_mask] for gc in ghost_coords)]) / dx**2
+    return laplacian_bc(L,
+                        neumann_inds=neumann_mask,
+                        neumann_vals=nv)
 
 def heat_eq_fdm(ndim: int = 2,
                 grid_size: int = 128,
@@ -121,11 +163,26 @@ def heat_eq_fdm(ndim: int = 2,
     if cfl >= 1 / (2 * ndim):
         log.info("WARNING: CFL condition violated, explicit scheme is unstable.")
     # fetch laplacian operator
-    pbc = ndim * [False]
-    if ndim == 2:
-        laplacian = partial(laplacian_2d, pbc=pbc)
+    if ndim == 1:
+        laplacian = laplacian_1d
+    elif ndim == 2:
+        laplacian = laplacian_2d
     elif ndim == 3:
-        laplacian = partial(laplacian_3d, pbc=pbc)
+        laplacian = laplacian_3d
+    # precompute per-face (face_mask, ghost_coords) pairs for zero-flux Neumann
+    shape = ndim * [grid_size]
+    base_coords = list(np.indices(shape))   # ndim arrays, each shape (grid_size,)*ndim
+    neumann_mask = np.zeros(shape, dtype=bool)
+    bc_pairs = []
+    for ax in range(ndim):
+        for face, ghost_val in ((0, grid_size - 1), (grid_size - 1, 0)):
+            face_mask = np.zeros(shape, dtype=bool)
+            sl = [slice(None)] * ndim; sl[ax] = face; face_mask[tuple(sl)] = True
+            neumann_mask |= face_mask
+            ghost_coords = list(base_coords)
+            ghost_c = base_coords[ax].copy(); ghost_c[face_mask] = ghost_val
+            ghost_coords[ax] = ghost_c
+            bc_pairs.append((face_mask, tuple(ghost_coords)))
     # design variable: scalar diffusion coefficient
     D = np.array([[D0]], dtype=dtype)
     dobj = np.zeros((1, 1), dtype=dtype)
@@ -153,7 +210,8 @@ def heat_eq_fdm(ndim: int = 2,
         dobj[:] = 0.
         # forward time-stepping
         for step in np.arange(n_steps):
-            c[step + 1] = c[step] + dt * D[0, 0] * laplacian(f=c[step], dx=dx)
+            L = apply_finite_bc(laplacian(f=c[step], dx=dx), c[step], dx, neumann_mask, bc_pairs)
+            c[step + 1] = c[step] + dt * D[0, 0] * L
         # plot
         if display and ndim == 2:
             img_c.set_array(c[-1])
@@ -165,8 +223,8 @@ def heat_eq_fdm(ndim: int = 2,
         h = (2. / N) * r
         # adjoint loop (backpropagate from t_obs to 0)
         for nt in np.arange(t_obs - 1, -1, -1):
-            dobj[0, 0] += dt * (h * laplacian(f=c[nt], dx=dx)).sum()
-            h = h + dt * D[0, 0] * laplacian(f=h, dx=dx)
+            dobj[0, 0] += dt * (h * apply_finite_bc(laplacian(f=c[nt], dx=dx), c[nt], dx, neumann_mask, bc_pairs)).sum()
+            h = h + dt * D[0, 0] * apply_finite_bc(laplacian(f=h, dx=dx), h, dx, neumann_mask, bc_pairs)
         # gradient descent step
         Dnew = gradient_descent(x=D.flatten(),
                                 dobj=dobj.flatten(),
@@ -185,7 +243,6 @@ def heat_eq_fdm(ndim: int = 2,
     #
     plt.close()
     return c[-1], D[0, 0], D_hist
-
 
 if __name__ == "__main__":
     import sys

@@ -86,7 +86,66 @@ def generate_constMatrix(ncol: int, nrow: int, name: str,
         return MatrixFunction(M)
     else:
         return MatrixFunction(M), symbol_list
-    
+
+def full(ncol: int, nrow: int,
+         fill_value: Union[int,float],
+         ) -> MatrixFunction:
+    """
+    Generate matrix with all entries equal to fill_value.
+
+    Parameters
+    ----------
+    ncol : int
+        number of columns.
+    nrow : int
+        number of rows.
+    fill_value : int or float
+        entry of each element
+
+    Returns
+    -------
+    M : symfem.functions.MatrixFunction
+        symfem MatrixFunction filled with fill_value].
+
+    """
+    return MatrixFunction([[fill_value for _ in range(ncol)] for _ in range(nrow)])
+
+def zeros(ncol: int, nrow: int) -> MatrixFunction:
+    """
+    Generate matrix of zeros.
+
+    Parameters
+    ----------
+    ncol : int
+        number of columns.
+    nrow : int
+        number of rows.
+
+    Returns
+    -------
+    M : symfem.functions.MatrixFunction
+        symfem MatrixFunction filled with zeros.
+    """
+    return full(ncol=ncol, nrow=nrow, fill_value=0)
+
+def ones(ncol: int, nrow: int) -> MatrixFunction:
+    """
+    Generate matrix of ones.
+
+    Parameters
+    ----------
+    ncol : int
+        number of columns.
+    nrow : int
+        number of rows.
+
+    Returns
+    -------
+    M : symfem.functions.MatrixFunction
+        symfem MatrixFunction filled with ones.
+    """
+    return full(ncol=ncol, nrow=nrow, fill_value=1)
+
 def generate_FunctMatrix(ncol: int, nrow: int, name: str,
                          variables: List,
                          symmetric: bool = False,
