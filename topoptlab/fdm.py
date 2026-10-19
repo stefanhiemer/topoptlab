@@ -130,6 +130,72 @@ def gradient_3d(f: np.ndarray,
                      np.roll(f, -1, axis=2) - np.roll(f, 1, axis=2)], axis=-1) / (2 * dx)
 
 
+def divergence_1d(v: np.ndarray,
+                  dx: float) -> np.ndarray:
+    """
+    Divergence operator in 1D on even spaced line with periodic boundary conditions.
+    Discretization is done via central difference.
+
+    Parameters
+    ----------
+    v : np.ndarray shape (ngrid_x,1)
+        vector field values.
+    dx : float
+        lattice spacing.
+
+    Returns
+    -------
+    div : np.ndarray shape (ngrid_x)
+        divergence values.
+    """
+    return (np.roll(v[..., 0], -1, axis=0) - np.roll(v[..., 0], 1, axis=0)) / (2 * dx)
+
+
+def divergence_2d(v: np.ndarray,
+                  dx: float) -> np.ndarray:
+    """
+    Divergence operator in 2D on rectangular even spaced grid with periodic
+    boundary conditions. Discretization is done via central difference.
+
+    Parameters
+    ----------
+    v : np.ndarray shape (ngrid_y,ngrid_x,2)
+        vector field values.
+    dx : float
+        lattice spacing.
+
+    Returns
+    -------
+    div : np.ndarray shape (ngrid_y,ngrid_x)
+        divergence values.
+    """
+    return ((np.roll(v[..., 0], -1, axis=0) - np.roll(v[..., 0], 1, axis=0)) +
+            (np.roll(v[..., 1], -1, axis=1) - np.roll(v[..., 1], 1, axis=1))) / (2 * dx)
+
+
+def divergence_3d(v: np.ndarray,
+                  dx: float) -> np.ndarray:
+    """
+    Divergence operator in 3D on rectangular even spaced grid with periodic
+    boundary conditions. Discretization is done via central difference.
+
+    Parameters
+    ----------
+    v : np.ndarray shape (ngrid_z,ngrid_y,ngrid_x,3)
+        vector field values.
+    dx : float
+        lattice spacing.
+
+    Returns
+    -------
+    div : np.ndarray shape (ngrid_z,ngrid_y,ngrid_x)
+        divergence values.
+    """
+    return ((np.roll(v[..., 0], -1, axis=0) - np.roll(v[..., 0], 1, axis=0)) +
+            (np.roll(v[..., 1], -1, axis=1) - np.roll(v[..., 1], 1, axis=1)) +
+            (np.roll(v[..., 2], -1, axis=2) - np.roll(v[..., 2], 1, axis=2))) / (2 * dx)
+
+
 def laplacian_1d(f: np.ndarray,
                  dx: float) -> np.ndarray:
     """
