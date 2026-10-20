@@ -351,6 +351,8 @@ def main(nelx: int, nely: int,
     if output_kw["profile"]:
         profiler = Profile() 
         profiler.enable()
+    if problems is None:
+        problems = []
     # extract linear solver and preconditioner
     if isinstance(lin_solver_kw, dict):
         lin_solver_kw = len(problems)*[lin_solver_kw]
@@ -417,11 +419,12 @@ def main(nelx: int, nely: int,
                                  **design_parameterization_kw)
     # initialize problem solvers now that logger and mesh dims are known
     # canonicalize bcs 
-    problems = initialize_problems(problems=problems, 
-                                   bcs=bcs, 
-                                   mesh_kw=mesh_kw, 
-                                   solver_kw=solver_kw,
-                                   logger=log)
+    if problems:
+        problems = initialize_problems(problems=problems,
+                                       bcs=bcs,
+                                       mesh_kw=mesh_kw,
+                                       solver_kw=solver_kw,
+                                       logger=log)
     # precompute prescribed-element masks for filter policy corrections
     passive_mask, active_mask, prescribed_mask = None, None, None
     if el_flags is not None:
@@ -472,15 +475,23 @@ def main(nelx: int, nely: int,
     # prepare FEM data structures
     ### this later needs to get deleted
     # mesh/DOF info pulled from the first solver — all setup was done at construction
-    if isinstance(problems[0], ProblemSolver):
-        _solver0 = problems[0]  
-    else: 
-        _solver0 = problems[0][0]
-    f = _solver0.f        # load vector shape drives adj and load-case loop
-    free = _solver0.free     # needed for self-adjoint branch
-    KE = _solver0._KE0    # forwarded to obj_func
-    edofMat = _solver0.edofMat  # forwarded to obj_func
-    u = np.zeros_like(f) # placeholder; overwritten from state each iteration
+    if problems:
+        if isinstance(problems[0], ProblemSolver):
+            _solver0 = problems[0]
+        else:
+            _solver0 = problems[0][0]
+        f = _solver0.f        # load vector shape drives adj and load-case loop
+        free = _solver0.free     # needed for self-adjoint branch
+        KE = _solver0._KE0    # forwarded to obj_func
+        edofMat = _solver0.edofMat  # forwarded to obj_func
+        u = np.zeros_like(f) # placeholder; overwritten from state each iteration
+    else:
+        _solver0 = None
+        f = np.zeros((0, 1))
+        free = None
+        KE = None
+        edofMat = None
+        u = None
     #
     if solver_coupling is None:
         solver_coupling = ["weak"] * len(problems)
@@ -556,22 +567,26 @@ def main(nelx: int, nely: int,
         # solve FEM, calculate obj. func. and gradients.
         ### solve physical problems
         parameters["xPhys"] = xPhys
-        state = solver_loop(problems,
-                            state,
-                            ntimesteps=1,
-                            coupling=solver_coupling,
-                            parameters=parameters,
-                            solver_kw=solver_kw,
-                            lin_solver_kw=lin_solver_kw,
-                            preconditioner_kw=preconditioner_kw,
-                            interpol_kw=interpol_kw,
-                            logger=log)
-        u = state[_solver0.fieldname]
-        Kes = _solver0._terms["Kes"]
+        if problems:
+            state = solver_loop(problems,
+                                state,
+                                ntimesteps=1,
+                                coupling=solver_coupling,
+                                parameters=parameters,
+                                solver_kw=solver_kw,
+                                lin_solver_kw=lin_solver_kw,
+                                preconditioner_kw=preconditioner_kw,
+                                interpol_kw=interpol_kw,
+                                logger=log)
+            u = state[_solver0.fieldname]
+            Kes = _solver0._terms["Kes"]
+        else:
+            Kes = None
         #
-        for i in range(f.shape[1]): 
-            log.debug("FEM: it.: {0}, problem: {1}, min. u: {2:.12f}, med. u: {3:.12f}, max. u: {4:.12f}".format(
-                    loop,i,np.min(u[:,i]),np.median(u[:,i]),np.max(u[:,i])))
+        if problems:
+            for i in range(f.shape[1]):
+                log.debug("FEM: it.: {0}, problem: {1}, min. u: {2:.12f}, med. u: {3:.12f}, max. u: {4:.12f}".format(
+                        loop,i,np.min(u[:,i]),np.median(u[:,i]),np.max(u[:,i])))
         # objective and sensitivities with regards to object
         obj = 0
         dobj[:] = 0.
@@ -980,15 +995,14 @@ def main(nelx: int, nely: int,
     # export design
     if output_kw["export"]:
         #
-        nodal_variables = {"u": u, 
-                           "f": f}
+        nodal_variables = {"u": u, "f": f} if _solver0 is not None else {}
         #
         springs = None
         if springs is not None:
             spring_array = np.zeros((u.shape[0],1))
             spring_array[springs[0],0] = springs[1]
             nodal_variables["springs"] = spring_array
-        if "l" in obj_kw.keys() and obj_kw["l"].shape[0] == u.shape[0]:
+        if _solver0 is not None and "l" in obj_kw.keys() and obj_kw["l"].shape[0] == u.shape[0]:
             nodal_variables["l_obj"] = obj_kw["l"]
         #
         element_variables={"el_flags": el_flags, 
