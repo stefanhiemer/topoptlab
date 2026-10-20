@@ -67,7 +67,7 @@ def sensitivity_propagation(dobj: np.ndarray,
         Constraint sensitivities w.r.t. design variables.
     """
 
-    if isinstance(ft, list):
+    if isinstance(ft, list) and len(ft) != 0:
         #
         if ft[-1].filter_objective:
             dobj[:] = ft[-1].apply_filter_dx(x=x if len(ft)==1 else xTilde[-1],
@@ -96,13 +96,14 @@ def sensitivity_propagation(dobj: np.ndarray,
                                               x_filtered=xTilde[i],
                                               dx_filtered=dconstrs[:,ft[i].constraint_filter_mask],
                                               **filter_kw)
+    elif isinstance(ft, list) and len(ft) == 0:
+        pass
     else:
-        raise ValueError(f"No filter applied. ft: {ft}")
+        raise ValueError(f"Invalid filter. ft: {ft}")
     # backward filter policy: zero sensitivities at prescribed elements
     if el_flags_policy is not None and el_flags_policy["correct_backward"]:
         dobj[prescribed_mask] = 0.
         dconstrs[prescribed_mask] = 0.
-
     return dobj, dconstrs
 
 def filter_design_variables(x: np.ndarray,
@@ -161,7 +162,7 @@ def filter_design_variables(x: np.ndarray,
     xPhys : np.ndarray, shape (n, k)
         Updated physical densities.
     """
-    if isinstance(ft, list):
+    if isinstance(ft, list) and len(ft) != 0:
         if len(ft) > 1:
             xTilde[0] = ft[0].apply_filter(x=x,
                                            **filter_kw)
@@ -185,6 +186,8 @@ def filter_design_variables(x: np.ndarray,
         for _f in ft:
             if _f.changes_filter_kw:
                 _f.update_filter_kw(filter_kw)
+    elif isinstance(ft, list) and len(ft) == 0:
+        xPhys = x.copy()
     else:
         raise TypeError(f"ft should be a list at this point: {type(ft)}")
     # forward filter policy: restore prescribed densities after filtering

@@ -54,6 +54,8 @@ def fetch_filters(ft : int,
         filters = [DensityFilter,
                    LangelaarFilter,
                    EtaProjectorXu2010]
+    elif ft == -1:
+        filters = []
     else:
         raise NotImplementedError("Unknown ft code: ", ft)
     #

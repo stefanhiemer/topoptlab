@@ -883,6 +883,149 @@ def two_point_correlation(xPhys: np.ndarray,
     #
     return value, grad, None
 
+def two_point_correlation_squarederror(
+        xPhys: np.ndarray,
+        S2_target: np.ndarray,
+        rcut: Union[None, float],
+        invmapping: Callable,
+        mapping: Callable,
+        iso: Union[bool, np.ndarray] = True,
+        **kwargs: Any) -> Tuple[float, np.ndarray, None]:
+    """
+    Squared-error objective for matching a target two-point correlation.
+
+    Minimises ||S2(xPhys) - S2_target||_F^2 where S2 is computed via
+    :func:`two_point_correlation`.  Returns ``self_adj = None`` so the driver
+    adds ``dobj`` directly without solving an adjoint problem.
+
+    Parameters
+    ----------
+    xPhys : np.ndarray
+        Physical densities of shape (nel, n_mat).
+    S2_target : np.ndarray
+        Target two-point correlation tensor of shape (n_mat, n_mat).
+    rcut : None or float
+        Cut-off radius passed through to :func:`two_point_correlation`.
+    invmapping : Callable
+        Map image/voxel arrays back to element layout.
+    mapping : Callable
+        Map element arrays to image/voxel layout.
+    iso : bool or np.ndarray
+        Isotropy flag / weight map passed to :func:`two_point_correlation`.
+
+    Returns
+    -------
+    obj : float
+        Frobenius squared error ||S2 - S2_target||^2.
+    dobj : np.ndarray, shape (nel, n_mat)
+        Gradient with respect to physical densities.
+    None
+        Signals that no adjoint solve is needed.
+    """
+    S2, dS2_dxPhys, _ = two_point_correlation(xPhys, rcut, invmapping, mapping, iso=iso)
+    delta = S2 - S2_target
+    obj = float(np.sum(delta ** 2))
+    # dobj[e, c] = 2 * sum_{c0,c1} delta[c0,c1] * dS2[c0,c1,e,c]
+    dobj = 2. * np.einsum('ij,ijkl->kl', delta, dS2_dxPhys)
+    return obj, dobj, None
+
+
+def two_point_correlation_image_squarederror(
+        xPhys: np.ndarray,
+        S2_target: np.ndarray,
+        invmapping: Callable,
+        mapping: Callable,
+        **kwargs: Any) -> Tuple[float, np.ndarray, None]:
+    """
+    Squared-error objective for matching a target two-point correlation image.
+
+    The two-point correlation at lag **d** is
+
+        S2[c0,c1](**d**) = (1/N) * sum_r  x_{c0}(**r**) * x_{c1}(**r** + **d**)
+
+    computed via the Wiener-Khinchin theorem (FFT of the power spectrum).
+    The lag d=0 is excluded from the objective because S2[c,c](0) = phi_c is
+    already controlled by the volume-fraction constraint.
+
+    Parameters
+    ----------
+    xPhys : np.ndarray
+        Physical densities of shape (nel, n_mat).
+    S2_target : np.ndarray
+        Target autocorrelation image.  Accepted shapes:
+
+        * ``(ny, nx)`` or ``(ny, nx, nz)``  — treated as the single (0,0)
+          entry for n_mat=1.
+        * ``(ny, nx, n_mat, n_mat)`` (2-D grid) or the 3-D equivalent —
+          full material pair tensor.
+
+        The spatial layout follows the FFT convention: index (0,...,0) is
+        lag **d**=0, index (i,...) is lag **d**=(i,...) with wrap-around, so
+        negative lags appear at the end of each axis.
+    invmapping : Callable
+        Map image/voxel arrays back to element layout.
+    mapping : Callable
+        Map element arrays to image/voxel layout.
+
+    Returns
+    -------
+    obj : float
+        sum_{d!=0, c0, c1} (S2[c0,c1](d) - S2_target[c0,c1](d))^2
+    dobj : np.ndarray, shape (nel, n_mat)
+        Gradient via the Wiener-Khinchin adjoint:
+        dJ/dx_{c}(e) = (2/N) * [correlate(x_{c1}, delta) + convolve(x_{c0}, delta)](e)
+        which for the single-material autocorrelation reduces to
+        (4/N) * (x convolved with delta)(e).
+    None
+        Signals that no adjoint solve is needed.
+    """
+    x = mapping(xPhys)
+    ndim = len(x.shape) - 1
+    n_mat = x.shape[-1]
+    axes = tuple(range(ndim))
+    shape = x.shape[:ndim]
+    N = int(np.prod(shape))
+
+    # normalise S2_target to shape (spatial..., n_mat, n_mat)
+    if S2_target.ndim == ndim:
+        S2_target_full = S2_target[..., np.newaxis, np.newaxis]
+    elif S2_target.ndim == ndim + 2:
+        S2_target_full = S2_target
+    else:
+        raise ValueError(
+            f"S2_target has {S2_target.ndim} dims; expected {ndim} or {ndim+2}.")
+
+    # mask: exclude d=0 (volume fraction is handled by the volume constraint)
+    mask = np.ones(shape)
+    mask[(0,) * ndim] = 0.
+
+    Xf = [np.fft.rfftn(x[..., c], axes=axes) for c in range(n_mat)]
+
+    obj = 0.
+    grad_img = np.zeros(shape + (n_mat,))
+
+    for c0 in range(n_mat):
+        for c1 in range(n_mat):
+            # S2(d) = IFFT(conj(X_{c0}) * X_{c1})(d) / N
+            S2_img = np.fft.irfftn(
+                np.conj(Xf[c0]) * Xf[c1], s=shape, axes=axes).real / N
+            delta = (S2_img - S2_target_full[..., c0, c1]) * mask
+            obj += float(np.sum(delta ** 2))
+
+            Df = np.fft.rfftn(delta, axes=axes)
+            # dJ/dx_{c0}(e) += (2/N) * correlate(x_{c1}, delta)(e)
+            #                = (2/N) * IFFT(conj(Df) * Xf[c1])(e)
+            grad_img[..., c0] += np.fft.irfftn(
+                np.conj(Df) * Xf[c1], s=shape, axes=axes).real * (2. / N)
+            # dJ/dx_{c1}(e) += (2/N) * convolve(x_{c0}, delta)(e)
+            #                = (2/N) * IFFT(Df * Xf[c0])(e)
+            grad_img[..., c1] += np.fft.irfftn(
+                Df * Xf[c0], s=shape, axes=axes).real * (2. / N)
+
+    dobj = invmapping(grad_img)
+    return obj, dobj, None
+
+
 if __name__ == "__main__":
 
     from topoptlab.utils import map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel
