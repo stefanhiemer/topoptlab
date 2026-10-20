@@ -168,6 +168,84 @@ def scale_move_limit(filter_kw: Dict,
                 optimizer_kw["move"], filter_kw["beta"]))
     return True
 
+def change_constraint(change: float,
+                      loop: int,
+                      conv_tol: float,
+                      constraint: Dict,
+                      target: float = 0.,
+                      scale: float = 0.5,
+                      delta: float = 0.,
+                      update: int = 50,
+                      state: Union[None, Dict] = None,
+                      logger: Union[EmptyLogger, BaseLogger] = EmptyLogger(),
+                      **kwargs: Any) -> bool:
+    """
+    Continuation scheme that progressively tightens or relaxes a constraint
+    bound by applying ``new = old * scale + delta`` on each trigger.
+
+    The constraint dict is mutated in-place, so the driver picks up the new
+    bound on the very next iteration.  Pass the same dict object that lives
+    in the ``constraints`` list, e.g. via ``func_kw={"constraint": constraints[k], ...}``.
+
+    A trigger fires when ``change < conv_tol`` (converged at current bound) or
+    the iteration counter since the last trigger reaches ``update``.  The new
+    value is clamped to ``target`` so it never overshoots.  The function
+    signals termination once ``target`` has been reached and
+    ``change < conv_tol``.
+
+    Parameters
+    ----------
+    change : float
+        Current convergence metric.
+    loop : int
+        Current outer iteration index.
+    conv_tol : float
+        Convergence tolerance.
+    constraint : dict
+        The constraint dict whose ``"value"`` key is updated in-place.
+    target : float
+        Final bound value.  The update direction (tightening or relaxing) is
+        inferred automatically from the sign of ``target - constraint["value"]``
+        on the first call.
+    scale : float
+        Multiplicative factor applied each trigger (default 0.5 — halves the
+        bound).  Use 1.0 for a purely additive schedule.
+    delta : float
+        Additive step applied after scaling (default 0.).
+    update : int
+        Maximum iterations between forced triggers even without convergence
+        (default 50).
+    state : dict or None
+        Mutable dict for persisting the per-call iteration counter and the
+        initial direction.  Pass the same dict every call.
+    logger : BaseLogger
+        Logger object.
+
+    Returns
+    -------
+    stop : bool
+        True when ``target`` is reached and ``change < conv_tol``.
+    """
+    if state is None:
+        state = {}
+    state.setdefault("_loop", 0)
+    state.setdefault("_sign", np.sign(target - constraint["value"]))
+    state["_loop"] += 1
+    sign = state["_sign"]
+    at_target = sign * (constraint["value"] - target) >= 0.
+    if change < conv_tol and at_target:
+        return True
+    if change < conv_tol or state["_loop"] >= update:
+        new_val = constraint["value"] * scale + delta
+        constraint["value"] = float(np.clip(new_val,
+                                            min(target, new_val) if sign < 0 else new_val,
+                                            max(target, new_val) if sign > 0 else new_val))
+        state["_loop"] = 0
+        logger.info("constraint '{0}' value → {1:.4g}".format(
+                    constraint.get("name", "?"), constraint["value"]))
+    return False
+
+
 def scaling(change: float,
             loop: int,
             key: str,

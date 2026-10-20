@@ -1026,6 +1026,38 @@ def two_point_correlation_image_squarederror(
     return obj, dobj, None
 
 
+def gray_indicator_constraint(xPhys: np.ndarray,
+                              **kwargs: Any) -> Tuple[float, np.ndarray, None]:
+    """
+    Gray-level indicator as a constraint-compatible objective.
+
+    Returns the Sigmund (2007) discreteness measure
+
+        M = 4 * mean_e( xPhys_e * (1 - xPhys_e) )
+
+    which is 0 for a fully black-and-white design and 1 when all densities
+    are 0.5.  Returns ``self_adj = None`` so the driver uses the gradient
+    directly without solving an adjoint problem.
+
+    Parameters
+    ----------
+    xPhys : np.ndarray, shape (nel, n_mat)
+        Physical densities.
+
+    Returns
+    -------
+    val : float
+        Gray indicator in [0, 1].
+    dval : np.ndarray, shape (nel, n_mat)
+        Gradient d(M)/d(xPhys) = 4 * (1 - 2*xPhys) / (nel * n_mat).
+    None
+        Signals that no adjoint solve is needed.
+    """
+    val = 4. * (xPhys * (1. - xPhys)).mean()
+    dval = 4. * (1. - 2. * xPhys) / xPhys.size
+    return val, dval, None
+
+
 if __name__ == "__main__":
 
     from topoptlab.utils import map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel
