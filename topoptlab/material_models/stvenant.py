@@ -140,3 +140,55 @@ def stvenant_matmodel(F: np.ndarray,
                  eng_conv=True)/2
     const = consttensor_2pk(F=F,c=c)
     return stress_2pk(F=F,E=E,c=const), const
+
+
+def stvenant_thermo_matmodel(F: np.ndarray,
+                             c: np.ndarray,
+                             alpha: np.ndarray,
+                             DeltaT=1.0,
+                             **kwargs):
+    """
+    STVK thermoelastic:
+        E_mech = E - DeltaT * alpha
+        S = C : E_mech
+    """
+    ndim = F.shape[-1]
+    E = to_voigt(F.swapaxes(-1, -2) @ F - np.eye(ndim).reshape(len(F.shape[:-2]) * tuple([1]) + F.shape[-2:]),
+        eng_conv=True) / 2.0
+    const = consttensor_2pk(F=F, c=c)
+    alpha_v = to_voigt(alpha, eng_conv=True)[:, None, :]
+    Eth = DeltaT[..., None] * alpha_v
+    Emech = E - Eth
+    s = (const @ Emech[..., None])[..., 0]
+    return s, const
+
+def stvenant_thermo_dmatmodel(F: np.ndarray,
+                              c: np.ndarray,
+                              dc: np.ndarray,
+                              alpha: np.ndarray,
+                              dalpha: np.ndarray,
+                              DeltaT=1.0,
+                              **kwargs):
+    """
+    Directional derivative of thermo-STVK at fixed F:
+
+        dS = dC : (E - DeltaT * alpha)
+             - C : (DeltaT * dalpha)
+
+    Works for 2D and 3D.
+    """
+    ndim = F.shape[-1]
+
+    E = to_voigt(F.swapaxes(-1, -2) @ F - np.eye(ndim).reshape(len(F.shape[:-2]) * tuple([1]) + F.shape[-2:]),
+        eng_conv=True) / 2.0
+
+    alpha_v  = to_voigt(alpha,  eng_conv=True)[:, None, :]
+    dalpha_v = to_voigt(dalpha, eng_conv=True)[:, None, :]
+    c = c[:, None, :, :]
+    dc = dc[:, None, :, :]
+
+    DT = DeltaT
+    Emech = E - DT[..., None] * alpha_v
+    dS = np.einsum("...ij,...j->...i", dc, Emech, optimize=True) \
+       - np.einsum("...ij,...j->...i", c, DT[..., None] * dalpha_v, optimize=True)
+    return dS, dc
