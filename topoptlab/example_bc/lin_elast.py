@@ -593,7 +593,8 @@ def tensiletest_2d(nelx: int, nely: int,
     if ymirror:
         fixed += [np.arange(1,ndof,2*(nely+1))]
     else:
-        fixed += [nely+1,ndof-nely-1]
+        fixed += [np.arange(1,ndof,2*(nely+1))]
+        fixed += [np.arange((nely)*2 + 1,ndof,2*(nely+1))]
     fixed = np.hstack(fixed)
     #
     return u,f,fixed,np.setdiff1d(dofs,fixed),None
