@@ -39,20 +39,20 @@ from topoptlab.param_continuation import change_constraint
 from topoptlab.output_designs import threshold
 
 if __name__ == "__main__":
-    nelx   = 80
-    nely   = 80
+    nelx = 80
+    nely = 80
     volfrac = 0.5
-    rmin   = 3.
-    xi     = 3.     # correlation length in grid units
+    rmin = 3.
+    xi = 3.     # correlation length in grid units
 
     if len(sys.argv) > 1:
-        nelx   = int(sys.argv[1])
+        nelx = int(sys.argv[1])
     if len(sys.argv) > 2:
-        nely   = int(sys.argv[2])
+        nely = int(sys.argv[2])
     if len(sys.argv) > 3:
         volfrac = float(sys.argv[3])
     if len(sys.argv) > 4:
-        xi     = float(sys.argv[4])
+        xi = float(sys.argv[4])
 
     # Build target S2 image in FFT layout.
     # np.fft.fftfreq(n, 1/n) gives signed integer lags matching irfftn output.
@@ -62,7 +62,7 @@ if __name__ == "__main__":
     S2_target = volfrac**2 + (volfrac - volfrac**2) * np.exp(-r / xi)
 
     rng = np.random.default_rng(seed=0)
-    x0  = rng.random((nelx * nely, 1))
+    x0 = rng.random((nelx * nely, 1))
 
     output_kw = {"file": "two_point_corr_target",
                  "display": True,
@@ -85,7 +85,7 @@ if __name__ == "__main__":
         volfrac=volfrac,
         rmin=rmin,
         ft=1,                   # density filter
-        filter_mode="matrix",
+        filter_mode="convolution",
         problems=[],
         optimizer="mma",
         initial_guess={"x": np.ones((nelx * nely, 1)) * volfrac - x0 * 0.01},
@@ -105,7 +105,7 @@ if __name__ == "__main__":
         volfrac=volfrac,
         rmin=rmin,
         ft=-1,                  # no filter — 2PC objective regularises scale
-        filter_mode="matrix",
+        filter_mode="convolution",
         problems=[],
         optimizer="mma",
         initial_guess={"x": threshold(xPhys, volfrac)},
