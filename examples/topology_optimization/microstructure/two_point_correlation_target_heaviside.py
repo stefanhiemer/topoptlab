@@ -9,15 +9,9 @@ a gray-level constraint.
 
 Two-phase optimisation strategy
 --------------------------------
-Phase 1 — density filter (ft=1) with a loose gray constraint: establishes
-  the spatial frequency content so the 2-PC structure emerges. Identical to
-  phase 1 of ``two_point_correlation_target.py``.
+Phase 1 — density filter (ft=1) with a loose gray constraint``.
 Phase 2 — density filter + ``EtaProjectorXu2010`` Heaviside projection,
-  warm-started from phase 1: the projection sharpness ``beta`` is ramped up
-  via ``beta_scaling`` continuation (2 -> 64, doubling each trigger, i.e. at
-  most 5 continuation steps) until the design is crisp. ``EtaProjectorXu2010``
-  adapts its threshold eta every call to keep the volume fraction fixed, so
-  no gray-level constraint is needed in this phase.
+  warm-started from phase 1 until  design is crisp.
 
 Usage
 -----
@@ -75,10 +69,7 @@ if __name__ == "__main__":
                    "value": 0.5,
                    "kw": {}}
 
-    # phase 1 -- plain density filter for a fixed number of steps, just to
-    # get the design away from the uniform volfrac start before handing it
-    # to the Eta projector (at beta=1 on a near-uniform field, find_eta's
-    # root search has nothing to lock onto and fails to converge).
+    # density filter
     x1, xTilde1, xPhys1, obj1 = main(
         nelx=nelx,
         nely=nely,
