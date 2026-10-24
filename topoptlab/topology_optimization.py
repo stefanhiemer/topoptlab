@@ -1,13 +1,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any, Callable, Dict, List, Tuple, Union
+from typing import Any
+from collections.abc import Callable
 from functools import partial
 from cProfile import Profile
 from datetime import datetime
 import inspect
 #
 import numpy as np
-from scipy.sparse.linalg import factorized
-from scipy.ndimage import convolve
 #
 from matplotlib.colors import Normalize
 import matplotlib.pyplot as plt
@@ -38,7 +37,7 @@ from topoptlab.output_designs import export_vtk
 from topoptlab.utils import map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel,\
                             check_simulation_params,dict_without,\
                             default_outputkw,check_output_kw,check_optimizer_kw,\
-                            default_el_flags_policy,check_el_flags_policy,\
+                            check_el_flags_policy,\
                             check_constraints,expand_eq_constraints
 from topoptlab.objectives import vol_frac as volume_fraction_constraint
 # logging related stuff
@@ -48,16 +47,11 @@ from topoptlab.param_continuation import run_continuation
 #
 from mmapy import mmasub, gcmmasub, asymp, concheck, raaupdate
 
-from topoptlab.linear_solvers import res_norm
-from topoptlab.block_assembly import (assemble_global_block_system,
-                                      solve_global_block_system,
-                                      split_global_solution_by_fields,
-                                      transpose_blocks)
 
-def update_history(xhist: List, x: np.ndarray,
-                   xPhys_hist: Union[None, List], xPhys: np.ndarray,
-                   obj_hist: Union[None, List], obj: float,
-                   constrs_hist: Union[None, List], constrs: np.ndarray,
+def update_history(xhist: list, x: np.ndarray,
+                   xPhys_hist: None | list, xPhys: np.ndarray,
+                   obj_hist: None | list, obj: float,
+                   constrs_hist: None | list, constrs: np.ndarray,
                    max_history: int) -> None:
     """
     Append current iterate to history lists and prune to max_history+1 entries.
@@ -107,10 +101,10 @@ def update_history(xhist: List, x: np.ndarray,
     return
 
 def prepare_phys_problems(mesh: dict,
-                          lk: Union[None, Callable],
+                          lk: None | Callable,
                           body_forces_kw: dict,
                           assembly_mode: str,
-                          obj_kw: dict) -> Tuple:
+                          obj_kw: dict) -> tuple:
     """
     Build all static FEM data needed before the optimisation loop.
 
@@ -255,22 +249,22 @@ def solve_phys_problems(xPhys: np.ndarray,
                         n: int,
                         edofMat: np.ndarray,
                         f: np.ndarray,
-                        fixed: Union[np.ndarray, List[np.ndarray]],
-                        free: Union[np.ndarray, List[np.ndarray]],
+                        fixed: np.ndarray | list[np.ndarray],
+                        free: np.ndarray | list[np.ndarray],
                         springs: Any,
                         matinterpol: Callable,
-                        matinterpol_kw: Dict,
+                        matinterpol_kw: dict,
                         assembly_mode: str,
-                        assm_indcs: Union[None, np.ndarray],
-                        body_forces_kw: Dict,
-                        fe_strain: Union[None, np.ndarray],
-                        fe_dens: Union[None, np.ndarray],
+                        assm_indcs: None | np.ndarray,
+                        body_forces_kw: dict,
+                        fe_strain: None | np.ndarray,
+                        fe_dens: None | np.ndarray,
                         lin_solver: str,
-                        lin_solver_kw: Dict,
-                        preconditioner: Union[None, str],
-                        preconditioner_kw: Dict,
+                        lin_solver_kw: dict,
+                        preconditioner: None | str,
+                        preconditioner_kw: dict,
                         u: np.ndarray,
-                        ) -> Tuple[np.ndarray, Any, Any, Any, np.ndarray, np.ndarray, np.ndarray]:
+                        ) -> tuple[np.ndarray, Any, Any, Any, np.ndarray, np.ndarray, np.ndarray]:
     """
     Assemble and solve all physical (FE) problems for the current iterate. Does the following steps:
 
@@ -409,9 +403,9 @@ def solve_phys_problems(xPhys: np.ndarray,
     return u, K, fact, precond, Kes, rhs, f_body
 
 def initialize_design(n: int,
-                      initial_guess: Union[None, Dict[str, np.ndarray]],
-                      volfrac: Union[None, float],
-                      n_mat: int = 1) -> Tuple[np.ndarray, np.ndarray]:
+                      initial_guess: None | dict[str, np.ndarray],
+                      volfrac: None | float,
+                      n_mat: int = 1) -> tuple[np.ndarray, np.ndarray]:
     """
     Initialize design variables x and physical densities xPhys.
 
@@ -459,48 +453,48 @@ def initialize_design(n: int,
 def main(nelx: int, nely: int,
          volfrac: float, #penal: float, 
          rmin: float, 
-         ft: [int,TOFilter,List[TOFilter]] = 1,
-         filter_kw: Union[Dict,List] = {},
-         simulation_kw: Dict = {"type": "stationary",
+         ft: [int,TOFilter,list[TOFilter]] = 1,
+         filter_kw: dict | list = {},
+         simulation_kw: dict = {"type": "stationary",
                                 "coordinate_system": "cartesian",
                                 "grid": "regular",
                                 "element order": 1,
                                 "meshfile": None},
-         nelz: Union[None,int] = None,
-         initial_guess: Union[None,Dict[str, np.ndarray]] = None,
+         nelz: None | int = None,
+         initial_guess: None | dict[str, np.ndarray] = None,
          filter_mode: str = "convolution",
-         lin_solver_kw: Dict = {"name": "scipy-direct"},
-         preconditioner_kw: Dict = {"name": None},
+         lin_solver_kw: dict = {"name": "scipy-direct"},
+         preconditioner_kw: dict = {"name": None},
          assembly_mode: str = "full",
-         materials_kw: Dict = {"E": 1.},
-         body_forces_kw: Dict = {},
+         materials_kw: dict = {"E": 1.},
+         body_forces_kw: dict = {},
          bcs: Callable = mbb_2d,
-         solver_kw: Dict = {},
-         solver_coupling: Union[None, List[str]] = None,
-         lk: Union[None,Callable] = None,
-         l: Union[float,List,np.ndarray] = 1.,
+         solver_kw: dict = {},
+         solver_coupling: None | list[str] = None,
+         lk: None | Callable = None,
+         l: float | list | np.ndarray = 1.,
          obj_func: Callable = compliance, 
-         obj_kw: Dict = {},
+         obj_kw: dict = {},
          matinterpol: Callable = simp,
          matinterpol_dx: Callable = simp_dx,
-         matinterpol_kw: Dict = {"eps": 1e-9, "penal": 3.},
-         el_flags: Union[None,np.ndarray] = None,
-         el_flags_policy: Union[None,Dict] = None,
-         constraints: Union[None,List[Dict]] = None,
+         matinterpol_kw: dict = {"eps": 1e-9, "penal": 3.},
+         el_flags: None | np.ndarray = None,
+         el_flags_policy: None | dict = None,
+         constraints: None | list[dict] = None,
          optimizer: str = "mma",
-         optimizer_kw: Union[None,Dict] = None,
-         mix: Union[None,float] = None,
-         accelerator_kw: Dict = {"accel_freq": 4,
+         optimizer_kw: None | dict = None,
+         mix: None | float = None,
+         accelerator_kw: dict = {"accel_freq": 4,
                                  "accel_start": 20,
                                  "max_history": 0,
                                  "accelerator": None},
-         convergence_kw: Dict = {"conv_tol": 1e-2,
+         convergence_kw: dict = {"conv_tol": 1e-2,
                                  "change_func": max_design_change},
-         continuation_kw: Union[None, Dict] = None,
+         continuation_kw: None | dict = None,
          nouteriter: int = 2000, 
          ninneriter: int = 15,
-         mesh_file: Union[None,str] = None,
-         output_kw: Dict = default_outputkw()) -> Tuple[np.ndarray,float]:
+         mesh_file: None | str = None,
+         output_kw: dict = default_outputkw()) -> tuple[np.ndarray,float]:
     """
     Topology optimization workflow with the material interpolation method. 
     Can treat single physics stationary problems.
@@ -918,8 +912,7 @@ def main(nelx: int, nely: int,
                                                                         u=u)
             #
             for i in range(f.shape[1]): 
-                log.debug("FEM: it.: {0}, problem: {1}, min. u: {2:.12f}, med. u: {3:.12f}, max. u: {4:.12f}".format(
-                        loop,i,np.min(u[:,i]),np.median(u[:,i]),np.max(u[:,i])))
+                log.debug(f"FEM: it.: {loop}, problem: {i}, min. u: {np.min(u[:,i]):.12f}, med. u: {np.median(u[:,i]):.12f}, max. u: {np.max(u[:,i]):.12f}")
             # objective and sensitivities with regards to object
             obj = 0
             dobj[:] = 0.
@@ -973,8 +966,7 @@ def main(nelx: int, nely: int,
                     dobj[:,0] -= simp_dx(xPhys=xPhys, eps=0., penal=1.)[:,0]*\
                                             np.dot(adj[edofMat,i],fe_dens[:,i])
                 #
-                log.debug("adj: it.: {0}, problem: {1}, min. adj: {2:.12f}, med. adj: {3:.12f}, max. adj: {4:.12f}".format(
-                           loop,i,np.min(adj[:,i]),np.median(adj[:,i]),np.max(adj[:,i])))
+                log.debug(f"adj: it.: {loop}, problem: {i}, min. adj: {np.min(adj[:,i]):.12f}, med. adj: {np.median(adj[:,i]):.12f}, max. adj: {np.max(adj[:,i]):.12f}")
 
         # optimizer is unknown.
         else:
@@ -1048,11 +1040,7 @@ def main(nelx: int, nely: int,
                 constrs[k, 0] = constrs[k, 0]/ref
                 dconstrs[:, k:k+1] = dconstrs[:, k:k+1]/ref
         #
-        log.debug("Pre-Sensitivity Filter: it.: {0}, min(dobj): {1:.10f}, max(dobj): {2:.10f}, dv: {3:.10f}".format(
-                  loop, 
-                  np.min(dobj), 
-                  np.max(dobj), 
-                  np.min(dconstrs)))
+        log.debug(f"Pre-Sensitivity Filter: it.: {loop}, min(dobj): {np.min(dobj):.10f}, max(dobj): {np.max(dobj):.10f}, dv: {np.min(dconstrs):.10f}")
         # sensitivity propagation (call it this way to avoid confusion with sensitvity filter)
         dobj, dconstrs = sensitivity_propagation(dobj=dobj,
                                                  dconstrs=dconstrs,
@@ -1064,10 +1052,7 @@ def main(nelx: int, nely: int,
                                                  el_flags_policy=el_flags_policy,
                                                  prescribed_mask=prescribed_mask)
         #
-        log.debug("Post-Sensitivity Filter: it.: {0}, min(dobj): {1:.10f}, max(dobj): {2:.10f}, dv: {3:.10f}".format(
-                  loop, 
-                  np.min(dobj), np.max(dobj), 
-                  np.min(dconstrs)))
+        log.debug(f"Post-Sensitivity Filter: it.: {loop}, min(dobj): {np.min(dobj):.10f}, max(dobj): {np.max(dobj):.10f}, dv: {np.min(dconstrs):.10f}")
         # scale objective and its gradient if requested
         if "scale_factor" in obj_kw and obj_kw["scale_factor"] is not None:
             obj   *= obj_kw["scale_factor"]
@@ -1268,8 +1253,7 @@ def main(nelx: int, nely: int,
                                                         **optimizer_kw)
                 x = xmma.copy()
         #
-        log.debug("Post Density Update: it.: {0}, med(x): {1:.10f}, mean(x): {2:.10f}, med(xPhys): {3:.10f}".format(
-                   loop, np.median(x),np.mean(x), np.median(xPhys)))
+        log.debug(f"Post Density Update: it.: {loop}, med(x): {np.median(x):.10f}, mean(x): {np.mean(x):.10f}, med(xPhys): {np.median(xPhys):.10f}")
         # mixing
         if ((loop-accelerator_kw["accel_start"])%accelerator_kw["accel_freq"])==0 \
             and loop >= accelerator_kw["accel_start"] and \
@@ -1280,8 +1264,7 @@ def main(nelx: int, nely: int,
         elif mix is not None:
             x[:] = hist["xhist"][-1]*(1-mix) + x*mix
         #
-        log.debug("Post Mixing Update: it.: {0}, med. x.: {1:.10f}, med. xPhys: {2:.10f}".format(
-                  loop, np.median(x),np.median(xPhys)))
+        log.debug(f"Post Mixing Update: it.: {loop}, med. x.: {np.median(x):.10f}, med. xPhys: {np.median(xPhys):.10f}")
         # Filter design variables
         xTilde, xPhys = filter_design_variables(x=x,
                                                 xTilde=xTilde,
@@ -1296,8 +1279,7 @@ def main(nelx: int, nely: int,
                        x=x, xPhys=xPhys, obj=obj, constrs=constrs,
                        max_history=max_history)
         #
-        log.debug("Post Density Filter: it.: {0}, med. x.: {1:.10f}, med. xPhys: {2:.10f}".format(
-                  loop, np.median(x),np.median(xPhys)))
+        log.debug(f"Post Density Filter: it.: {loop}, med. x.: {np.median(x):.10f}, med. xPhys: {np.median(xPhys):.10f}")
         # compute the change
         change = convergence_kw["change_func"](**hist,**convergence_kw)
         # plot to screen

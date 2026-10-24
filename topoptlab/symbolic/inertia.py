@@ -1,23 +1,18 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Union
-from math import floor
 
-from sympy import symbols
-from symfem.functions import VectorFunction,MatrixFunction
+from symfem.functions import MatrixFunction
 from symfem.symbols import x,t
 
 from topoptlab.symbolic.cell import base_cell
 from topoptlab.symbolic.shapefunction_matrix import shape_function_matrix
 from topoptlab.symbolic.strain_measures import jacobian_matrix
 from topoptlab.symbolic.matrix_utils import generate_constMatrix,\
-                                            generate_FunctMatrix,\
                                             simplify_matrix,kron,eye,\
-                                            from_vectorfunction,flatten,\
-                                            inverse, integrate, ones, to_square
+                                            integrate, ones, to_square
 from topoptlab.symbolic.parametric_map import jacobian
 
 def inertia(ndim: int, 
-            v: Union[None,MatrixFunction] = None,
+            v: None | MatrixFunction = None,
             element_type: str = "Lagrange",
             order: int = 1) -> MatrixFunction:
     """

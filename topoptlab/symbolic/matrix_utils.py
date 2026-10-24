@@ -1,15 +1,13 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Callable, Dict, List, Tuple, Union
+from collections.abc import Callable
 from warnings import warn
-from itertools import product
 from math import floor,sqrt
 from multiprocessing import Pool, cpu_count
 
 from tqdm import tqdm
 
 from sympy import symbols, Symbol, Function, Inverse, Trace,\
-                  cse, factor, factor_terms, gcd, sympify, gcd_terms, Mul, \
-                  Integer, Float
+                  factor_terms, sympify, Integer, Float
 from sympy.core.expr import Expr
 from symfem.references import Reference
 from symfem.functions import ScalarFunction,VectorFunction,MatrixFunction
@@ -20,8 +18,8 @@ from topoptlab.symbolic.utils import is_equal, take_generic_branch
 def generate_constMatrix(ncol: int, nrow: int, name: str,
                          symmetric: bool = False,
                          return_symbols: bool = False, 
-                         assumptions: Dict = {},
-                         ) -> Tuple[MatrixFunction, List]:
+                         assumptions: dict = {},
+                         ) -> tuple[MatrixFunction, list]:
     """
     Generate matrix full of symbolic constants.
 
@@ -88,7 +86,7 @@ def generate_constMatrix(ncol: int, nrow: int, name: str,
         return MatrixFunction(M), symbol_list
 
 def full(ncol: int, nrow: int,
-         fill_value: Union[int,float],
+         fill_value: int | float,
          ) -> MatrixFunction:
     """
     Generate matrix with all entries equal to fill_value.
@@ -147,10 +145,10 @@ def ones(ncol: int, nrow: int) -> MatrixFunction:
     return full(ncol=ncol, nrow=nrow, fill_value=1)
 
 def generate_FunctMatrix(ncol: int, nrow: int, name: str,
-                         variables: List,
+                         variables: list,
                          symmetric: bool = False,
                          return_symbols: bool = False
-                         ) -> Tuple[MatrixFunction, List]:
+                         ) -> tuple[MatrixFunction, list]:
     """
     Generate matrix where each entry is a function of the variables.
 
@@ -291,7 +289,7 @@ def flatten(M: MatrixFunction, order: str = "C") -> VectorFunction:
         v = [M[floor(i/n),i%n] for i in range(m*n)]
     return VectorFunction(v)
 
-def _operation_on_entry(args: Tuple) -> Tuple:
+def _operation_on_entry(args: tuple) -> tuple:
     """
     Helper for apply_elementwise().
 
@@ -308,15 +306,15 @@ def _operation_on_entry(args: Tuple) -> Tuple:
     expr, operation, func_args = args
     return operation(expr, **func_args)
 
-def _apply_elementwise(M: Union[VectorFunction,MatrixFunction], 
+def _apply_elementwise(M: VectorFunction | MatrixFunction, 
                       func : Callable,
-                      func_args : Dict,
+                      func_args : dict,
                       dscr : str,
                       return_symfemfunc : bool = True,
-                      parallel: Union[None,bool] = None, 
+                      parallel: None | bool = None, 
                       parallel_threshold : int = 16,
-                      symmetry : Union[None,bool] = None
-                      ) -> Union[MatrixFunction,List]:
+                      symmetry : None | bool = None
+                      ) -> MatrixFunction | list:
     """
     Apply symbolic operation to a VectorFunction or MatrixFunction 
     element-wise. For each entry, a task is created, dispatched to func and
@@ -416,7 +414,7 @@ def _apply_elementwise(M: Union[VectorFunction,MatrixFunction],
         return M_new 
 
 def _factor_expr(expression : Expr, 
-                 variables : List) -> Expr:
+                 variables : list) -> Expr:
     """
     Factorize sympy expression. Extract the factor containing not the listed 
     variables.
@@ -447,11 +445,11 @@ def _factor_expr(expression : Expr,
         factor = sympify(1)
     return factor, remainder
 
-def factor_matrix(M : Union[VectorFunction,MatrixFunction],
-                  variables : List,
-                  parallel : Union[None,bool] = None, 
+def factor_matrix(M : VectorFunction | MatrixFunction,
+                  variables : list,
+                  parallel : None | bool = None, 
                   symmetry : bool = False
-                  ) -> Union[VectorFunction,MatrixFunction]:
+                  ) -> VectorFunction | MatrixFunction:
     """
     Factor element-wise the given MatrixFunction by first pull out factors not 
     including the variables, find the greatest common divisor and 
@@ -546,11 +544,11 @@ def _simplify_expr(expression: ScalarFunction) -> ScalarFunction:
         raise TypeError("Wrong type for simplification: ",
                         type(expression))
 
-def simplify_matrix(M: Union[VectorFunction,MatrixFunction], 
-                    parallel: Union[None,bool] = None, 
+def simplify_matrix(M: VectorFunction | MatrixFunction, 
+                    parallel: None | bool = None, 
                     eliminate_piecewise: bool = False, 
                     symmetry : bool = False
-                    ) -> Union[VectorFunction,MatrixFunction]:
+                    ) -> VectorFunction | MatrixFunction:
     """
     Simplify element-wise the given MatrixFunction by first remove common 
     factors (sympy.factor_terms), simplification of the remaining expression 
@@ -602,7 +600,7 @@ def simplify_matrix(M: Union[VectorFunction,MatrixFunction],
 def _integrate_entry(f : ScalarFunction, 
                      domain: Reference,
                      variables: AxisVariablesNotSingle,
-                     dummy_vars: AxisVariablesNotSingle, ) -> Tuple:
+                     dummy_vars: AxisVariablesNotSingle, ) -> tuple:
     """
     Helper function for integrate() that computes the integral of the element 
     M[i,j] of MatrixFunction M.
@@ -628,12 +626,12 @@ def _integrate_entry(f : ScalarFunction,
     return f.integral(domain, variables, dummy_vars)
     
 
-def integrate(M: Union[VectorFunction,MatrixFunction], 
+def integrate(M: VectorFunction | MatrixFunction, 
               domain: Reference,
               variables: AxisVariablesNotSingle,
               dummy_vars: AxisVariablesNotSingle, 
-              parallel: Union[None,bool] = None, 
-              symmetry : Union[None,bool] = None)-> MatrixFunction:
+              parallel: None | bool = None, 
+              symmetry : None | bool = None)-> MatrixFunction:
     """
     Compute the integral of the VectorFunction or MatrixFunction element-wise .
     
@@ -689,7 +687,7 @@ def eye(size: int) -> MatrixFunction:
     return MatrixFunction([[0 if i!=j else 1 for j in range(size)] \
                           for i in range(size)])
 
-def diag(v: Union[List,MatrixFunction]) -> Union[List,MatrixFunction]:
+def diag(v: list | MatrixFunction) -> list | MatrixFunction:
     """
     Return diagonal matrix with given diagonal values or extract diagonal
     values and return as list.
@@ -714,7 +712,7 @@ def diag(v: Union[List,MatrixFunction]) -> Union[List,MatrixFunction]:
         return [v[i,i] for i in range(min(v.shape))]
     
 def trace(M: MatrixFunction,
-          mode: str="symfem") -> Union[ScalarFunction]:
+          mode: str="symfem") -> ScalarFunction:
     """
     Take the trace of the given matrix `M`.
 
@@ -797,7 +795,7 @@ def eig(M: MatrixFunction) -> MatrixFunction:
     return diag(MatrixFunction(eigenvalues)),MatrixFunction(eigenvectors)
 
 def inverse(A: MatrixFunction,
-            Adet: Union[None, ScalarFunction] = None) -> MatrixFunction:
+            Adet: None | ScalarFunction = None) -> MatrixFunction:
     """
     Return the symbolic inverse of a square matrix using explicit adjugate 
     formulas. Does not work if dim(A) > 3.
@@ -864,7 +862,7 @@ def det(M: MatrixFunction) -> MatrixFunction:
     return M.det()
 
 def mul(M: MatrixFunction,
-        s: Union[float,int]) -> MatrixFunction:
+        s: float | int) -> MatrixFunction:
     """
     Multiply each entry with scalar.
 

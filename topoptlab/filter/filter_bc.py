@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 from functools import partial
-from typing import Any, Callable, List, Union
+from typing import Any
+from collections.abc import Callable
 
 import numpy as np
 from scipy.ndimage import binary_dilation
@@ -13,8 +14,8 @@ from topoptlab.utils import map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel
 
 def _face_node_indices(side: str,
                        nelx: int, 
-                       nely: Union[None, int],
-                       nelz: Union[None, int]) -> np.ndarray:
+                       nely: None | int,
+                       nelz: None | int) -> np.ndarray:
     """
     Return 0-based node indices on the named face of a structured mesh.
 
@@ -80,9 +81,9 @@ def bc_in_bdbox(fixed: np.ndarray,
                 ndim: int,
                 nelx: int,
                 nely: int,
-                nelz: Union[None, int],
+                nelz: None | int,
                 bd_box: np.ndarray,
-                mirror_sides: List[str],
+                mirror_sides: list[str],
                 create_edofMat: Callable,
                 mapping,
                 invmap,
@@ -176,9 +177,9 @@ def create_filter_bc(nelx: int,
                      rmin: float,
                      fixed: np.ndarray,
                      f: np.ndarray,
-                     mirror_sides: Union[List[str]] = [],
-                     el_flags: Union[None, np.ndarray] = None,
-                     nelz: Union[None, int] = None, 
+                     mirror_sides: list[str] = [],
+                     el_flags: None | np.ndarray = None,
+                     nelz: None | int = None, 
                      vectorfield: bool = False, 
                      wrapping: bool = False,
                      **kwargs: Any) -> np.ndarray:

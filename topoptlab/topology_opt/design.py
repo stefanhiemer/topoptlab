@@ -1,19 +1,14 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any, Callable, Dict, List, Tuple, Union
-from functools import partial
-from cProfile import Profile
-from datetime import datetime
-import inspect
 #
 import numpy as np
 
 def initialize_design(n: int,
-                      initial_guess: Union[None, Dict[str, np.ndarray]],
-                      volfrac: Union[None, float],
+                      initial_guess: None | dict[str, np.ndarray],
+                      volfrac: None | float,
                       n_mat: int = 1,
-                      n_x_channels: Union[None, int] = None,
-                      fill_val: Union[None, float, np.ndarray] = None,
-                      **kwargs) -> Tuple[np.ndarray, np.ndarray]:
+                      n_x_channels: None | int = None,
+                      fill_val: None | float | np.ndarray = None,
+                      **kwargs) -> tuple[np.ndarray, np.ndarray]:
     """
     Initialize design variables x and physical densities xPhys.
 

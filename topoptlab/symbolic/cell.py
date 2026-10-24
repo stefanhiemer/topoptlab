@@ -1,5 +1,4 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import List, Tuple, Union
 
 from sympy import symbols,solve,solve_univariate_inequality
 from symfem import create_element, create_reference
@@ -8,7 +7,7 @@ from symfem.functions import ScalarFunction
 
 def base_cell(ndim: int,
               element_type: str = "Lagrange",
-              order: int = 1) -> Tuple[Tuple,List,Reference,List]:
+              order: int = 1) -> tuple[tuple,list,Reference,list]:
     """
     Create the basic cell, location of vertices, the node indices, the
     reference cell and the basis functions.
@@ -132,10 +131,10 @@ def base_cell(ndim: int,
     basis = [basis[i] for i in nd_inds]
     return vertices, nd_inds, reference, basis
 
-def determine_nodeinds(vertices: Tuple,
-                       basis_funcs: Union[List, ScalarFunction],
+def determine_nodeinds(vertices: tuple,
+                       basis_funcs: list | ScalarFunction,
                        ndim: int,
-                       autoshift: bool = True) -> List:
+                       autoshift: bool = True) -> list:
     """
     Find index of each vertex by finding the basis function that amounts to 1.
 
@@ -172,7 +171,7 @@ def determine_nodeinds(vertices: Tuple,
         inds = inds + ind
     return inds
 
-def find_node_coords(basis_funcs: Union[List, ScalarFunction]) -> List:
+def find_node_coords(basis_funcs: list | ScalarFunction) -> list:
     """
     Find coordinate of node associated with a basis function from the delta 
     property.

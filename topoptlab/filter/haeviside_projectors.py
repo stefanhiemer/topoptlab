@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any, Dict, Union
+from typing import Any
 
 import numpy as np
 
@@ -33,7 +33,7 @@ class HaevisideProjectorGuest2004(TOFilter):
     def __init__(self,
                  n_constr: int,
                  filter_objective: bool = True,
-                 constraint_filter_mask: Union[None, np.ndarray] = None,
+                 constraint_filter_mask: None | np.ndarray = None,
                  **kwargs: Any) -> None:
         """
         Initialize filter.
@@ -185,7 +185,7 @@ class HaevisideProjectorSigmund2007(TOFilter):
     def __init__(self,
                  n_constr: int,
                  filter_objective: bool = True,
-                 constraint_filter_mask: Union[None, np.ndarray] = None,
+                 constraint_filter_mask: None | np.ndarray = None,
                  **kwargs: Any) -> None:
         """
         Initialize filter.
@@ -337,10 +337,10 @@ class EtaProjectorXu2010(TOFilter):
     
     def __init__(self,
                  n_constr: int,
-                 volfrac: Union[None, float],
+                 volfrac: None | float,
                  filter_objective: bool = True,
-                 constraint_filter_mask: Union[None, np.ndarray] = None,
-                 eta: Union[None, float] = None,
+                 constraint_filter_mask: None | np.ndarray = None,
+                 eta: None | float = None,
                  adapt_eta: bool = True,
                  **kwargs: Any) -> None:
         """
@@ -392,8 +392,8 @@ class EtaProjectorXu2010(TOFilter):
     def apply_filter(self, 
                      x : np.ndarray, 
                      beta : float,
-                     volfrac : Union[None,float],
-                     root_args : union[None,Dict] = None,
+                     volfrac : None | float,
+                     root_args : union[None,dict] = None,
                      **kwargs: Any) -> np.ndarray:
         """
         Apply filter to (intermediate) design variables x
@@ -536,12 +536,12 @@ class MultiEtaProjectorXu2010(TOFilter):
 
     def __init__(self,
                  n_constr: int,
-                 volfrac: Union[None, float],
+                 volfrac: None | float,
                  n_etas: int,
-                 weights: Union[None, np.ndarray] = None,
+                 weights: None | np.ndarray = None,
                  filter_objective: bool = True,
-                 constraint_filter_mask: Union[None, np.ndarray] = None,
-                 etas: Union[None, np.ndarray] = None,
+                 constraint_filter_mask: None | np.ndarray = None,
+                 etas: None | np.ndarray = None,
                  adapt_eta: bool = True,
                  **kwargs: Any) -> None:
         """
@@ -590,8 +590,8 @@ class MultiEtaProjectorXu2010(TOFilter):
     def apply_filter(self,
                      x: np.ndarray,
                      beta: float,
-                     volfrac: Union[None, float] = None,
-                     find_multieta_kw: Dict = {"mode": "mse"},
+                     volfrac: None | float = None,
+                     find_multieta_kw: dict = {"mode": "mse"},
                      **kwargs: Any) -> np.ndarray:
         """
         Apply the multi-threshold projection to ``x``.

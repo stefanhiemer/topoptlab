@@ -1,6 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # A 165 LINE TOPOLOGY OPTIMIZATION CODE BY NIELS AAGE AND VILLADS EGEDE JOHANSEN, JANUARY 2013
-from __future__ import division
 from os.path import isfile
 from os import remove
 import logging 
@@ -230,7 +229,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         k,l = np.hstack([np.stack([a.flatten() for a in \
                          np.meshgrid(np.arange(k1,k2),np.arange(l1,l2))]) \
                          for k1,k2,l1,l2 in zip(kk1,kk2,ll1,ll2)])
-        fac = rmin-np.sqrt(((i-k)**2+(j-l)**2))
+        fac = rmin-np.sqrt((i-k)**2+(j-l)**2)
         iH[cc] = el # row
         jH[cc] = k*nely+l #column
         sH[cc] = np.maximum(0.0, fac)
@@ -315,13 +314,11 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
     loopbeta = 0
     if debug:
         if ft == 2:
-            print("it.: {0} , x.: {1:.10f}, xTilde: {2:.10f}, xPhys: {3:.10f},".format(
-                   0, np.median(x),np.median(xTilde),np.median(xPhys)), 
-                   "g: {0:.10f}".format(g))
+            print(f"it.: {0} , x.: {np.median(x):.10f}, xTilde: {np.median(xTilde):.10f}, xPhys: {np.median(xPhys):.10f},", 
+                   f"g: {g:.10f}")
         else:
-            print("it.: {0} , x.: {1:.10f}, xPhys: {2:.10f},".format(
-                   0, np.median(x),np.median(xPhys)), 
-                   "g: {0:.10f}".format(g))
+            print(f"it.: {0} , x.: {np.median(x):.10f}, xPhys: {np.median(xPhys):.10f},", 
+                   f"g: {g:.10f}")
     for loop in np.arange(nouteriter):
         #
         loopbeta += 1 
@@ -380,10 +377,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         dconstrs = np.column_stack(dconstrs)
         # merge to 
         if debug:
-            print("Pre-Sensitivity Filter: it.: {0}, dc: {1:.10f}, dconstrs: {2:.10f}".format(
-                   loop, 
-                   np.max(dc),
-                   np.min(dconstrs)))
+            print(f"Pre-Sensitivity Filter: it.: {loop}, dc: {np.max(dc):.10f}, dconstrs: {np.min(dconstrs):.10f}")
         # Sensitivity filtering:
         if ft in [0] and not pde:
             dc[:] = np.asarray((H*(x*dc))[np.newaxis].T /
@@ -418,10 +412,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                                          (1,0,2)))
             dconstrs = np.transpose(dconstrs,(1,0,2)).reshape(nelx*nely,n_constr)
             if debug:
-                print("Intermediate-Sensitivity Filter: it.: {0}, dc: {1:.10f}, dconstrs: {2:.10f}".format(
-                       loop, 
-                       np.max(dc),
-                       np.min(dconstrs)))
+                print(f"Intermediate-Sensitivity Filter: it.: {loop}, dc: {np.max(dc):.10f}, dconstrs: {np.min(dconstrs):.10f}")
             # apply density filter to sensitivities
             dc[:] = np.asarray(H*(dc[np.newaxis].T/Hs))[:,0]
             dconstrs[:] = np.asarray(H*(dconstrs/Hs))
@@ -441,20 +432,14 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
                                          (1,0,2)))
             dconstrs = np.transpose(dconstrs,(1,0,2)).reshape(nelx*nely,n_constr)
             if debug:
-                print("Intermediate-Sensitivity Filter: it.: {0}, dc: {1:.10f}, dconstrs: {2:.10f}".format(
-                       loop, 
-                       np.max(dc),
-                       np.min(dconstrs)))
+                print(f"Intermediate-Sensitivity Filter: it.: {loop}, dc: {np.max(dc):.10f}, dconstrs: {np.min(dconstrs):.10f}")
             # apply density filter to sensitivities
             dc[:] = np.asarray(H*(dc[np.newaxis].T/Hs))[:,0]
             dconstrs[:] = np.asarray(H*(dconstrs/Hs))
         elif ft in [-1]:
             pass
         if debug:
-            print("Post-Sensitivity Filter: it.: {0}, dc: {1:.10f}, dconstrs: {2:.10f}".format(
-                   loop, 
-                   np.max(dc),
-                   np.min(dconstrs)))
+            print(f"Post-Sensitivity Filter: it.: {loop}, dc: {np.max(dc):.10f}, dconstrs: {np.min(dconstrs):.10f}")
         #import sys 
         #sys.exit()
         # density update by solver
@@ -592,13 +577,9 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             xold1 = xval.copy()
             x = xmma.copy().flatten()
         if debug:
-            print("Post Density Update: it.: {0}, dc: {1:.10f}, dconstrs {2:.10f}".format(
-                   loop, 
-                   np.max(dc),
-                   np.min(dconstrs)))
-            print("Post-Density Update: it.: {0} , x.: {1:.10f}, xPhys: {2:.10f},".format(
-                   loop+1, np.median(x),np.median(xPhys)), 
-                   "g: {0:.10f}".format(g))
+            print(f"Post Density Update: it.: {loop}, dc: {np.max(dc):.10f}, dconstrs {np.min(dconstrs):.10f}")
+            print(f"Post-Density Update: it.: {loop+1} , x.: {np.median(x):.10f}, xPhys: {np.median(xPhys):.10f},", 
+                   f"g: {g:.10f}")
         # Filter design variables
         if ft in [0,-1]:
             xPhys[:] = x
@@ -638,16 +619,13 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
         # Write iteration history to screen (req. Python 2.6 or newer)
         if debug == 1:
             if ft in projections or ft in [7]:
-                print("Post-Density Filter: it.: {0} , x.: {1:.10f}, xTilde: {2:.10f}, xPhys: {3:.10f},".format(
-                       loop+1, np.median(x),np.median(xTilde),np.median(xPhys)), 
-                       "g: {0:.10f}".format(g))
+                print(f"Post-Density Filter: it.: {loop+1} , x.: {np.median(x):.10f}, xTilde: {np.median(xTilde):.10f}, xPhys: {np.median(xPhys):.10f},", 
+                       f"g: {g:.10f}")
             else:
-                print("Post-Density Filter: it.: {0} , x.: {1:.10f}, xPhys: {2:.10f},".format(
-                       loop+1, np.median(x),np.median(xPhys)), 
-                       "g: {0:.10f}".format(g))
+                print(f"Post-Density Filter: it.: {loop+1} , x.: {np.median(x):.10f}, xPhys: {np.median(xPhys):.10f},", 
+                       f"g: {g:.10f}")
         if verbose: 
-            logging.info("it.: {0} , obj.: {1:.10f}, Vol.: {2:.10f}, ch.: {3:.10f}".format(
-            loop+1, obj, xPhys.mean(), change))
+            logging.info(f"it.: {loop+1} , obj.: {obj:.10f}, Vol.: {xPhys.mean():.10f}, ch.: {change:.10f}")
         # convergence check and continuation
         if change < 0.01 and ft in filters:
             break
@@ -754,19 +732,16 @@ def oc(nelx, nely, x, volfrac, dc, dv, g, baseplate, pass_el,
             xPhys[pass_el==1] = 0
             xPhys[pass_el==2] = 1
         #
-        gt=g+np.sum((dv*(xnew-x)))
+        gt=g+np.sum(dv*(xnew-x))
         if gt > 0:
             l1 = lmid
         else:
             l2 = lmid
         if debug == 2:
             i = i+1
-            print("oc it.: {0} , l1: {1:.10f} l2: {2:.10f}, gt: {3:.10f}".format(
-                   i, l1, l2, gt),
-                  "x: {0:.10f} xTilde: {1:.10f} xPhys: {2:.10f}".format(
-                    np.median(x),np.median(xTilde),np.median(xPhys)),
-                  "dc: {0:.10f} dv: {1:.10f}".format(
-                    np.max(dc),np.min(dv)))
+            print(f"oc it.: {i} , l1: {l1:.10f} l2: {l2:.10f}, gt: {gt:.10f}",
+                  f"x: {np.median(x):.10f} xTilde: {np.median(xTilde):.10f} xPhys: {np.median(xPhys):.10f}",
+                  f"dc: {np.max(dc):.10f} dv: {np.min(dv):.10f}")
             if np.isnan(gt):
                 print()
                 import sys 

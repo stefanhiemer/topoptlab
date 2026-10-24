@@ -1,14 +1,13 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Union
 import numpy as np
 
 from meshio import Mesh
 
-from topoptlab.log_utils import BaseLogger, EmptyLogger
+from topoptlab.log_utils import BaseLogger
 
 def threshold(xPhys: np.ndarray,
-              volfrac: Union[float,np.ndarray], 
-              logger: Union[None,BaseLogger] = None) -> np.ndarray:
+              volfrac: float | np.ndarray, 
+              logger: None | BaseLogger = None) -> np.ndarray:
     """
     Threshold grey scale design to black and white design.
 
@@ -40,7 +39,7 @@ def threshold(xPhys: np.ndarray,
         xThresh[indices[:vt],i] = 1.
         xThresh[indices[vt:],i] = 0.
         vt_fracs.append(vt/xThresh.shape[0])
-    msg = "Thresholded Vol.: {}".format(", ".join(["{:.5f}".format(v)  for v in vt_fracs]))
+    msg = "Thresholded Vol.: {}".format(", ".join([f"{v:.5f}"  for v in vt_fracs]))
     if logger is None:
         print(msg)
     else:
@@ -49,20 +48,20 @@ def threshold(xPhys: np.ndarray,
 
 def export_vtk(filename: str, 
                nelx: int, nely: int, 
-               xPhys: Union[None,np.ndarray] = None,
-               nelz: Union[None,int] = None,
-               x: Union[None,np.ndarray] = None,
-               u: Union[None,np.ndarray] = None, 
-               f: Union[None,np.ndarray] = None,
-               nodal_variables: Union[None,Dict[np.ndarray]] = None,
-               element_variables: Union[None,Dict[np.ndarray]] = None,
-               u_bw: Union[None,np.ndarray] = None,
-               f_bw: Union[None,np.ndarray] = None,
-               xTilde: Union[None,np.ndarray] = None,
-               elem_size: Union[None,float, np.ndarray] = None,
-               volfrac: Union[None,float] = None,
-               stress_vm: Union[None,float, np.ndarray] = None,
-               vectors: Union[None,np.ndarray] = None) -> None:
+               xPhys: None | np.ndarray = None,
+               nelz: None | int = None,
+               x: None | np.ndarray = None,
+               u: None | np.ndarray = None, 
+               f: None | np.ndarray = None,
+               nodal_variables: None | Dict[np.ndarray] = None,
+               element_variables: None | Dict[np.ndarray] = None,
+               u_bw: None | np.ndarray = None,
+               f_bw: None | np.ndarray = None,
+               xTilde: None | np.ndarray = None,
+               elem_size: None | float | np.ndarray = None,
+               volfrac: None | float = None,
+               stress_vm: None | float | np.ndarray = None,
+               vectors: None | np.ndarray = None) -> None:
     """
     Export design to a vtk file for visualisation e. g. with Paraview.
 

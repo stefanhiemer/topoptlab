@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any,Dict,Tuple,Union
+from typing import Any
 from functools import partial
 
 import numpy as np
@@ -12,12 +12,12 @@ def find_eta(eta0: float,
              xTilde: np.ndarray, 
              beta: float, 
              volfrac: float,
-             root_args: Dict = {"fprime": True,
+             root_args: dict = {"fprime": True,
                                 "fprime2": True,
                                 "method": "halley",
                                 "maxiter": 1000,
                                 "bracket": [-1/2,1/2]},
-            logger: Union[EmptyLogger,SimpleLogger] = EmptyLogger(),
+            logger: EmptyLogger | SimpleLogger = EmptyLogger(),
              **kwargs: Any) -> float:
     """
     Find volume preserving eta for the element-wiser elaxed Haeviside 
@@ -67,7 +67,7 @@ def find_eta(eta0: float,
 def _find_eta_root_func(eta: float, 
                         xTilde: np.ndarray, 
                         beta: float, 
-                        volfrac: float) -> Tuple[float,float]:
+                        volfrac: float) -> tuple[float,float]:
     """
     Function whose root is the volume preserving threshold.
 
@@ -248,18 +248,18 @@ def eta_projection_deta2(eta: float,
     return beta * ((term1_deta -term2_deta+term3_deta)/(np.tanh(beta*eta)+np.tanh(beta*(1-eta)))+\
                     xProj_deta*term4_deta*(np.tanh(beta*eta)+np.tanh(beta*(1-eta))))
 
-def find_multieta(etas0: Union[float,np.ndarray], 
+def find_multieta(etas0: float | np.ndarray, 
                   xTilde: np.ndarray, 
                   beta: float, 
                   volfrac: float,
                   weights: np.ndarray,
                   mode: str = "mse",
-                  etas_fixed: Union[None,np.ndarray] = None,
-                  root_args: Dict = {"fprime": True,
+                  etas_fixed: None | np.ndarray = None,
+                  root_args: dict = {"fprime": True,
                                      "method": "newton",
                                      "maxiter": 1000,
                                      "bracket": [-1/2,1/2]},
-                  logger: Union[EmptyLogger,SimpleLogger] = EmptyLogger(),
+                  logger: EmptyLogger | SimpleLogger = EmptyLogger(),
                   **kwargs: Any) -> float:
     """
     Find volume preserving eta multiple eta projections
@@ -372,9 +372,9 @@ def find_multieta(etas0: Union[float,np.ndarray],
 def mean_squared_error(etas: np.ndarray, 
                        xTilde: np.ndarray, 
                        beta: float,
-                       weights: Union[None,np.ndarray],
+                       weights: None | np.ndarray,
                        volfrac: float
-                       ) -> Tuple[float,np.ndarray]:
+                       ) -> tuple[float,np.ndarray]:
     xProj = multieta_projection(etas=etas,
                                 xTilde=xTilde,
                                 beta=beta,
@@ -384,7 +384,7 @@ def mean_squared_error(etas: np.ndarray,
 def mean_squared_error_jac(etas: np.ndarray,
                            xTilde: np.ndarray,
                            beta: float,
-                           weights: Union[None,np.ndarray],
+                           weights: None | np.ndarray,
                            volfrac: float
                            ) -> np.ndarray:
     xProj = multieta_projection(etas=etas,
@@ -400,9 +400,9 @@ def mean_squared_error_jac(etas: np.ndarray,
 def volume_constraint_fun(etas: np.ndarray, 
                           xTilde: np.ndarray, 
                           beta: float,
-                          weights: Union[None,np.ndarray],
+                          weights: None | np.ndarray,
                           volfrac: float
-                          ) -> Tuple[float,np.ndarray]:
+                          ) -> tuple[float,np.ndarray]:
     xProj = multieta_projection(etas=etas,
                                 xTilde=xTilde,
                                 beta=beta,
@@ -412,7 +412,7 @@ def volume_constraint_fun(etas: np.ndarray,
 def volume_constraint_jac(etas: np.ndarray,
                           xTilde: np.ndarray,
                           beta: float,
-                          weights: Union[None, np.ndarray],
+                          weights: None | np.ndarray,
                           volfrac: float) -> np.ndarray:
     return multieta_projection_deta(etas=etas,
                                     xTilde=xTilde,
@@ -422,7 +422,7 @@ def volume_constraint_jac(etas: np.ndarray,
 def multieta_projection(etas: np.ndarray, 
                         xTilde: np.ndarray, 
                         beta: float, 
-                        weights: Union[None,np.ndarray] = None,
+                        weights: None | np.ndarray = None,
                         **kwargs: Any
                         ) -> np.ndarray:
     """
@@ -463,7 +463,7 @@ def multieta_projection(etas: np.ndarray,
 def multieta_projection_dx(etas: np.ndarray, 
                            xTilde: np.ndarray, 
                            beta: float, 
-                           weights: Union[None,np.ndarray] = None
+                           weights: None | np.ndarray = None
                            ) -> np.ndarray:
     """
     Perform a differentiable "relaxed" Haeviside projection as done in
@@ -503,7 +503,7 @@ def multieta_projection_dx(etas: np.ndarray,
 def multieta_projection_deta(etas: np.ndarray,
                              xTilde: np.ndarray,
                              beta: float,
-                             weights: Union[None,np.ndarray]
+                             weights: None | np.ndarray
                              ) -> np.ndarray:
     """
     First derivative of the weighted multi-threshold Haeviside projection

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any,Tuple,Union
+from typing import Any
 from functools import partial
 
 import numpy as np
@@ -36,7 +36,7 @@ def gray_indicator(x: np.ndarray) -> np.ndarray:
 
 def level_indicator(x: np.ndarray, 
                     x_i: [None,np.ndarray] = None, 
-                    nlevels: Union[None,int] = None) -> np.ndarray:
+                    nlevels: None | int = None) -> np.ndarray:
     """
     Level indicator to measure discreteness of multi-level designs. Generalizes
     gray_indicator to the case where x is expected to take more than two
@@ -84,7 +84,7 @@ def level_indicator(x: np.ndarray,
 def lengthscale_violations(x: np.ndarray,
                            r: float,
                            nelx: int, nely: int,
-                           nelz: Union[None,int] = None
+                           nelz: None | int = None
                            ) -> [np.ndarray,np.ndarray]:
     """
     Visualize length scale violations as suggested in chapter 2.6 of 
@@ -236,7 +236,7 @@ def baseplate_kernel(baseplate: str,
     return kernel
 
 def baseplate_slice(baseplate: str,
-                    ndim: int) -> Tuple:
+                    ndim: int) -> tuple:
     """
     Return an index tuple that selects the baseplate layer from the
     image or voxel array.

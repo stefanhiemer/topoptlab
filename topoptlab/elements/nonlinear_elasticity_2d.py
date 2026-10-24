@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any, Callable, Dict, Tuple
+from typing import Any
+from collections.abc import Callable
 
 import numpy as np
 
@@ -13,7 +14,7 @@ from topoptlab.elements.strain_measures import dispgrad_matrix,\
 def _lk_nonlinear_elast_2d(xe: np.ndarray,
                            ue: np.ndarray,
                            material_model: Callable,
-                           material_constants: Dict,
+                           material_constants: dict,
                            quadr_method: str = "gauss-legendre",
                            t: np.ndarray = np.array([1.]),
                            nquad: int = 2,

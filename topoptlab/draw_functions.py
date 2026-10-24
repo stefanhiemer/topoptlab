@@ -1,5 +1,4 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Tuple
 
 import numpy as np
 from scipy.signal import sawtooth
@@ -11,7 +10,7 @@ def spring(x0: float, y0: float,
            num_coils: int = 3,
            coil_width: float = 0.02,
            coil_length: float = 0.4,
-           points_per_coil: int = 9) -> Tuple[np.ndarray,np.ndarray]:
+           points_per_coil: int = 9) -> tuple[np.ndarray,np.ndarray]:
     """
     Draw a spring for a sketch.
 

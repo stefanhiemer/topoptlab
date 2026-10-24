@@ -1,14 +1,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import List,Union
 from multiprocessing import Pool, cpu_count
-from functools import partial 
 
 from tqdm import tqdm
 
-from sympy import Expr,Symbol,sympify
+from sympy import Expr,sympify
 from symfem.references import Reference
 from symfem.symbols import AxisVariablesNotSingle
-from symfem.functions import Function,ScalarFunction,VectorFunction
+from symfem.functions import ScalarFunction,VectorFunction
 
 from topoptlab.symbolic.utils import split_expression
 

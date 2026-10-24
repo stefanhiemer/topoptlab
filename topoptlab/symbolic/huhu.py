@@ -1,25 +1,22 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any,Dict,Union
+from typing import Any
 
-from sympy import ln,exp,simplify,symbols
+from sympy import exp,simplify
 from sympy.core.symbol import Symbol,Expr
 from symfem.symbols import x,t
 from symfem.functions import ScalarFunction,MatrixFunction
 
 from topoptlab.symbolic.matrix_utils import generate_constMatrix, \
-                                            generate_FunctMatrix, \
-                                            is_voigt,to_voigt,\
-                                            to_column, trace, inverse, eye, \
-                                            simplify_matrix,integrate, factor
+                                            to_column, simplify_matrix,integrate, factor
 from topoptlab.symbolic.strain_measures import def_grad, dispgrad_matrix
 from topoptlab.symbolic.operators import hessian_matrix
 from topoptlab.symbolic.cell import base_cell
 from topoptlab.symbolic.parametric_map import jacobian
 from topoptlab.symbolic.scalar_utils import integral
 
-def huhu_engdensity(u : Union[None,MatrixFunction], 
+def huhu_engdensity(u : None | MatrixFunction, 
                     ndim: int,
-                    kr : Union[None,Symbol,ScalarFunction] = None,
+                    kr : None | Symbol | ScalarFunction = None,
                     element_type: str = "Lagrange",
                     order: int = 1,
                     do_integral: bool = True,
@@ -74,12 +71,12 @@ def huhu_engdensity(u : Union[None,MatrixFunction],
                         parallel=parallel)
     return ScalarFunction(factor(huhu._f))
 
-def huhu_tangent(u : Union[None,MatrixFunction], 
+def huhu_tangent(u : None | MatrixFunction, 
                  ndim: int,
-                 F : Union[None,MatrixFunction] = None,
-                 a : Union[None,Symbol,ScalarFunction] = None,
-                 kr : Union[None,Symbol,ScalarFunction] = None,
-                 Fdet: Union[None,Expr,ScalarFunction] = None,
+                 F : None | MatrixFunction = None,
+                 a : None | Symbol | ScalarFunction = None,
+                 kr : None | Symbol | ScalarFunction = None,
+                 Fdet: None | Expr | ScalarFunction = None,
                  element_type: str = "Lagrange",
                  order: int = 1,
                  do_integral: bool = True,

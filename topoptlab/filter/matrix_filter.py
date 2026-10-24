@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any,Callable,List,Tuple,Union
+from typing import Any
+from collections.abc import Callable
 
 import numpy as np
 from scipy.sparse import coo_matrix,csc_matrix
 
 from topoptlab.filter.filter import TOFilter
-from topoptlab.filter.kernels import hat_kernel
 
 class MatrixFilter(TOFilter):
     """
@@ -24,12 +24,12 @@ class MatrixFilter(TOFilter):
                  n_constr: int,
                  rmin: float,
                  kernel_fn: Callable,
-                 nelz: Union[int, None] = None,
-                 pbc: Union[bool, List, np.ndarray] = False,
+                 nelz: int | None = None,
+                 pbc: bool | list | np.ndarray = False,
                  filter_objective: bool = True,
-                 constraint_filter_mask: Union[None, np.ndarray] = None,
-                 el_flags: Union[None, np.ndarray] = None,
-                 el_flags_policy: Union[None, dict] = None,
+                 constraint_filter_mask: None | np.ndarray = None,
+                 el_flags: None | np.ndarray = None,
+                 el_flags_policy: None | dict = None,
                  **kwargs: Any) -> None:
         """
         Assemble matrix-based filter from "Efficient topology optimization in
@@ -169,14 +169,14 @@ class MatrixFilter(TOFilter):
 
 def assemble_matrix_filter(nelx: int,
                            nely: int,
-                           rmin: Union[float,List,np.ndarray],
-                           nelz: Union[int, None] = None,
-                           pbc: Union[bool,List,np.ndarray] = False,
-                           el_flags: Union[None, np.ndarray] = None,
-                           el_flags_policy: Union[None, dict] = None,
-                           kernel_fn: Union[Callable, None] = None,
+                           rmin: float | list | np.ndarray,
+                           nelz: int | None = None,
+                           pbc: bool | list | np.ndarray = False,
+                           el_flags: None | np.ndarray = None,
+                           el_flags_policy: None | dict = None,
+                           kernel_fn: Callable | None = None,
                            compute_coords: bool = True,
-                           **kwargs: Any) -> Tuple[csc_matrix,np.matrix]:
+                           **kwargs: Any) -> tuple[csc_matrix,np.matrix]:
     """
     Assemble distance based filters as sparse matrix that is applied on to
     densities/sensitivities by standard multiplication.
@@ -264,7 +264,7 @@ def assemble_matrix_filter(nelx: int,
     elif ndim == 3:
         z,rest = np.divmod(el,nelx*nely)
         x,y = np.divmod(rest,nely)
-        coords = np.column_stack( (np.divmod(rest,nely)+tuple([z])) )
+        coords = np.column_stack( np.divmod(rest,nely)+tuple([z]) )
     # convert/round rmin to integer 
     dx = np.maximum(np.ceil(rmin)-1,np.zeros(ndim)).astype(int)
     # create stencil for neighbors
@@ -336,9 +336,9 @@ def assemble_matrix_filter(nelx: int,
     return H,Hs
 
 def assemble_matrix_filter_legacy(nelx: int, nely: int, rmin: float,
-                                  nelz: Union[int, None] = None,
+                                  nelz: int | None = None,
                                   **kwargs: Any
-                                  ) -> Tuple[csc_matrix,np.matrix]:
+                                  ) -> tuple[csc_matrix,np.matrix]:
     """
     Will only be used for testing. Assemble distance based filters as sparse 
     matrix that is applied on to densities/sensitivities by standard 

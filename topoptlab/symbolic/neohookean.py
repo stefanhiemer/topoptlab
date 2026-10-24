@@ -1,26 +1,20 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any,Dict,Union
+from typing import Any
 
-from sympy import ln,exp,simplify
+from sympy import ln
 from sympy.core.symbol import Symbol,Expr
-from symfem.symbols import x
 from symfem.functions import ScalarFunction,MatrixFunction
 
 from topoptlab.symbolic.matrix_utils import generate_constMatrix, \
-                                            generate_FunctMatrix, \
                                             is_voigt,\
-                                            to_voigt, trace, inverse, eye, \
-                                            simplify_matrix
-from topoptlab.symbolic.strain_measures import cauchy_strain,green_strain,def_grad
-from topoptlab.symbolic.operators import hessian_matrix
-from topoptlab.symbolic.cell import base_cell
-from topoptlab.symbolic.parametric_map import jacobian
+                                            to_voigt, trace, inverse, eye
+from topoptlab.symbolic.strain_measures import cauchy_strain,green_strain
 
-def neohookean_engdensity(F : Union[None,MatrixFunction] = None,
-                          h : Union[None,Symbol,ScalarFunction] = None,
-                          mu: Union[None,Symbol,ScalarFunction] = None,
-                          Fdet: Union[None,Expr,ScalarFunction] = None,
-                          ndim: Union[int,None] = 3, 
+def neohookean_engdensity(F : None | MatrixFunction = None,
+                          h : None | Symbol | ScalarFunction = None,
+                          mu: None | Symbol | ScalarFunction = None,
+                          Fdet: None | Expr | ScalarFunction = None,
+                          ndim: int | None = 3, 
                           **kwargs: Any) -> ScalarFunction:
     """
     Return elastic energy density for Neo-Hookean material defined as 
@@ -76,11 +70,11 @@ def neohookean_engdensity(F : Union[None,MatrixFunction] = None,
         mu =  Symbol("mu")
     return ScalarFunction( h*ln( Fdet )**2 + mu*( 1/2*( trace(C,mode="sympy")-3) - ln(Fdet))  )
 
-def neohookean_2pk(F : Union[None,MatrixFunction] = None,
-                   h : Union[None,Symbol,ScalarFunction] = None,
-                   mu: Union[None,Symbol,ScalarFunction] = None,
-                   Fdet: Union[None,ScalarFunction] = None,
-                   ndim: Union[int,None] = 3, 
+def neohookean_2pk(F : None | MatrixFunction = None,
+                   h : None | Symbol | ScalarFunction = None,
+                   mu: None | Symbol | ScalarFunction = None,
+                   Fdet: None | ScalarFunction = None,
+                   ndim: int | None = 3, 
                    **kwargs: Any) -> MatrixFunction:
     """
     Returns 2. Piola-Kirchhoff stress (2PK) S for Neo-Hookean material:
@@ -136,11 +130,11 @@ def neohookean_2pk(F : Union[None,MatrixFunction] = None,
         mu =  Symbol("mu")
     return Binv.__mul__(h*ln(Fdet)) + (eye(Binv.shape[0])-Binv).__mul__(mu) 
 
-def neohookean_1pk(F : Union[None,MatrixFunction] = None,
-                   h : Union[None,Symbol,ScalarFunction] = None,
-                   mu: Union[None,Symbol,ScalarFunction] = None,
-                   Fdet: Union[None,ScalarFunction] = None,
-                   ndim: Union[int,None] = 3, 
+def neohookean_1pk(F : None | MatrixFunction = None,
+                   h : None | Symbol | ScalarFunction = None,
+                   mu: None | Symbol | ScalarFunction = None,
+                   Fdet: None | ScalarFunction = None,
+                   ndim: int | None = 3, 
                    **kwargs: Any) -> MatrixFunction:
     """
     Returns 1. Piola-Kirchhoff stress (1PK) P for Neo-Hookean material:

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any,Union
+from typing import Any
 
 from symfem.functions import ScalarFunction,MatrixFunction
 
@@ -8,8 +8,8 @@ from topoptlab.symbolic.matrix_utils import generate_constMatrix, is_voigt,\
 from topoptlab.symbolic.strain_measures import lagrangian_strain
 
 def calculate_1pk(eng_density: ScalarFunction,
-                  F : Union[None,MatrixFunction] = None,
-                  ndim: Union[int,None] = 3, 
+                  F : None | MatrixFunction = None,
+                  ndim: int | None = 3, 
                   **kwargs: Any) -> MatrixFunction:
     """
     Returns 1. Piola-Kirchhoff stress (1PK) P of a given elastic energy density 
@@ -47,9 +47,9 @@ def calculate_1pk(eng_density: ScalarFunction,
     return MatrixFunction(S)
 
 def calculate_2pk(eng_density: ScalarFunction,
-                  F : Union[None,MatrixFunction] = None,
-                  E : Union[None,MatrixFunction] = None,
-                  ndim: Union[int,None] = 3, 
+                  F : None | MatrixFunction = None,
+                  E : None | MatrixFunction = None,
+                  ndim: int | None = 3, 
                   **kwargs: Any) -> MatrixFunction:
     """
     Returns 2. Piola-Kirchhoff stress (2PK) S of a given elastic energy density 

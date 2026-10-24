@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any, Dict, List, Union
+from typing import Any
 
 import numpy as np
 
 from topoptlab.log_utils import EmptyLogger,BaseLogger
 from topoptlab.design_analysis import gray_indicator, level_indicator
 
-def run_continuation(continuation_kw: Dict,
+def run_continuation(continuation_kw: dict,
                      stage: int,
                      **call_args: Any) -> bool:
     """
@@ -51,14 +51,14 @@ def run_continuation(continuation_kw: Dict,
             flags[i] = func(**call_args, **kw)
     return all(flags)
 
-def update_move_limit(filter_kw: Dict,
-                      optimizer_kw: Dict,
+def update_move_limit(filter_kw: dict,
+                      optimizer_kw: dict,
                       transition_eps: float = 0.01,
                       varsigma: float = 5.0,
                       move_min: float = 0.01,
                       move_max: float = 0.2,
                       n_sample: int = 1000,
-                      logger: Union[EmptyLogger,BaseLogger] = EmptyLogger(),
+                      logger: EmptyLogger | BaseLogger = EmptyLogger(),
                       **kwargs: Any) -> None:
     """
     Adapt the move limit to the current width of the Heaviside transition zone.
@@ -120,16 +120,15 @@ def update_move_limit(filter_kw: Dict,
         z = 1.0 / beta if beta > 0.0 else move_min
     move = float(np.clip(z / varsigma, move_min, move_max))
     optimizer_kw["move"] = move
-    logger.info("move limit adapted to {0:.4g} from beta={1:.4g}, z={2:.4g}".format(
-                move, beta, z))
+    logger.info(f"move limit adapted to {move:.4g} from beta={beta:.4g}, z={z:.4g}")
     return True
 
-def scale_move_limit(filter_kw: Dict,
-                     optimizer_kw: Dict,
+def scale_move_limit(filter_kw: dict,
+                     optimizer_kw: dict,
                      move_min: float = 1e-3,
                      move_max: float = 0.2,
                      beta0: float = 1,
-                     logger: Union[EmptyLogger,BaseLogger] = EmptyLogger(),
+                     logger: EmptyLogger | BaseLogger = EmptyLogger(),
                      **kwargs: Any) -> None:
     """
     Adapt the MMA move limit depending on the current value of beta.
@@ -171,13 +170,15 @@ def scale_move_limit(filter_kw: Dict,
 def change_constraint(change: float,
                       loop: int,
                       conv_tol: float,
-                      constraint: Dict,
+                      constraint: dict,
                       target: float = 0.,
                       scale: float = 0.5,
                       delta: float = 0.,
                       update: int = 50,
-                      state: Union[None, Dict] = None,
-                      logger: Union[EmptyLogger, BaseLogger] = EmptyLogger(),
+                      state: None | dict = None,
+                      constrs_hist: None | list = None,
+                      constr_idx: int = 0,
+                      logger: EmptyLogger | BaseLogger = EmptyLogger(),
                       **kwargs: Any) -> bool:
     """
     Continuation scheme that progressively tightens or relaxes a constraint
@@ -188,9 +189,10 @@ def change_constraint(change: float,
     in the ``constraints`` list, e.g. via ``func_kw={"constraint": constraints[k], ...}``.
 
     A trigger fires when ``change < conv_tol`` (converged at current bound) or
-    the iteration counter since the last trigger reaches ``update``.  The new
-    value is clamped to ``target`` so it never overshoots.  The function
-    signals termination once ``target`` has been reached and
+    the iteration counter since the last trigger reaches ``update``, **and** the
+    constraint is currently inactive (``constrs_hist[-1][constr_idx, 0] <= 0``).
+    When ``constrs_hist`` is ``None`` the activity check is skipped.  The
+    function signals termination once ``target`` has been reached and
     ``change < conv_tol``.
 
     Parameters
@@ -218,6 +220,14 @@ def change_constraint(change: float,
     state : dict or None
         Mutable dict for persisting the per-call iteration counter and the
         initial direction.  Pass the same dict every call.
+    constrs_hist : list or None
+        History of constraint value arrays as provided by the driver.  Each
+        entry has shape ``(n_constr, 1)`` with the sign convention of the
+        driver: negative means the constraint is inactive (satisfied).
+    constr_idx : int
+        Index into ``constrs_hist[-1]`` that identifies this constraint.
+        Accounts for any constraints the driver prepends (e.g. volume
+        fraction at index 0).
     logger : BaseLogger
         Logger object.
 
@@ -235,11 +245,14 @@ def change_constraint(change: float,
     at_target = sign * (constraint["value"] - target) >= 0.
     if change < conv_tol and at_target:
         return True
-    if change < conv_tol or state["_loop"] >= update:
+    constr_inactive = (constrs_hist is None or
+                       float(constrs_hist[-1][constr_idx, 0]) <= 0.)
+    if (change < conv_tol or state["_loop"] >= update) and constr_inactive:
         new_val = constraint["value"] * scale + delta
-        constraint["value"] = float(np.clip(new_val,
-                                            min(target, new_val) if sign < 0 else new_val,
-                                            max(target, new_val) if sign > 0 else new_val))
+        if sign < 0:
+            constraint["value"] = float(max(new_val, target))
+        else:
+            constraint["value"] = float(min(new_val, target))
         state["_loop"] = 0
         logger.info("constraint '{0}' value → {1:.4g}".format(
                     constraint.get("name", "?"), constraint["value"]))
@@ -249,13 +262,13 @@ def change_constraint(change: float,
 def scaling(change: float,
             loop: int,
             key: str,
-            filter_kw: Dict,
+            filter_kw: dict,
             conv_tol: float,
             scale: float = 2.0,
             limit: float = 64.0,
             update: int = 50,
-            state: Union[None, Dict] = None,
-            logger: Union[EmptyLogger,BaseLogger] = EmptyLogger(),
+            state: None | dict = None,
+            logger: EmptyLogger | BaseLogger = EmptyLogger(),
             **kwargs: Any) -> bool:
     """
     Continuation scheme for the Heaviside projection parameter beta.
@@ -315,7 +328,7 @@ def scaling(change: float,
           filter_kw["beta"] < limit:
         filter_kw[key] *= scale
         state[key+"_loop"] = 0
-        logger.info("{0} increased.: {1: .1f}".format(key,filter_kw[key]))
+        logger.info(f"{key} increased.: {filter_kw[key]: .1f}")
         stop = False
     else:
         stop = False
@@ -323,21 +336,26 @@ def scaling(change: float,
 
 def beta_scaling(change: float,
                  loop: int,
-                 filter_kw: Dict,
+                 filter_kw: dict,
                  conv_tol: float,
                  beta_scale: float = 2.0,
                  beta_limit: float = 64.0,
                  beta_update: int = 50,
-                 state: Union[None, Dict] = None,
-                 logger: Union[EmptyLogger,BaseLogger] = EmptyLogger(),
+                 state: None | dict = None,
+                 constrs_hist: None | list = None,
+                 constr_idx: int = 0,
+                 logger: EmptyLogger | BaseLogger = EmptyLogger(),
                  **kwargs: Any) -> bool:
     """
     Continuation scheme for the Heaviside projection parameter beta.
 
-    Increases ``filter_kw["beta"]`` by scaling by ``beta_scale`` whenever the 
-    change metric falls below ``conv_tol`` or the iteration counter since the 
-    last beta update reaches ``beta_update``.  Signals termination once
-    ``beta_limit`` is reached and the change is below ``conv_tol``.
+    Increases ``filter_kw["beta"]`` by scaling by ``beta_scale`` whenever the
+    change metric falls below ``conv_tol`` or the iteration counter since the
+    last beta update reaches ``beta_update``, **and** the constraint is
+    currently inactive (``constrs_hist[-1][constr_idx, 0] <= 0``).  When
+    ``constrs_hist`` is ``None`` the activity check is skipped.  Signals
+    termination once ``beta_limit`` is reached and the change is below
+    ``conv_tol``.
 
     The iteration counter is maintained in-place in ``state["beta_loop"]``,
     which is initialised automatically on the first call if ``state`` is an
@@ -367,6 +385,14 @@ def beta_scaling(change: float,
         mutable dict for persisting the per-call iteration counter
         ``"beta_loop"``.  Pass the same dict every call; it is initialised
         automatically if empty or None.
+    constrs_hist : list or None
+        History of constraint value arrays as provided by the driver.  Each
+        entry has shape ``(n_constr, 1)`` with the sign convention of the
+        driver: negative means the constraint is inactive (satisfied).
+    constr_idx : int
+        Index into ``constrs_hist[-1]`` that identifies the constraint to
+        check. Accounts for any constraints the driver prepends (e.g. volume
+        fraction at index 0).
     logger : BaseLogger
         logger object to log performance.
 
@@ -381,12 +407,15 @@ def beta_scaling(change: float,
         state = {}
     state.setdefault("beta_loop", 0)
     state["beta_loop"] += 1
+    constr_inactive = (constrs_hist is None or
+                       float(constrs_hist[-1][constr_idx, 0]) <= 0.)
     if change < conv_tol and \
        filter_kw["beta"] >= beta_limit:
         stop = True
     elif (change < conv_tol or \
           state["beta_loop"] >= beta_update) and \
-          filter_kw["beta"] < beta_limit:
+          filter_kw["beta"] < beta_limit and \
+          constr_inactive:
         filter_kw["beta"] *= beta_scale
         state["beta_loop"] = 0
         logger.info("beta increased.: {0: .1f}".format(filter_kw["beta"]))
@@ -397,13 +426,13 @@ def beta_scaling(change: float,
 
 def beta_translation(change: float,
                      loop: int,
-                     filter_kw: Dict,
+                     filter_kw: dict,
                      conv_tol: float,
                      beta_translation: float = 1.0,
                      beta_limit: float = 64.0,
                      beta_update: int = 50,
-                     state: Union[None, Dict] = None,
-                     logger: Union[EmptyLogger,BaseLogger] = EmptyLogger(),
+                     state: None | dict = None,
+                     logger: EmptyLogger | BaseLogger = EmptyLogger(),
                      **kwargs: Any) -> bool:
     """
     Continuation scheme for the Heaviside projection parameter beta.
@@ -472,17 +501,17 @@ def beta_translation(change: float,
 
 def dunning_beta_continuation(change: float,
                               loop: int,
-                              filter_kw: Dict,
+                              filter_kw: dict,
                               conv_tol: float,
                               gamma: float = 1e-4,
                               r: float = 0.2,
                               beta_limit: float = 512.0,
                               gray_tol: float = 0.01,
                               eps: float = 1e-16,
-                              obj_hist: Union[None, List] = None,
-                              xPhys_hist: Union[None, List] = None,
-                              state: Union[None, Dict] = None,
-                              logger: Union[EmptyLogger,BaseLogger] = EmptyLogger(),
+                              obj_hist: None | list = None,
+                              xPhys_hist: None | list = None,
+                              state: None | dict = None,
+                              logger: EmptyLogger | BaseLogger = EmptyLogger(),
                               **kwargs: Any) -> bool:
     """
     Adaptive beta continuation based on objective progress from:
@@ -576,17 +605,17 @@ def dunning_beta_continuation(change: float,
 
 def level_beta_continuation(change: float,
                             loop: int,
-                            filter_kw: Dict,
+                            filter_kw: dict,
                             conv_tol: float,
                             gamma: float = 1e-4,
                             r: float = 0.2,
                             beta_limit: float = 512.0,
                             gray_tol: float = 0.01,
                             eps: float = 1e-16,
-                            obj_hist: Union[None, List] = None,
-                            xPhys_hist: Union[None, List] = None,
-                            state: Union[None, Dict] = None,
-                            logger: Union[EmptyLogger,BaseLogger] = EmptyLogger(),
+                            obj_hist: None | list = None,
+                            xPhys_hist: None | list = None,
+                            state: None | dict = None,
+                            logger: EmptyLogger | BaseLogger = EmptyLogger(),
                             **kwargs: Any) -> bool:
     """
     Generalization of adaptive beta continuation for multi-level designs, based on

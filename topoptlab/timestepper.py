@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any, Tuple, Union
+from typing import Any
 
 import numpy as np
 from scipy.sparse import csc_array
@@ -38,7 +38,7 @@ def backward_diff(M: csc_array,
                   phi: np.ndarray, 
                   h: float, 
                   order: int, 
-                  **kwargs: Any) -> Tuple[csc_array,np.ndarray]:
+                  **kwargs: Any) -> tuple[csc_array,np.ndarray]:
     """
     Return left hand side (matrix) and right hand side for one timestep 
     evolution of the backward difference. We assume the generic PDE of first 
@@ -84,7 +84,7 @@ def backward_diff(M: csc_array,
     return M/h + coeffs[0]*K, coeffs[0]*f + M/h @ (coeffs[1:] * phi[-1:-order-1:-1]).sum(axis=1)
 
 def bossak_init(alpha: float = -0.05, 
-                **kwargs: Any) -> Tuple[float,float]:
+                **kwargs: Any) -> tuple[float,float]:
     """
     Calculate parameters beta and gamma for the Bossak method:
         
@@ -119,9 +119,9 @@ def bossak(M: csc_array,
            beta : float, 
            gamma : float, 
            alpha : float = -0.05,
-           a: Union[None,np.ndarray] = None,
-           v: Union[None,np.ndarray] = None, 
-           **kwargs: Any) -> Tuple[csc_array,np.ndarray]:
+           a: None | np.ndarray = None,
+           v: None | np.ndarray = None, 
+           **kwargs: Any) -> tuple[csc_array,np.ndarray]:
     """
     Return left hand side (matrix) and right hand side for one timestep 
     evolution of the Bossak methd. We assume the generic PDE of second 
@@ -203,7 +203,7 @@ def bossak_update_derivatives(phi: np.ndarray,
                               beta: float, 
                               gamma: float, 
                               h: float, 
-                              **kwargs: Any) -> Tuple[np.ndarray,np.ndarray]:
+                              **kwargs: Any) -> tuple[np.ndarray,np.ndarray]:
     """
     Update first and second order derivative (in time) of phi after the phi 
     of the new timestep has been found:

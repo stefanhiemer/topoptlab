@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any,Callable,Tuple,Union
+from typing import Any
+from collections.abc import Callable
 
 import numpy as np
 
@@ -7,10 +8,10 @@ from topoptlab.elements.strain_measures import lagrangian_strain
 from topoptlab.utils import safe_inverse
 from topoptlab.voigt import to_voigt
 
-def _as_structure_tensor(A: Union[None, np.ndarray],
-                         batch_shape: Tuple[int, ...],
+def _as_structure_tensor(A: None | np.ndarray,
+                         batch_shape: tuple[int, ...],
                          ndim: int,
-                         name: str) -> Union[None, np.ndarray]:
+                         name: str) -> None | np.ndarray:
     if A is None:
         return None
     A = np.asarray(A)
@@ -20,8 +21,8 @@ def _as_structure_tensor(A: Union[None, np.ndarray],
                            batch_shape + (ndim, ndim))
 
 def invariants(M: np.ndarray,
-               A: Union[None,np.ndarray] = None,
-               B: Union[None,np.ndarray] = None,
+               A: None | np.ndarray = None,
+               B: None | np.ndarray = None,
                ) -> np.ndarray:
     """
     Compute isotropic, transversal isotropic or orthotropic invariants of matrix M.
@@ -88,8 +89,8 @@ def invariants(M: np.ndarray,
                     axis=-1)
 
 def invariant_gradients(M: np.ndarray,
-                        A: Union[None, np.ndarray] = None,
-                        B: Union[None, np.ndarray] = None, 
+                        A: None | np.ndarray = None,
+                        B: None | np.ndarray = None, 
                         symmetric: bool = True,
                         ) -> np.ndarray:
     """
@@ -165,8 +166,8 @@ def invariant_gradients(M: np.ndarray,
     return np.stack(gradients, axis=-3)
 
 def invariant_hessian(M: np.ndarray,
-                      A: Union[None, np.ndarray] = None,
-                      B: Union[None, np.ndarray] = None,
+                      A: None | np.ndarray = None,
+                      B: None | np.ndarray = None,
                       symmetric: bool = True,
                       ) -> np.ndarray:
     """
@@ -248,9 +249,9 @@ def invariant_hessian(M: np.ndarray,
 
 def eng_density_invariants(F: np.ndarray,
                            psi: Callable,
-                           A: Union[None, np.ndarray] = None,
-                           B: Union[None, np.ndarray] = None,
-                           E: Union[None, np.ndarray] = None,
+                           A: None | np.ndarray = None,
+                           B: None | np.ndarray = None,
+                           E: None | np.ndarray = None,
                            **kwargs: Any) -> np.ndarray:
     
     if E is None:
@@ -262,10 +263,10 @@ def eng_density_invariants(F: np.ndarray,
 
 def stress_2pk_invariants(F: np.ndarray,
                           dpsi_dI: Callable,
-                          A: Union[None, np.ndarray] = None,
-                          B: Union[None, np.ndarray] = None,
-                          E: Union[None, np.ndarray] = None,
-                          I: Union[None, np.ndarray] = None,
+                          A: None | np.ndarray = None,
+                          B: None | np.ndarray = None,
+                          E: None | np.ndarray = None,
+                          I: None | np.ndarray = None,
                           matconst: Dict = {},
                           **kwargs: Any) -> np.ndarray:
     """
@@ -323,9 +324,9 @@ def stress_2pk_invariants(F: np.ndarray,
 def consttensor_2pk_invariants(F: np.ndarray,
                                dpsi_dI: Callable,
                                d2psi_dIdI: Callable,
-                               E: Union[None,np.ndarray] = None,
-                               I: Union[None,np.ndarray] = None,
-                               matconst: Union[None,Dict] = None,
+                               E: None | np.ndarray = None,
+                               I: None | np.ndarray = None,
+                               matconst: None | Dict = None,
                                **kwargs: Any,
                                ) -> np.ndarray:
     """
@@ -379,11 +380,11 @@ def consttensor_2pk_invariants(F: np.ndarray,
 def invariant_matmodel(F: np.ndarray,
                        dpsi_dI: Callable,
                        d2psi_dIdI: Callable,
-                       A : Union[None,np.ndarray] = None,
-                       B : Union[None,np.ndarray] = None,
-                       E : Union[None,np.ndarray()] = None,
+                       A : None | np.ndarray = None,
+                       B : None | np.ndarray = None,
+                       E : None | np.ndarray() = None,
                        **kwargs : Any,
-                       ) -> Tuple[np.ndarray, np.ndarray]:
+                       ) -> tuple[np.ndarray, np.ndarray]:
     """
     Return 2PK stress and material tangent for a generic invariant law.
 

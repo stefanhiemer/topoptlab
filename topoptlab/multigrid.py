@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Callable, Dict, List, Tuple
+from collections.abc import Callable
 from functools import partial 
 
 import numpy as np
@@ -10,14 +10,14 @@ from topoptlab.linear_solvers import smoothed_jacobi, res_norm
 
 def apply_multigrid(b : np.ndarray, 
                     A : sparray, x0 : np.ndarray,
-                    interpolators : List,
+                    interpolators : list,
                     cycle : Callable, tol: float,
                     smoother_fnc : Callable,
-                    smoother_kws : Dict,
+                    smoother_kws : dict,
                     max_cycles : int = 1,
                     nlevels : int = 2,
                     conv_criterium: Callable = res_norm,
-                    conv_args: Dict = {}) -> Tuple[np.ndarray,int]:
+                    conv_args: dict = {}) -> tuple[np.ndarray,int]:
     """
     Apply a generic multigrid solver for the linear problem Ax=b. In this
     function we assume that the interpolation from coarse to fine grid
@@ -88,10 +88,10 @@ def apply_multigrid(b : np.ndarray,
 
 def vcycle(A : sparray, b : np.ndarray, x0 : np.ndarray,
            lvl : int,
-           interpolators : List,
+           interpolators : list,
            smoother_fnc : Callable,
-           smoother_kws : Dict,
-           nlevels : int) -> Tuple[np.ndarray,int]:
+           smoother_kws : dict,
+           nlevels : int) -> tuple[np.ndarray,int]:
     """
     Generic, single recursive V-cycle iteration to solve the linear problem
     Ax=b. In the current implementation we assume that the interpolation from
@@ -157,11 +157,11 @@ def multigrid_preconditioner(A: sparray,
                              b: np.ndarray, 
                              x0: np.ndarray,
                              create_interpolators: Callable,
-                             interpolator_kw: Dict,
+                             interpolator_kw: dict,
                              cycle: Callable = vcycle, 
                              tol: float = 1e-6,
                              smoother_fnc: Callable = smoothed_jacobi,
-                             smoother_kws: Dict = {},
+                             smoother_kws: dict = {},
                              max_cycles: int = 1) -> LinearOperator:
     """
     Generic multigrid preconditioner for the linear problem Ax=b. In the current

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any, Union
+from typing import Any
 from abc import ABC, abstractmethod
 
 import numpy as np
@@ -114,7 +114,7 @@ class TOFilter(ABC):
         ...
     
     @property
-    def constraint_filter_mask(self) -> Union[bool,np.ndarray]:
+    def constraint_filter_mask(self) -> bool | np.ndarray:
         """
         Indicate if filter is applied to constraint sensitivities.
 

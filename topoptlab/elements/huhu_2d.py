@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any,Callable,Union
+from typing import Any
+from collections.abc import Callable
 
 import numpy as np
 
@@ -11,7 +12,7 @@ from topoptlab.fem import get_integrpoints
 
 def _lk_huhu_2d(xe: np.ndarray, 
                 ue: np.ndarray,
-                exponent: Union[None,np.ndarray],
+                exponent: None | np.ndarray,
                 kr: np.ndarray,
                 mode="newton",
                 quadr_method: str = "gauss-lobatto",
@@ -216,4 +217,4 @@ def e_huhu_2d(u: np.ndarray,
         elastic energy.
 
     """ 
-    return t*kr*np.column_stack(((u[:,0] - u[:,2] + u[:,4] - u[:,6])**2*np.tan(g[0])**2/2 + (u[:,0] - u[:,2] + u[:,4] - u[:,6])**2/4 + (u[:,1] - u[:,3] + u[:,5] - u[:,7])**2*np.tan(g[0])**2/2 + (u[:,1] - u[:,3] + u[:,5] - u[:,7])**2/4))
+    return t*kr*np.column_stack((u[:,0] - u[:,2] + u[:,4] - u[:,6])**2*np.tan(g[0])**2/2 + (u[:,0] - u[:,2] + u[:,4] - u[:,6])**2/4 + (u[:,1] - u[:,3] + u[:,5] - u[:,7])**2*np.tan(g[0])**2/2 + (u[:,1] - u[:,3] + u[:,5] - u[:,7])**2/4)

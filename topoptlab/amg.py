@@ -1,14 +1,15 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any, Callable, Dict, List, Tuple, Union
+from typing import Any
+from collections.abc import Callable
 from itertools import chain
 import numpy as np
 from scipy.sparse import csc_array, sparray
 
 def rubestueben_coupling(A: sparray,
                          c_neg: float = 0.2, 
-                         c_pos: Union[None,float] = 0.5,
+                         c_pos: None | float = 0.5,
                          **kwargs: Any
-                         ) -> Tuple[np.ndarray,np.ndarray,np.ndarray,
+                         ) -> tuple[np.ndarray,np.ndarray,np.ndarray,
                                     np.ndarray,np.ndarray,np.ndarray]:
     """
     Ruge-Stüben method to determine strong/weak coupling between variables in
@@ -117,7 +118,7 @@ def rubestueben_coupling(A: sparray,
 
 def standard_coarsening(A: sparray,
                         coupling_fnc: Callable = rubestueben_coupling,
-                        coupling_kw: Dict = {"c_neg": 0.2, "c_pos": 0.5},
+                        coupling_kw: dict = {"c_neg": 0.2, "c_pos": 0.5},
                         **kwargs: Any) -> np.ndarray:
     """
     Standard coarsening according to page 64 and following in 
@@ -286,17 +287,17 @@ def direct_interpolation(A: sparray, mask_coarse: np.ndarray) -> sparray:
 
 def create_interpolators_amg(A: sparray,
                              interpol_fnc: Callable = direct_interpolation,
-                             interpol_kw: Dict = {},
+                             interpol_kw: dict = {},
                              coupling_fnc: Callable = rubestueben_coupling,
-                             coupling_kw: [None,Dict] = {"c_neg": 0.2, 
+                             coupling_kw: [None,dict] = {"c_neg": 0.2, 
                                                          "c_pos": 0.5},
                              cf_splitting_fnc: Callable = standard_coarsening,
-                             cf_splitting_kw: Dict = {},
-                             wght_trunc_fnc: Union[None,Callable] = None,
-                             wght_trunc_kw: Dict = {},
+                             cf_splitting_kw: dict = {},
+                             wght_trunc_fnc: None | Callable = None,
+                             wght_trunc_kw: dict = {},
                              nlevels: int = 2,
-                             _lvl: Union[None,int] = None,
-                             **kwargs: Any) -> List[sparray]:
+                             _lvl: None | int = None,
+                             **kwargs: Any) -> list[sparray]:
     """
     Create a generic algebraic multigrid (AMG) solver for the linear problem
     Ax=b. The key ingredients in are i) coarse/fine splitting ii) interpolation
@@ -382,7 +383,7 @@ def create_interpolators_amg(A: sparray,
         return [interpolator] + interpolators
     
 def rigid_bodymodes(coords : np.ndarray,
-                    pbc : Union[bool,List] = False) -> np.ndarray:
+                    pbc : bool | list = False) -> np.ndarray:
     """
     Calculate rigid body modes from the coordinates of N nodes. 
     

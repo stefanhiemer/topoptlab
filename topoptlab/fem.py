@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 from abc import ABC, abstractmethod
-from typing import Callable,List,Tuple,Union
+from collections.abc import Callable
 
 from itertools import product
 
@@ -140,7 +140,7 @@ class FEM_Phys(ABC):
     
 
 def assemble_matrix(sK: np.ndarray, iK: np.ndarray, jK: np.ndarray,
-                    ndof: int, solver: str, springs: Union[None,List]
+                    ndof: int, solver: str, springs: None | list
                     ) -> csc_array:
     """
     Assemble matrix from indices.
@@ -207,8 +207,8 @@ def deleterowcol(A: csc_array,
     return A.tocoo()
 
 def apply_bc(K: sparray, solver: str,
-             free: Union[None,np.ndarray] = None,
-             fixed: Union[None,np.ndarray] = None) -> Union[sparray,spmatrix]:
+             free: None | np.ndarray = None,
+             fixed: None | np.ndarray = None) -> sparray | spmatrix:
     """
     Apply boundary conditions to matrix K. At the moment only implements 
     Dirichlet boundary conditions equal to zero.
@@ -238,7 +238,7 @@ def apply_bc(K: sparray, solver: str,
     return K
 
 def create_matrixinds(edofMat: np.ndarray,
-                      mode: str = "full") -> Tuple[np.ndarray,np.ndarray]:
+                      mode: str = "full") -> tuple[np.ndarray,np.ndarray]:
     """
     Create matrix indices to set up FE linear system / matrix.
 
@@ -302,7 +302,7 @@ def update_indices(indices: np.ndarray,
     return val[ind][mask]
 
 def interpolate(ue: np.ndarray, xi: np.ndarray, eta: np.ndarray,
-                zeta: Union[None,np.ndarray] = None,
+                zeta: None | np.ndarray = None,
                 shape_functions: Callable = shape_functions) -> np.ndarray:
     """
     Interpolate node values in each element. Coordinates are assumed to be
@@ -339,7 +339,7 @@ def interpolate(ue: np.ndarray, xi: np.ndarray, eta: np.ndarray,
     return u
 
 def get_integrpoints(ndim: int, nq: int, 
-                     method: Union[str,Callable]) -> Tuple[np.ndarray,np.ndarray]:
+                     method: str | Callable) -> tuple[np.ndarray,np.ndarray]:
     """
     Get integration points and weights for numerical quadrature of integrals in
     interval [-1,1].

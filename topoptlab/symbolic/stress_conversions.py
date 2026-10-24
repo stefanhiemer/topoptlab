@@ -1,17 +1,14 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Union
 
-from sympy import expand,simplify,Expr
 from symfem.functions import ScalarFunction,MatrixFunction
 
-from topoptlab.symbolic.cell import base_cell
 from topoptlab.symbolic.matrix_utils import simplify_matrix,\
-                                            generate_constMatrix, inverse,\
+                                            inverse,\
                                             is_voigt, from_voigt, is_square
 
 def cauchy_to_pk1(sigma: MatrixFunction, 
                   F: MatrixFunction,
-                  Fdet: Union[None,ScalarFunction] = None) -> MatrixFunction:
+                  Fdet: None | ScalarFunction = None) -> MatrixFunction:
     """
     Convert Cauchy stress `sigma` to first Piola-Kirchhoff stress `P`:
         
@@ -48,8 +45,8 @@ def cauchy_to_pk1(sigma: MatrixFunction,
 
 def cauchy_to_pk2(sigma: MatrixFunction, 
                   F: MatrixFunction,
-                  Fdet: Union[None,ScalarFunction] = None,
-                  Finv: Union[None,MatrixFunction] = None) -> MatrixFunction:
+                  Fdet: None | ScalarFunction = None,
+                  Finv: None | MatrixFunction = None) -> MatrixFunction:
     """
     Convert Cauchy stress `sigma` to second Piola-Kirchhoff stress `S`:
         
@@ -91,7 +88,7 @@ def cauchy_to_pk2(sigma: MatrixFunction,
 
 def pk1_to_cauchy(P: MatrixFunction, 
                   F: MatrixFunction,
-                  Fdet: Union[None,ScalarFunction] = None) -> MatrixFunction:
+                  Fdet: None | ScalarFunction = None) -> MatrixFunction:
     """
     Convert first Piola-Kirchhoff stress `P` to Cauchy stress `sigma`:
         
@@ -120,7 +117,7 @@ def pk1_to_cauchy(P: MatrixFunction,
 
 def pk1_to_pk2(P: MatrixFunction, 
                F: MatrixFunction,
-               Finv: Union[None,MatrixFunction] = None) -> MatrixFunction:
+               Finv: None | MatrixFunction = None) -> MatrixFunction:
     """
     Convert first Piola-Kirchhoff stress `P` to second Piola-Kirchhoff 
     stress `S`:
@@ -150,7 +147,7 @@ def pk1_to_pk2(P: MatrixFunction,
 
 def pk2_to_cauchy(S: MatrixFunction, 
                   F: MatrixFunction,
-                  Fdet: Union[None,ScalarFunction] = None) -> MatrixFunction:
+                  Fdet: None | ScalarFunction = None) -> MatrixFunction:
     """
     Convert second Piola-Kirchhoff stress `S` to Cauchy stress `sigma`:
         

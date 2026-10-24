@@ -1,12 +1,11 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import List, Tuple
 
 from symfem.functions import VectorFunction, MatrixFunction
 
 from topoptlab.symbolic.cell import base_cell
 from topoptlab.symbolic.matrix_utils import generate_constMatrix, simplify_matrix
 
-def scale_cell(vertices: Tuple) -> MatrixFunction:
+def scale_cell(vertices: tuple) -> MatrixFunction:
     """
     Scale/rotate the vertices/nodes basic cell by lengths l and angles g.
 
@@ -49,7 +48,7 @@ def scale_cell(vertices: Tuple) -> MatrixFunction:
     # affine transformation matrix
     return vertices@(R@S).transpose()
 
-def isoparametric_map(basis: List, vertices: Tuple) -> MatrixFunction:
+def isoparametric_map(basis: list, vertices: tuple) -> MatrixFunction:
     """
     Create the basic cell, location of vertices, the node indices, the
     reference cell and the basis functions.
@@ -85,7 +84,7 @@ def jacobian(ndim: int,
              return_J: bool = True,
              return_inv: bool = True,
              return_det: bool = True,
-             debug: bool = False) -> Tuple[MatrixFunction, ...]:
+             debug: bool = False) -> tuple[MatrixFunction, ...]:
     """
     Symbolically compute the Jacobian of the parametric mapping.
 

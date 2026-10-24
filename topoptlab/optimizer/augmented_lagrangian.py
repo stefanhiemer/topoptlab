@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any, Callable, Dict, Tuple, Union
+from typing import Any
+from collections.abc import Callable
 
 import numpy as np
 
@@ -58,14 +59,14 @@ def alm_first_order(x: np.ndarray,
                     dcineqold: np.ndarray,
                     lam: np.ndarray,
                     mu: np.ndarray,
-                    xmin: Union[float, np.ndarray],
-                    xmax: Union[float, np.ndarray],
+                    xmin: float | np.ndarray,
+                    xmax: float | np.ndarray,
                     rho: float,
                     stepsize_func: Callable = barzilai_borwein_short,
-                    stepsize_kw: Dict = {},
+                    stepsize_kw: dict = {},
                     move: float = 0.1,
                     **kwargs: Any, 
-                    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+                    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Perform one first-order augmented-Lagrangian update for equality and
     inequality constraints.

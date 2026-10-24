@@ -1,5 +1,4 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import List, Tuple
 from io import StringIO
 import sys
 from re import sub
@@ -7,11 +6,11 @@ from re import sub
 from symfem.functions import MatrixFunction
 
 def convert_to_code(matrix: MatrixFunction,
-                    matrices: List = [],
-                    vectors: List = [],
-                    matrices_ele: List = [],
-                    vectors_ele: List = [],
-                    np_functions: List = ["cos","sin","tan","exp"],
+                    matrices: list = [],
+                    vectors: list = [],
+                    matrices_ele: list = [],
+                    vectors_ele: list = [],
+                    np_functions: list = ["cos","sin","tan","exp"],
                     npndarray: bool = False,
                     npcolumnstack: bool = True,
                     max_line_length: int = 200,
@@ -107,9 +106,9 @@ def convert_to_code(matrix: MatrixFunction,
                         lines)
     return lines
 
-def to_npndarray(lines: List,
+def to_npndarray(lines: list,
                  max_line_length: int,
-                 indent: int = 0) -> Tuple[List,int]:
+                 indent: int = 0) -> tuple[list,int]:
     """
     Convert the collected symfem string output to np.ndarray conform strings
     and formatting.
@@ -148,10 +147,10 @@ def to_npndarray(lines: List,
         lines = lines.replace("],","],\n"+"".join([" "]*delta))
     return lines,delta
 
-def to_npcolumn_stack(lines: List,
+def to_npcolumn_stack(lines: list,
                       max_line_length: int,
-                      shape: Tuple,
-                      indent: int = 0) -> Tuple[List,int]:
+                      shape: tuple,
+                      indent: int = 0) -> tuple[list,int]:
     """
     Convert the collected symfem string output to np.column_stack conform
     strings and formatting.
@@ -200,11 +199,11 @@ def to_npcolumn_stack(lines: List,
 def wrap_function(name: str,
                   signature: str,
                   matrix: MatrixFunction,
-                  matrices: List = [],
-                  vectors: List = [],
-                  matrices_ele: List = [],
-                  vectors_ele: List = [],
-                  np_functions: List = ["cos","sin","tan","exp"],
+                  matrices: list = [],
+                  vectors: list = [],
+                  matrices_ele: list = [],
+                  vectors_ele: list = [],
+                  np_functions: list = ["cos","sin","tan","exp"],
                   npndarray: bool = False,
                   npcolumnstack: bool = True,
                   max_line_length: int = 200,
@@ -266,6 +265,39 @@ def wrap_function(name: str,
                            max_line_length=max_line_length,
                            indent=len(prefix))
     return f"def {name}({signature}):\n{prefix}{body}\n"
+
+def assemble_elementfile(functions: List[dict],
+                         header: str = ("# SPDX-License-Identifier: GPL-3.0-or-later\n"
+                                        "from typing import Any\n\n"
+                                        "import numpy as np\n")) -> str:
+    """
+    Assemble a ready-to-save analytic element module: the license/import
+    header followed by one ``wrap_function`` call per entry of ``functions``.
+    The leading batch dimension that ``wrap_function`` produces via
+    ``convert_to_code`` (``.reshape(-1,...)``) is kept as-is -- on purpose,
+    so these functions stay usable later for per-element-varying properties
+    -- only each function's docstring still needs to be inserted by hand.
+
+    Parameters
+    ----------
+    functions : list of dict
+        one entry per function to generate; each dict is passed straight
+        through as keyword arguments to ``wrap_function`` (``name``,
+        ``signature``, ``matrix``, and any ``convert_to_code`` kwargs such
+        as ``vectors``).
+    header : str
+        module header (license notice plus imports), prepended once.
+
+    Returns
+    -------
+    module : str
+        full module source, ready to write to a .py file.
+
+    """
+    parts = [header]
+    for spec in functions:
+        parts.append(wrap_function(**spec))
+    return "\n".join(parts)
 
 def symfemMatrixFunc_to_str(matrxfnc: MatrixFunction) -> str:
     """

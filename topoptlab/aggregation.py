@@ -1,13 +1,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any, List, Union
-from warnings import warn
+from typing import Any
 
 import numpy as np
 
 def softmax_pnorm(values: np.ndarray,
                   p: float, 
-                  axis: Union[None,int,List] = None,
-                  **kwargs: Any) -> Union[float,np.ndarray]:
+                  axis: None | int | list = None,
+                  **kwargs: Any) -> float | np.ndarray:
     """
     Aggregation of values to single value via p-norm which is a 
     soft maximum operator.
@@ -32,7 +31,7 @@ def softmax_pnorm(values: np.ndarray,
 
 def softmax_pnorm_dx(values: np.ndarray, 
                      p: float,
-                     axis: Union[None, int, List] = None,
+                     axis: None | int | list = None,
                      **kwargs: Any) -> np.ndarray:
     """
     First derivative of aggregation of values to single value via p-norm
@@ -64,8 +63,8 @@ def softmax_pnorm_dx(values: np.ndarray,
 
 def softmax_ks(values: np.ndarray,
                exponent: float, 
-               axis: Union[None,int,List] = None,
-               **kwargs: Any) -> Union[float,np.ndarray]:
+               axis: None | int | list = None,
+               **kwargs: Any) -> float | np.ndarray:
     """
     Aggregation of values to single value via the Kreisselmeier and Steinhauser function
 
@@ -96,7 +95,7 @@ def softmax_ks(values: np.ndarray,
 
 def softmax_ks_dx(values: np.ndarray, 
                   exponent: float,
-                  axis: Union[None, int, List] = None,
+                  axis: None | int | list = None,
                   **kwargs: Any) -> np.ndarray:
     """
     First derivative of aggregation of values to single value via 
@@ -128,7 +127,7 @@ def softmax_ks_dx(values: np.ndarray,
     return exponentials / exponentials.sum(axis=axis, keepdims=True)
 
 def interlaced_aggregation(values: np.ndarray,
-                           n_regions: int) -> List[np.ndarray]:
+                           n_regions: int) -> list[np.ndarray]:
     """
     Aggregate into interlaced regional groups as done in chapter 3 of
 
@@ -144,8 +143,8 @@ def interlaced_aggregation(values: np.ndarray,
 
 def quantile_division(values: np.ndarray,
                       k: float, 
-                      axis: Union[None,int,List],
-                      **kwargs: Any) -> Union[float,np.ndarray]:
+                      axis: None | int | list,
+                      **kwargs: Any) -> float | np.ndarray:
     """
     Divide values to k equal pieces based on sorting. Can be used to reduce element-wise
     constraints to k constraints.

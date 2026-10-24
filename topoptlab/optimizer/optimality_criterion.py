@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any, List, Tuple, Union
+from typing import Any
 
 import numpy as np
 from scipy.sparse import spdiags, sparray
@@ -9,8 +9,8 @@ filters = [0,1]
 
 def oc_model(x: np.ndarray,
              x0: np.ndarray, 
-             f0: Union[float,np.ndarray], 
-             dfdx : np.ndarray) -> Union[float, np.ndarray]:
+             f0: float | np.ndarray, 
+             dfdx : np.ndarray) -> float | np.ndarray:
     """
     Evaluate the optimality-criteria (OC) surrogate of ``f`` at ``x``.
 
@@ -83,8 +83,7 @@ def oc_model_dx(x: np.ndarray,
 def oc_model_dx2(x: np.ndarray,
                 x0: np.ndarray, 
                 dfdx : np.ndarray, 
-                return_diagonal : bool = True) -> Union[np.ndarray,
-                                                        List[sparray]]:
+                return_diagonal : bool = True) -> np.ndarray | list[sparray]:
     """
     Evaluate the second derivative / hessian of the optimality-criteria (OC) 
     surrogate of ``f`` at ``x``.
@@ -131,9 +130,9 @@ def oc_model_dx2(x: np.ndarray,
            
 def ocgeneralized_model(x: np.ndarray,
                         x0: np.ndarray, 
-                        f0: Union[float,np.ndarray], 
+                        f0: float | np.ndarray, 
                         dfdx : np.ndarray, 
-                        damp: float) -> Union[float, np.ndarray]:
+                        damp: float) -> float | np.ndarray:
     """
     Evaluate the generalized  optimality-criteria (OC) surrogate of ``f`` at 
     ``x``.
@@ -213,8 +212,7 @@ def ocgeneralized_model_dx2(x : np.ndarray,
                             x0 : np.ndarray, 
                             dfdx : np.ndarray,
                             damp : float,
-                            return_diagonal : bool = True) -> Union[np.ndarray,
-                                                                  List[sparray]]:
+                            return_diagonal : bool = True) -> np.ndarray | list[sparray]:
     """
     Evaluate the second derivative / hessian of the optimality-criteria (OC) 
     surrogate of ``f`` at ``x``.
@@ -264,10 +262,10 @@ def ocgeneralized_model_dx2(x : np.ndarray,
 def oc_top88(x: np.ndarray, volfrac: float, 
              dc: np.ndarray, dv: np.ndarray, 
              g: float,
-             el_flags: Union[None,np.ndarray],
+             el_flags: None | np.ndarray,
              move: float = 0.2,
              l1: float = 0.,
-             l2: float = 1e9) -> Tuple[np.ndarray,float]:
+             l2: float = 1e9) -> tuple[np.ndarray,float]:
     """
     Optimality criteria method (section 2.2 in top88 paper) for maximum/minimum
     stiffness/compliance. Heuristic updating scheme for the element densities
@@ -325,7 +323,7 @@ def oc_top88(x: np.ndarray, volfrac: float,
         if el_flags is not None:
             xnew[el_flags==1] = 0
             xnew[el_flags==2] = 1
-        gt=g+np.sum((dv*(xnew-x)))
+        gt=g+np.sum(dv*(xnew-x))
         #gt = xnew.mean() > volfrac
         if gt > 0:
             l1 = lmid
@@ -339,15 +337,14 @@ def oc_haevi(x: np.ndarray,
              dc: np.ndarray,
              dv: np.ndarray,
              g: float,
-             pass_el: Union[None, np.ndarray],
+             pass_el: None | np.ndarray,
              H: Any,
              Hs: np.ndarray,
-             beta: Union[None, float],
+             beta: None | float,
              eta: float,
-             ft: Union[None, int],
-             debug: Union[bool, int] = False,
-             ) -> Union[Tuple[np.ndarray, float],
-                        Tuple[np.ndarray, np.ndarray, np.ndarray, float]]:
+             ft: None | int,
+             debug: bool | int = False,
+             ) -> tuple[np.ndarray, float] | tuple[np.ndarray, np.ndarray, np.ndarray, float]:
     """
     Optimality criteria method (section 2.2 in top88 paper) for maximum/minimum 
     stiffness/compliance. Heuristic updating scheme for the element densities 
@@ -424,7 +421,7 @@ def oc_haevi(x: np.ndarray,
             xPhys[pass_el==2] = 1
         #
         if ft not in projections:
-            gt = g+np.sum((dv*(xnew-x)))
+            gt = g+np.sum(dv*(xnew-x))
         else:
             gt = xPhys.mean() > volfrac
         if gt > 0:
@@ -433,12 +430,9 @@ def oc_haevi(x: np.ndarray,
             l2 = lmid
         if debug == 2:
             i = i+1
-            print("oc it.: {0} , l1: {1:.10f} l2: {2:.10f}, gt: {3:.10f}".format(
-                   i, l1, l2, gt),
-                "x: {0:.10f} xTilde: {1:.10f} xPhys: {2:.10f}".format(
-                    np.median(x),np.median(xTilde),np.median(xPhys)),
-                "dc: {0:.10f} dv: {1:.10f}".format(
-                    np.max(dc),np.min(dv)))
+            print(f"oc it.: {i} , l1: {l1:.10f} l2: {l2:.10f}, gt: {gt:.10f}",
+                f"x: {np.median(x):.10f} xTilde: {np.median(xTilde):.10f} xPhys: {np.median(xPhys):.10f}",
+                f"dc: {np.max(dc):.10f} dv: {np.min(dv):.10f}")
             if np.isnan(gt):
                 print()
                 import sys 
@@ -451,9 +445,9 @@ def oc_haevi(x: np.ndarray,
 def oc_mechanism(x: np.ndarray, volfrac: float, 
                  dc: np.ndarray, dv: np.ndarray, 
                  g: float,
-                 el_flags: Union[None,np.ndarray],
+                 el_flags: None | np.ndarray,
                  move: int = 0.1, damp: float = 0.3,
-                 l1: float = 0.,l2: float = 1e9) -> Tuple[np.ndarray,float]:
+                 l1: float = 0.,l2: float = 1e9) -> tuple[np.ndarray,float]:
     """
     Optimality criteria method for compliant mechnanism according to the 
     standard textbook by Bendsoe and Sigmund. In general: can handle objective 
@@ -510,9 +504,9 @@ def oc_mechanism(x: np.ndarray, volfrac: float,
 def oc_generalized(x: np.ndarray, volfrac: float, 
                    dc: np.ndarray, dv: np.ndarray, 
                    g: float,
-                   el_flags: Union[None,np.ndarray],
+                   el_flags: None | np.ndarray,
                    move: int = 0.1, damp: float = 0.3,
-                   l1: float = 0.,l2: float = 1e9) -> Tuple[np.ndarray,float]:
+                   l1: float = 0.,l2: float = 1e9) -> tuple[np.ndarray,float]:
     """
     This is a function where I try around various generalizations. At the 
     moment identical to oc_mechanism.

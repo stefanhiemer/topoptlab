@@ -1,5 +1,4 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import  Union
 
 import numpy as np
 
@@ -12,8 +11,8 @@ def sensitivity_propagation(dobj: np.ndarray,
                             xTilde: List[np.ndarray],
                             xPhys: np.ndarray,
                             ft: list,
-                            filter_kw: Union[Dict,List],
-                            el_flags_policy: Union[None,Dict],
+                            filter_kw: Dict | List,
+                            el_flags_policy: None | Dict,
                             prescribed_mask: np.ndarray,
                             **kwargs: Any
                             ) -> Tuple[np.ndarray, np.ndarray]:
@@ -110,8 +109,8 @@ def filter_design_variables(x: np.ndarray,
                             xTilde: List[np.ndarray],
                             xPhys: np.ndarray,
                             ft: list,
-                            filter_kw: Union[Dict,List],
-                            el_flags_policy: Union[None,Dict],
+                            filter_kw: Dict | List,
+                            el_flags_policy: None | Dict,
                             passive_mask: np.ndarray,
                             active_mask: np.ndarray,
                             **kwargs: Any) -> np.ndarray:
@@ -196,16 +195,16 @@ def filter_design_variables(x: np.ndarray,
         xPhys[active_mask]  = 1.
     return xTilde, xPhys
 
-def prepare_filters(ft: Union[int, type, List],
+def prepare_filters(ft: int | type | List,
                     nelx: int,
                     nely: int,
-                    nelz: Union[int, None],
+                    nelz: int | None,
                     filter_mode: str,
                     rmin: float,
                     n_constr: int,
-                    l: Union[float, np.ndarray],
-                    el_flags: Union[None, np.ndarray],
-                    el_flags_policy: Union[None, Dict],
+                    l: float | np.ndarray,
+                    el_flags: None | np.ndarray,
+                    el_flags_policy: None | Dict,
                     filter_kw: Dict,
                     mapping: Callable,
                     invmapping: Callable,

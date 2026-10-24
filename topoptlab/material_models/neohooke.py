@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any,Union
+from typing import Any
 
 import numpy as np
 
@@ -7,8 +7,8 @@ from topoptlab.utils import safe_inverse
 from topoptlab.voigt import to_voigt,voigt_pair
 
 def eng_density(F: np.ndarray,
-                C: Union[None,np.ndarray],
-                Fdet: Union[None,np.ndarray],
+                C: None | np.ndarray,
+                Fdet: None | np.ndarray,
                 h: np.ndarray,
                 mu: np.ndarray,
                 **kwargs: Any) -> np.ndarray:
@@ -55,9 +55,9 @@ def eng_density(F: np.ndarray,
     return (h*np.log(Fdet)**2 + mu *((np.trace(C, axis1=-2, axis2=-1)-3)-2*np.log(Fdet)))/2
 
 def stress_2pk(F: np.ndarray,
-               Cinv: Union[None,np.ndarray],
-               C: Union[None,np.ndarray],
-               Fdet: Union[None,np.ndarray],
+               Cinv: None | np.ndarray,
+               C: None | np.ndarray,
+               Fdet: None | np.ndarray,
                h: np.ndarray,
                mu: np.ndarray,
                **kwargs: Any) -> np.ndarray:
@@ -108,9 +108,9 @@ def stress_2pk(F: np.ndarray,
     return to_voigt(h*np.log(Fdet)*Cinv + mu *(I-Cinv))
 
 def consttensor_2pk(F: np.ndarray,
-                    Cinv: Union[None,np.ndarray],
-                    C: Union[None,np.ndarray],
-                    Fdet: Union[None,np.ndarray],
+                    Cinv: None | np.ndarray,
+                    C: None | np.ndarray,
+                    Fdet: None | np.ndarray,
                     h: np.ndarray,
                     mu: np.ndarray,
                     **kwargs: Any) -> np.ndarray:

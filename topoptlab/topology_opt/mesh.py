@@ -1,5 +1,4 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any, Callable, Dict, List, Tuple, Union
 from functools import partial 
 #
 import numpy as np
@@ -8,11 +7,11 @@ from topoptlab.log_utils import BaseLogger, EmptyLogger
 from topoptlab.utils import map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel
 # MAIN DRIVER
 def create_mesh(nelx: int, 
-                nely: Union[None,int], 
-                nelz: Union[None,int], 
-                l: Union[float,List,np.ndarray] = 1.,
-                mesh_file: Union[None,str] = None, 
-                logger: Union[None,BaseLogger] = None) -> Dict:
+                nely: None | int, 
+                nelz: None | int, 
+                l: float | list | np.ndarray = 1.,
+                mesh_file: None | str = None, 
+                logger: None | BaseLogger = None) -> dict:
     """
     Create mesh from file or standard cuboid mesh.
 

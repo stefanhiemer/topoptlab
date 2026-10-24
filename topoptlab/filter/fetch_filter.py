@@ -1,5 +1,4 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import List
 
 from topoptlab.filter.sensitivity_filter import SensitivityFilter
 from topoptlab.filter.density_filter import DensityFilter
@@ -9,7 +8,7 @@ from topoptlab.filter.haeviside_projectors import HaevisideProjectorGuest2004,\
 from topoptlab.filter.amfilter_langelaar import LangelaarFilter
 
 def fetch_filters(ft : int,
-                  filter_args : List) -> List:
+                  filter_args : list) -> list:
     """
     Collect list of filters based on the integer ft and a list containing 
     dictionaries with the information necessary to initialize the filters.

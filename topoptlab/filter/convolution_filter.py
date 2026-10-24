@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Callable, Tuple, Union, Any
+from typing import Any
+from collections.abc import Callable
 from functools import partial
 
 import numpy as np
 from scipy.ndimage import convolve
 
 from topoptlab.filter.filter import TOFilter
-from topoptlab.filter.kernels import hat_kernel
 from topoptlab.utils import map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel
 
 class ConvolutionFilter(TOFilter):
@@ -26,9 +26,9 @@ class ConvolutionFilter(TOFilter):
                  n_constr: int,
                  rmin: float,
                  kernel_fn: Callable,
-                 nelz: Union[int, None] = None,
+                 nelz: int | None = None,
                  filter_objective: bool = True,
-                 constraint_filter_mask: Union[None, np.ndarray] = None,
+                 constraint_filter_mask: None | np.ndarray = None,
                  **kwargs: Any) -> None:
         """
         Assemble convolution-based filter from "Efficient topology optimization
@@ -190,9 +190,9 @@ def assemble_convolution_filter(nelx: int,
                                 mapping: Callable,
                                 invmapping: Callable,
                                 kernel_fn: Callable,
-                                nelz: Union[int, None] = None,
+                                nelz: int | None = None,
                                 compute_coords: bool = True,
-                                **kwargs: Any) -> Tuple[np.ndarray,np.ndarray]:
+                                **kwargs: Any) -> tuple[np.ndarray,np.ndarray]:
     """
     Assemble distance based filter as image/voxel convolution filter. Returns
     the kernel and the normalization constants.

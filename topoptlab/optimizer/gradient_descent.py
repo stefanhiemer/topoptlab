@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any, Callable, Dict, Union
+from typing import Any
+from collections.abc import Callable
 
 import numpy as np
 
@@ -7,12 +8,12 @@ from topoptlab.optimizer.stepsize import barzilai_borwein_short
 
 def gradient_descent(x: np.ndarray,
                      dobj: np.ndarray,
-                     xmin: Union[float,np.ndarray],
-                     xmax: Union[float,np.ndarray],
-                     xold: Union[None,np.ndarray] = None,
-                     dobjold: Union[None,np.ndarray] = None,
+                     xmin: float | np.ndarray,
+                     xmax: float | np.ndarray,
+                     xold: None | np.ndarray = None,
+                     dobjold: None | np.ndarray = None,
                      stepsize_func: Callable = barzilai_borwein_short,
-                     stepsize_kw: Dict = {},
+                     stepsize_kw: dict = {},
                      move: int = 0.1,
                      **kwargs: Any) -> np.ndarray:
     """

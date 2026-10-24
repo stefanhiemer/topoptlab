@@ -1,5 +1,4 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Union
 
 from symfem.symbols import x,t
 from symfem.functions import MatrixFunction
@@ -12,7 +11,7 @@ from topoptlab.symbolic.matrix_utils import simplify_matrix, \
 from topoptlab.symbolic.strain_measures import small_strain_matrix
 
 def stiffness_matrix(ndim : int,
-                     c : Union[None,MatrixFunction],
+                     c : None | MatrixFunction,
                      element_type : str ="Lagrange",
                      order : int = 1) -> MatrixFunction:
     """
@@ -61,7 +60,7 @@ def stiffness_matrix(ndim : int,
                            symmetry=True) #simplify_matrix( integrand.integral(ref,x,t) )
 
 def strainforces(ndim : int,
-                 c : Union[None,MatrixFunction], 
+                 c : None | MatrixFunction, 
                  plane_stress : bool = False,
                  element_type : str ="Lagrange",
                  order : int = 1) -> MatrixFunction:

@@ -1,5 +1,4 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import List,Union
 from multiprocessing import cpu_count
 
 import numpy as np
@@ -29,9 +28,9 @@ def is_equal(expr1: Expr,
     return simplify(expand(expr1 - expr2)) == 0
 
 def split_expression(expression: Expr, 
-                     variables: List,
+                     variables: list,
                      include_nonlin: bool,
-                     nchunks: Union[None,int]) -> List:
+                     nchunks: None | int) -> list:
     """
     Split expression into common powers of provided variables and merge to n
     chunks for independent parallel operations on each chunk.

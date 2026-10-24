@@ -1,14 +1,15 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any,Callable,Tuple,Union
+from typing import Any
+from collections.abc import Callable
 from warnings import warn
 
 import numpy as np
 
 from topoptlab.elements.check_functions import check_inputs
 
-def jacobian(xi: Union[float,np.ndarray], 
-             eta: Union[None,float,np.ndarray], 
-             zeta: Union[None,float,np.ndarray],
+def jacobian(xi: float | np.ndarray, 
+             eta: None | float | np.ndarray, 
+             zeta: None | float | np.ndarray,
              xe: np.ndarray,
              shape_functions_dxi: Callable,
              check_fnc: Callable = check_inputs,
@@ -44,9 +45,9 @@ def jacobian(xi: Union[float,np.ndarray],
                                eta=eta,
                                zeta=zeta).transpose([0,2,1])@xe
 
-def invjacobian(xi: Union[float,np.ndarray], 
-                eta: Union[None,float,np.ndarray], 
-                zeta: Union[None,float,np.ndarray], 
+def invjacobian(xi: float | np.ndarray, 
+                eta: None | float | np.ndarray, 
+                zeta: None | float | np.ndarray, 
                 xe: np.ndarray,
                 shape_functions_dxi: Callable,
                 all_elems: bool=False,
@@ -137,14 +138,14 @@ def invjacobian(xi: Union[float,np.ndarray],
         return adj/detJ[:,None,None], detJ
 
 def _collect_invjacobian(xi: np.ndarray, 
-                         eta: Union[None,np.ndarray], 
-                         zeta: Union[None,np.ndarray], 
+                         eta: None | np.ndarray, 
+                         zeta: None | np.ndarray, 
                          xe: np.ndarray,
                          shape_functions_dxi: Callable,
-                         invjacobian: Union[Callable,np.ndarray] = invjacobian,  
+                         invjacobian: Callable | np.ndarray = invjacobian,  
                          return_detJ: bool = False,
-                         **kwargs: Any) -> Tuple[np.ndarray, 
-                                                Union[None,np.ndarray]]:
+                         **kwargs: Any) -> tuple[np.ndarray, 
+                                                None | np.ndarray]:
     """
     Internal helper function to collect the inverse jacobian to construct 
     different strain measures.

@@ -1,18 +1,18 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any, Dict, List
+from typing import Any
 
 from topoptlab.problem_solver import ProblemSolver
 from topoptlab.log_utils import BaseLogger
 
 
-def assemble_global_block_system(system: Dict,
-                                 state: Dict,
-                                 parameters: Dict,
-                                 solver_kw: Dict = {},
+def assemble_global_block_system(system: dict,
+                                 state: dict,
+                                 parameters: dict,
+                                 solver_kw: dict = {},
                                  logger: BaseLogger = None,
-                                 blocks: Dict = None,
-                                 rhs: Dict = None,
-                                 ) -> Dict:
+                                 blocks: dict = None,
+                                 rhs: dict = None,
+                                 ) -> dict:
     """
     Assemble a monolithic block system from individual solver blocks.
 
@@ -27,14 +27,14 @@ def assemble_global_block_system(system: Dict,
     raise NotImplementedError("Monolithic block assembly not yet implemented.")
 
 
-def solve_global_block_system(global_system: Dict) -> Any:
+def solve_global_block_system(global_system: dict) -> Any:
     """Solve the assembled monolithic block system; returns a flat solution array."""
     raise NotImplementedError("Monolithic block solve not yet implemented.")
 
 
 def split_global_solution_by_fields(solution: Any,
-                                    problem: List[ProblemSolver],
-                                    ) -> Dict:
+                                    problem: list[ProblemSolver],
+                                    ) -> dict:
     """
     Slice the global solution vector back into per-solver field dicts.
 
@@ -43,6 +43,6 @@ def split_global_solution_by_fields(solution: Any,
     raise NotImplementedError("Global solution splitting not yet implemented.")
 
 
-def transpose_blocks(blocks: Dict) -> Dict:
+def transpose_blocks(blocks: dict) -> dict:
     """Transpose each matrix block for the adjoint monolithic system."""
     return {k: v.T for k, v in blocks.items()}

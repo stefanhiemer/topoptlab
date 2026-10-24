@@ -1,10 +1,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Tuple, Union
 
 from sympy import symbols
 from symfem.functions import MatrixFunction
 
-def rotation_matrix(ndim: int, mode: Union[None,str] = None
+def rotation_matrix(ndim: int, mode: None | str = None
                     ) -> MatrixFunction:
     """
     rotation matrix around y and z axis with angles phi (y axis) and theta
@@ -97,8 +96,8 @@ def rotation_matrix(ndim: int, mode: Union[None,str] = None
                                  0]])
         return R
 
-def rotation_matrix_dangle(ndim: int, mode: Union[None,str] = None
-                           ) -> Tuple[MatrixFunction,MatrixFunction]:
+def rotation_matrix_dangle(ndim: int, mode: None | str = None
+                           ) -> tuple[MatrixFunction,MatrixFunction]:
     """
     1st derivative of rotation matrix around y and z axis with angles phi
     (y axis) and theta (z axis).

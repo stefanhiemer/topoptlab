@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any, Union
+from typing import Any
 
 import numpy as np
 
@@ -8,7 +8,7 @@ def check_wolfe_conditions(f_prev: float,
                            g_prev: np.ndarray,
                            p: np.ndarray,
                            alpha: float,
-                           g_new: Union[None,np.ndarray] = None,
+                           g_new: None | np.ndarray = None,
                            c1: float = 1e-4,
                            c2: float = 0.9,
                            strong: bool = False, 

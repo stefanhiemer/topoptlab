@@ -1,5 +1,4 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any,Callable,Dict,List,Tuple,Union
 
 import numpy as np
 
@@ -23,10 +22,10 @@ def isotropic(ndim: int,
     """
     return np.eye(ndim)*k
 
-def orthotropic(k: Union[None,np.ndarray] = None,
-                kx: Union[None,float] = None,
-                ky: Union[None,float] = None,
-                kz: Union[None,float] = None) -> np.ndarray:
+def orthotropic(k: None | np.ndarray = None,
+                kx: None | float = None,
+                ky: None | float = None,
+                kz: None | float = None) -> np.ndarray:
     """
     Orthotropic (diagonal) rank-2 material property tensor, e.g. heat
     conductivity or thermal expansion, built from one value per axis.

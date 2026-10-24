@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any,Tuple,Union
+from typing import Any
 
 import numpy as np
 
 def mbb_2d(nelx: int, nely: int,
            ndof: int, **kwargs: Any
-           ) -> Tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,None]:
+           ) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,None]:
     """
     This is the standard case from the 88 line code paper.
 
@@ -47,7 +47,7 @@ def mbb_2d(nelx: int, nely: int,
 
 def mbb_3d(nelx: int, nely: int, nelz: int,
            ndof: int, **kwargs: Any
-           ) -> Tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,None]:
+           ) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,None]:
     """
     This is an equivalent to the standard case from the 88 line code paper.
 
@@ -99,7 +99,7 @@ def mbb_3d(nelx: int, nely: int, nelz: int,
 
 def cantilever_2d(nelx: int, nely: int,
                   ndof: int, **kwargs: Any
-                  ) -> Tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,None]:
+                  ) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,None]:
     """
     This is the corrected example 5.1 from the 88 line code paper.
 
@@ -140,7 +140,7 @@ def cantilever_2d(nelx: int, nely: int,
 
 def cantilever_2d_twoloads(nelx: int, nely: int,
                            ndof: int, **kwargs: Any
-                           ) -> Tuple[np.ndarray,np.ndarray,
+                           ) -> tuple[np.ndarray,np.ndarray,
                                       np.ndarray,np.ndarray,None]:
     """
     This is the corrected example 5.2 from the 88 line code paper.
@@ -183,7 +183,7 @@ def cantilever_2d_twoloads(nelx: int, nely: int,
 
 def cantilever_2d_twoloads_wrong(nelx: int, nely: int,
                                  ndof: int, **kwargs: Any
-                                 ) -> Tuple[np.ndarray,np.ndarray,
+                                 ) -> tuple[np.ndarray,np.ndarray,
                                             np.ndarray,np.ndarray,None]:
     """
     This is the example 5.2 from the 88 line code paper. It is actually wrong
@@ -229,7 +229,7 @@ def cantilever_2d_twoloads_wrong(nelx: int, nely: int,
 
 def cantilever_2d_wrong(nelx: int, nely: int,
                         ndof: int, **kwargs: Any
-                        ) -> Tuple[np.ndarray,np.ndarray,
+                        ) -> tuple[np.ndarray,np.ndarray,
                                    np.ndarray,np.ndarray,None]:
     """
     This is the example 5.1 from the 88 line code paper. It is actually wrong
@@ -275,7 +275,7 @@ def cantilever_3d(nelx: int, nely: int, nelz: int,
                   ndof: int,
                   force_mode: str = "linear",
                   **kwargs: Any
-                  ) -> Tuple[np.ndarray,np.ndarray,
+                  ) -> tuple[np.ndarray,np.ndarray,
                              np.ndarray,np.ndarray,None]:
     """
     This is an equivalent to 4.2 in 
@@ -339,7 +339,7 @@ def cantilever_3d(nelx: int, nely: int, nelz: int,
 
 def forceinverter_2d(nelx: int, nely: int,
                      ndof: int, **kwargs: Any
-                     ) -> Tuple[np.ndarray,np.ndarray,
+                     ) -> tuple[np.ndarray,np.ndarray,
                                 np.ndarray,np.ndarray,None]:
     """
     Force inverter as example case for compliant mechanisms. Example case taken 
@@ -386,7 +386,7 @@ def forceinverter_2d(nelx: int, nely: int,
 def forceinverter_3d(nelx: int, nely: int, nelz: int,
                      ndof: int, fixation_mode: str = "point",
                      **kwargs: Any
-                     ) -> Tuple[np.ndarray,np.ndarray,
+                     ) -> tuple[np.ndarray,np.ndarray,
                                 np.ndarray,np.ndarray,None]:
     """
     Force inverter case as in 
@@ -457,7 +457,7 @@ def gripper_2d(nelx: int, nely: int,
                input_frac: float = 0.4,
                output_frac: float = 0.2,
                slit_height: float = 0.1,
-               **kwargs: Any) -> Tuple[np.ndarray,np.ndarray,
+               **kwargs: Any) -> tuple[np.ndarray,np.ndarray,
                                        np.ndarray,np.ndarray,
                                        np.ndarray]:
     """
@@ -514,7 +514,7 @@ def jaws_2d(nelx: int, nely: int,
             input_frac: float = 0.4,
             output_frac: float = 0.2,
             slit_height: float = 0.1,
-            **kwargs: Any) -> Tuple[np.ndarray,np.ndarray,
+            **kwargs: Any) -> tuple[np.ndarray,np.ndarray,
                                     np.ndarray,np.ndarray,
                                     np.ndarray]:
     """
@@ -567,7 +567,7 @@ def jaws_2d(nelx: int, nely: int,
 
 def threepointbending_2d(nelx: int, nely: int,
                          ndof: int, **kwargs: Any
-                         ) -> Tuple[np.ndarray,np.ndarray,
+                         ) -> tuple[np.ndarray,np.ndarray,
                                     np.ndarray,np.ndarray,None]:
     """
     both displacement fixed at bottom left and bottom right and force pushes
@@ -611,7 +611,7 @@ def threepointbending_2d(nelx: int, nely: int,
 
 def xcenteredbeam_2d(nelx: int, nely: int,
                      ndof: int, **kwargs: Any
-                     ) -> Tuple[np.ndarray,np.ndarray,
+                     ) -> tuple[np.ndarray,np.ndarray,
                                 np.ndarray,np.ndarray,None]:
     """
     Both displacements fixed at the middle of the left and right boundary. No
@@ -658,7 +658,7 @@ def xcenteredbeam_2d(nelx: int, nely: int,
 def tensiletest_2d(nelx: int, nely: int,
                    ndof: int, ymirror: bool = True, 
                    **kwargs: Any
-                   ) -> Tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,None]:
+                   ) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,None]:
     """
     Tensile test with force applied in x direction with -x side fixed in terms
     of x dofs. BC details depend on options.
@@ -713,7 +713,7 @@ def tensiletest_2d(nelx: int, nely: int,
 
 def tensiletest_3d(nelx: int, nely: int, nelz: int,
                    ndof: int, **kwargs: Any
-                   ) -> Tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,None]:
+                   ) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,None]:
     """
     x displacements fixed at left side and uniform force applied at right hand
     side. One y dof is fixed in the middle of the left side.
@@ -770,9 +770,9 @@ def tensiletest_3d(nelx: int, nely: int, nelz: int,
 
 def selffolding_2d(nelx: int, nely: int,
                    ndof: int, **kwargs: Any
-                   ) -> Tuple[np.ndarray,np.ndarray,
+                   ) -> tuple[np.ndarray,np.ndarray,
                               np.ndarray,np.ndarray,
-                              Tuple[np.ndarray,np.ndarray]]:
+                              tuple[np.ndarray,np.ndarray]]:
     """
     Symmetry axis on left side (x dofs fixed) and bottom node on left side has
     fixed y displacement as well. No forces applied as this is thought to be
@@ -821,7 +821,7 @@ def selffolding_2d(nelx: int, nely: int,
 
 def selffolding_3d(nelx: int, nely: int, nelz: int,
                    ndof: int, **kwargs: Any
-                   ) -> Tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,None]:
+                   ) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,None]:
     """
     Symmetry axis on left side (x dofs fixed) and bottom node on left side has
     fixed y displacement as well. No forces applied as this is thought to be
@@ -874,9 +874,9 @@ def selffolding_3d(nelx: int, nely: int, nelz: int,
     return u,f,fixed,np.setdiff1d(dofs,fixed),None
 
 def singlenode(nelx: int, nely: int,
-               ndof: int, nelz: Union[None,int], 
+               ndof: int, nelz: None | int, 
                **kwargs: Any
-               ) -> Tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,None]:
+               ) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,None]:
     """
     Fix all dofs of first node. Typically used for homogenization or similar
     applications where the forces arise by another source (e. g. heat or via
@@ -921,13 +921,13 @@ def singlenode(nelx: int, nely: int,
     if nelz is None:
         fixed = dofs[:int(ndof/(nelx*nely))]
     else:
-        fixed = dofs[:int(ndof/((nelx*nely*nelz)))]
+        fixed = dofs[:int(ndof/(nelx*nely*nelz))]
     return u,f,fixed,np.setdiff1d(dofs,fixed),None
 
 def cshape2d(nelx: int, nely: int,
                    ndof: int, 
                    **kwargs: Any
-                   ) -> Tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,None]:
+                   ) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,None]:
     """
     C-shape BCs:
       - clamp left edge: fix ux,uy for all nodes at x=0
@@ -985,7 +985,7 @@ def cshape2d(nelx: int, nely: int,
 
 def Lbracket(nelx: int, nely: int,
            ndof: int, **kwargs: Any
-           ) -> Tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,None]:
+           ) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,None]:
     """
     This is the bcs for a lbracket. Details please refer to: 
     Le, Chau, et al. "Stress-based topology optimization for continua." 
@@ -1032,7 +1032,7 @@ def Lbracket(nelx: int, nely: int,
 
 def heatexpbench_2d(nelx: int, nely: int,
            ndof: int, **kwargs: Any
-           ) -> Tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,None]:
+           ) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,None]:
     """
     This is a benchmark case similar to 
     

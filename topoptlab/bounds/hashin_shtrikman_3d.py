@@ -1036,7 +1036,7 @@ def shearmod_binary_upp_dx(x: np.ndarray,
             ( 6/5 * ((Kmax +  2*Gmax)*x) / ( (3*Kmax + 4*Gmax)*Gmax) ) ) -\
            (1-x) / ( 1 / (Gmin - Gmax)  + \
                   ( 6/5 * ((Kmax +  2*Gmax)*x) / ( (3*Kmax + 4*Gmax)*Gmax) ) )**2 * \
-            ( 6/5 * ((Kmax +  2*Gmax)) / ( (3*Kmax + 4*Gmax)*Gmax) ) 
+            ( 6/5 * (Kmax +  2*Gmax) / ( (3*Kmax + 4*Gmax)*Gmax) ) 
 
 def shearmod_binary_low(x: np.ndarray,
                         Kmin: float, Kmax: float,
@@ -1103,7 +1103,7 @@ def shearmod_binary_low_dx(x: np.ndarray,
             ( 6/5 * ((Kmin +  2*Gmin)*(1-x)) / ( (3*Kmin + 4*Gmin)*Gmin) ) ) +\
            x / ( 1 / (Gmax - Gmin) + \
                       ( 6/5 * ((Kmin +  2*Gmin)*(1-x)) / ( (3*Kmin + 4*Gmin)*Gmin) ) )**2 *\
-            ( 6/5 * ((Kmin +  2*Gmin)) / ( (3*Kmin + 4*Gmin)*Gmin) ) 
+            ( 6/5 * (Kmin +  2*Gmin) / ( (3*Kmin + 4*Gmin)*Gmin) ) 
 
 def bulkmod_binary_upp(x: np.ndarray,
                        Kmin: float, Kmax: float,

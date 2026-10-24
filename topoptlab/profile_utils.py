@@ -1,8 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any,Dict,Tuple
 from pstats import Stats
 
-import numpy as np
 
 def display_performance(filename: str,
                         n: int = 5) -> None:

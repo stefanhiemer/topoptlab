@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Tuple,Any,Union,List
+from typing import Any
 from warnings import warn
 
 import numpy as np
@@ -8,7 +8,7 @@ def create_edofMat(nelx: int,
                    nnode_dof: int,
                    dtype: type = np.int32, 
                    **kwargs: Any
-                   ) -> Tuple[np.ndarray,None,None,None,None]:
+                   ) -> tuple[np.ndarray,None,None,None,None]:
     """
     Create element degree of freedom matrix for linear Lagrangian elements in
     a regular mesh.
@@ -42,7 +42,7 @@ def create_edofMat(nelx: int,
     return edofMat, None, None, None, None
 
 def apply_pbc(edofMat: np.ndarray, 
-              pbc: Union[List,np.ndarray],
+              pbc: list | np.ndarray,
               nelx: int, 
               nnode_dof: int,
               dtype: type = np.int32, 
@@ -82,8 +82,8 @@ def apply_pbc(edofMat: np.ndarray,
         edofMat[-1,-nnode_dof] = edofMat[0,:nnode_dof]
     return edofMat
 
-def check_inputs(xi: Union[float,np.ndarray],
-                 xe: Union[None,np.ndarray] = None,
+def check_inputs(xi: float | np.ndarray,
+                 xe: None | np.ndarray = None,
                  all_elems: bool = False,
                  **kwargs: Any):
     """
@@ -148,7 +148,7 @@ def check_inputs(xi: Union[float,np.ndarray],
     else:
         return ncoords
 
-def shape_functions(xi: Union[float,np.ndarray], 
+def shape_functions(xi: float | np.ndarray, 
                     **kwargs: Any) -> np.ndarray:
     """
     Shape functions for bilinear quadrilateral Lagrangian element in reference
@@ -168,7 +168,7 @@ def shape_functions(xi: Union[float,np.ndarray],
     return 1/2 * np.column_stack(((1-xi),
                                   (1+xi)))
 
-def shape_functions_dxi(xi: Union[float,np.ndarray],
+def shape_functions_dxi(xi: float | np.ndarray,
                         **kwargs: Any) -> np.ndarray:
     """
     Gradient of shape functions for linear interval Lagrangian element.
@@ -192,7 +192,7 @@ def shape_functions_dxi(xi: Union[float,np.ndarray],
         ncoords = xi.shape
     return 1/2 * np.array([[-1, 1]]) * np.ones(ncoords)[:,None,None]
 
-def jacobian(xi: Union[float,np.ndarray], 
+def jacobian(xi: float | np.ndarray, 
              xe: np.ndarray,
              all_elems: bool = False) -> np.ndarray:
     """

@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any, Callable, Union
+from typing import Any
+from collections.abc import Callable
 
 import numpy as np
 
@@ -9,11 +10,11 @@ from topoptlab.elements.isoparam_mapping import invjacobian, \
                                                 _collect_invjacobian
 
 def infini_strain_matrix(xi: np.ndarray, 
-                         eta: Union[None,np.ndarray], 
-                         zeta: Union[None,np.ndarray], 
+                         eta: None | np.ndarray, 
+                         zeta: None | np.ndarray, 
                          xe: np.ndarray,
-                         shape_functions_dxi: Union[Callable,np.ndarray],
-                         invjacobian: Union[Callable,np.ndarray] = invjacobian, 
+                         shape_functions_dxi: Callable | np.ndarray,
+                         invjacobian: Callable | np.ndarray = invjacobian, 
                          all_elems: bool = False, 
                          return_detJ: bool = False,
                          check_fnc: Callable = check_inputs,
@@ -100,11 +101,11 @@ def infini_strain_matrix(xi: np.ndarray,
         return B, detJ
     
 def dispgrad_matrix(xi: np.ndarray, 
-                    eta: Union[None,np.ndarray], 
-                    zeta: Union[None,np.ndarray], 
+                    eta: None | np.ndarray, 
+                    zeta: None | np.ndarray, 
                     xe: np.ndarray,
-                    shape_functions_dxi: Union[Callable,np.ndarray],
-                    invjacobian: Union[Callable,np.ndarray] = invjacobian, 
+                    shape_functions_dxi: Callable | np.ndarray,
+                    invjacobian: Callable | np.ndarray = invjacobian, 
                     all_elems: bool = False, 
                     return_detJ: bool = False,
                     check_fnc: Callable = check_inputs,
@@ -191,12 +192,12 @@ def dispgrad_matrix(xi: np.ndarray,
         return B, detJ
 
 def lagrangian_strainvar_matrix(xi: np.ndarray, 
-                                eta: Union[None,np.ndarray], 
-                                zeta: Union[None,np.ndarray],
+                                eta: None | np.ndarray, 
+                                zeta: None | np.ndarray,
                                 xe: np.ndarray,
                                 F: np.ndarray,
-                                shape_functions_dxi: Union[Callable,np.ndarray],
-                                invjacobian: Union[Callable,np.ndarray] = invjacobian, 
+                                shape_functions_dxi: Callable | np.ndarray,
+                                invjacobian: Callable | np.ndarray = invjacobian, 
                                 all_elems: bool = False, 
                                 return_detJ: bool = False,
                                 check_fnc: Callable = check_inputs,

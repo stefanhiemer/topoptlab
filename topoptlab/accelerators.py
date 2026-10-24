@@ -1,14 +1,14 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any,List,Union
+from typing import Any
 from warnings import warn
 
 import numpy as np
 from scipy.linalg import lstsq
 
 def _quasinewton_pairs(x: np.ndarray,
-                       xhist: List[np.ndarray],
+                       xhist: list[np.ndarray],
                         g: np.ndarray,
-                       ghist: List[np.ndarray],
+                       ghist: list[np.ndarray],
                        max_history: int
                        ) -> Tuple[np.ndarray,np.ndarray]:
     """
@@ -60,7 +60,7 @@ def _quasinewton_pairs(x: np.ndarray,
     return X[:, 1:] - X[:, :-1], G[:, 1:] - G[:, :-1]
 
 def anderson(x: np.ndarray, 
-             xhist: List, max_history: int,
+             xhist: list, max_history: int,
              damp: float = 0.9,
              **kwargs: Any) -> np.ndarray:
     """
@@ -134,10 +134,10 @@ def anderson(x: np.ndarray,
     x = xhist[-1]*(1-damp) + x*damp - (dX+damp*dR)@gamma
     return x
 
-def diis(x: np.ndarray, xhist: List, 
+def diis(x: np.ndarray, xhist: list, 
          max_history: int,
-         r: Union[None,np.ndarray] = None, 
-         rhist: Union[None,List] = None,
+         r: None | np.ndarray = None, 
+         rhist: None | list = None,
          damp: float = 0.9) -> np.ndarray:
     """
     Direct inversion in the iterative subspace (DIIS) or also known as Pulay 

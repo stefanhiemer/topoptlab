@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any,Callable,Dict,List,Tuple
+from typing import Any
+from collections.abc import Callable
 from abc import ABC, abstractmethod
 from os.path import isfile
 from os import remove
@@ -8,7 +9,6 @@ import re
 
 import numpy as np
 
-from topoptlab.material_tensors import isotropic, orthotropic
 
 def _noop(msg: str) -> None:
     """
@@ -448,7 +448,7 @@ def init_logging(logfile: str,
                          "contact the maintainers.")
     return
 
-def parse_simple_logfile(path: str) -> Dict[str, Any]:
+def parse_simple_logfile(path: str) -> dict[str, Any]:
     """
     Parse a log file written by SimpleLogger into header information,
     iteration data, and tagged messages such as [PERF], [DEBUG], etc.
@@ -477,7 +477,7 @@ def parse_simple_logfile(path: str) -> Dict[str, Any]:
     # pattern for finding key-value pairs in iteration information
     kv_pattern = re.compile(r"([A-Za-z_]+\.?):\s*([-+]?\d*\.\d+|\d+|[A-Za-z_./-]+)")
     # read logfile
-    with open(path, "r") as f:
+    with open(path) as f:
         lines = [line.strip() for line in f if line.strip()]
 
     # extract lines containing the header
@@ -491,7 +491,7 @@ def parse_simple_logfile(path: str) -> Dict[str, Any]:
         start_idx = len(lines)
     
     # parse key–value pairs from header
-    header_dict: Dict[str, Any] = dict()
+    header_dict: dict[str, Any] = dict()
     for line in header_lines:
         # detect elements line and extract nelx, nely, (nelz)
         if line.lower().startswith("elements:"):
@@ -527,7 +527,7 @@ def parse_simple_logfile(path: str) -> Dict[str, Any]:
         # design iteration information
         if line.startswith("it.:"):
             kvs = kv_pattern.findall(line)
-            entry: Dict[str, Any] = dict()
+            entry: dict[str, Any] = dict()
             for k, v in kvs:
                 key = k.strip(".: ")
                 try:
@@ -562,13 +562,13 @@ def parse_simple_logfile(path: str) -> Dict[str, Any]:
     log_data["history"] = data
     return log_data | tagged
 
-def log_material_properties(material_kw: Dict,
-                            symmetries: List[str], 
-                            names: List[List[str]], 
-                            arg_names: List[List[str]], 
-                            converter_functions: List[List[Callable]],
+def log_material_properties(material_kw: dict,
+                            symmetries: list[str], 
+                            names: list[list[str]], 
+                            arg_names: list[list[str]], 
+                            converter_functions: list[list[Callable]],
                             logger: Union[None,BaseLogger] = None,
-                            ) -> Tuple[list,str]:
+                            ) -> tuple[list,str]:
     """
     Detect the symmetry class of each material in ``material_kw``, cast all
     properties to the most general symmetry present, log the process, and

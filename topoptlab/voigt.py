@@ -1,6 +1,4 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from warnings import warn
-from typing import Tuple
 
 import numpy as np
 
@@ -106,7 +104,7 @@ def voigt_index(i: np.ndarray,
     return np.where( i_ == j_, i_,
                     ndim + i_ * ndim - (i_ * (i_ + 1)) // 2 + (j_ - i_ - 1))
 
-def voigt_pair(alpha: np.ndarray, ndim: int) -> Tuple[np.ndarray, np.ndarray]:
+def voigt_pair(alpha: np.ndarray, ndim: int) -> tuple[np.ndarray, np.ndarray]:
     """
     Map Voigt indices back to tensor index pairs (i,j), 
 

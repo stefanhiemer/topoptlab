@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 from warnings import warn
-from typing import Any, Callable, Dict, List, Tuple, Union
+from typing import Any
 from itertools import chain
 
 import numpy as np
@@ -9,7 +9,7 @@ from scipy.linalg import solve_triangular
 
 from topoptlab.optimizer.mma_utils import mma_defaultkws, gcmma_defaultkws
 
-def default_outputkw() -> Dict:
+def default_outputkw() -> dict:
     """
     Return the default dictionary containing general parameters for output
     and logging in the topology_optimization.main() function.
@@ -52,7 +52,7 @@ def default_outputkw() -> Dict:
             "save_pdf": False, 
             "pdf_kw": {"bbox_inches": "tight"}}
 
-def default_el_flags_policy() -> Dict:
+def default_el_flags_policy() -> dict:
     """
     Return the default policy dictionary for passive/active element handling
     in topology_optimization.main().
@@ -84,7 +84,7 @@ def default_el_flags_policy() -> Dict:
             "neglect_in_filter": True}
 
 
-def check_el_flags_policy(el_flags_policy: Dict) -> None:
+def check_el_flags_policy(el_flags_policy: dict) -> None:
     """
     Insert any missing keys into ``el_flags_policy`` using the defaults from
     ``default_el_flags_policy()``.
@@ -105,7 +105,7 @@ def check_el_flags_policy(el_flags_policy: Dict) -> None:
     return
 
 
-def default_constraint_kw() -> Dict:
+def default_constraint_kw() -> dict:
     """
     Return the default values for optional keys in a constraint dict.
 
@@ -133,7 +133,7 @@ def default_constraint_kw() -> Dict:
             "norm_delta":  1e-6,
             "scale_factor": None}
 
-def check_constraint(c: Dict) -> None:
+def check_constraint(c: dict) -> None:
     """
     Validate a single constraint dict and fill in missing optional keys from
     ``default_constraint_kw()``.
@@ -161,7 +161,7 @@ def check_constraint(c: Dict) -> None:
             c[key] = val
     return
 
-def check_constraints(constraints: List) -> None:
+def check_constraints(constraints: list) -> None:
     """
     Validate and fill defaults for a list of constraint dicts in-place.
 
@@ -177,7 +177,7 @@ def check_constraints(constraints: List) -> None:
         check_constraint(c)
     return
 
-def expand_eq_constraints(constraints: List) -> List:
+def expand_eq_constraints(constraints: list) -> list:
     """
     Replace each equality constraint with two inequality constraints so that
     the rest of the pipeline only ever handles leq and geq.  Each eq entry is
@@ -207,7 +207,7 @@ def expand_eq_constraints(constraints: List) -> List:
             expanded.append(c)
     return expanded
 
-def check_output_kw(output_kw: Dict) -> None:
+def check_output_kw(output_kw: dict) -> None:
     """
     Check that general output parameters are sensible or implemented and insert
     missing ones based on the default dictionary.
@@ -235,7 +235,7 @@ def check_optimizer_kw(optimizer: str,
                        n : int,
                        ft : int,
                        n_constr : int,
-                       optimizer_kw: Dict) -> None:
+                       optimizer_kw: dict) -> None:
     """
     Check that general optimuer parameters are sensible or implemented and 
     insert missing ones based on the default dictionary.
@@ -281,7 +281,7 @@ def check_optimizer_kw(optimizer: str,
         optimizer_kw[key] = default_kw[key] 
     return optimizer_kw
 
-def check_simulation_params(simulation_kw: Dict) -> None:
+def check_simulation_params(simulation_kw: dict) -> None:
     """
     Check that general simulation parameters are sensible or implemented.
 
@@ -340,7 +340,7 @@ def even_spaced_ternary(npoints: int) -> np.ndarray:
     return np.array(fracs)
 
 def unique_sort(iM: np.ndarray, jM: np.ndarray, 
-                combine: bool = False) -> Tuple[np.ndarray,
+                combine: bool = False) -> tuple[np.ndarray,
                                                 np.ndarray,
                                                 np.ndarray]:
     """
@@ -373,7 +373,7 @@ def unique_sort(iM: np.ndarray, jM: np.ndarray,
     else:
         return iM[inds],jM[inds]
 
-def dict_without(dictionary: Dict, keys: List) -> Dict:
+def dict_without(dictionary: dict, keys: list) -> dict:
     """
     Return a copy of a dictionary without the given keys.
     
@@ -391,7 +391,7 @@ def dict_without(dictionary: Dict, keys: List) -> Dict:
     """
     return {k: v for k, v in dictionary.items() if k not in keys}
 
-def flatten_lol(lst: List) -> List:
+def flatten_lol(lst: list) -> list:
     """
     Flatten list of lists.
     
@@ -510,10 +510,10 @@ def map_voxeltoel(voxel: np.ndarray,
     voxel = voxel.transpose((0,2,1)+tuple(range(3,len(voxel.shape))))
     return voxel.reshape(shape)
 
-def check_meshdata(l : Union[float,List, np.ndarray],
-                   g : Union[float, List, np.ndarray],
+def check_meshdata(l : float | list | np.ndarray,
+                   g : float | list | np.ndarray,
                    ndim : int,
-                   ) -> Tuple[np.ndarray,np.ndarray]:
+                   ) -> tuple[np.ndarray,np.ndarray]:
     """
     Validate and normalize mesh geometry inputs.
 
@@ -565,9 +565,9 @@ def check_meshdata(l : Union[float,List, np.ndarray],
     return l, g
 
 def elid_to_coords(el: np.ndarray, 
-                   nelx: int, nely: int, nelz: Union[None,int] = None,
-                   l: Union[float,List, np.ndarray] = [1.,1.,1.],
-                   g: Union[float, List, np.ndarray] = [0.,0.], 
+                   nelx: int, nely: int, nelz: None | int = None,
+                   l: float | list | np.ndarray = [1.,1.,1.],
+                   g: float | list | np.ndarray = [0.,0.], 
                    **kwargs: Any) -> np.ndarray:
     """
     Map element IDs to cartesian coordinates in the usual regular grid.
@@ -621,9 +621,9 @@ def elid_to_coords(el: np.ndarray,
 def nodeid_to_coords(nd: np.ndarray, 
                      nelx: int, 
                      nely: int, 
-                     nelz: Union[None,int] = None,
-                     l: Union[float,List] = [1.,1.,1.],
-                     g: Union[float, List, np.ndarray] = [0.,0.], 
+                     nelz: None | int = None,
+                     l: float | list = [1.,1.,1.],
+                     g: float | list | np.ndarray = [0.,0.], 
                      **kwargs: Any) -> np.ndarray:
     """
     Map node IDs to cartesian coordinates in the usual regular grid. Node 
@@ -675,8 +675,8 @@ def nodeid_to_coords(nd: np.ndarray,
     #
     return (coords-0.5)*scale_flip@R.T
 
-def upsampling(x: np.ndarray, magnification: Union[float,int,List],
-               nelx: int, nely: int, nelz: Union[None,int] = None,
+def upsampling(x: np.ndarray, magnification: float | int | list,
+               nelx: int, nely: int, nelz: None | int = None,
                return_flat: bool = True, order: int = 0) -> np.ndarray:
     """
     Upsample current design variables defined on the standard regular grid to 

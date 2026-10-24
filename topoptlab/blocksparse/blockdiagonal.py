@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any, Callable, List
+from typing import Any
+from collections.abc import Callable
 
 import numpy as np
 from functools import partial
@@ -7,8 +8,8 @@ from scipy.sparse import sparray
 from scipy.sparse.linalg import LinearOperator
 
 def _apply_blockdiagonal(b: np.ndarray, 
-                         block_inds: List[np.ndarray],
-                         solvers: List[Callable],
+                         block_inds: list[np.ndarray],
+                         solvers: list[Callable],
                          **kwargs: Any) -> np.ndarray:
     """
     Apply block diagonal preconditioner where the matrix is solved 
@@ -37,7 +38,7 @@ def _apply_blockdiagonal(b: np.ndarray,
     return x
 
 def make_blockdiagonal_preconditioner(A: sparray,
-                                      block_inds: List[np.ndarray],
+                                      block_inds: list[np.ndarray],
                                       solver_func: Callable,
                                       **kwargs: Any) -> LinearOperator:
     """

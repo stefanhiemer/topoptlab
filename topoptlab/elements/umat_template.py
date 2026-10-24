@@ -1,6 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 import numpy as np
-from typing import Tuple
 
 
 def umat_template(stress: np.ndarray,
@@ -34,7 +33,7 @@ def umat_template(stress: np.ndarray,
                   layer: int,
                   kspt: int,
                   kstep: int,
-                  kinc: int) -> Tuple[np.ndarray,np.ndarray,np.ndarray,
+                  kinc: int) -> tuple[np.ndarray,np.ndarray,np.ndarray,
                                       float,float,float,float,
                                       np.ndarray,np.ndarray, 
                                       float,float]:

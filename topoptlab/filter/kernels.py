@@ -1,12 +1,11 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import  Union
 
 import numpy as np
 
 def hat_kernel(x: np.ndarray, 
                y: np.ndarray, 
                rmin: float, 
-               z: Union[None,np.ndarray]) -> np.ndarray:
+               z: None | np.ndarray) -> np.ndarray:
     """
     Hat (cone) kernel: linear decay from rmin to zero at the cutoff radius.
 

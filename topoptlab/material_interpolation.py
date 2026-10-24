@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any,Callable,Dict
+from typing import Any
+from collections.abc import Callable
 
 import numpy as np
 
@@ -129,7 +130,7 @@ def bound_interpol(xPhys: np.ndarray,
                    w: float,
                    bd_low: Callable, 
                    bd_upp: Callable,
-                   bd_kws: Dict,
+                   bd_kws: dict,
                    **kwargs: Any) -> np.ndarray:
     """
     Interpolate a material property A between a lower and upper bound according
@@ -170,7 +171,7 @@ def bound_interpol_dx(xPhys: np.ndarray,
                       w: float,
                       bd_low_dx: Callable, 
                       bd_upp_dx: Callable,
-                      bd_kws: Dict,
+                      bd_kws: dict,
                       **kwargs: Any) -> np.ndarray:
     """
     Derivative of bound interpolation with regards to phys. densities

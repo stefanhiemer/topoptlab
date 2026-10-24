@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Union,Callable,Dict
+from collections.abc import Callable
 
 import numpy as np
 
@@ -10,8 +10,8 @@ from matplotlib.pyplot import subplots,figure,figaspect,show
 
 def visualise_filter(n: int,
                      apply_filter: Callable,
-                     geo: Union[None,np.ndarray,Callable] = None,
-                     fig_kws: Union[None,Dict] = None)->None:
+                     geo: None | np.ndarray | Callable = None,
+                     fig_kws: None | dict = None)->None:
     """
     Apply filter to a given geometry and display the original geometry next to
     the filtered one in order to understand the effect of a filter on a given

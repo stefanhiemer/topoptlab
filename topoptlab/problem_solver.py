@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 from abc import ABC, abstractmethod
-from typing import Any, Dict
+from typing import Any
 
 from topoptlab.log_utils import BaseLogger
 
@@ -30,9 +30,9 @@ class ProblemSolver(ABC):
     """
 
     def __call__(self,
-                 state: Dict = {},
-                 parameters: Dict = {},
-                 solver_kw: Dict = {},
+                 state: dict = {},
+                 parameters: dict = {},
+                 solver_kw: dict = {},
                  logger: BaseLogger = None,
                  ) -> dict[str, Any]:
         """Assemble and solve in one step."""
@@ -41,20 +41,20 @@ class ProblemSolver(ABC):
 
     def adjoint(self,
                 rhs: Any = None,
-                state: Dict = {},
-                parameters: Dict = {},
-                solver_kw: Dict = {},
-                lin_solver_kw: Dict = {},
-                preconditioner_kw: Dict = {},
+                state: dict = {},
+                parameters: dict = {},
+                solver_kw: dict = {},
+                lin_solver_kw: dict = {},
+                preconditioner_kw: dict = {},
                 logger: BaseLogger = None,
                 ) -> Any:
         """Solve the adjoint system for the given right-hand side."""
         raise NotImplementedError
 
     def assemble(self,
-                 state: Dict = {},
-                 parameters: Dict = {},
-                 solver_kw: Dict = {},
+                 state: dict = {},
+                 parameters: dict = {},
+                 solver_kw: dict = {},
                  logger: BaseLogger = None,
                  ) -> dict:
         """Assemble discrete operators (matrices, RHS, constraints). Returns a system dict."""
@@ -62,9 +62,9 @@ class ProblemSolver(ABC):
 
     def derivative(self,
                    wrt: str = "",
-                   state: Dict = {},
-                   parameters: Dict = {},
-                   solver_kw: Dict = {},
+                   state: dict = {},
+                   parameters: dict = {},
+                   solver_kw: dict = {},
                    logger: BaseLogger = None,
                    ) -> Any:
         """Return the derivative of the output w.r.t. the named quantity."""
@@ -82,9 +82,9 @@ class ProblemSolver(ABC):
         return ()
 
     def linearize(self,
-                  state: Dict = {},
-                  parameters: Dict = {},
-                  solver_kw: Dict = {},
+                  state: dict = {},
+                  parameters: dict = {},
+                  solver_kw: dict = {},
                   logger: BaseLogger = None,
                   ) -> Any:
         """Return the linearization (Jacobian / tangent) of the problem at the current state."""
@@ -92,7 +92,7 @@ class ProblemSolver(ABC):
 
     def material_properties(self,
                             logger: BaseLogger = None,
-                            ) -> Dict:
+                            ) -> dict:
         """Define the material model and log its properties."""
         raise NotImplementedError
 
@@ -102,19 +102,19 @@ class ProblemSolver(ABC):
         return ()
 
     def residual(self,
-                 state: Dict = {},
-                 parameters: Dict = {},
-                 solver_kw: Dict = {},
+                 state: dict = {},
+                 parameters: dict = {},
+                 solver_kw: dict = {},
                  logger: BaseLogger = None,
                  ) -> Any:
         """Evaluate the residual R(state, parameters). Needed for nonlinear problems."""
         raise NotImplementedError
 
     def sensitivity(self,
-                    state: Dict = {},
-                    parameters: Dict = {},
+                    state: dict = {},
+                    parameters: dict = {},
                     adjoint: Any = None,
-                    solver_kw: Dict = {},
+                    solver_kw: dict = {},
                     logger: BaseLogger = None,
                     ) -> Any:
         """Compute dL/d(parameters) given the adjoint field."""
@@ -122,19 +122,19 @@ class ProblemSolver(ABC):
 
     @abstractmethod
     def solve(self,
-              system: Dict = {},
-              state: Dict = {},
-              parameters: Dict = {},
-              solver_kw: Dict = {},
+              system: dict = {},
+              state: dict = {},
+              parameters: dict = {},
+              solver_kw: dict = {},
               logger: BaseLogger = None,
               ) -> dict[str, Any]:
         """Solve the assembled system. Returns new fields to merge into state."""
         ...
 
     def transient(self,
-                  state: Dict = {},
-                  parameters: Dict = {},
-                  solver_kw: Dict = {},
+                  state: dict = {},
+                  parameters: dict = {},
+                  solver_kw: dict = {},
                   logger: BaseLogger = None,
                   ) -> Any:
         """Advance the solution by one time step."""

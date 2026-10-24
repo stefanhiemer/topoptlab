@@ -30,7 +30,7 @@ def test_advection_2d(vs,xe,l,g):
     S = eye(2)*l/2
     xe = xe@(R@S).T
     #
-    Kes = stack([lk_advection_2d(v=v,l=array([l,l]),g=array([g])) for v in vs])
+    Kes = stack([lk_advection_2d(v=v,l=array([l,l]),g=array([g]))[0] for v in vs])
     #
     ve = stack(vs)
     assert_almost_equal(_lk_advection(xe=xe,ve=ve),
@@ -65,7 +65,7 @@ def test_advection_3d(vs,xe,l,g):
     S = eye(3)*l/2
     xe = xe@(R@S).T
     #
-    Kes = stack([lk_advection_3d(v=v,l=array([l,l,l]),g=array(g)) for v in vs])
+    Kes = stack([lk_advection_3d(v=v,l=array([l,l,l]),g=array(g))[0] for v in vs])
     #
     ve = stack(vs)
     assert_almost_equal(_lk_advection(xe=xe,ve=ve),

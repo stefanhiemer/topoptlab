@@ -1,12 +1,11 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any, Callable, Dict, List, Tuple, Union
-from itertools import chain
+from collections.abc import Callable
 import numpy as np
 from scipy.sparse import sparray, csc_array
 
 def create_gmg(A: sparray,
                interpol: Callable,
-               nlevels: int) -> Tuple[np.ndarray,int]:
+               nlevels: int) -> tuple[np.ndarray,int]:
     """
     Create a generic geometric multigrid (GMG) solver for the linear problem
     Ax=b. The key ingredients in are i) coarse/fine splitting ii) interpolation
@@ -31,10 +30,10 @@ def create_gmg(A: sparray,
     """
     return
 
-def create_interpolator(nelx: int, nely: int,nelz: Union[None,int] = None,
-                        ndof: int = 1, stride: Union[int,Tuple] = 2, 
-                        pbc: Union[Tuple,bool] = False,
-                        shape_fncts: Union[None,Callable] = None) -> sparray:
+def create_interpolator(nelx: int, nely: int,nelz: None | int = None,
+                        ndof: int = 1, stride: int | tuple = 2, 
+                        pbc: tuple | bool = False,
+                        shape_fncts: None | Callable = None) -> sparray:
     """
     Construct the interpolation (prolongation) operator for geometric
     multigrid (GMG).
@@ -145,7 +144,7 @@ def create_interpolator(nelx: int, nely: int,nelz: Union[None,int] = None,
     val = np.tile(val, (1,ndof)).flatten()
     return csc_array((val, (row, col)), shape=(n_dofs,nc_dofs))
 
-def create_coarse_inds(nelx: int, nely: int, nelz: Union[None,int] = None,
+def create_coarse_inds(nelx: int, nely: int, nelz: None | int = None,
                        ndof: int = 1, stride: int = 2) -> np.ndarray:
     """
     Create degree of freedom indices for coarse degrees of freedom for a 
@@ -188,7 +187,7 @@ def create_coarse_inds(nelx: int, nely: int, nelz: Union[None,int] = None,
     else:
         return idx[:,::stride[1],::stride[0],::stride[2]].flatten(order="F")
 
-def create_coarse_mask(nelx: int, nely: int, nelz: Union[None,int] = None,
+def create_coarse_mask(nelx: int, nely: int, nelz: None | int = None,
                        ndof: int = 1, stride: int = 2) -> np.ndarray:
     """
     Create a boolean mask identifying the coarse-grid degrees of freedom for a 
@@ -223,7 +222,7 @@ def create_coarse_mask(nelx: int, nely: int, nelz: Union[None,int] = None,
     mask[inds] = True
     return mask
 
-def check_stride(nelx: int, nely: int, nelz: Union[None,int],
+def check_stride(nelx: int, nely: int, nelz: None | int,
                  stride: int) -> None:
     """
     .

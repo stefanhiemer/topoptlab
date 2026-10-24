@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any, Callable, Union
+from typing import Any
+from collections.abc import Callable
 
 import numpy as np
 
@@ -9,8 +10,8 @@ def _lk_poisson(xe: np.ndarray,
                 k: np.ndarray,
                 quadr_method: str = "gauss-legendre",
                 nquad: int = 2,
-                shape_functions_dxi: Union[None,Callable] = None,
-                invjacobian: Union[None,Callable] = None,
+                shape_functions_dxi: None | Callable = None,
+                invjacobian: None | Callable = None,
                 **kwargs: Any) -> np.ndarray:
     """
     Create element stiffness matrix for a Laplacian operator with linear elements.

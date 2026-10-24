@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Callable, Dict, List, Union 
+from collections.abc import Callable 
 
 from symfem.symbols import x,t
 from symfem.functions import MatrixFunction
@@ -17,9 +17,9 @@ from topoptlab.symbolic.stress_conversions import cauchy_to_pk1, pk2_to_pk1
 #from topoptlab.symbolic.hyperelasticity import stvenant_2pk, stvenant_cauchy
 
 def tangentstiffness_matrix(ndim : int,
-                            u : Union[None,MatrixFunction],
-                            material_model: Union[None,Callable],
-                            material_constants: Dict,
+                            u : None | MatrixFunction,
+                            material_model: None | Callable,
+                            material_constants: dict,
                             element_type : str ="Lagrange",
                             order : int = 1) -> MatrixFunction:
     """
@@ -104,10 +104,10 @@ def tangentstiffness_matrix(ndim : int,
     return Ke, fe
 
 def residual(ndim : int,
-             sigma : Union[None,Callable],
-             pk1: Union[None,Callable] = None,
-             pk2: Union[None,Callable] = None,
-             material_params: Dict = dict(),
+             sigma : None | Callable,
+             pk1: None | Callable = None,
+             pk2: None | Callable = None,
+             material_params: dict = dict(),
              element_type : str ="Lagrange",
              order : int = 1,
              return_symbols: bool =False) -> MatrixFunction:
@@ -188,7 +188,7 @@ def residual(ndim : int,
         return simplify_matrix( integrand.integral(ref,x) )
 
 def linearize(r: MatrixFunction,
-              symbols: List) -> MatrixFunction:
+              symbols: list) -> MatrixFunction:
     """
     For the given symbolic residual, take first derivative with respect to 
     the given symbols for linearization yielding the jacobian of the residual.

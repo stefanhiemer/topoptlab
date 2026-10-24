@@ -1,15 +1,14 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any, Callable, List, Union
+from typing import Any
 
 import numpy as np
-from scipy.sparse import sparray
 
 from topoptlab.output_designs import threshold
 
 def create_equal_blocks(n_nodes : int, 
                         nblocks : int,
                         nnode_dof : int,
-                        **kwargs : Any) -> List[np.ndarray]:
+                        **kwargs : Any) -> list[np.ndarray]:
     """
     Create block indices by just splitting the dofs in nblocks even-sized 
     chunks.
@@ -37,7 +36,7 @@ def create_equal_blocks(n_nodes : int,
 def create_volthresh_blocks(xPhys : np.ndarray,
                             volfrac : float, 
                             edofMat : np.ndarray,
-                            **kwargs : Any) -> List[np.ndarray]:
+                            **kwargs : Any) -> list[np.ndarray]:
     """
     Create block indices for two blocks by performing the volume preserving 
     thresholding which creates two blocks. All indices belonging to solid 
@@ -66,9 +65,9 @@ def create_volthresh_blocks(xPhys : np.ndarray,
     return [inds,np.setdiff1d( np.arange(edofMat.max()+1,dtype=np.int32), inds )]
 
 def create_quantile_blocks(xPhys : np.ndarray,
-                           quantiles : Union[List,np.ndarray], 
+                           quantiles : list | np.ndarray, 
                            edofMat : np.ndarray,
-                           **kwargs : Any) -> List[np.ndarray]:
+                           **kwargs : Any) -> list[np.ndarray]:
     """
     Create block indices for two blocks by .
 

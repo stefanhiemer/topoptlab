@@ -1,9 +1,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import List
 
 from symfem.functions import VectorFunction, MatrixFunction
 
-def shape_function_matrix(basis: List, nedof: int,
+def shape_function_matrix(basis: list, nedof: int,
                           mode: str = "col") -> MatrixFunction:
     """
     Generate the shape function matrix.

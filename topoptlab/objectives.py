@@ -1,13 +1,13 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any, Callable, Dict, Tuple, Union
+from typing import Any
+from collections.abc import Callable
 from warnings import warn
 from itertools import product as iterproduct
 
 import numpy as np
 from scipy.ndimage import correlate, convolve
 
-from topoptlab.aggregation import softmax_pnorm, softmax_pnorm_dx,\
-                                  softmax_ks, softmax_ks_dx
+from topoptlab.aggregation import softmax_ks, softmax_ks_dx
 from topoptlab.design_analysis import baseplate_slice, baseplate_kernel
 
 def compliance(xPhys: np.ndarray,
@@ -16,9 +16,9 @@ def compliance(xPhys: np.ndarray,
                edofMat: np.ndarray,
                i: int,
                matinterpol: Callable, #matinterpol_dx : Callable,
-               matinterpol_kw: Dict,
+               matinterpol_kw: dict,
                obj: float,
-               **kwargs: Any) -> Tuple[float,np.ndarray,bool]:
+               **kwargs: Any) -> tuple[float,np.ndarray,bool]:
     """
     Update objective and gradient for stiffness maximization / compliance
     minimization. 
@@ -67,10 +67,10 @@ def compliance_squarederror(xPhys: np.ndarray,
                             edofMat: np.ndarray,
                             i: int,
                             matinterpol: Callable, #matinterpol_dx : Callable,
-                            matinterpol_kw: Dict,
+                            matinterpol_kw: dict,
                             obj: float,
                             **kwargs: Any
-                            ) -> Tuple[float,np.ndarray,bool]:
+                            ) -> tuple[float,np.ndarray,bool]:
     """
     Update objective and gradient for stiffness/compliance control. 
 
@@ -119,9 +119,9 @@ def compliance_squarederror(xPhys: np.ndarray,
     return obj, -u * (c-c0), True
 
 def vol_frac(xPhys: np.ndarray,
-             el_vols: Union[None,float,np.ndarray] = None,
+             el_vols: None | float | np.ndarray = None,
              col_ind: int = 0,
-             **kwargs: Any) -> Tuple[float,np.ndarray,bool]:
+             **kwargs: Any) -> tuple[float,np.ndarray,bool]:
     """
     """
     if el_vols is None:
@@ -136,7 +136,7 @@ def var_maximization(u: np.ndarray,
                      i: int,
                      obj: float,
                      **kwargs: Any
-                     ) -> Tuple[float,np.ndarray,bool]:
+                     ) -> tuple[float,np.ndarray,bool]:
     """
     Update objective and gradient for maximization of state variable in
     specified points. The mechanic version of this is the compliant mechanism
@@ -175,7 +175,7 @@ def var_squarederror(u: np.ndarray,
                      i: int,
                      obj: float,
                      **kwargs: Any
-                     ) -> Tuple[float,np.ndarray,bool]:
+                     ) -> tuple[float,np.ndarray,bool]:
     """
     Update objective and gradient for forcing a state variable to a specific
     values at certain points. The mechanic version of this is the compliant
@@ -226,7 +226,7 @@ def _inverse_homogenization(u: np.ndarray,
                             penal,
                             results, 
                             obj,
-                            **kwargs: Any) -> Tuple[float,np.ndarray,bool]:
+                            **kwargs: Any) -> tuple[float,np.ndarray,bool]:
     """
     Update objective and gradient for stiffness maximization / compliance
     minimization. 
@@ -290,7 +290,7 @@ def _inverse_homogenization(u: np.ndarray,
 def inverse_homogenization_control(u, u0, edofMat, i, KE,
                                    cellVolume, CH0, xPhys,
                                    matinterpol: Callable, #matinterpol_dx : Callable,
-                                   matinterpol_kw: Dict,
+                                   matinterpol_kw: dict,
                                    results, obj,
                                    **kwargs):
     #
@@ -331,7 +331,7 @@ def stress_pnorm(u: np.ndarray,
                  dscale: np.ndarray,
                  cs: np.ndarray,
                  strain: np.ndarray,
-                 **kwargs: Any) -> Tuple[float, np.ndarray, np.ndarray, bool]:
+                 **kwargs: Any) -> tuple[float, np.ndarray, np.ndarray, bool]:
     """
     Aggregated relaxed von Mises stress objective.
     The relaxed stress is defined as
@@ -437,7 +437,7 @@ def am_angle(xPhys: np.ndarray,
              ndim: int,
              invmapping: Callable,
              mapping: Callable,
-             **kwargs: Any) -> Tuple[float, np.ndarray, np.ndarray, bool]:
+             **kwargs: Any) -> tuple[float, np.ndarray, np.ndarray, bool]:
     """
     Additive-manufacturing overhang constraint based on local support.
 
@@ -543,7 +543,7 @@ def support(xPhys: np.ndarray,
             ndim: int,
             invmapping: Callable,
             mapping: Callable,
-            **kwargs: Any) -> Tuple[float, np.ndarray, np.ndarray]:
+            **kwargs: Any) -> tuple[float, np.ndarray, np.ndarray]:
     """
     Zhao-style unsupported-material measure.
 
@@ -605,12 +605,12 @@ def support(xPhys: np.ndarray,
     return np.sum(xPhys[unsupported] ** 2), dg_dx, None
 
 def n_point_correlation(xPhys: np.ndarray,
-                        rcut: Union[None,float],
+                        rcut: None | float,
                         invmapping: Callable,
                         mapping: Callable,
                         n: int = 3,
-                        iso: Union[bool,np.ndarray] = True,
-                        **kwargs: Any) -> Tuple[np.ndarray, np.ndarray, None]:
+                        iso: bool | np.ndarray = True,
+                        **kwargs: Any) -> tuple[np.ndarray, np.ndarray, None]:
     """
     n-point correlation function of the density field. For material
     indices ``(c_0,...,c_{n-1})`` and lag vector ``d``,
@@ -733,11 +733,11 @@ def n_point_correlation(xPhys: np.ndarray,
     return value, grad, None
 
 def two_point_correlation(xPhys: np.ndarray,
-                          rcut: Union[None,float],
+                          rcut: None | float,
                           invmapping: Callable,
                           mapping: Callable,
-                          iso: Union[bool,np.ndarray] = True,
-                          **kwargs: Any) -> Tuple[np.ndarray, np.ndarray, None]:
+                          iso: bool | np.ndarray = True,
+                          **kwargs: Any) -> tuple[np.ndarray, np.ndarray, None]:
     """
     Two-point correlation tensor (the ``n=2`` case of
     :func:`n_point_correlation`, computed without looping over lag vectors):
@@ -886,11 +886,11 @@ def two_point_correlation(xPhys: np.ndarray,
 def two_point_correlation_squarederror(
         xPhys: np.ndarray,
         S2_target: np.ndarray,
-        rcut: Union[None, float],
+        rcut: None | float,
         invmapping: Callable,
         mapping: Callable,
-        iso: Union[bool, np.ndarray] = True,
-        **kwargs: Any) -> Tuple[float, np.ndarray, None]:
+        iso: bool | np.ndarray = True,
+        **kwargs: Any) -> tuple[float, np.ndarray, None]:
     """
     Squared-error objective for matching a target two-point correlation.
 
@@ -935,7 +935,7 @@ def two_point_correlation_image_squarederror(
         S2_target: np.ndarray,
         invmapping: Callable,
         mapping: Callable,
-        **kwargs: Any) -> Tuple[float, np.ndarray, None]:
+        **kwargs: Any) -> tuple[float, np.ndarray, None]:
     """
     Squared-error objective for matching a target two-point correlation image.
 
@@ -1027,7 +1027,7 @@ def two_point_correlation_image_squarederror(
 
 
 def gray_indicator_constraint(xPhys: np.ndarray,
-                              **kwargs: Any) -> Tuple[float, np.ndarray, None]:
+                              **kwargs: Any) -> tuple[float, np.ndarray, None]:
     """
     Gray-level indicator as a constraint-compatible objective.
 
@@ -1060,7 +1060,7 @@ def gray_indicator_constraint(xPhys: np.ndarray,
 
 if __name__ == "__main__":
 
-    from topoptlab.utils import map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel
+    from topoptlab.utils import map_eltoimg,map_imgtoel
     from functools import partial 
     #
     test = np.array([0]+4*[1]+2*[0]+[1]+4*[0],order="F")[:,None]

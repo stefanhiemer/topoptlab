@@ -1,9 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any, Callable, Dict, List, Tuple, Union
-from functools import partial
-from cProfile import Profile
-from datetime import datetime
-import inspect
+from typing import Any
+from collections.abc import Callable
 #
 import numpy as np
 #
@@ -13,7 +10,7 @@ import matplotlib.pyplot as plt
 def initialize_plotting(xPhys: np.ndarray,
                         mapping: Callable,
                         ndim: int,
-                        img_kw: Dict = {"cmap": 'gray',
+                        img_kw: dict = {"cmap": 'gray',
                                         "interpolation": 'none',
                                         "norm": Normalize(vmin=-1, vmax=0)},
                         **kwargs: Any) -> Callable:

@@ -1,16 +1,15 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 import inspect
-from typing import Dict, List, Tuple, Union
 #
 import numpy as np
 
 def initialize_history(max_history: int,
-                       accelerator_kw: Dict,
-                       continuation_kw: Union[None, Dict],
-                       convergence_kw: Dict,
+                       accelerator_kw: dict,
+                       continuation_kw: None | dict,
+                       convergence_kw: dict,
                        x: np.ndarray,
                        xPhys: np.ndarray,
-                       constrs: np.ndarray) -> Tuple[int, Union[None, Dict], Dict]:
+                       constrs: np.ndarray) -> tuple[int, None | dict, dict]:
     """
     Allocate the iteration history dict and finalize ``max_history``.
 
@@ -43,13 +42,13 @@ def initialize_history(max_history: int,
     return max_history, continuation_kw, hist
 
 
-def update_history(xhist: List, 
+def update_history(xhist: list, 
                    x: np.ndarray,
-                   xPhys_hist: Union[None, List], 
+                   xPhys_hist: None | list, 
                    xPhys: np.ndarray,
-                   obj_hist: Union[None, List], 
+                   obj_hist: None | list, 
                    obj: float,
-                   constrs_hist: Union[None, List], 
+                   constrs_hist: None | list, 
                    constrs: np.ndarray,
                    max_history: int) -> None:
     """

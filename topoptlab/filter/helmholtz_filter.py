@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Callable, Tuple, Union, Any
+from typing import Any
 
 import numpy as np
 from scipy.sparse import coo_matrix, csc_matrix
@@ -35,10 +35,10 @@ class HelmholtzFilter(TOFilter):
                  nely: int,
                  n_constr: int,
                  rmin: float,
-                 nelz: Union[int, None] = None,
+                 nelz: int | None = None,
                  l: np.ndarray = np.array([1., 1.]),
                  filter_objective: bool = True,
-                 constraint_filter_mask: Union[None, np.ndarray] = None,
+                 constraint_filter_mask: None | np.ndarray = None,
                  **kwargs: Any) -> None:
         """
         Assemble Helmholtz PDE based filter from "Efficient topology
@@ -188,9 +188,9 @@ class HelmholtzFilter(TOFilter):
         return
 
 def assemble_helmholtz_filter(nelx: int, nely: int, rmin: float,
-                              nelz: Union[int, None] = None, 
+                              nelz: int | None = None, 
                               l: np.ndarray = np.array([1.,1.]),
-                              **kwargs: Any)  -> Tuple[csc_matrix,csc_matrix]:
+                              **kwargs: Any)  -> tuple[csc_matrix,csc_matrix]:
     """
     Assemble Helmholtz PDE based filter from "Efficient topology optimization
     in MATLAB using 88 lines of code".

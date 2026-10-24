@@ -1,18 +1,11 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any, Callable, Dict, Tuple
-from itertools import product
+from collections.abc import Callable
 
 import numpy as np
 
-from topoptlab.voigt import from_voigt
-from topoptlab.fem import get_integrpoints 
-from topoptlab.elements.bilinear_quadrilateral import shape_functions_dxi
-from topoptlab.elements.isoparam_mapping import invjacobian
-from topoptlab.elements.strain_measures import dispgrad_matrix,\
-                                               lagrangian_strainvar_matrix
 
 def check_tangent_fd(Ke_fe : Callable, 
-                     Ke_fe_args : Dict, 
+                     Ke_fe_args : dict, 
                      u : np.ndarray, 
                      eps=1e-6, 
                      ntests=5, 
@@ -63,9 +56,7 @@ def check_tangent_fd(Ke_fe : Callable,
 
 if __name__ == "__main__":
     
-    from topoptlab.material_models.stvenant import stvenant_matmodel
     from topoptlab.material_models.neohooke import neohookean_matmodel
-    from topoptlab.stiffness_tensors import isotropic_2d
     from topoptlab.elements.nonlinear_elasticity_2d import _lk_nonlinear_elast_2d
     #
     nel = 1 

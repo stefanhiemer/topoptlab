@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 from warnings import warn
-from typing import Any,Tuple,Union
+from typing import Any
 
 import numpy as np
 
@@ -10,7 +10,7 @@ def create_edofMat(nelx: int,
                    nnode_dof: int,
                    dtype: type = np.int32, 
                    **kwargs: Any
-                   ) -> Tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,
+                   ) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,
                               np.ndarray]:
     """
     Create element degree of freedom matrix for trilinear elements in a regular
@@ -307,9 +307,9 @@ def shape_functions_dxi(xi,eta,zeta,**kwargs):
                                 (1-xi)*(1+eta)))
     return dx.reshape(int(np.prod(dx.shape)/24),8,3)
 
-def shape_functions_hessian(xi: Union[float,np.ndarray],
-                            eta: Union[float,np.ndarray],
-                            zeta: Union[float,np.ndarray],
+def shape_functions_hessian(xi: float | np.ndarray,
+                            eta: float | np.ndarray,
+                            zeta: float | np.ndarray,
                             **kwargs: Any) -> np.ndarray:
     """
     Hessian of shape functions for trilinear hexahedron Lagrangian element.

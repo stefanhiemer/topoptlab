@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Callable
+from collections.abc import Callable
 
 import numpy as np
 
-from topoptlab.utils import svd_inverse,cholesky_inverse
+from topoptlab.utils import svd_inverse
 
 def voigt(x: np.ndarray, 
           props: np.ndarray) -> np.ndarray:

@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 from functools import partial
-from typing import Any, Callable, Dict, List, Union
+from typing import Any
+from collections.abc import Callable
 
 import numpy as np
 from scipy.ndimage import grey_dilation, binary_dilation
@@ -38,12 +39,12 @@ def cube_mask(coords : np.ndarray,
 
 def elids_in_mask(el: np.ndarray,
                   spatial_mask_fnc : Callable, 
-                  mask_kw : Dict,
+                  mask_kw : dict,
                   nelx: int, 
                   nely: int, 
-                  nelz: Union[None,int] = None,
-                  l: Union[float,List,np.ndarray] = [1.,1.,1.],
-                  g: Union[List,np.ndarray] = [0.,0.], 
+                  nelz: None | int = None,
+                  l: float | list | np.ndarray = [1.,1.,1.],
+                  g: list | np.ndarray = [0.,0.], 
                   **kwargs: Any) -> np.ndarray:
     """
     Find element IDs within an interval of cartesian coordinates in the usual 
@@ -95,12 +96,12 @@ def elids_in_mask(el: np.ndarray,
 
 def nodeids_in_mask(node_id: np.ndarray,
                     spatial_mask_fnc : Callable, 
-                    mask_kw : Dict,
+                    mask_kw : dict,
                     nelx: int, 
                     nely: int, 
-                    nelz: Union[None,int] = None,
-                    l: Union[float,List,np.ndarray] = [1.,1.,1.],
-                    g: Union[List,np.ndarray] = [0.,0.], 
+                    nelz: None | int = None,
+                    l: float | list | np.ndarray = [1.,1.,1.],
+                    g: list | np.ndarray = [0.,0.], 
                     **kwargs: Any) -> np.ndarray:
     """
     Find node IDs within an interval of cartesian coordinates in the usual 
@@ -298,8 +299,8 @@ def ellipsoid(nelx: int, nely: int, nelz: int,
     el_flags[mask] = fill_value
     return el_flags
 
-def diracdelta(nelx: int, nely: int, nelz: Union[None,int] = None,
-               location: Union[None,int] = None) -> np.ndarray:
+def diracdelta(nelx: int, nely: int, nelz: None | int = None,
+               location: None | int = None) -> np.ndarray:
     """
     Create element flags for a Dirac delta located at the specified location.
     Depending on the location and the number of elements in each direction this
@@ -339,10 +340,10 @@ def diracdelta(nelx: int, nely: int, nelz: Union[None,int] = None,
     return x
 
 def bounding_box(nelx: int, nely: int,
-                 faces: List[str] = ["b", "t", "r", "l"],
+                 faces: list[str] = ["b", "t", "r", "l"],
                  fill_value: int = 2,
-                 thickness: Union[None,int] = None,
-                 nelz: Union[None, int] = None) -> np.ndarray:
+                 thickness: None | int = None,
+                 nelz: None | int = None) -> np.ndarray:
     """
     Create element flags for the boundary shell of the mesh in 2D or 3D.
 
@@ -429,7 +430,7 @@ def bounding_box(nelx: int, nely: int,
     return el_flags
 
 def slab(nelx: int, nely: int, center: np.ndarray, 
-         widths: Union[None,List] = None, fill_value: int = 1) -> np.ndarray:
+         widths: None | list = None, fill_value: int = 1) -> np.ndarray:
     """
     Create element flags for a slab located at the specified center with the
     specified width in each dimension.

@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 from topoptlab.symbolic.code_conversion import wrap_function
-from topoptlab.symbolic.advection import advection
+from topoptlab.symbolic.inertia import inertia
 
 if __name__ == "__main__":
 
     #
-    for dim in range(3,4):
+    for dim in range(1,2):
         print(str(dim)+"D")
         if dim == 1:
             signature = "v: np.ndarray, l: np.ndarray = np.array([1.]), **kwargs: Any"
@@ -15,7 +15,12 @@ if __name__ == "__main__":
         else:
             signature = ("v: np.ndarray, l: np.ndarray = np.array([1.,1.,1.]), "
                          "g: np.ndarray = np.array([0.,0.]), **kwargs: Any")
-        print(wrap_function(name=f"lk_advection_{dim}d",
+        Ke, fe = inertia(ndim=dim)
+        print(wrap_function(name=f"lk_inertia_{dim}d",
                             signature=signature,
-                            matrix=advection(ndim = dim),
+                            matrix=Ke,
+                            vectors=["v","l","g"]))
+        print(wrap_function(name=f"lf_convective_{dim}d",
+                            signature=signature,
+                            matrix=fe,
                             vectors=["v","l","g"]))

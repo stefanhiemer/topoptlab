@@ -1,14 +1,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # A 165 LINE TOPOLOGY OPTIMIZATION CODE BY NIELS AAGE AND VILLADS EGEDE JOHANSEN, JANUARY 2013
-from __future__ import division
 from os.path import isfile
 from os import remove
 import logging 
 
 import numpy as np
-from scipy.sparse import coo_matrix, diags
-from scipy.sparse.linalg import spsolve,spsolve_triangular,splu,cg
-from scipy.linalg import cholesky
+from scipy.sparse import coo_matrix
+from scipy.sparse.linalg import spsolve
 from matplotlib.colors import Normalize
 import matplotlib.pyplot as plt
 
@@ -19,7 +17,6 @@ from topoptlab.optimizer.optimality_criterion import oc_mechanism
 from topoptlab.optimizer.mma_utils import update_mma
 from topoptlab.filters import assemble_matrix_filter,assemble_helmholtz_filter
 
-from mmapy import gcmmasub,asymp,concheck,raaupdate
 
 # MAIN DRIVER
 def main(nelx, nely, volfrac, penal, rmin, ft, 
@@ -324,8 +321,7 @@ def main(nelx, nely, volfrac, penal, rmin, ft,
             plt.pause(0.01)
         # Write iteration history to screen (req. Python 2.6 or newer)
         if write_log: 
-            logging.info("it.: {0} , obj.: {1:.10f} Vol.: {2:.10f}, ch.: {3:.10f}".format(
-            loop, obj, xPhys.mean(), change))
+            logging.info(f"it.: {loop} , obj.: {obj:.10f} Vol.: {xPhys.mean():.10f}, ch.: {change:.10f}")
         # convergence check
         if change < 0.01:
             break 

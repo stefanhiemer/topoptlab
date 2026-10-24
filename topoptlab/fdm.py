@@ -1,19 +1,18 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any, Union
+from typing import Any
 import numpy as np
-from scipy.sparse import issparse, sparray, spmatrix
 
 def laplacian_bc(L: np.ndarray,
-                 phi: Union[None,np.ndarray] = None,
-                 free: Union[None,np.ndarray] = None,
-                 fixed: Union[None,np.ndarray] = None,
-                 dirichlet_inds: Union[None,np.ndarray] = None,
-                 dirichlet_vals: Union[None,np.ndarray] = None,
-                 neumann_inds: Union[None,np.ndarray] = None,
-                 neumann_vals: Union[None,np.ndarray] = None,
-                 robin_inds: Union[None,np.ndarray] = None,
-                 robin_alpha: Union[None,np.ndarray] = None,
-                 robin_beta: Union[None,np.ndarray] = None,
+                 phi: None | np.ndarray = None,
+                 free: None | np.ndarray = None,
+                 fixed: None | np.ndarray = None,
+                 dirichlet_inds: None | np.ndarray = None,
+                 dirichlet_vals: None | np.ndarray = None,
+                 neumann_inds: None | np.ndarray = None,
+                 neumann_vals: None | np.ndarray = None,
+                 robin_inds: None | np.ndarray = None,
+                 robin_alpha: None | np.ndarray = None,
+                 robin_beta: None | np.ndarray = None,
                  **kwargs: Any) -> np.ndarray:
     """
     Apply boundary conditions to a Laplacian field.

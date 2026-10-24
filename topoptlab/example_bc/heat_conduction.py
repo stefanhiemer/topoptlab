@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any,Tuple
+from typing import Any
 import numpy as np
 
 def heatplate_2d(nelx: int, nely: int,
                  ndof: int,
                  **kwargs: Any
-                 ) -> Tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,None]:
+                 ) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,None]:
     """
     Heat conduction problem with an evenly heated plate attached to a heat 
     sink at the negative x side. Example case taken from the standard TO 
@@ -51,7 +51,7 @@ def heatplate_2d(nelx: int, nely: int,
 def heatplate_3d(nelx: int, nely: int, nelz: int,
                  ndof: int, 
                  **kwargs: Any
-                 ) -> Tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,None]:
+                 ) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,None]:
     """
     Heat conduction problem with an evenly heated plate attached to a heat 
     sink at the negative x side. 3D generalization of the example case taken 
@@ -105,7 +105,7 @@ def heatplate_3d(nelx: int, nely: int, nelz: int,
 
 def rectangle_2d(nelx: int, nely: int,
                  ndof: int, **kwargs: Any
-                 ) -> Tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,None]:
+                 ) -> tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,None]:
     """
     Heat conduction through rectangular beam with heat source located at 
     left side and heat sink at right side.

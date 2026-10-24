@@ -1,46 +1,17 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any, Callable, Dict, List, Tuple, Union
-from functools import partial
-from cProfile import Profile
-from datetime import datetime
-import inspect
+from collections.abc import Callable
 #
 import numpy as np
-from scipy.sparse.linalg import factorized
-from scipy.ndimage import convolve
 #
-from matplotlib.colors import Normalize
-import matplotlib.pyplot as plt
 # functions to create filters 
-from topoptlab.filter.filter import TOFilter
-from topoptlab.filter.workflows import prepare_filters,sensitivity_propagation,filter_design_variables
 # default application case that provides boundary conditions, etc.
-from topoptlab.example_bc.lin_elast import mbb_2d
 # set up finite element problem
-from topoptlab.fem import create_matrixinds,assemble_matrix,apply_bc
-from topoptlab.elements.bilinear_quadrilateral import create_edofMat as create_edofMat2d
-from topoptlab.elements.trilinear_hexahedron import create_edofMat as create_edofMat3d
 # different elements/physics
-from topoptlab.elements.linear_elasticity_2d import lk_linear_elast_2d, lf_strain_2d
-from topoptlab.elements.linear_elasticity_3d import lk_linear_elast_3d, lf_strain_3d
-from topoptlab.elements.bodyforce_2d import lf_bodyforce_2d
-from topoptlab.elements.bodyforce_3d import lf_bodyforce_3d
 # generic functions for solving phys. problem
-from topoptlab.solve_linsystem import solve_lin
 #
-from topoptlab.material_interpolation import simp, simp_dx
 # constrained optimizers
-from topoptlab.optimizer.optimality_criterion import oc_top88,oc_mechanism,oc_generalized
-from topoptlab.objectives import compliance
 # output final design to a Paraview readable format
-from topoptlab.output_designs import export_vtk
 # map element data to img/voxel
-from topoptlab.utils import map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel,\
-                            check_simulation_params,dict_without,\
-                            default_outputkw,check_output_kw,check_optimizer_kw,\
-                            default_el_flags_policy,check_el_flags_policy,\
-                            check_constraints,expand_eq_constraints
-from topoptlab.objectives import vol_frac as volume_fraction_constraint
 # logging related stuff
 from topoptlab.log_utils import BaseLogger
 # 
@@ -51,23 +22,23 @@ from topoptlab.block_assembly import (assemble_global_block_system,
                                       split_global_solution_by_fields,
                                       transpose_blocks)
 
-def copy_relevant_fields(state: Dict, problem) -> Dict:
+def copy_relevant_fields(state: dict, problem) -> dict:
     """Shallow-copy only the fields written by solvers in problem."""
     solvers = [problem] if isinstance(problem, ProblemSolver) else problem
     keys = {k for solver in solvers for k in solver.output_keys}
     return {k: state[k].copy() for k in keys if k in state}
 
-def converged(old: Dict, new: Dict, atol: float = 1e-8) -> bool:
+def converged(old: dict, new: dict, atol: float = 1e-8) -> bool:
     """True when the 2-norm of the field change across all keys in old is below atol."""
     r = np.concatenate([new[k].ravel() - old[k].ravel() for k in old])
     return res_norm(r, atol=atol)
 
-def initialize_problems(problems: List[Union[Callable, List[Callable]]],
-                        bcs: Union[Callable, List[Callable]],
-                        mesh_kw: Dict,
-                        solver_kw: List[Dict],
-                        logger: Union[None,BaseLogger] = None
-                        ) -> List[Union[ProblemSolver, List[ProblemSolver]]]:
+def initialize_problems(problems: list[Callable | list[Callable]],
+                        bcs: Callable | list[Callable],
+                        mesh_kw: dict,
+                        solver_kw: list[dict],
+                        logger: None | BaseLogger = None
+                        ) -> list[ProblemSolver | list[ProblemSolver]]:
     """
     Instantiate each problem group's solver class(es) into ``ProblemSolver``
     instances, in place.
@@ -137,18 +108,18 @@ def initialize_problems(problems: List[Union[Callable, List[Callable]]],
                             type(problems[i]))
     return problems
 
-def solver_loop(problems: List,
-                state: Dict,
+def solver_loop(problems: list,
+                state: dict,
                 ntimesteps: int,
-                lin_solver_kw: List[Dict],
-                preconditioner_kw: List[Dict],
-                interpol_kw: List[Union[Dict, List[Dict]]],
+                lin_solver_kw: list[dict],
+                preconditioner_kw: list[dict],
+                interpol_kw: list[dict | list[dict]],
                 nproblem_solves: int = 100,
-                coupling: List = None,
-                parameters: Dict = {},
-                solver_kw: List[Dict] = None,
-                logger: Union[None, BaseLogger] = None,
-                ) -> Dict:
+                coupling: list = None,
+                parameters: dict = {},
+                solver_kw: list[dict] = None,
+                logger: None | BaseLogger = None,
+                ) -> dict:
     """
     Time-stepping loop over weakly or strongly coupled problem groups.
 
@@ -265,19 +236,19 @@ def solver_loop(problems: List,
                 raise ValueError(f"Unknown coupling mode: {coupling[i]}")
     return state
 
-def adjoint_loop(problems: List,
-                 state: Dict,
-                 adj_rhs: Dict,
+def adjoint_loop(problems: list,
+                 state: dict,
+                 adj_rhs: dict,
                  ntimesteps: int,
                  nproblem_solves: int = 100,
-                 coupling: Union[None,str,List[str]] = None,
-                 parameters: Dict = {},
-                 solver_kw: List[Dict] = None,
-                 lin_solver_kw: List[Dict] = None,
-                 preconditioner_kw: List[Dict] = None,
-                 interpol_kw: List[Union[Dict, List[Dict]]] = None,
+                 coupling: None | str | list[str] = None,
+                 parameters: dict = {},
+                 solver_kw: list[dict] = None,
+                 lin_solver_kw: list[dict] = None,
+                 preconditioner_kw: list[dict] = None,
+                 interpol_kw: list[dict | list[dict]] = None,
                  logger = None,
-                 ) -> Dict:
+                 ) -> dict:
     """
     Adjoint pass mirroring ``solver_loop``, walked backward in time and
     problem-group order.  Each solver's cached forward state is reused so

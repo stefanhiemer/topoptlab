@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 from abc import abstractmethod
-from typing import Any, Callable, Dict, List, Tuple, Union
+from typing import Any
+from collections.abc import Callable
 
 import numpy as np
 
@@ -36,22 +37,22 @@ class FEMSolver(ProblemSolver):
     """
 
     def apply_constraints(self,
-                          system: Dict,
-                          state: Dict = {},
-                          parameters: Dict = {},
-                          lin_solver_kw: Dict = {},
+                          system: dict,
+                          state: dict = {},
+                          parameters: dict = {},
+                          lin_solver_kw: dict = {},
                           logger: BaseLogger = None,
-                          ) -> Dict:
+                          ) -> dict:
         """Enforce BCs, MPCs, periodicity, hanging nodes.  Returns modified system."""
         return system
 
     def assemble(self,
-                 state: Dict = {},
-                 parameters: Dict = {},
-                 solver_kw: Dict = {},
-                 lin_solver_kw: Dict = {},
+                 state: dict = {},
+                 parameters: dict = {},
+                 solver_kw: dict = {},
+                 lin_solver_kw: dict = {},
                  logger: BaseLogger = None,
-                 ) -> Dict:
+                 ) -> dict:
         """Collect all terms, assemble to global algebraic system, enforce BC and constraints."""
         self._terms = self.collect_terms(state, parameters, solver_kw, logger)
         system = self.assemble_system(self._terms, state, parameters, lin_solver_kw, logger)
@@ -59,11 +60,11 @@ class FEMSolver(ProblemSolver):
         return system
 
     def assemble_blocks(self,
-                        state: Dict = {},
-                        parameters: Dict = {},
-                        solver_kw: Dict = {},
+                        state: dict = {},
+                        parameters: dict = {},
+                        solver_kw: dict = {},
                         logger: BaseLogger = None,
-                        ) -> Dict:
+                        ) -> dict:
         """
         Return local blocks for monolithic assembly.
 
@@ -73,55 +74,55 @@ class FEMSolver(ProblemSolver):
         raise NotImplementedError
 
     def assemble_system(self,
-                        terms: Dict,
-                        state: Dict = {},
-                        parameters: Dict = {},
-                        lin_solver_kw: Dict = {},
+                        terms: dict,
+                        state: dict = {},
+                        parameters: dict = {},
+                        lin_solver_kw: dict = {},
                         logger: BaseLogger = None,
-                        ) -> Dict:
+                        ) -> dict:
         """Assemble local terms into the global algebraic system."""
         return {}
 
     def auxiliary_terms(self,
-                        state: Dict = {},
-                        parameters: Dict = {},
-                        solver_kw: Dict = {},
+                        state: dict = {},
+                        parameters: dict = {},
+                        solver_kw: dict = {},
                         logger: BaseLogger = None,
-                        ) -> Dict:
+                        ) -> dict:
         return {}
 
     def auxiliary_terms_dx(self,
-                           state: Dict = {},
-                           parameters: Dict = {},
+                           state: dict = {},
+                           parameters: dict = {},
                            adjoint: Any = None,
-                           solver_kw: Dict = {},
+                           solver_kw: dict = {},
                            logger: BaseLogger = None,
-                           ) -> Dict:
+                           ) -> dict:
         return {}
 
     def boundary_terms(self,
-                       state: Dict = {},
-                       parameters: Dict = {},
-                       solver_kw: Dict = {},
+                       state: dict = {},
+                       parameters: dict = {},
+                       solver_kw: dict = {},
                        logger: BaseLogger = None,
-                       ) -> Dict:
+                       ) -> dict:
         return {}
 
     def boundary_terms_dx(self,
-                          state: Dict = {},
-                          parameters: Dict = {},
+                          state: dict = {},
+                          parameters: dict = {},
                           adjoint: Any = None,
-                          solver_kw: Dict = {},
+                          solver_kw: dict = {},
                           logger: BaseLogger = None,
-                          ) -> Dict:
+                          ) -> dict:
         return {}
 
     def collect_terms(self,
-                      state: Dict = {},
-                      parameters: Dict = {},
-                      solver_kw: Dict = {},
+                      state: dict = {},
+                      parameters: dict = {},
+                      solver_kw: dict = {},
                       logger: BaseLogger = None,
-                      ) -> Dict:
+                      ) -> dict:
         terms = {}
         terms.update(self.core_terms(state, parameters, solver_kw, logger))
         terms.update(self.source_terms(state, parameters, solver_kw, logger))
@@ -131,12 +132,12 @@ class FEMSolver(ProblemSolver):
         return terms
 
     def collect_terms_dx(self,
-                         state: Dict = {},
-                         parameters: Dict = {},
+                         state: dict = {},
+                         parameters: dict = {},
                          adjoint: Any = None,
-                         solver_kw: Dict = {},
+                         solver_kw: dict = {},
                          logger: BaseLogger = None,
-                         ) -> Dict:
+                         ) -> dict:
         """Collect element-wise sensitivity contributions from all term hooks."""
         terms_dx = {}
         terms_dx.update(self.core_terms_dx(state, parameters, adjoint, solver_kw, logger))
@@ -147,56 +148,56 @@ class FEMSolver(ProblemSolver):
         return terms_dx
 
     def constraint_terms(self,
-                         state: Dict = {},
-                         parameters: Dict = {},
-                         solver_kw: Dict = {},
+                         state: dict = {},
+                         parameters: dict = {},
+                         solver_kw: dict = {},
                          logger: BaseLogger = None,
-                         ) -> Dict:
+                         ) -> dict:
         return {}
 
     def constraint_terms_dx(self,
-                            state: Dict = {},
-                            parameters: Dict = {},
+                            state: dict = {},
+                            parameters: dict = {},
                             adjoint: Any = None,
-                            solver_kw: Dict = {},
+                            solver_kw: dict = {},
                             logger: BaseLogger = None,
-                            ) -> Dict:
+                            ) -> dict:
         return {}
 
     def core_terms(self,
-                   state: Dict = {},
-                   parameters: Dict = {},
-                   solver_kw: Dict = {},
+                   state: dict = {},
+                   parameters: dict = {},
+                   solver_kw: dict = {},
                    logger: BaseLogger = None,
-                   ) -> Dict:
+                   ) -> dict:
         return {}
 
     def core_terms_dx(self,
-                      state: Dict = {},
-                      parameters: Dict = {},
+                      state: dict = {},
+                      parameters: dict = {},
                       adjoint: Any = None,
-                      solver_kw: Dict = {},
+                      solver_kw: dict = {},
                       logger: BaseLogger = None,
-                      ) -> Dict:
+                      ) -> dict:
         return {}
 
     def derived_quantities(self,
-                           state: Dict = {},
-                           parameters: Dict = {},
-                           solver_kw: Dict = {},
+                           state: dict = {},
+                           parameters: dict = {},
+                           solver_kw: dict = {},
                            logger: BaseLogger = None,
-                           ) -> Dict:
+                           ) -> dict:
         """Calculate quantities derived from the solution, e.g. stress."""
         return {}
 
     def log_material_property(self,
                               solver_name: str,
                               field_name: str,
-                              symmetries: List[str],
-                              prop_names: List[List[str]],
-                              arg_names: List[List[str]],
-                              converter_functions: List[List[Callable]],
-                              logger: BaseLogger = None) -> Tuple[List, str]:
+                              symmetries: list[str],
+                              prop_names: list[list[str]],
+                              arg_names: list[list[str]],
+                              converter_functions: list[list[Callable]],
+                              logger: BaseLogger = None) -> tuple[list, str]:
         """
         Generic dispatcher: validate, log, and convert ``self.material_kw`` to a
         uniform tensor representation.
@@ -249,12 +250,12 @@ class FEMSolver(ProblemSolver):
 
     def material_properties(self,
                             logger: BaseLogger = None,
-                            ) -> Dict:
+                            ) -> dict:
         """Define the material model and log its properties."""
         raise NotImplementedError
 
     @property
-    def default_interpol_kw(self) -> Dict:
+    def default_interpol_kw(self) -> dict:
         """Per-property call-time kwargs derived from construction choices.
 
         Strips ``mode``, ``func``, and ``func_dx`` from each entry in
@@ -267,7 +268,7 @@ class FEMSolver(ProblemSolver):
         return {p: {k: v for k, v in spec.items() if k not in skip}
                 for p, spec in self.interpol_kw.items()}
 
-    def resolve_interpol_kw(self, prop: str, parameters: Dict) -> Dict:
+    def resolve_interpol_kw(self, prop: str, parameters: dict) -> dict:
         """Return the call-time kwargs for ``prop`` to pass to the interpolation function.
 
         Starts from the construction-time defaults stored in
@@ -285,7 +286,7 @@ class FEMSolver(ProblemSolver):
     def setup_discretization(self,
                              *,
                              element_type: str,
-                             order: Union[int, Tuple[int]],
+                             order: int | tuple[int],
                              formulation: str,
                              ndim: int,
                              coordinate_system: str = "cartesian",
@@ -295,26 +296,26 @@ class FEMSolver(ProblemSolver):
         ...
 
     def solve(self,
-              system: Dict = {},
-              state: Dict = {},
-              parameters: Dict = {},
-              solver_kw: Dict = {},
-              lin_solver_kw: Dict = {},
-              preconditioner_kw: Dict = {},
+              system: dict = {},
+              state: dict = {},
+              parameters: dict = {},
+              solver_kw: dict = {},
+              lin_solver_kw: dict = {},
+              preconditioner_kw: dict = {},
               logger: BaseLogger = None,
-              ) -> Dict[str, Any]:
+              ) -> dict[str, Any]:
         return self.solve_discrete_system(system, state, parameters,
                                           lin_solver_kw, preconditioner_kw, logger)
 
     @abstractmethod
     def solve_discrete_system(self,
-                              system: Dict,
-                              state: Dict = {},
-                              parameters: Dict = {},
-                              lin_solver_kw: Dict = {},
-                              preconditioner_kw: Dict = {},
+                              system: dict,
+                              state: dict = {},
+                              parameters: dict = {},
+                              lin_solver_kw: dict = {},
+                              preconditioner_kw: dict = {},
                               logger: BaseLogger = None,
-                              ) -> Dict[str, Any]:
+                              ) -> dict[str, Any]:
         """Drive the actual linear / nonlinear / eigenvalue solve.
 
         lin_solver_kw must contain at least ``"name"``; additional keys are
@@ -324,12 +325,12 @@ class FEMSolver(ProblemSolver):
         ...
 
     def sensitivity(self,
-                    state: Dict = {},
-                    parameters: Dict = {},
+                    state: dict = {},
+                    parameters: dict = {},
                     adjoint: Any = None,
-                    solver_kw: Dict = {},
+                    solver_kw: dict = {},
                     logger: BaseLogger = None,
-                    ) -> Dict:
+                    ) -> dict:
         """Compute dL/dxPhys by summing element-wise contributions from all term hooks."""
         terms_dx = self.collect_terms_dx(state, parameters, adjoint, solver_kw, logger)
         dL = np.zeros((parameters["xPhys"].shape[0], 1), order="F")
@@ -338,27 +339,27 @@ class FEMSolver(ProblemSolver):
         return {"dL_dxPhys": dL}
 
     def source_terms(self,
-                     state: Dict = {},
-                     parameters: Dict = {},
-                     solver_kw: Dict = {},
+                     state: dict = {},
+                     parameters: dict = {},
+                     solver_kw: dict = {},
                      logger: BaseLogger = None,
-                     ) -> Dict:
+                     ) -> dict:
         return {}
 
     def source_terms_dx(self,
-                        state: Dict = {},
-                        parameters: Dict = {},
+                        state: dict = {},
+                        parameters: dict = {},
                         adjoint: Any = None,
-                        solver_kw: Dict = {},
+                        solver_kw: dict = {},
                         logger: BaseLogger = None,
-                        ) -> Dict:
+                        ) -> dict:
         return {}
 
     def transient(self,
-                  state: Dict = {},
-                  parameters: Dict = {},
-                  solver_kw: Dict = {},
+                  state: dict = {},
+                  parameters: dict = {},
+                  solver_kw: dict = {},
                   logger: BaseLogger = None,
-                  ) -> Dict[str, Any]:
+                  ) -> dict[str, Any]:
         """Advance the solution by one time step."""
         raise NotImplementedError

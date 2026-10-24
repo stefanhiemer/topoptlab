@@ -1,5 +1,4 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Dict,List,Union
 from math import floor
 
 from sympy import Rational
@@ -11,9 +10,9 @@ from topoptlab.symbolic.matrix_utils import simplify_matrix, generate_constMatri
 from topoptlab.symbolic.matrix_utils import eye,to_square,inverse
 
 def jacobian_matrix(ndim: int,
-                    nd_inds: List,
-                    basis: List,
-                    isoparam_kws: Dict) -> MatrixFunction:
+                    nd_inds: list,
+                    basis: list,
+                    isoparam_kws: dict) -> MatrixFunction:
     """
     Create the matrix B_j to calculate the flattened Jacobian (C-order) j 
     of a vector field u. The Jacobian matrix is defined as
@@ -60,9 +59,9 @@ def jacobian_matrix(ndim: int,
     return MatrixFunction(b)
 
 def small_strain_matrix(ndim: int,
-                        nd_inds: List,
-                        basis: List,
-                        isoparam_kws: Dict) -> MatrixFunction:
+                        nd_inds: list,
+                        basis: list,
+                        isoparam_kws: dict) -> MatrixFunction:
     """
     Create the small strain matrix to calculate engineering/infinitesimal 
     strains via
@@ -150,8 +149,8 @@ def eng_strain(ndim: int,
 
 def dispgrad_matrix(ndim: int, 
                     nd_inds: list,
-                    basis: List,
-                    isoparam_kws: Dict) -> MatrixFunction:
+                    basis: list,
+                    isoparam_kws: dict) -> MatrixFunction:
     """
     Create the matrix to calculate the flattened displacement gradient via
     
@@ -194,7 +193,7 @@ def dispgrad_matrix(ndim: int,
     return MatrixFunction(dispgrad_matrix)
 
 def disp_grad(ndim: int,
-              u: Union[None,MatrixFunction] = None,
+              u: None | MatrixFunction = None,
               element_type: str = "Lagrange",
               order: int = 1,
               shape: str = "quadratic") -> MatrixFunction:
@@ -248,7 +247,7 @@ def disp_grad(ndim: int,
                          "square, voigt")
 
 def def_grad(ndim: int,
-             u: Union[None,MatrixFunction] = None,
+             u: None | MatrixFunction = None,
              element_type: str = "Lagrange",
              order: int = 1,
              shape: str = "quadratic"):
@@ -298,7 +297,7 @@ def def_grad(ndim: int,
     return I + H
 
 def cauchy_strain(ndim: int,
-                  F: Union[None,MatrixFunction] = None,
+                  F: None | MatrixFunction = None,
                   element_type: str = "Lagrange",
                   order: int = 1) ->  MatrixFunction:
     """
@@ -338,7 +337,7 @@ def cauchy_strain(ndim: int,
     return simplify_matrix(F.transpose()@F)
 
 def lagrangian_strain(ndim: int,
-                      F: Union[None,MatrixFunction] = None,
+                      F: None | MatrixFunction = None,
                       element_type: str = "Lagrange",
                       order: int = 1) ->  MatrixFunction:
     """
@@ -381,10 +380,10 @@ def lagrangian_strain(ndim: int,
                          order=order)-eye(ndim)).__mul__(Rational(1,2))
 
 def lagrangian_strainvar_matrix(ndim : int,
-                                nd_inds : List,
-                                basis: List,
-                                F : Union[None,MatrixFunction],
-                                isoparam_kws: Dict) ->  MatrixFunction:
+                                nd_inds : list,
+                                basis: list,
+                                F : None | MatrixFunction,
+                                isoparam_kws: dict) ->  MatrixFunction:
     """
     Symbolically compute the variation of the Green-Lagrangian strain tensor 
     delta E around the current displacement u0 and deformation gradient F0:
@@ -456,7 +455,7 @@ def lagrangian_strainvar_matrix(ndim : int,
     return MatrixFunction(b)
 
 def lagrangian_strainvar(ndim: int,
-                         F: Union[None,MatrixFunction] = None,
+                         F: None | MatrixFunction = None,
                          element_type: str = "Lagrange",
                          order: int = 1) ->  MatrixFunction:
     """
@@ -498,7 +497,7 @@ def lagrangian_strainvar(ndim: int,
                          order=order)-eye(ndim)).__mul__(Rational(1,2))
 
 def finger_strain(ndim: int,
-                  F: Union[None,MatrixFunction] = None,
+                  F: None | MatrixFunction = None,
                   element_type: str = "Lagrange",
                   order: int = 1) ->  MatrixFunction:
     """
@@ -536,7 +535,7 @@ def finger_strain(ndim: int,
     return simplify_matrix( inverse(C) )
 
 def green_strain(ndim: int,
-                 F: Union[None,MatrixFunction] = None,
+                 F: None | MatrixFunction = None,
                  element_type: str = "Lagrange",
                  order: int = 1) ->  MatrixFunction:
     """

@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 from functools import partial
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any
+from collections.abc import Callable
 
 import numpy as np
 
@@ -18,8 +19,8 @@ from topoptlab.elements.linear_elasticity_3d import lk_linear_elast_3d,\
                                                     lf_strain_aniso_3d
 from topoptlab.elements.bodyforce_2d import lf_bodyforce_2d
 from topoptlab.elements.bodyforce_3d import lf_bodyforce_3d
-from topoptlab.elements.heatexpansion_2d import fk_heatexp_aniso_2d, _fk_heatexp_2d
-from topoptlab.elements.heatexpansion_3d import fk_heatexp_aniso_3d, _fk_heatexp_3d
+from topoptlab.elements.heatexpansion_2d import fk_heatexp_aniso_2d
+from topoptlab.elements.heatexpansion_3d import fk_heatexp_aniso_3d
 from topoptlab.elements.mass_vector_2d import lm_mass_2d
 from topoptlab.elements.mass_vector_3d import lm_mass_3d
 from topoptlab.stiffness_tensors import isotropic_2d, isotropic_3d, orthotropic_2d, orthotropic_3d
@@ -117,27 +118,27 @@ class LinearElasticity(FEMSolver):
                  nely: int,
                  bc: Callable,
                  ndim: int,
-                 nelz: Optional[int] = None,
+                 nelz: int | None = None,
                  transient: bool = False,
                  thermal_expansion: bool = False,
-                 l: Union[float, np.ndarray] = 1.,
+                 l: float | np.ndarray = 1.,
                  plane_stress: bool = True,
-                 formulation: Union[str, Dict] = "galerkin",
-                 order: Union[int, Tuple[int]] = 1,
+                 formulation: str | dict = "galerkin",
+                 order: int | tuple[int] = 1,
                  assembly_mode: str = "full",
                  regular_mesh: bool = True,
-                 element_type: Union[None, str] = None,
+                 element_type: None | str = None,
                  interpolation_mode: str = "scaling",
                  matinterpol: Callable = simp,
                  matinterpol_dx: Callable = simp_dx,
-                 interpol_kw: Dict = {},
-                 material_kw: Union[Dict, List[Dict]] = {"Young's modulus": 1.0,
+                 interpol_kw: dict = {},
+                 material_kw: dict | list[dict] = {"Young's modulus": 1.0,
                                                          "Poisson's ratio": 0.3,
                                                          "density": 1.0},
-                 thermal_expansion_kw: Union[None, Dict] = None,
-                 body_forces_kw: Dict = {},
+                 thermal_expansion_kw: None | dict = None,
+                 body_forces_kw: dict = {},
                  fieldname: str = "u",
-                 logger: Union[None,BaseLogger] = None,
+                 logger: None | BaseLogger = None,
                  **kwargs: Any) -> None:
         self.fieldname = fieldname
         self.ndim = ndim
@@ -214,13 +215,13 @@ class LinearElasticity(FEMSolver):
 
     def adjoint(self,
                 rhs: Any = None,
-                state: Dict = {},
-                parameters: Dict = {},
-                solver_kw: Dict = {},
-                lin_solver_kw: Dict = {},
-                preconditioner_kw: Dict = {},
+                state: dict = {},
+                parameters: dict = {},
+                solver_kw: dict = {},
+                lin_solver_kw: dict = {},
+                preconditioner_kw: dict = {},
                 logger: BaseLogger = None,
-                ) -> Dict:
+                ) -> dict:
         """Solve K_uu^T lambda = rhs, reusing the cached factorization."""
         logger = logger or EmptyLogger()
         adj = np.zeros_like(rhs)
@@ -239,12 +240,12 @@ class LinearElasticity(FEMSolver):
         return {f"adj_{self.fieldname}": adj}
 
     def apply_constraints(self,
-                          system: Dict,
-                          state: Dict = {},
-                          parameters: Dict = {},
-                          lin_solver_kw: Dict = {},
+                          system: dict,
+                          state: dict = {},
+                          parameters: dict = {},
+                          lin_solver_kw: dict = {},
                           logger: BaseLogger = None,
-                          ) -> Dict:
+                          ) -> dict:
         """Enforce Dirichlet BCs; returns reduced {K_uu, f_u}."""
         K_bc = apply_bc(K=system["K_uu"],
                         solver=lin_solver_kw["name"],
@@ -253,12 +254,12 @@ class LinearElasticity(FEMSolver):
         return {"K_uu": K_bc, "f_u": system["f_u"]}
 
     def assemble_system(self,
-                        terms: Dict,
-                        state: Dict = {},
-                        parameters: Dict = {},
-                        lin_solver_kw: Dict = {},
+                        terms: dict,
+                        state: dict = {},
+                        parameters: dict = {},
+                        lin_solver_kw: dict = {},
                         logger: BaseLogger = None,
-                        ) -> Dict:
+                        ) -> dict:
         """Scatter element contributions into the global algebraic system."""
         nel, dof_el = terms["Kes"].shape[:2]
         # stiffness matrix entries
@@ -299,11 +300,11 @@ class LinearElasticity(FEMSolver):
         return system
 
     def core_terms(self,
-                   state: Dict = {},
-                   parameters: Dict = {},
-                   solver_kw: Dict = {},
+                   state: dict = {},
+                   parameters: dict = {},
+                   solver_kw: dict = {},
                    logger: BaseLogger = None,
-                   ) -> Dict:
+                   ) -> dict:
         """Scaled element stiffness and (if transient) mass matrices."""
         elast = self.interpol_kw["Young's modulus"]
         kw = self.resolve_interpol_kw("Young's modulus", parameters)
@@ -328,7 +329,7 @@ class LinearElasticity(FEMSolver):
         return terms
 
     def log_material_properties(self,
-                                logger: BaseLogger = None) -> Dict:
+                                logger: BaseLogger = None) -> dict:
         """
         Parse, validate, log, and cache the stiffness tensors from
         ``self.material_kw``.  Sets ``self.symmetry`` and ``self.C``
@@ -411,12 +412,12 @@ class LinearElasticity(FEMSolver):
         return (self.fieldname,)
 
     def core_terms_dx(self,
-                      state: Dict = {},
-                      parameters: Dict = {},
+                      state: dict = {},
+                      parameters: dict = {},
                       adjoint: Any = None,
-                      solver_kw: Dict = {},
+                      solver_kw: dict = {},
                       logger: BaseLogger = None,
-                      ) -> Dict:
+                      ) -> dict:
         """Element-wise sensitivity of the stiffness contribution."""
         #
         xPhys = parameters["xPhys"]
@@ -440,8 +441,8 @@ class LinearElasticity(FEMSolver):
     def setup_discretization(self,
                              *,
                              element_type: str,
-                             order: Union[int, Tuple[int]],
-                             formulation: Union[str, Dict],
+                             order: int | tuple[int],
+                             formulation: str | dict,
                              ndim: int,
                              coordinate_system: str = "cartesian",
                              regular_mesh: bool = True,
@@ -503,7 +504,7 @@ class LinearElasticity(FEMSolver):
         else:
             raise ValueError(f"Unknown formulation: {formulation!r}")
 
-    def _setup_body_forces(self, body_forces_kw: Dict) -> None:
+    def _setup_body_forces(self, body_forces_kw: dict) -> None:
         """Precompute reference element body-force vectors."""
         self._FE_strain0 = None
         self._FE_grav0 = None
@@ -539,7 +540,7 @@ class LinearElasticity(FEMSolver):
             else:
                 self._FE_grav0 = lf_bodyforce_3d(b=b, l=self.l)[None]
 
-    def _setup_thermal_coupling(self, thermal_expansion_kw: Dict) -> None:
+    def _setup_thermal_coupling(self, thermal_expansion_kw: dict) -> None:
         """Precompute thermal-expansion coupling matrices and determine temperature source."""
         # Rosen-Hashin parameters for the alpha interpolation (isotropic only)
         if self.symmetry == "isotropic":
@@ -585,13 +586,13 @@ class LinearElasticity(FEMSolver):
             self._fTe = None  # set each forward pass in source_terms
 
     def solve_discrete_system(self,
-                              system: Dict,
-                              state: Dict = {},
-                              parameters: Dict = {},
-                              lin_solver_kw: Dict = {},
-                              preconditioner_kw: Dict = {},
+                              system: dict,
+                              state: dict = {},
+                              parameters: dict = {},
+                              lin_solver_kw: dict = {},
+                              preconditioner_kw: dict = {},
                               logger: BaseLogger = None,
-                              ) -> Dict[str, Any]:
+                              ) -> dict[str, Any]:
         """Solve K_uu u = f_u; caches factorization for adjoint reuse."""
         logger = logger or EmptyLogger()
         self.u[self.free, :], self._fact, self._precond = solve_lin(
@@ -609,11 +610,11 @@ class LinearElasticity(FEMSolver):
         return {self.fieldname: self.u}
 
     def source_terms(self,
-                     state: Dict = {},
-                     parameters: Dict = {},
-                     solver_kw: Dict = {},
+                     state: dict = {},
+                     parameters: dict = {},
+                     solver_kw: dict = {},
                      logger: BaseLogger = None,
-                     ) -> Dict:
+                     ) -> dict:
         """Thermal expansion, strain-induced, and gravity body-force load vectors."""
         terms = {}
         elast = self.interpol_kw["Young's modulus"]
@@ -678,12 +679,12 @@ class LinearElasticity(FEMSolver):
         return terms
 
     def source_terms_dx(self,
-                        state: Dict = {},
-                        parameters: Dict = {},
+                        state: dict = {},
+                        parameters: dict = {},
                         adjoint: Any = None,
-                        solver_kw: Dict = {},
+                        solver_kw: dict = {},
                         logger: BaseLogger = None,
-                        ) -> Dict:
+                        ) -> dict:
         """Element-wise sensitivities of thermal, strain-induced, and gravity contributions."""
         has_thermal = self.thermal_expansion and self._fTe is not None
         has_strain = self._FE_strain0 is not None
@@ -747,10 +748,10 @@ class LinearElasticity(FEMSolver):
         return {"dL_source": dL_source}
 
 def discretization_regular(nelx: int,
-                           nely: Union[None,int],
-                           nelz: Union[None,int],
+                           nely: None | int,
+                           nelz: None | int,
                            ndim: int,  
-                           material_kw: Dict, 
+                           material_kw: dict, 
                            refcell_needed: bool = False,
                            scalar_needed: bool = False) -> int:
 

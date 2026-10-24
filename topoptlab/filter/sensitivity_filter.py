@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any,Callable,Tuple,Union
+from typing import Any
+from collections.abc import Callable
 
 import numpy as np
 
@@ -29,13 +30,13 @@ class SensitivityFilter(TOFilter):
                  nely: int,
                  n_constr : int,
                  rmin: float,
-                 nelz: Union[int, None] = None,
+                 nelz: int | None = None,
                  filter_mode: str = "matrix",
                  gamma: float = 1e-3,
                  filter_objective : bool = True,
-                 constraint_filter_mask : Union[None,np.ndarray] = None,
-                 el_flags: Union[None, np.ndarray] = None,
-                 el_flags_policy: Union[None, dict] = None,
+                 constraint_filter_mask : None | np.ndarray = None,
+                 el_flags: None | np.ndarray = None,
+                 el_flags_policy: None | dict = None,
                  l: np.ndarray = np.array([1., 1.]),
                  kernel_fn: Callable = hat_kernel,
                  **kwargs: Any) -> None:
@@ -209,7 +210,7 @@ class SensitivityFilter(TOFilter):
         return self._filter_objective
     
     @property
-    def constraint_filter_mask(self) -> Union[bool,np.ndarray]:
+    def constraint_filter_mask(self) -> bool | np.ndarray:
         """
         Indicate if filter is applied to constraint sensitivities.
 

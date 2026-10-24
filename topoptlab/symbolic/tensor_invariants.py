@@ -1,14 +1,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import List, Tuple, Union
-from itertools import product
-from math import sqrt
 
-from sympy import symbols, Symbol
-from symfem.functions import ScalarFunction,MatrixFunction
+from symfem.functions import MatrixFunction
 
-from topoptlab.symbolic.matrix_utils import check_square, diag, trace
+from topoptlab.symbolic.matrix_utils import check_square, trace
 
-def principal_invariants(A: MatrixFunction) -> Tuple:
+def principal_invariants(A: MatrixFunction) -> tuple:
     """
     Return the principal tensor invariants `I` of MatrixFunction `A`. Works 
     only for dim(A) <= 3.
@@ -43,7 +39,7 @@ def principal_invariants(A: MatrixFunction) -> Tuple:
         raise ValueError("This function only works for square matrices with dim ≤ 3.")
 
 
-def main_invariants(A: MatrixFunction) -> Tuple:
+def main_invariants(A: MatrixFunction) -> tuple:
     """
     Return the main tensor invariants `I` of MatrixFunction `A` expressed in 
     terms of the principal invariants. Works only for dim(A) <= 3.

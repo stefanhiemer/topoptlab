@@ -1,12 +1,11 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any,Callable,Dict,Tuple,Union
-from functools import partial
+from typing import Any
+from collections.abc import Callable
 
 import numpy as np
 from scipy.sparse import csc_array
 from scipy.sparse.linalg import spsolve,cg, bicg, cgs, spilu, LinearOperator,\
-                                factorized, LaplacianNd, aslinearoperator,\
-                                gmres, lgmres, minres, qmr, tfqmr, gcrotmk
+                                factorized, LaplacianNd, gmres, lgmres, minres, qmr, tfqmr, gcrotmk
 
 from cvxopt import matrix,spmatrix
 from cvxopt.cholmod import solve,symbolic,numeric
@@ -17,19 +16,19 @@ from topoptlab.log_utils import EmptyLogger,SimpleLogger
 from topoptlab.linear_solvers import cg as topopt_cg
 from topoptlab.linear_solvers import pcg
 
-def solve_lin(K: Union[csc_array,spmatrix], rhs: Union[np.ndarray,matrix],
+def solve_lin(K: csc_array | spmatrix, rhs: np.ndarray | matrix,
               solver: str,
-              rhs0: Union[None,np.ndarray,matrix] = None,
-              solver_kw: Dict = {},
-              factorization: Union[None,Callable] = None,
-              preconditioner: Union[None,str] = None,
-              preconditioner_kw: Dict = {},
-              P: Union[None,Callable,spmatrix,csc_array] = None,
-              logger: Union[EmptyLogger,SimpleLogger] = EmptyLogger,
+              rhs0: None | np.ndarray | matrix = None,
+              solver_kw: dict = {},
+              factorization: None | Callable = None,
+              preconditioner: None | str = None,
+              preconditioner_kw: dict = {},
+              P: None | Callable | spmatrix | csc_array = None,
+              logger: EmptyLogger | SimpleLogger = EmptyLogger,
               **kwargs: Any
-              ) -> Tuple[np.ndarray, 
-                         Union[None,Callable],
-                         Union[None,Callable,spmatrix,csc_array]]:
+              ) -> tuple[np.ndarray, 
+                         None | Callable,
+                         None | Callable | spmatrix | csc_array]:
     """
     Solve linear system Ku=rhs for a generic matrix K with preconditioner P.
     rhs might contain multiple sets of boundary conditions that are solved
@@ -364,7 +363,7 @@ def solve_lin(K: Union[csc_array,spmatrix], rhs: Union[np.ndarray,matrix],
     else:
         raise ValueError("Unknown solver: ",solver)
 
-def laplacian(grid: Tuple) -> Tuple[csc_array,np.ndarray]:
+def laplacian(grid: tuple) -> tuple[csc_array,np.ndarray]:
     """
     Construct Laplacian on a uniform rectangular grid in N dimensions and the right hand side
     to the linear problem

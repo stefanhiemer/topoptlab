@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any, Callable, Union
-from warnings import warn
+from typing import Any
+from collections.abc import Callable
 
 import numpy as np
 
@@ -10,7 +10,7 @@ def _lk_linear_elast(xe: np.ndarray,
                      c: np.ndarray,
                      quadr_method: str = "gauss-legendre",
                      nquad: int = 2,
-                     bmatrix: Union[None,Callable] = None,
+                     bmatrix: None | Callable = None,
                      **kwargs: Any) -> np.ndarray:
     """
     Create element stiffness matrix for linear elasticity with Lagrangian elements.
@@ -80,7 +80,7 @@ def _lf_strain(xe: np.ndarray,
                c: np.ndarray,
                quadr_method: str = "gauss-legendre",
                nquad: int = 2,
-               bmatrix: Union[None,Callable] = None,
+               bmatrix: None | Callable = None,
                **kwargs: Any) -> np.ndarray:
     """
     Compute nodal forces on Lagrangian elements due to a uniform strain

@@ -1,15 +1,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any, Callable, Dict, List, Tuple, Union
-from functools import partial
+from collections.abc import Callable
 from cProfile import Profile
 from datetime import datetime
-import inspect
 #
 import numpy as np
-from scipy.sparse.linalg import factorized
-from scipy.ndimage import convolve
 #
-from matplotlib.colors import Normalize
 import matplotlib.pyplot as plt
 # functions to create filters 
 from topoptlab.filter.filter import TOFilter
@@ -17,16 +12,8 @@ from topoptlab.filter.workflows import prepare_filters,sensitivity_propagation,f
 # default application case that provides boundary conditions, etc.
 from topoptlab.example_bc.lin_elast import mbb_2d
 # set up finite element problem
-from topoptlab.fem import create_matrixinds,assemble_matrix,apply_bc
-from topoptlab.elements.bilinear_quadrilateral import create_edofMat as create_edofMat2d
-from topoptlab.elements.trilinear_hexahedron import create_edofMat as create_edofMat3d
 # different elements/physics
-from topoptlab.elements.linear_elasticity_2d import lk_linear_elast_2d, lf_strain_2d
-from topoptlab.elements.linear_elasticity_3d import lk_linear_elast_3d, lf_strain_3d
-from topoptlab.elements.bodyforce_2d import lf_bodyforce_2d
-from topoptlab.elements.bodyforce_3d import lf_bodyforce_3d
 # generic functions for solving phys. problem
-from topoptlab.solve_linsystem import solve_lin
 #
 from topoptlab.material_interpolation import simp, simp_dx
 # constrained optimizers
@@ -35,10 +22,7 @@ from topoptlab.objectives import compliance
 # output final design to a Paraview readable format
 from topoptlab.output_designs import export_vtk
 # map element data to img/voxel
-from topoptlab.utils import map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel,\
-                            check_simulation_params,dict_without,\
-                            default_outputkw,check_output_kw,check_optimizer_kw,\
-                            default_el_flags_policy,check_el_flags_policy,\
+from topoptlab.utils import check_simulation_params,default_outputkw,check_output_kw,check_el_flags_policy,\
                             check_constraints,expand_eq_constraints
 from topoptlab.objectives import vol_frac as volume_fraction_constraint
 # logging related stuff
@@ -58,9 +42,9 @@ from topoptlab.topology_opt.solver_routines import adjoint_loop, initialize_prob
 from topoptlab.topology_opt.plotting import initialize_plotting
 
 def initialize_materialinterpolation(
-        matinterpol_kw: Union[None, Dict, List[Union[Dict, List[Dict]]]],
-        problems: List[Union[ProblemSolver, List[ProblemSolver]]]
-        ) -> List[Union[Dict, List[Dict]]]:
+        matinterpol_kw: None | dict | list[dict | list[dict]],
+        problems: list[ProblemSolver | list[ProblemSolver]]
+        ) -> list[dict | list[dict]]:
     """
     Build per-problem interpolation keyword dicts from solver defaults and
     user overrides.
@@ -156,49 +140,49 @@ def initialize_materialinterpolation(
 
 # MAIN DRIVER
 def main(nelx: int, nely: int,
-         volfrac: Union[float, np.ndarray], #penal: float,
+         volfrac: float | np.ndarray, #penal: float,
          rmin: float, 
-         ft: [int,TOFilter,List[TOFilter]] = 1,
-         filter_kw: Union[Dict,List] = {},
-         simulation_kw: Dict = {"type": "stationary",
+         ft: [int,TOFilter,list[TOFilter]] = 1,
+         filter_kw: dict | list = {},
+         simulation_kw: dict = {"type": "stationary",
                                 "coordinate_system": "cartesian"},
-         nelz: Union[None,int] = None,
-         initial_guess: Union[None,Dict[str, np.ndarray]] = None,
-         design_parameterization_kw: Dict = {},
+         nelz: None | int = None,
+         initial_guess: None | dict[str, np.ndarray] = None,
+         design_parameterization_kw: dict = {},
          filter_mode: str = "convolution",
-         lin_solver_kw: Union[Dict, List[Dict]] = {"name": "scipy-direct"},
-         preconditioner_kw: Dict = {"name": None},
+         lin_solver_kw: dict | list[dict] = {"name": "scipy-direct"},
+         preconditioner_kw: dict = {"name": None},
          assembly_mode: str = "full",
-         materials_kw: Union[Dict, List[Dict]] = [{"Young's modulus": 1.,
+         materials_kw: dict | list[dict] = [{"Young's modulus": 1.,
                                                    "Poisson's ratio": 0.3}],
          bcs: Callable = mbb_2d,
-         problems: Union[None, List[Union[Callable, List[Callable]]]] = None,
-         solver_kw: Union[Dict, List[Dict]] = {},
-         solver_coupling: Union[None, List[str]] = None,
-         lk: Union[None,Callable] = None,
-         l: Union[float,List,np.ndarray] = 1.,
+         problems: None | list[Callable | list[Callable]] = None,
+         solver_kw: dict | list[dict] = {},
+         solver_coupling: None | list[str] = None,
+         lk: None | Callable = None,
+         l: float | list | np.ndarray = 1.,
          obj_func: Callable = compliance, 
-         obj_kw: Dict = {},
+         obj_kw: dict = {},
          matinterpol: Callable = simp,
          matinterpol_dx: Callable = simp_dx,
-         matinterpol_kw: Union[None, Dict, List[Dict]] = None,
-         el_flags: Union[None,np.ndarray] = None,
-         el_flags_policy: Union[None,Dict] = None,
-         constraints: Union[None,List[Dict]] = None,
+         matinterpol_kw: None | dict | list[dict] = None,
+         el_flags: None | np.ndarray = None,
+         el_flags_policy: None | dict = None,
+         constraints: None | list[dict] = None,
          optimizer: str = "mma",
-         optimizer_kw: Union[None,Dict] = None,
-         mix: Union[None,float] = None,
-         accelerator_kw: Dict = {"accel_freq": 4,
+         optimizer_kw: None | dict = None,
+         mix: None | float = None,
+         accelerator_kw: dict = {"accel_freq": 4,
                                  "accel_start": 20,
                                  "max_history": 0,
                                  "accelerator": None},
-         convergence_kw: Dict = {"conv_tol": 1e-2,
+         convergence_kw: dict = {"conv_tol": 1e-2,
                                  "change_func": max_design_change},
-         continuation_kw: Union[None, Dict] = None,
+         continuation_kw: None | dict = None,
          nouteriter: int = 2000, 
          ninneriter: int = 15,
-         mesh_file: Union[None,str] = None,
-         output_kw: Dict = default_outputkw()) -> Tuple[np.ndarray,float]:
+         mesh_file: None | str = None,
+         output_kw: dict = default_outputkw()) -> tuple[np.ndarray,float]:
     """
     Topology optimization workflow with the material interpolation method. 
     Can treat single physics stationary problems.
@@ -585,8 +569,7 @@ def main(nelx: int, nely: int,
         #
         if problems:
             for i in range(f.shape[1]):
-                log.debug("FEM: it.: {0}, problem: {1}, min. u: {2:.12f}, med. u: {3:.12f}, max. u: {4:.12f}".format(
-                        loop,i,np.min(u[:,i]),np.median(u[:,i]),np.max(u[:,i])))
+                log.debug(f"FEM: it.: {loop}, problem: {i}, min. u: {np.min(u[:,i]):.12f}, med. u: {np.median(u[:,i]):.12f}, max. u: {np.max(u[:,i]):.12f}")
         # objective and sensitivities with regards to object
         obj = 0
         dobj[:] = 0.
@@ -627,8 +610,7 @@ def main(nelx: int, nely: int,
                                         logger=log)
                 adj[:, i:i+1] = adj_out[f"adj_{_solver0.fieldname}"]
             #
-            log.debug("adj: it.: {0}, problem: {1}, min. adj: {2:.12f}, med. adj: {3:.12f}, max. adj: {4:.12f}".format(
-                        loop,i,np.min(adj[:,i]),np.median(adj[:,i]),np.max(adj[:,i])))
+            log.debug(f"adj: it.: {loop}, problem: {i}, min. adj: {np.min(adj[:,i]):.12f}, med. adj: {np.median(adj[:,i]):.12f}, max. adj: {np.max(adj[:,i]):.12f}")
 
             dobj[:] += _solver0.sensitivity(state=state,
                                             parameters=parameters,
@@ -703,11 +685,7 @@ def main(nelx: int, nely: int,
                 constrs[k, 0] = constrs[k, 0]/ref
                 dconstrs[:, k:k+1] = dconstrs[:, k:k+1]/ref
         #
-        log.debug("Pre-Sensitivity Filter: it.: {0}, min(dobj): {1:.10f}, max(dobj): {2:.10f}, dv: {3:.10f}".format(
-                  loop, 
-                  np.min(dobj), 
-                  np.max(dobj), 
-                  np.min(dconstrs)))
+        log.debug(f"Pre-Sensitivity Filter: it.: {loop}, min(dobj): {np.min(dobj):.10f}, max(dobj): {np.max(dobj):.10f}, dv: {np.min(dconstrs):.10f}")
         # sensitivity propagation (call it this way to avoid confusion with sensitvity filter)
         dobj, dconstrs = sensitivity_propagation(dobj=dobj,
                                                  dconstrs=dconstrs,
@@ -719,10 +697,7 @@ def main(nelx: int, nely: int,
                                                  el_flags_policy=el_flags_policy,
                                                  prescribed_mask=prescribed_mask)
         #
-        log.debug("Post-Sensitivity Filter: it.: {0}, min(dobj): {1:.10f}, max(dobj): {2:.10f}, dv: {3:.10f}".format(
-                  loop, 
-                  np.min(dobj), np.max(dobj), 
-                  np.min(dconstrs)))
+        log.debug(f"Post-Sensitivity Filter: it.: {loop}, min(dobj): {np.min(dobj):.10f}, max(dobj): {np.max(dobj):.10f}, dv: {np.min(dconstrs):.10f}")
         # scale objective and its gradient if requested
         if "scale_factor" in obj_kw and obj_kw["scale_factor"] is not None:
             obj *= obj_kw["scale_factor"]
@@ -827,18 +802,22 @@ def main(nelx: int, nely: int,
                                                                 active_mask=active_mask)
                 # solve FEM at xmma
                 parameters_inner = {**parameters, "xPhys": xPhys_new}
-                state_inner = solver_loop(problems,
-                                          state_inner,
-                                          ntimesteps=1,
-                                          coupling=solver_coupling,
-                                          parameters=parameters_inner,
-                                          solver_kw=solver_kw,
-                                          lin_solver_kw=lin_solver_kw,
-                                          preconditioner_kw=preconditioner_kw,
-                                          interpol_kw=interpol_kw,
-                                          logger=log)
-                u_inner = state_inner[_solver0.fieldname]
-                Kes_new = _solver0._terms["Kes"]
+                if problems:
+                    state_inner = solver_loop(problems,
+                                              state_inner,
+                                              ntimesteps=1,
+                                              coupling=solver_coupling,
+                                              parameters=parameters_inner,
+                                              solver_kw=solver_kw,
+                                              lin_solver_kw=lin_solver_kw,
+                                              preconditioner_kw=preconditioner_kw,
+                                              interpol_kw=interpol_kw,
+                                              logger=log)
+                    u_inner = state_inner[_solver0.fieldname]
+                    Kes_new = _solver0._terms["Kes"]
+                else:
+                    u_inner = None
+                    Kes_new = None
                 # evaluate objective at xmma
                 obj_new = 0.
                 for i in np.arange(f.shape[1]):
@@ -896,7 +875,7 @@ def main(nelx: int, nely: int,
                 # conservative check
                 conserv = concheck(m=optimizer_kw["nconstr"],
                                    f0app=f0app,
-                                   f0valnew=obj_new,
+                                   f0valnew=np.atleast_1d(obj_new),
                                    fapp=fapp,
                                    fvalnew=constrs_new,
                                    **optimizer_kw)
@@ -925,8 +904,7 @@ def main(nelx: int, nely: int,
                                                         **optimizer_kw)
             x = xmma.reshape(n_el, -1, order='F')
         #
-        log.debug("Post Density Update: it.: {0}, med(x): {1:.10f}, mean(x): {2:.10f}, med(xPhys): {3:.10f}".format(
-                   loop, np.median(x),np.mean(x), np.median(xPhys)))
+        log.debug(f"Post Density Update: it.: {loop}, med(x): {np.median(x):.10f}, mean(x): {np.mean(x):.10f}, med(xPhys): {np.median(xPhys):.10f}")
         # mixing
         if ((loop-accelerator_kw["accel_start"])%accelerator_kw["accel_freq"])==0 \
             and loop >= accelerator_kw["accel_start"] and \
@@ -937,8 +915,7 @@ def main(nelx: int, nely: int,
         elif mix is not None:
             x[:] = hist["xhist"][-1]*(1-mix) + x*mix
         #
-        log.debug("Post Mixing Update: it.: {0}, med. x.: {1:.10f}, med. xPhys: {2:.10f}".format(
-                  loop, np.median(x),np.median(xPhys)))
+        log.debug(f"Post Mixing Update: it.: {loop}, med. x.: {np.median(x):.10f}, med. xPhys: {np.median(xPhys):.10f}")
         # Filter design variables
         xTilde, xPhys = filter_design_variables(x=x,
                                                 xTilde=xTilde,
@@ -953,8 +930,7 @@ def main(nelx: int, nely: int,
                        x=x, xPhys=xPhys, obj=obj, constrs=constrs,
                        max_history=max_history)
         #
-        log.debug("Post Density Filter: it.: {0}, med. x.: {1:.10f}, med. xPhys: {2:.10f}".format(
-                  loop, np.median(x),np.median(xPhys)))
+        log.debug(f"Post Density Filter: it.: {loop}, med. x.: {np.median(x):.10f}, med. xPhys: {np.median(xPhys):.10f}")
         # compute the change
         change = convergence_kw["change_func"](**hist,**convergence_kw)
         # plot to screen
@@ -1025,6 +1001,6 @@ def main(nelx: int, nely: int,
         input("Press any key...")
     #
     if output_kw["display"] and output_kw["save_pdf"]:
-        fig.savefig(output_kw["file"]+".pdf", 
+        fig.savefig(output_kw["file"]+".pdf",
                     **output_kw["pdf_kw"])
     return x, xTilde, xPhys, obj

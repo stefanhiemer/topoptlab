@@ -1,12 +1,11 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from functools import partial
-from typing import Any, Callable, Union
+from typing import Any
+from collections.abc import Callable
 
 import numpy as np
 from scipy.sparse import csc_array
 
 from topoptlab.filter.filter import TOFilter
-from topoptlab.utils import map_eltoimg, map_imgtoel
 
 
 class LangelaarFilter(TOFilter):
@@ -28,9 +27,9 @@ class LangelaarFilter(TOFilter):
                  invmapping: Callable,
                  baseplate: str = 'S',
                  filter_objective: bool = True,
-                 constraint_filter_mask: Union[None, np.ndarray] = None,
-                 nelz: Union[None, int] = None,
-                 channel: Union[None,int] = 0,
+                 constraint_filter_mask: None | np.ndarray = None,
+                 nelz: None | int = None,
+                 channel: None | int = 0,
                  **kwargs: Any) -> None:
         """
         Parameters
@@ -162,7 +161,7 @@ class LangelaarFilter(TOFilter):
 
 def AMfilter(x: np.ndarray, 
              baseplate: str = 'S',
-             sensitivities: Union[np.ndarray,None] = None) -> np.ndarray:
+             sensitivities: np.ndarray | None = None) -> np.ndarray:
     """
     Applies the filter by
 

@@ -1,13 +1,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any,Callable,Tuple,Union
+from typing import Any
 
 import numpy as np
 
 from topoptlab.filter.filter import TOFilter
-from topoptlab.filter.kernels import hat_kernel
-from topoptlab.filter.matrix_filter import MatrixFilter
-from topoptlab.filter.helmholtz_filter import HelmholtzFilter
-from topoptlab.filter.convolution_filter import ConvolutionFilter
 
 class SimplexFilter(TOFilter):
     """
@@ -20,7 +16,7 @@ class SimplexFilter(TOFilter):
     def __init__(self,
                  n_constr: int,
                  filter_objective: bool = True,
-                 constraint_filter_mask: Union[None, np.ndarray] = None,
+                 constraint_filter_mask: None | np.ndarray = None,
                  **kwargs: Any) -> None:
         """
         Parameters

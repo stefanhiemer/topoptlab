@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any, Callable, Union
+from typing import Any
+from collections.abc import Callable
 
 import numpy as np
 
@@ -9,8 +10,8 @@ def _lm_monomial(xe: np.ndarray, u: np.ndarray, n: int,
                  p: np.ndarray = np.array([1.]),
                  quadr_method: str = "gauss-legendre",
                  nquad: int = 3,
-                 shape_functions: Union[None,Callable] = None,
-                 jacobian: Union[None,Callable] = None,
+                 shape_functions: None | Callable = None,
+                 jacobian: None | Callable = None,
                  **kwargs: Any) -> np.ndarray:
     """
     Create element matrix for a monomial of a scalar field with Lagrangian

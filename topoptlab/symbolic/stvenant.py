@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any,Tuple,Union
+from typing import Any
 
 from symfem.functions import ScalarFunction,MatrixFunction
 
@@ -8,10 +8,10 @@ from topoptlab.symbolic.matrix_utils import generate_constMatrix, is_voigt,\
 from topoptlab.symbolic.strain_measures import lagrangian_strain
 from topoptlab.symbolic.stress_conversions import pk2_to_pk1, pk2_to_cauchy
 
-def stvenant_engdensity(E : Union[None,MatrixFunction] = None,
-                        F : Union[None,MatrixFunction] = None,
-                        c : Union[None,MatrixFunction] = None,
-                        ndim: Union[int,None] = 3, 
+def stvenant_engdensity(E : None | MatrixFunction = None,
+                        F : None | MatrixFunction = None,
+                        c : None | MatrixFunction = None,
+                        ndim: int | None = 3, 
                         **kwargs: Any) -> ScalarFunction:
     """
     Returns elastic energy density for St. Venant material defined as 
@@ -63,10 +63,10 @@ def stvenant_engdensity(E : Union[None,MatrixFunction] = None,
                                  name="c", symmetric=True) 
     return ScalarFunction( (E.transpose()@c@E / 2)[0,0].as_sympy() )
 
-def stress_2pk(E : Union[None,MatrixFunction] =  None,
-               F : Union[None,MatrixFunction] = None,
-               c : Union[None,MatrixFunction] = None,
-               ndim: Union[int,None] = 3, 
+def stress_2pk(E : None | MatrixFunction =  None,
+               F : None | MatrixFunction = None,
+               c : None | MatrixFunction = None,
+               ndim: int | None = 3, 
                **kwargs: Any) -> ScalarFunction:
     """
     Returns 2. Piola-Kirchhoff stress (2PK) S for St. Venant material defined 
@@ -120,10 +120,10 @@ def stress_2pk(E : Union[None,MatrixFunction] =  None,
                                  symmetric=True)
     return c@E
 
-def stress_1pk(F : Union[None,MatrixFunction],
-               E : Union[None,MatrixFunction] =  None,
-               c : Union[None,MatrixFunction] = None,
-               ndim: Union[int,None] = 3, 
+def stress_1pk(F : None | MatrixFunction,
+               E : None | MatrixFunction =  None,
+               c : None | MatrixFunction = None,
+               ndim: int | None = 3, 
                **kwargs: Any) -> ScalarFunction:
     """
     Returns 1. Piola-Kirchhoff stress (1PK) P for St. Venant material defined 
@@ -178,11 +178,11 @@ def stress_1pk(F : Union[None,MatrixFunction],
                                    ndim=ndim), 
                       F=F) 
 
-def stvenant_cauchy(F : Union[None,MatrixFunction],
-                    Fdet: Union[None,ScalarFunction] = None,
-                    E : Union[None,MatrixFunction] =  None,
-                    c : Union[None,MatrixFunction] = None,
-                    ndim: Union[int,None] = 3, 
+def stvenant_cauchy(F : None | MatrixFunction,
+                    Fdet: None | ScalarFunction = None,
+                    E : None | MatrixFunction =  None,
+                    c : None | MatrixFunction = None,
+                    ndim: int | None = 3, 
                     **kwargs: Any) -> ScalarFunction:
     """
     Returns Cauchy stress for St. Venant material defined 
@@ -265,7 +265,7 @@ def consttensor_2pk(c : MatrixFunction,
 
 def stvenant_matmodel(F : MatrixFunction,
                       c : MatrixFunction,
-                      **kwargs : Any) -> Tuple[MatrixFunction, MatrixFunction]:
+                      **kwargs : Any) -> tuple[MatrixFunction, MatrixFunction]:
     """
     Return the symbolic 2. Piola Kirchhoff stress (2PK) in Voigt notation and 
     constitutive tensor of St. Venant material.

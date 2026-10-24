@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any,Union
+from typing import Any
 
 import numpy as np
 
@@ -7,7 +7,7 @@ from topoptlab.elements.trilinear_hexahedron import shape_functions,bmatrix
 from topoptlab.fem import get_integrpoints
 
 def _fk_heatexp_3d(xe: np.ndarray, c: np.ndarray,
-                   a: np.ndarray, DeltaT: Union[None,np.ndarray] = None,
+                   a: np.ndarray, DeltaT: None | np.ndarray = None,
                    quadr_method: str = "gauss-legendre",
                    nquad: int = 2,
                    **kwargs: Any) -> np.ndarray:
@@ -82,7 +82,7 @@ def _fk_heatexp_3d(xe: np.ndarray, c: np.ndarray,
         return np.sum(fe*DeltaT[:,None,:],axis=2)
 
 def fk_heatexp_3d(E: float, nu: float,
-                  a: float, DeltaT: Union[None,np.ndarray] = None,
+                  a: float, DeltaT: None | np.ndarray = None,
                   l: np.ndarray = np.array([1.,1.,1.]), 
                   g: np.ndarray = np.array([0.,0.])) -> np.ndarray:
     """
@@ -312,7 +312,7 @@ def fk_heatexp_3d(E: float, nu: float,
         return fe@DeltaT
 
 def fk_heatexp_aniso_3d(c: np.ndarray,
-                        a: np.ndarray, DeltaT: Union[None,np.ndarray] = None,
+                        a: np.ndarray, DeltaT: None | np.ndarray = None,
                         l: np.ndarray = np.array([1.,1.,1.]), 
                         g: np.ndarray = np.array([0.,0.])) -> np.ndarray:
     """

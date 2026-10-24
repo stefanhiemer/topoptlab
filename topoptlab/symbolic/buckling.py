@@ -1,5 +1,4 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Callable, Dict, List, Union 
 
 from symfem.symbols import x,t
 from symfem.functions import MatrixFunction
@@ -8,17 +7,15 @@ from topoptlab.symbolic.cell import base_cell
 from topoptlab.symbolic.parametric_map import jacobian
 from topoptlab.symbolic.matrix_utils import eye, simplify_matrix,\
                                             generate_constMatrix,\
-                                            generate_FunctMatrix, to_voigt,\
-                                            from_voigt, to_column, kron,\
-                                            integrate, to_square
+                                            from_voigt, kron,\
+                                            integrate
 from topoptlab.symbolic.strain_measures import dispgrad_matrix,\
                                                small_strain_matrix
-from topoptlab.symbolic.stress_conversions import cauchy_to_pk1, pk2_to_pk1
 #from topoptlab.symbolic.hyperelasticity import stvenant_2pk, stvenant_cauchy
 
 def buckling_matrix(ndim : int,
-                    u : Union[None,MatrixFunction],
-                    c : Union[None,MatrixFunction],
+                    u : None | MatrixFunction,
+                    c : None | MatrixFunction,
                     element_type : str ="Lagrange",
                     order : int = 1) -> MatrixFunction:
     """

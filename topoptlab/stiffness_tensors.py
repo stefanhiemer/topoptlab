@@ -1,15 +1,14 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any,Callable,Dict,List,Tuple,Union
 
 import numpy as np
 
-def compute_elastic_properties_3d(E: Union[None,float] = None, 
-                                  nu: Union[None,float] = None,  
-                                  G: Union[None,float] = None,  
-                                  K: Union[None,float] = None,  
-                                  lam: Union[None,float] = None,
-                                  M: Union[None,float] = None
-                                  ) -> Tuple[float,float,float,
+def compute_elastic_properties_3d(E: None | float = None, 
+                                  nu: None | float = None,  
+                                  G: None | float = None,  
+                                  K: None | float = None,  
+                                  lam: None | float = None,
+                                  M: None | float = None
+                                  ) -> tuple[float,float,float,
                                              float,float,float]:
     """
     Compute all 3D isotropic elastic properties from any 2 given elast. 
@@ -204,9 +203,9 @@ def isotropic_3d(E:float = 1., nu:float = 0.3) -> np.ndarray:
 
 def orthotropic_2d(Ex: float, Ey: float, 
                    nu_xy: float, G_xy: float,
-                   Ez: Union[None,float] = None, 
-                   nu_xz: Union[None,float] = None, 
-                   nu_yz: Union[None,float] = None,
+                   Ez: None | float = None, 
+                   nu_xz: None | float = None, 
+                   nu_yz: None | float = None,
                    plane_stress: bool = True) -> np.ndarray:
     """
     2D stiffness tensor for orthotropic material. The indices of the Poisson 

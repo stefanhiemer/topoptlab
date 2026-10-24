@@ -1,5 +1,4 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Union
 
 from symfem.symbols import x,t
 from symfem.functions import ScalarFunction, MatrixFunction
@@ -12,7 +11,7 @@ from topoptlab.symbolic.matrix_utils import simplify_matrix, \
                                             integrate
 
 def source(ndim : int,
-           volume_source : Union[None,ScalarFunction] = None,
+           volume_source : None | ScalarFunction = None,
            element_type : str = "Lagrange",
            order : int = 1) -> MatrixFunction:
     """

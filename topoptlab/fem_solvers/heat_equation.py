@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 from functools import partial
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any
+from collections.abc import Callable
 
 import numpy as np
 
@@ -82,22 +83,22 @@ class HeatEquation(FEMSolver):
                  nely: int,
                  bc: Callable,
                  ndim: int,
-                 nelz: Optional[int] = None,
+                 nelz: int | None = None,
                  transient: bool = False,
                  convection: bool = False,
                  viscous_heating: bool = False,
-                 volumetric_source: Union[None,Callable] = None,
-                 l: Union[float, np.ndarray] = 1.,
-                 formulation: Union[str, Dict] = "galerkin",
-                 order: Union[int, Tuple[int]] = 1,
+                 volumetric_source: None | Callable = None,
+                 l: float | np.ndarray = 1.,
+                 formulation: str | dict = "galerkin",
+                 order: int | tuple[int] = 1,
                  assembly_mode: str = "full",
                  regular_mesh: bool = True,
-                 element_type: Union[None, str] = None,
+                 element_type: None | str = None,
                  interpolation_mode: str = "scaling",
                  matinterpol: Callable = simp,
                  matinterpol_dx: Callable = simp_dx,
-                 interpol_kw: Dict = {},
-                 material_kw: Union[Dict, List[Dict]] = {"heat conductivity": 1.0},
+                 interpol_kw: dict = {},
+                 material_kw: dict | list[dict] = {"heat conductivity": 1.0},
                  fieldname: str = "T",
                  logger: BaseLogger = None,
                  **kwargs: Any) -> None:
@@ -169,13 +170,13 @@ class HeatEquation(FEMSolver):
 
     def adjoint(self,
                 rhs: Any = None,
-                state: Dict = {},
-                parameters: Dict = {},
-                solver_kw: Dict = {},
-                lin_solver_kw: Dict = {},
-                preconditioner_kw: Dict = {},
+                state: dict = {},
+                parameters: dict = {},
+                solver_kw: dict = {},
+                lin_solver_kw: dict = {},
+                preconditioner_kw: dict = {},
                 logger: BaseLogger = None,
-                ) -> Dict:
+                ) -> dict:
         """Solve K_TT^T lambda = rhs, reusing the cached factorization."""
         logger = logger or EmptyLogger()
         scalar = rhs.ndim == 1
@@ -197,12 +198,12 @@ class HeatEquation(FEMSolver):
         return {f"adj_{self.fieldname}": adj}
 
     def apply_constraints(self,
-                          system: Dict,
-                          state: Dict = {},
-                          parameters: Dict = {},
-                          lin_solver_kw: Dict = {},
+                          system: dict,
+                          state: dict = {},
+                          parameters: dict = {},
+                          lin_solver_kw: dict = {},
                           logger: BaseLogger = None,
-                          ) -> Dict:
+                          ) -> dict:
         """Enforce Dirichlet BCs; returns reduced {K_TT, f_T}."""
         K_bc = apply_bc(K=system["K_TT"],
                         solver=lin_solver_kw["name"],
@@ -211,12 +212,12 @@ class HeatEquation(FEMSolver):
         return {"K_TT": K_bc, "f_T": system["f_T"]}
 
     def assemble_system(self,
-                        terms: Dict,
-                        state: Dict = {},
-                        parameters: Dict = {},
-                        lin_solver_kw: Dict = {},
+                        terms: dict,
+                        state: dict = {},
+                        parameters: dict = {},
+                        lin_solver_kw: dict = {},
                         logger: BaseLogger = None,
-                        ) -> Dict:
+                        ) -> dict:
         """Accumulate element contributions then assemble once to global system."""
         #
         nel, dof_el = terms["Kes"].shape[:2]
@@ -252,11 +253,11 @@ class HeatEquation(FEMSolver):
                 "f_T": f}
 
     def core_terms(self,
-                   state: Dict = {},
-                   parameters: Dict = {},
-                   solver_kw: Dict = {},
+                   state: dict = {},
+                   parameters: dict = {},
+                   solver_kw: dict = {},
                    logger: BaseLogger = None,
-                   ) -> Dict:
+                   ) -> dict:
         """Scaled element matrices for all active physics."""
         terms = {}
         ### conductivity (always)
@@ -275,7 +276,7 @@ class HeatEquation(FEMSolver):
         return terms
 
     def log_material_interpolation(self,
-                                   logger: BaseLogger = None) -> Dict:
+                                   logger: BaseLogger = None) -> dict:
         """Log and return the per-property interpolation configuration."""
         logger = logger or EmptyLogger()
         lines = [f"Material interpolation (heat equation) for field: {self.fieldname}"]
@@ -291,7 +292,7 @@ class HeatEquation(FEMSolver):
         return self.interpol_kw
 
     def log_material_properties(self,
-                                logger: BaseLogger = None) -> Dict:
+                                logger: BaseLogger = None) -> dict:
         """
         Parse, validate, log, and cache material properties from ``self.material_kw``.
 
@@ -385,12 +386,12 @@ class HeatEquation(FEMSolver):
         return (self.fieldname,)
 
     def core_terms_dx(self,
-                      state: Dict = {},
-                      parameters: Dict = {},
+                      state: dict = {},
+                      parameters: dict = {},
                       adjoint: Any = None,
-                      solver_kw: Dict = {},
+                      solver_kw: dict = {},
                       logger: BaseLogger = None,
-                      ) -> Dict:
+                      ) -> dict:
         """Element-wise sensitivity of the conductivity contribution."""
         xPhys = parameters["xPhys"]
         T = state[self.fieldname]
@@ -416,8 +417,8 @@ class HeatEquation(FEMSolver):
     def setup_discretization(self,
                              *,
                              element_type: str,
-                             order: Union[int, Tuple[int]],
-                             formulation: Union[str, Dict],
+                             order: int | tuple[int],
+                             formulation: str | dict,
                              ndim: int,
                              coordinate_system: str = "cartesian",
                              regular_mesh: bool = True,
@@ -465,13 +466,13 @@ class HeatEquation(FEMSolver):
         return
 
     def solve_discrete_system(self,
-                              system: Dict,
-                              state: Dict = {},
-                              parameters: Dict = {},
-                              lin_solver_kw: Dict = {},
-                              preconditioner_kw: Dict = {},
+                              system: dict,
+                              state: dict = {},
+                              parameters: dict = {},
+                              lin_solver_kw: dict = {},
+                              preconditioner_kw: dict = {},
                               logger: BaseLogger = None,
-                              ) -> Dict[str, Any]:
+                              ) -> dict[str, Any]:
         """Solve K_TT T = f_T; caches factorization for adjoint reuse."""
         logger = logger or EmptyLogger()
         self.T[self.free, :], self._fact, self._precond = solve_lin(
@@ -489,11 +490,11 @@ class HeatEquation(FEMSolver):
         return {self.fieldname: self.T}
 
     def source_terms(self,
-                     state: Dict = {},
-                     parameters: Dict = {},
-                     solver_kw: Dict = {},
+                     state: dict = {},
+                     parameters: dict = {},
+                     solver_kw: dict = {},
                      logger: BaseLogger = None,
-                     ) -> Dict:
+                     ) -> dict:
         """Element-level source contributions for active physics."""
         terms = {}
         ### volumetric heat source
@@ -505,10 +506,10 @@ class HeatEquation(FEMSolver):
         return terms
 
     def source_terms_dx(self,
-                        state: Dict = {},
-                        parameters: Dict = {},
+                        state: dict = {},
+                        parameters: dict = {},
                         adjoint: Any = None,
-                        solver_kw: Dict = {},
+                        solver_kw: dict = {},
                         logger: BaseLogger = None,
-                        ) -> Dict:
+                        ) -> dict:
         return {}

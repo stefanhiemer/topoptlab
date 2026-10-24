@@ -19,9 +19,9 @@ def lk_advection_1d(v: np.ndarray,
 
     Returns
     -------
-    Ke : np.ndarray, shape (2,2)
+    Ke : np.ndarray, shape (nels,2,2)
         element advection matrix.
 
     """
     return np.column_stack((-v[0]/3 - v[1]/6, v[0]/3 + v[1]/6,
-                            -v[0]/6 - v[1]/3, v[0]/6 + v[1]/3)).reshape(2,2)
+                            -v[0]/6 - v[1]/3, v[0]/6 + v[1]/3)).reshape(-1,2,2)

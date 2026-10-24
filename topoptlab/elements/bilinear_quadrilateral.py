@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Tuple,Any,Union,List
+from typing import Any
 from warnings import warn
 
 import numpy as np
@@ -8,7 +8,7 @@ def create_edofMat(nelx: int,
                    nely: int, 
                    nnode_dof: int,
                    dtype: type = np.int32, 
-                   **kwargs: Any) -> Tuple[np.ndarray,np.ndarray,np.ndarray,
+                   **kwargs: Any) -> tuple[np.ndarray,np.ndarray,np.ndarray,
                                            None,None]:
     """
     Create element degree of freedom matrix for bilinear Lagrangian elements in
@@ -48,7 +48,7 @@ def create_edofMat(nelx: int,
     return edofMat, n1, n2, None, None
 
 def apply_pbc(edofMat: np.ndarray, 
-              pbc: Union[List,np.ndarray],
+              pbc: list | np.ndarray,
               nelx: int, 
               nely: int, 
               nnode_dof: int,
@@ -108,9 +108,9 @@ def apply_pbc(edofMat: np.ndarray,
         edofMat[pbc_y,nnode_dof:2*nnode_dof] = edofMat[org,2*nnode_dof:3*nnode_dof]
     return edofMat
 
-def check_inputs(xi: Union[float,np.ndarray],
-                 eta: Union[float,np.ndarray],
-                 xe: Union[None,np.ndarray] = None,
+def check_inputs(xi: float | np.ndarray,
+                 eta: float | np.ndarray,
+                 xe: None | np.ndarray = None,
                  all_elems: bool = False,
                  **kwargs: Any):
     """

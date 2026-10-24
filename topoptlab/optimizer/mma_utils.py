@@ -1,11 +1,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Dict,Union
 
 import numpy as np
 
 from mmapy import mmasub
 
-def mma_defaultkws(n: int, n_constr: int, ft: Union[None,int] = None) -> Dict:
+def mma_defaultkws(n: int, n_constr: int, ft: None | int = None) -> dict:
     """
     Default arguments for the method of moving asymptotes (MMA).
     
@@ -58,7 +57,7 @@ def mma_defaultkws(n: int, n_constr: int, ft: Union[None,int] = None) -> Dict:
     optimizer_kw["albefa"] = 0.1
     return optimizer_kw
 
-def gcmma_defaultkws(n: int, n_constr: int, ft: [None,int] = None) -> Dict:
+def gcmma_defaultkws(n: int, n_constr: int, ft: [None,int] = None) -> dict:
     """
     Default arguments for the globally convergent method of moving asymptotes 
     (GCMMA).

@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any,Union
+from typing import Any
 
 import numpy as np
 
 from topoptlab.voigt import to_voigt
 
 def eng_density(F: np.ndarray,
-                E: Union[None,np.ndarray],
+                E: None | np.ndarray,
                 c: np.ndarray,
                 **kwargs: Any) -> np.ndarray:
     """
@@ -42,7 +42,7 @@ def eng_density(F: np.ndarray,
     return 1/2 * E.swapaxes(-1,-2)@c@E
 
 def stress_2pk(F: np.ndarray,
-               E: Union[None,np.ndarray],
+               E: None | np.ndarray,
                c: np.ndarray,
                **kwargs: Any) -> np.ndarray:
     """

@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any,Callable,Dict,Union,Tuple
+from typing import Any
+from collections.abc import Callable
 
 import numpy as np
-from scipy.sparse import issparse,diags,triu,tril,sparray, coo_array,bsr_array
+from scipy.sparse import issparse,diags,triu,tril,sparray
 from scipy.sparse.linalg import spsolve_triangular, LinearOperator
 from scipy.sparse.linalg._isolve.iterative import _get_atol_rtol
 
@@ -49,15 +50,15 @@ def res_norm(r: np.ndarray,
     return np.linalg.norm(r) < atol
 
 def pcg(A: sparray, b: np.ndarray,
-        P: Union[sparray,LinearOperator],
-        x0: Union[None,np.ndarray] = None,
-        rtol: Union[None,float] = 1e-5,
-        atol: Union[None,float] = 0., 
+        P: sparray | LinearOperator,
+        x0: None | np.ndarray = None,
+        rtol: None | float = 1e-5,
+        atol: None | float = 0., 
         maxiter: int = 100000,
         conv_criterium: Callable = res_norm,
-        conv_args: Dict = {},
-        logger: Union[EmptyLogger,SimpleLogger] = EmptyLogger(),
-        **kwargs: Any) -> Tuple[np.ndarray,int]:
+        conv_args: dict = {},
+        logger: EmptyLogger | SimpleLogger = EmptyLogger(),
+        **kwargs: Any) -> tuple[np.ndarray,int]:
     """
     Preconditioned conjugate gradient solver for `Ax=b`, for a symmetric, 
     positive-definite matrix `A`. Iterate until convergence criteria met or the 
@@ -137,14 +138,14 @@ def pcg(A: sparray, b: np.ndarray,
     return x, i
 
 def cg(A: sparray, b: np.ndarray,
-       x0: Union[None,np.ndarray] = None,
-       rtol: Union[None,float] = 1e-5,
-       atol: Union[None,float] = 0., 
+       x0: None | np.ndarray = None,
+       rtol: None | float = 1e-5,
+       atol: None | float = 0., 
        maxiter: int = 100000,
        conv_criterium: Callable = res_norm,
-       conv_args: Dict = {},
-       logger: Union[EmptyLogger,SimpleLogger] = EmptyLogger(),
-       **kwargs: Any) -> Tuple[np.ndarray,int]:
+       conv_args: dict = {},
+       logger: EmptyLogger | SimpleLogger = EmptyLogger(),
+       **kwargs: Any) -> tuple[np.ndarray,int]:
     """
     Conjugate gradient solver for `Ax=b`, for a symmetric, positive-definite 
     matrix `A` without any preconditioning. Iterate until convergence criteria 
@@ -226,14 +227,14 @@ def cg(A: sparray, b: np.ndarray,
 
 
 def gauss_seidel(A: sparray, b: np.ndarray,
-                 x0: Union[None,np.ndarray] = None, 
+                 x0: None | np.ndarray = None, 
                  atol: float = 1e-8, max_iter: int = 1000,
-                 L: Union[None,sparray] = None, 
-                 U: Union[None,sparray] = None,
+                 L: None | sparray = None, 
+                 U: None | sparray = None,
                  conv_criterium: Callable = res_norm,
-                 conv_args: Dict = {},
-                 logger: Union[EmptyLogger,SimpleLogger] = EmptyLogger(),
-                 **kwargs: Any) -> Tuple[np.ndarray,int]:
+                 conv_args: dict = {},
+                 logger: EmptyLogger | SimpleLogger = EmptyLogger(),
+                 **kwargs: Any) -> tuple[np.ndarray,int]:
     """
     Gauss-Seidel solver for Ax = b. We re-write each iteration as with the 
     lower and upper triangular matrices L,U 
@@ -305,13 +306,13 @@ def gauss_seidel(A: sparray, b: np.ndarray,
     return x, i
 
 def smoothed_jacobi(A: sparray, b: np.ndarray, 
-                    x0: Union[None,np.ndarray] = None, 
+                    x0: None | np.ndarray = None, 
                     omega: float = 0.67, 
                     atol: float = 1e-8, max_iter: int = 1000,
                     conv_criterium: Callable = res_norm,
-                    conv_args: Dict = {},
-                    logger: Union[EmptyLogger,SimpleLogger] = EmptyLogger(),
-                    **kwargs: Any) -> Tuple[np.ndarray,int]:
+                    conv_args: dict = {},
+                    logger: EmptyLogger | SimpleLogger = EmptyLogger(),
+                    **kwargs: Any) -> tuple[np.ndarray,int]:
     """
     Smoothed Jacobi iterative solver for `Ax = b`. Iterate until the residual 
     `r=b-Ax` fulfills r.max()<tol or the maximum number of iterations is 
@@ -373,13 +374,13 @@ def smoothed_jacobi(A: sparray, b: np.ndarray,
     return x, i
 
 def modified_richardson(A: sparray, b: np.ndarray, 
-                        x0: Union[None,np.ndarray] = None, 
+                        x0: None | np.ndarray = None, 
                         omega: float = 0.1, 
                         atol: float = 1e-8, max_iter: int = 1000,
                         conv_criterium: Callable = res_norm,
-                        conv_args: Dict = {},
-                        logger: Union[EmptyLogger,SimpleLogger] = EmptyLogger(),
-                        **kwargs: Any) -> Tuple[np.ndarray,int]:
+                        conv_args: dict = {},
+                        logger: EmptyLogger | SimpleLogger = EmptyLogger(),
+                        **kwargs: Any) -> tuple[np.ndarray,int]:
     """
     Modified Richardson iterative solver for `Ax=b`. Iterate until the residual 
     `r=b-Ax` fulfills r.max()<tol or the maximum number of iterations is 
@@ -439,17 +440,17 @@ def modified_richardson(A: sparray, b: np.ndarray,
     return x, i
 
 def successive_overrelaxation(A: sparray, b: np.ndarray, 
-                       x0: Union[None,np.ndarray] = None, 
+                       x0: None | np.ndarray = None, 
                        omega: float = 0.5, 
                        atol: float = 1e-8, 
                        max_iter: int = 1000,
-                       D: Union[None,sparray] = None, 
-                       A_u: Union[None,sparray] = None, 
-                       A_l: Union[None,sparray] = None,
+                       D: None | sparray = None, 
+                       A_u: None | sparray = None, 
+                       A_l: None | sparray = None,
                        conv_criterium: Callable = res_norm,
-                       conv_args: Dict = {},
-                       logger: Union[EmptyLogger,SimpleLogger] = EmptyLogger(),
-                       **kwargs: Any) -> Tuple[np.ndarray,int]:
+                       conv_args: dict = {},
+                       logger: EmptyLogger | SimpleLogger = EmptyLogger(),
+                       **kwargs: Any) -> tuple[np.ndarray,int]:
     """
     Successive over-relaxation (SRO) solver for `Ax=b`. We rewrite 
     

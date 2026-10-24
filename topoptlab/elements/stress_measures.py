@@ -1,5 +1,4 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Tuple
 import numpy as np
 
 def von_mises_stress(stress: np.ndarray, ndim: int) -> np.ndarray:

@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Any,List,Union
+from typing import Any
 
 import numpy as np
 
-def max_design_change(xhist: List, 
-                      xPhys_hist: Union[None,List[np.ndarray]],
-                      obj_hist: Union[None,List[float]],
-                      constrs_hist: Union[None,List[np.ndarray]],
+def max_design_change(xhist: list, 
+                      xPhys_hist: None | list[np.ndarray],
+                      obj_hist: None | list[float],
+                      constrs_hist: None | list[np.ndarray],
                       mode: str = "x", 
                       **kwargs: Any) -> float:
     """
@@ -44,12 +44,12 @@ def max_design_change(xhist: List,
         raise ValueError("unknown mode.")
 
 
-def norm_design_change(xhist: List,
-                       xPhys_hist: Union[None, List[np.ndarray]],
-                       obj_hist: Union[None, List[float]],
-                       constrs_hist: Union[None, List[np.ndarray]],
+def norm_design_change(xhist: list,
+                       xPhys_hist: None | list[np.ndarray],
+                       obj_hist: None | list[float],
+                       constrs_hist: None | list[np.ndarray],
                        mode: str = "x",
-                       ord: Union[None, int, float, str] = None,
+                       ord: None | int | float | str = None,
                        **kwargs: Any) -> float:
     """
     Norm of the change in design or physical variables between the last two

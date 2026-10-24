@@ -1,14 +1,14 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-from typing import Tuple,Any,Union 
+from typing import Any 
 
 import numpy as np
 
-def check_inputs(*coords: Union[float, np.ndarray,None], 
+def check_inputs(*coords: float | np.ndarray | None, 
                  ndim: int,
                  nnodes: int,
-                 xe: Union[None,np.ndarray] = None,
+                 xe: None | np.ndarray = None,
                  all_elems: bool = False,
-                 **kwargs: Any) -> Tuple:
+                 **kwargs: Any) -> tuple:
     """
     Check coordinates and provided element node information for consistency.
     If necessary transform inputs to make them consistent. The function 
