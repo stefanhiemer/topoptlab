@@ -23,15 +23,15 @@ import numpy as np
 from topoptlab.topology_opt.driver import main
 from topoptlab.objectives import two_point_correlation_image_squarederror, gray_indicator_constraint
 from topoptlab.convergence_criteria import max_design_change
-from topoptlab.param_continuation import beta_scaling
+from topoptlab.param_continuation import dunning_beta_continuation
 from topoptlab.filter.density_filter import DensityFilter
 from topoptlab.filter.haeviside_projectors import EtaProjectorXu2010
 from topoptlab.optimizer.mma_utils import mma_defaultkws
 
 if __name__ == "__main__":
-    nelx = 400
-    nely = 400
-    volfrac = 0.5
+    nelx = 100
+    nely = 100
+    volfrac = 0.25
     rmin = 3.
     xi = 3.     # correlation length in grid units
 
@@ -55,7 +55,7 @@ if __name__ == "__main__":
     x0  = rng.random((nelx * nely, 1))
 
     output_kw = {"file": "two_point_corr_target_heaviside",
-                 "display": False,
+                 "display": True,
                  "export": False,
                  "write_log": True,
                  "verbosity": 20,
@@ -66,7 +66,7 @@ if __name__ == "__main__":
     gray_constr = {"name": "gray indicator",
                    "func": gray_indicator_constraint,
                    "type": "leq",
-                   "value": 0.5,
+                   "value": 0.4,
                    "kw": {}}
 
     # density filter
@@ -83,7 +83,7 @@ if __name__ == "__main__":
         obj_func=two_point_correlation_image_squarederror,
         obj_kw={"S2_target": S2_target},
         constraints=[gray_constr],
-        nouteriter=50,
+        nouteriter=200,
         convergence_kw={"conv_tol": 1e-3,
                         "change_func": max_design_change},
         output_kw=output_kw)
@@ -107,12 +107,8 @@ if __name__ == "__main__":
         obj_kw={"S2_target": S2_target},
         constraints=[gray_constr],
         continuation_kw={
-            "funcs":    [beta_scaling],
-            "func_kws": [{"beta_scale":  2.,
-                          "beta_limit":  64.,
-                          "beta_update": 35,
-                          "state":       {},
-                          "constr_idx":  1}],
+            "funcs":    [dunning_beta_continuation],
+            "func_kws": [{"beta_limit": 64.}],
             "stop_flag": [False]},
         nouteriter=3000,
         convergence_kw={"conv_tol": 5e-3,

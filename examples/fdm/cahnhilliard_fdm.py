@@ -88,9 +88,9 @@ def cahn_hilliard_fdm(ndim=2, grid_size=128,
     
 if __name__ == "__main__":
     #
-    ndim = 3
+    ndim = 2
     n = 64
-    display=False
+    display=True
     #
     import sys
     if len(sys.argv)>1:
@@ -101,7 +101,7 @@ if __name__ == "__main__":
         display = bool(int(sys.argv[3]))
     # 
     cahn_hilliard_fdm(ndim=ndim, grid_size=n,
-                     dx=1.0, dt=0.02,
-                     gamma=0.5, M=1.0,
+                     dx=1., dt=0.02,
+                     gamma=0.5, M=1.,
                      n_steps=int(1e4),
                      display=display)
