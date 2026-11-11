@@ -5,6 +5,11 @@ import numpy as np
 
 import gmsh
 
+from topoptlab.fem import get_integrpoints
+from topoptlab.elements.linear_interval import shape_functions_dxi as dxi_interval
+from topoptlab.elements.bilinear_quadrilateral import shape_functions_dxi as dxi_quad
+from topoptlab.elements.trilinear_hexahedron import shape_functions_dxi as dxi_hex
+
 def mesh_cadfile(cad_file : str,
                  output_file : str, 
                  etype : str, 
@@ -53,59 +58,84 @@ def mesh_cadfile(cad_file : str,
     gmsh.finalize()
     return
 
-def read_mesh(meshfile: str) -> np.ndarray:
+def read_mesh(meshfile: str,
+              ndim: None | int = None) -> dict:
     """
-    Read a Gmsh mesh file and return element coordinates, node coordinates,
-    and element indices grouped by physical group. The mesh must contain 
-    exactly one element type in the topological dimension inferred from the 
-    node coordinates.
+    Read a Gmsh mesh file and return node coordinates, element connectivity
+    and physical groups. The mesh must contain exactly one element type in
+    its highest topological dimension. Supported are linear intervals (bars),
+    bilinear quadrilaterals and trilinear hexahedra. Nodes not used by any
+    element are removed and nodes renumbered. If the topological dimension
+    equals the spatial dimension, elements with negative jacobian are flipped.
 
     Parameters
     ----------
     meshfile : str
         Path to the mesh file readable by Gmsh.
+    ndim : int or None
+        spatial dimension. If None, inferred from the last coordinate axis
+        with non-zero extent.
 
     Returns
     -------
-    xe : np.ndarray
-        Element coordinates with shape ``(nel, n_nodes, ndim)``.
-    coords : np.ndarray
-        Array of all node coordinates with shape ``(n_nodes, 3)``.
-    phys_groups : dict[str, np.ndarray]
-        Mapping from physical-group name to the element indices belonging to
-        that group. If a group has no name, ``group_<tag>`` is used.
+    mesh : dict
+        "coords" : np.ndarray, shape (n_nodes,ndim)
+            node coordinates.
+        "elnodes" : np.ndarray, shape (n_el,n_nodes_el)
+            node indices of each element in topoptlab node ordering.
+        "element_type" : str
+            "interval", "quadrilateral" or "hexahedron".
+        "el_groups" : dict[str, np.ndarray]
+            element indices of physical groups with same topological
+            dimension as elements.
+        "node_groups" : dict[str, np.ndarray]
+            node indices of physical groups with lower topological
+            dimension (e. g. boundaries).
+        If a group has no name, ``group_<tag>`` is used.
     """
     # start gmsh
     gmsh.initialize()
     # read file
     gmsh.open(meshfile)
+    # topological dimension of mesh
+    eldim = gmsh.model.getDimension()
     # get nodes and node coordinates
-    nodeTags, coords, nodeParams = gmsh.model.mesh.getNodes()
+    nodeTags, coords, _ = gmsh.model.mesh.getNodes()
     coords = np.asarray(coords).reshape(-1, 3)
-    # infer dimensionality of mesh
-    dim = 3 - np.sum(np.all(np.isclose(coords,0),axis=0))
     # get element information
-    eltypes, eltags, elnodetags = gmsh.model.mesh.getElements(dim)
+    eltypes, eltags, elnodetags = gmsh.model.mesh.getElements(eldim)
     # check if multiple element types used. if yes, raise error
     if len(eltypes) != 1:
         gmsh.finalize()
-        raise RuntimeError("mesh must contain exactly one element type in the chosen dimension")
-    #  
-    _, _, _, n_nodes, _, _ = gmsh.model.mesh.getElementProperties(eltypes[0])
-    # find node indices corresponding to the elements node tags
+        raise RuntimeError("mesh must contain exactly one element type in the highest dimension. If physical groups are defined, gmsh only saves elements in physical groups (unless Mesh.SaveAll=1).")
+    # gmsh element type -> topoptlab element type. Gmsh node ordering of
+    # these coincides with the topoptlab ordering.
+    _eltypes = {1: "interval", 3: "quadrilateral", 5: "hexahedron"}
+    if eltypes[0] not in _eltypes:
+        name = gmsh.model.mesh.getElementProperties(eltypes[0])[0]
+        gmsh.finalize()
+        raise ValueError(f"Element type {name} not supported.")
+    element_type = _eltypes[eltypes[0]]
+    n_nodes_el = gmsh.model.mesh.getElementProperties(eltypes[0])[3]
+    # map node tags to node indices
     perm = np.argsort(nodeTags)
-    pos = np.searchsorted(nodeTags[perm], elnodetags)
-    # create element-wise node coordinates
-    xe = coords[perm[pos], :dim].reshape(-1, n_nodes, dim)
+    sorted_nodetags = nodeTags[perm]
+    elnodes = perm[np.searchsorted(sorted_nodetags,
+                                   elnodetags[0])].reshape(-1, n_nodes_el)
     # map global element tags -> element index
     eltags = np.asarray(eltags[0])
     perm_el = np.argsort(eltags)
-    sorted_eltags = eltags[perm_el]    
+    sorted_eltags = eltags[perm_el]
     # loop over physical groups
-    phys_groups = {}
+    el_groups, node_groups = {}, {}
     for dim_pg, tag_pg in gmsh.model.getPhysicalGroups():
         #
         name = gmsh.model.getPhysicalName(dim_pg, tag_pg) or f"group_{tag_pg}"
+        # lower dimensional groups are stored as node sets
+        if dim_pg < eldim:
+            tags = gmsh.model.mesh.getNodesForPhysicalGroup(dim_pg, tag_pg)[0]
+            node_groups[name] = perm[np.searchsorted(sorted_nodetags, tags)]
+            continue
         # loop entities of phys. group
         idx = []
         for ent_tag in gmsh.model.getEntitiesForPhysicalGroup(dim_pg, tag_pg):
@@ -116,11 +146,79 @@ def read_mesh(meshfile: str) -> np.ndarray:
             tags_ent = np.asarray(eltags_ent[0])
             pos = np.searchsorted(sorted_eltags, tags_ent)
             idx.extend(perm_el[pos])
-    
-        phys_groups[name] = np.asarray(idx, dtype=int)
+        el_groups[name] = np.asarray(idx, dtype=int)
     #
     gmsh.finalize()
-    return xe, coords, phys_groups
+    # remove nodes not attached to elements and renumber
+    used, elnodes = np.unique(elnodes, return_inverse=True)
+    elnodes = elnodes.reshape(-1, n_nodes_el)
+    coords = coords[used]
+    new = np.full(nodeTags.shape[0], -1)
+    new[used] = np.arange(used.shape[0])
+    node_groups = {name: new[nodes][new[nodes] >= 0]
+                   for name, nodes in node_groups.items()}
+    # infer spatial dimension
+    if ndim is None:
+        extent = np.ptp(coords, axis=0) > 0
+        ndim = max(int(np.flatnonzero(extent).max()) + 1, eldim)
+    coords = coords[:, :ndim]
+    # flip elements with negative orientation
+    if eldim == ndim and eldim > 1:
+        detJ, _ = element_jacobian_det(coords[elnodes], element_type)
+        flip = detJ.mean(axis=1) < 0
+        if eldim == 2:
+            elnodes[flip] = elnodes[flip][:, [0, 3, 2, 1]]
+        else:
+            elnodes[flip] = elnodes[flip][:, [4, 5, 6, 7, 0, 1, 2, 3]]
+    return {"coords": coords,
+            "elnodes": elnodes,
+            "element_type": element_type,
+            "el_groups": el_groups,
+            "node_groups": node_groups}
+
+def element_jacobian_det(xe: np.ndarray,
+                         element_type: str,
+                         nquad: int = 2) -> np.ndarray:
+    """
+    Determinant of the jacobian of the isoparametric mapping at the
+    Gauss-Legendre quadrature points. If topological and spatial dimension
+    differ (e. g. bars in 2D/3D), sqrt(det(J^T J)) is returned which is
+    always positive.
+
+    Parameters
+    ----------
+    xe : np.ndarray, shape (n_el,n_nodes_el,ndim)
+        coordinates of element nodes.
+    element_type : str
+        "interval", "quadrilateral" or "hexahedron".
+    nquad : int
+        number of quadrature points per direction.
+
+    Returns
+    -------
+    detJ : np.ndarray, shape (n_el,n_quad)
+        determinant at each quadrature point.
+    w : np.ndarray, shape (n_quad)
+        quadrature weights.
+    """
+    #
+    if element_type == "interval":
+        shape_functions_dxi, eldim = dxi_interval, 1
+    elif element_type == "quadrilateral":
+        shape_functions_dxi, eldim = dxi_quad, 2
+    elif element_type == "hexahedron":
+        shape_functions_dxi, eldim = dxi_hex, 3
+    else:
+        raise ValueError(f"Unknown element type {element_type}.")
+    #
+    x, w = get_integrpoints(ndim=eldim, nq=nquad, method="gauss-legendre")
+    dN = shape_functions_dxi(*x.T).reshape(x.shape[0], xe.shape[1], eldim)
+    # jacobian shape (n_el,n_quad,ndim,eldim)
+    J = np.einsum("eni,qnj->eqij", xe, dN)
+    if J.shape[-2] == eldim:
+        return np.linalg.det(J), w
+    else:
+        return np.sqrt(np.linalg.det(np.swapaxes(J, -1, -2) @ J)), w
 
 def cad_to_mesh(file: str, 
                 mesh_dim: int = 3, 

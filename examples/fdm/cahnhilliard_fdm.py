@@ -63,13 +63,13 @@ def cahn_hilliard_fdm(ndim=2, grid_size=128,
         # update concentration
         c[:] += dt * M * laplacian(f=mu,dx=dx)
         # plot concentration field for 2D
-        if ndim == 2 and step+1 % (n_steps // 100) == 0 and display:
+        if ndim == 2 and (step+1) % (n_steps // 100) == 0 and display:
             plt.imshow(c, cmap='RdBu', origin='lower')
             plt.colorbar(label='Concentration')
             plt.title(f"Step {step}")
             plt.pause(0.001)
             plt.clf()
-        if step+1 % (n_steps // 100) == 0:
+        if (step+1) % (n_steps // 100) == 0:
             print("time.: {0:.10f} min(c).: {1:.10f} max(c).: {2:.10f} volfrac.: {3:.10f}".format(
                          dt*(step+1), c.min(), c.max(), np.mean(c) * dx**ndim))
     #

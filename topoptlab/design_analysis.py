@@ -3,7 +3,7 @@ from typing import Any
 from functools import partial
 
 import numpy as np
-from scipy.ndimage import grey_opening, grey_closing, convolve
+from scipy.ndimage import grey_opening, grey_closing, correlate
 from scipy.interpolate import CubicHermiteSpline
 
 from topoptlab.geometries import sphere, ball
@@ -348,11 +348,11 @@ def support_indicator(nelx: int,
                               ndim=ndim)
     #
     xPhys_map = mapping(xPhys)
-    unsupported = np.isclose(convolve(xPhys_map,
-                                      weights=kernel,
-                                      axes=(0,1,2)[:ndim],
-                                      mode="constant",
-                                      cval=0.),
+    unsupported = np.isclose(correlate(xPhys_map,
+                                       weights=kernel,
+                                       axes=(0,1,2)[:ndim],
+                                       mode="constant",
+                                       cval=0.),
                            0.) & ~np.isclose(xPhys_map, 0.)
     # exclude baselayer
     unsupported[slicing] = False

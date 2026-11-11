@@ -265,7 +265,9 @@ if __name__ == "__main__":
     #             etype="quad",
     #             show_gui=gui)
     create_testmesh_physgroups(N = N, gui=True)
-    xe, coords, phys_groups = read_mesh("mesh-{0}.msh".format(L.shape[0]))
+    mesh = read_mesh("mesh-{0}.msh".format(L.shape[0]))
+    xe = mesh["coords"][mesh["elnodes"]]
+    phys_groups = mesh["el_groups"]
     for group in phys_groups:
         print(group)
         print(xe[phys_groups[group]].min(axis=(0,1)))

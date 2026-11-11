@@ -588,13 +588,15 @@ if __name__ == "__main__":
     display = True
     mode = "pointwise"
     if len(sys.argv) > 1:
-        mode = sys.argv[1]          # "pointwise" or "mass"
+        ndim = int(sys.argv[1])
     if len(sys.argv) > 2:
-        ndim = int(sys.argv[2])
+        n = int(sys.argv[2])
     if len(sys.argv) > 3:
-        n = int(sys.argv[3])
+        display = bool(int(sys.argv[3]))
     if len(sys.argv) > 4:
-        display = bool(int(sys.argv[4]))
+        mode = sys.argv[4]          # "pointwise" or "mass"
+    if mode not in ("pointwise", "mass"):
+        raise ValueError(f"mode must be 'pointwise' or 'mass', got {mode}.")
 
     if mode == "pointwise":
         # --- pointwise concentration matching ---
@@ -608,7 +610,7 @@ if __name__ == "__main__":
             n_iter=200, display=display, output_kw=output_kw)
         print(f"theta_true:  {theta_true}")
         print(f"theta_found: {theta_found}")
-        if ndim == 2:
+        if ndim == 2 and display:
             fig, axs = plt.subplots(1, 3, figsize=(12, 4))
             axs[0].imshow(c_t, cmap='hot', origin='lower')
             axs[0].set_title(f"c_t  (theta_true={theta_true})")
@@ -650,7 +652,7 @@ if __name__ == "__main__":
             n_iter=300, display=display, output_kw=output_kw)
         print(f"theta_true:  {theta_true}")
         print(f"theta_found: {theta_found}")
-        if ndim == 2:
+        if ndim == 2 and display:
             t_axis = obs_steps * dt
             fig, axs = plt.subplots(1, 3, figsize=(14, 4))
             axs[0].imshow(c_found, cmap='hot', origin='lower', vmin=0., vmax=1.)

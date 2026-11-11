@@ -275,7 +275,7 @@ if __name__ == "__main__":
                                             output_kw=output_kw)
     print(f"D_true:  {D_true:.6f}")
     print(f"D_found: {D_found:.6f}")
-    if ndim == 2:
+    if ndim == 2 and display:
         fig, axs = plt.subplots(1, 3, figsize=(12, 4))
         axs[0].imshow(c_t, cmap='hot', origin='lower')
         axs[0].set_title(f"c_t  (D_true={D_true})")

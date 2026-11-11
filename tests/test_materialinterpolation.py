@@ -93,3 +93,21 @@ def test_heatexpcoeff_binary_dx(npoints,K1, K2, G1, G2, a1, a2):
                                                    amin=a1,amax=a2), 
                         dadx,decimal=6)
     return
+
+from topoptlab.material_interpolation import borrvall_petersson,borrvall_petersson_dx
+
+@pytest.mark.parametrize('npoints, eps, q',
+                         [(11,0.,0.1),
+                          (11,1e-9,0.01),
+                          (11,1e-3,1.)])
+
+def test_borrvall_petersson(npoints, eps, q):
+    #
+    x = linspace(0,1,npoints)
+    # end points: solid (x=0) -> 1, fluid (x=1) -> eps
+    assert_almost_equal(borrvall_petersson(xPhys=x[[0,-1]],eps=eps,q=q),
+                        [1.,eps])
+    #
+    assert_almost_equal(borrvall_petersson_dx(xPhys=x,eps=eps,q=q),
+                        derivative(borrvall_petersson,x,args=(eps,q)).df)
+    return

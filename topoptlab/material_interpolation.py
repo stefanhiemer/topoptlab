@@ -96,8 +96,8 @@ def ramp(xPhys: np.ndarray,
     """
     return eps+(1-eps)*xPhys/(1+penal*(1-xPhys))
 
-def ramp_dx(xPhys: np.ndarray, 
-            eps: np.ndarray, 
+def ramp_dx(xPhys: np.ndarray,
+            eps: np.ndarray,
             penal: float,
             **kwargs: Any) -> np.ndarray:
     """
@@ -126,9 +126,74 @@ def ramp_dx(xPhys: np.ndarray,
     """
     return (1-eps)*(1+penal)*(1+penal*(1-xPhys))**(-2)
 
-def bound_interpol(xPhys: np.ndarray, 
+def borrvall_petersson(xPhys: np.ndarray,
+                       eps: np.ndarray,
+                       q: float,
+                       **kwargs: Any) -> np.ndarray:
+    """
+    Return scale factor for the inverse permeability (Brinkman friction
+    coefficient) alpha as introduced by
+
+    Borrvall, Thomas, and Joakim Petersson. "Topology optimization of fluids 
+    in Stokes flow." International journal for numerical methods in fluids 41.1 
+    (2003): 77-107.
+
+    alpha/alpha_max = eps + (1-eps) * q*(1-x)/(x+q)
+
+    Following the original convention, x=1 is fluid (scale factor eps) and
+    x=0 is solid (scale factor 1). 
+
+    Parameters
+    ----------
+    xPhys : np.ndarray, shape (n)
+        physical density (1 fluid, 0 solid).
+    eps : float
+        ratio alpha_min/alpha_max. Should be very small compared to 1,
+        e. g. 0 or 1e-9.
+    q : float
+        positive parameter controlling the convexity of the interpolation.
+
+    Returns
+    -------
+    scale : np.ndarray, shape (n)
+        scale factor to multiply with alpha_max.
+
+    """
+    return eps+(1-eps)*q*(1-xPhys)/(xPhys+q)
+
+def borrvall_petersson_dx(xPhys: np.ndarray,
+                          eps: np.ndarray,
+                          q: float,
+                          **kwargs: Any) -> np.ndarray:
+    """
+    Return the derivative of the scale factor for the inverse permeability
+    (Brinkman friction coefficient) alpha as introduced by
+
+    Borrvall, Thomas, and Joakim Petersson. "Topology optimization of fluids 
+    in Stokes flow." International journal for numerical methods in fluids 41.1 
+    (2003): 77-107.
+
+    Parameters
+    ----------
+    xPhys : np.ndarray, shape (n)
+        physical density (1 fluid, 0 solid).
+    eps : float
+        ratio alpha_min/alpha_max. Should be very small compared to 1,
+        e. g. 0 or 1e-9.
+    q : float
+        positive parameter controlling the convexity of the interpolation.
+
+    Returns
+    -------
+    scale_dx : np.ndarray, shape (n)
+        derivative of scale factor with respect to xPhys.
+
+    """
+    return -(1-eps)*q*(1+q)/(xPhys+q)**2
+
+def bound_interpol(xPhys: np.ndarray,
                    w: float,
-                   bd_low: Callable, 
+                   bd_low: Callable,
                    bd_upp: Callable,
                    bd_kws: dict,
                    **kwargs: Any) -> np.ndarray:
@@ -167,9 +232,9 @@ def bound_interpol(xPhys: np.ndarray,
     """
     return (1-w)*bd_low(x=xPhys,**bd_kws) + w*bd_upp(x=xPhys,**bd_kws)
 
-def bound_interpol_dx(xPhys: np.ndarray, 
+def bound_interpol_dx(xPhys: np.ndarray,
                       w: float,
-                      bd_low_dx: Callable, 
+                      bd_low_dx: Callable,
                       bd_upp_dx: Callable,
                       bd_kws: dict,
                       **kwargs: Any) -> np.ndarray:
@@ -200,11 +265,11 @@ def bound_interpol_dx(xPhys: np.ndarray,
     """
     return (1-w)*bd_low_dx(x=xPhys,**bd_kws) + w*bd_upp_dx(x=xPhys,**bd_kws)
 
-def heatexpcoeff_binary_iso(xPhys: np.ndarray, 
+def heatexpcoeff_binary_iso(xPhys: np.ndarray,
                             K: np.ndarray,
-                            Kmin: float, 
+                            Kmin: float,
                             Kmax: float,
-                            amin: float, 
+                            amin: float,
                             amax: float) -> np.ndarray:
     """
     Return the linear heatexpansion coefficient of a composite consisting of two
@@ -243,12 +308,12 @@ def heatexpcoeff_binary_iso(xPhys: np.ndarray,
     return xPhys*amax + (1-xPhys)*amin + (amin-amax) / (1/Kmin - 1/Kmax) * \
            (1/K - (1-xPhys)/Kmin - xPhys/Kmax )
 
-def heatexpcoeff_binary_iso_dx(xPhys: np.ndarray, 
-                               K: np.ndarray, 
+def heatexpcoeff_binary_iso_dx(xPhys: np.ndarray,
+                               K: np.ndarray,
                                dKdx: np.ndarray,
-                               Kmin: float, 
+                               Kmin: float,
                                Kmax: float,
-                               amin: float, 
+                               amin: float,
                                amax:float) -> np.ndarray:
     """
     Return the derivative of the linear heatexpansion coefficient of a

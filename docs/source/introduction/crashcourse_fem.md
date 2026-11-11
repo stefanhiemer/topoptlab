@@ -19,7 +19,7 @@ only hint or show final results for nonlinear problems.
 Most physical problems can be written as PDEs based on a conservation law or 
 other physical insights. Classical examples are the *Poisson equation*
 ```{math}
-\nabla \cdot (\boldsymbol{\Lambda} \nabla \phi) = f
+-\nabla \cdot (\boldsymbol{\Lambda} \nabla \phi) = f
 ```
 governing heat conduction or diffusion with scalar variable $\phi$ 
 (temperature, concentration, etc.) and property tensor $\boldsymbol{\Lambda}$, 
@@ -113,7 +113,7 @@ we focus on time-independent (stationary) heat conduction. We start with the
 weak form via standard procedure i) multiply PDE and boundary conditions by $w$ 
 ii) integrate over domain $\Omega$:
 ```{math}
-\int_\Omega w \nabla \cdot (\boldsymbol{\Lambda} \nabla \phi) dV = \int_\Omega w f dV \\
+\int_\Omega w \nabla \cdot (\boldsymbol{\Lambda} \nabla \phi) dV = -\int_\Omega w f dV \\
 \int_{\Gamma_{N}} w\left(\boldsymbol{\Lambda} \nabla \phi\right)^T \boldsymbol{n} dA
 ```
 Technically one can stop now as this is a correct weak from, but we want to 
@@ -130,11 +130,11 @@ and the scalar function $w$
 ```
 which we rewrite to 
 ```{math}
-w\nabla \boldsymbol{v} = \nabla w \cdot \boldsymbol{v} - \nabla \cdot (w\boldsymbol{v})
+w\nabla \cdot \boldsymbol{v} = -\nabla w \cdot \boldsymbol{v} + \nabla \cdot (w\boldsymbol{v})
 ```
 We then insert $\boldsymbol{v}=\nabla \phi$ and rewrite the left hand side to
 ```{math}
-\int_\Omega w \nabla \cdot (\boldsymbol{\Lambda} \nabla \phi) dV = \int_\Omega \nabla w \cdot \boldsymbol{\Lambda} \nabla \phi dV - \int_\Omega \nabla \cdot w\left(\boldsymbol{\Lambda} \nabla \phi\right) dV
+\int_\Omega w \nabla \cdot (\boldsymbol{\Lambda} \nabla \phi) dV = -\int_\Omega \nabla w \cdot \boldsymbol{\Lambda} \nabla \phi dV + \int_\Omega \nabla \cdot w\left(\boldsymbol{\Lambda} \nabla \phi\right) dV
 ```
 If we inspect this closer, we recognize that the second term on the right hand 
 side is the volume integral of the divergence of the flow 
@@ -189,8 +189,11 @@ global problem. We now move to the approximation of these integrals to arrive at
  
 ### Shape Functions and Interpolation
 After splitting the domain into elements, a few things need to be kept in mind: 
+
 i) we need to approximate the unknown field $u$ inside each element to solve 
-the local element integrals. ii) the values of $u$ at the element borders 
+the local element integrals. 
+
+ii) the values of $u$ at the element borders 
 should match for the smoothness and continuity required by the PDE. The natural 
 choice for these requirements are piecewise defined polynomials, i. e. 
 **splines**, as they only require nodal values at the border between elements 
@@ -208,9 +211,12 @@ which can then be used directly in the weak form on each element.
 For simplicity, we start with 1D and assume we know the values of the function 
 $\phi$ we seek to interpolate at $n$ positions with value $\phi_i$ at point with 
 coordinate $x_i$. In FEM we call these points **nodes**. We require that 
+
 i) the interpolation function $\phi_e(x)$ passes exactly through 
 the points $\phi_i=\phi_e(x_i)$ 
+
 ii) the interpolation function $\phi_e(x)$ should be simple and fast to evaluate. 
+
 iii) the interpolation function $\phi_e(x)$ is flexible to fulfill smoothness 
 requirements for the PDE at hand and ideally tuneable to the order of PDE. 
 
@@ -219,11 +225,11 @@ associated with each point $i$
 ```{math}
 \phi_e(x) = \sum_{i=1}^{n} N_{i}\left(x;x_i\right)\phi_{i}.
 ```
-Now if we demand $N_i(x_i)=1$ and $N_i(x_{j \neq i)=0$, then requirement 
-i) is satisified which is referred to as the **delta-property**. We have not 
+Now if we demand $N_i(x_i)=1$ and $N_i(x_{j \neq i})=0$, then requirement 
+i) is satisfied which is referred to as the **delta-property**. We have not 
 yet specified the nature of the generic functions $N_i(x)$. A simple class of 
 functions with tuneable smoothness are polynomials. A polynomial fulfilling 
-$N_i(x_{j \neq i)=0$ is
+$N_i(x_{j \neq i})=0$ is
 ```{math}
 \prod_{j=1,j \neq i}^{n} (x-x_j),
 ```
