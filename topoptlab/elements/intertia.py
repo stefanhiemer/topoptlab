@@ -73,28 +73,34 @@ def lk_intertia(xe: np.ndarray,
                          f"Current shape: {ve.shape}")
     # shape functions
     if shape_functions is None:
-        if ndim == 2:
+        if ndim == 1:
+            from topoptlab.elements.linear_interval import shape_functions
+        elif ndim == 2:
             from topoptlab.elements.bilinear_quadrilateral import shape_functions
         elif ndim == 3:
             from topoptlab.elements.trilinear_hexahedron import shape_functions
         else:
-            raise NotImplementedError(f"only dimensions 2 and 3 implemented. current ndim {ndim}")
+            raise NotImplementedError(f"only dimensions 1, 2 and 3 implemented. current ndim {ndim}")
     # parametric gradients of shape functions
     if shape_functions_dxi is None:
-        if ndim == 2:
+        if ndim == 1:
+            from topoptlab.elements.linear_interval import shape_functions_dxi
+        elif ndim == 2:
             from topoptlab.elements.bilinear_quadrilateral import shape_functions_dxi
         elif ndim == 3:
             from topoptlab.elements.trilinear_hexahedron import shape_functions_dxi
         else:
-            raise NotImplementedError(f"only dimensions 2 and 3 implemented. current ndim {ndim}")
+            raise NotImplementedError(f"only dimensions 1, 2 and 3 implemented. current ndim {ndim}")
     # inverse jacobian for isoparametric mapping
     if invjacobian is None:
-        if ndim == 2:
+        if ndim == 1:
+            from topoptlab.elements.linear_interval import invjacobian
+        elif ndim == 2:
             from topoptlab.elements.bilinear_quadrilateral import invjacobian
         elif ndim == 3:
             from topoptlab.elements.trilinear_hexahedron import invjacobian
         else:
-            raise NotImplementedError(f"only dimensions 2 and 3 implemented. current ndim {ndim}")
+            raise NotImplementedError(f"only dimensions 1, 2 and 3 implemented. current ndim {ndim}")
     #
     x, w = get_integrpoints(ndim=ndim, nq=nquad, method=quadr_method)
     nq = w.shape[0]

@@ -41,9 +41,9 @@ def mma_defaultkws(n: int, n_constr: int, ft: None | int = None) -> dict:
     optimizer_kw["c"] = 10000*np.ones((n_constr,1))
     optimizer_kw["d"] = np.zeros((n_constr,1))
     #
-    if ft in [5,6]: 
+    if ft in [5,6,7]: 
         optimizer_kw["move"] = 0.1
-    elif ft in [7]:
+    elif ft in [8,9,10,11]:
         optimizer_kw["move"] = 0.05
     else:
         optimizer_kw["move"] = 0.2
@@ -95,9 +95,9 @@ def gcmma_defaultkws(n: int, n_constr: int, ft: [None,int] = None) -> dict:
     optimizer_kw["c"] = 10000*np.ones((n_constr,1))
     optimizer_kw["d"] = np.zeros((n_constr,1))
     #
-    if ft in [5,6]: 
+    if ft in [5,6,7]: 
         optimizer_kw["move"] = 0.1
-    elif ft in [7]:
+    elif ft in [8,9,10,11]:
         optimizer_kw["move"] = 0.05
     else:
         optimizer_kw["move"] = 0.2

@@ -136,7 +136,7 @@ class DensityFilter(TOFilter):
             raise TypeError("constraint_filter_mask must be None or np.ndarray of shape (n_constr,).")
         return
         
-    def apply_filter(self, 
+    def apply_filter(self,
                      x: np.ndarray,
                      **kwargs: Any) -> np.ndarray:
         """

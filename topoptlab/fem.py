@@ -271,6 +271,35 @@ def create_matrixinds(edofMat: np.ndarray,
         iM[mask],jM[mask] = jM[mask],iM[mask]
     return iM.reshape(np.prod(iM.shape)),jM.reshape(np.prod(iM.shape))
 
+def append_multipliers(edofMat: np.ndarray,
+                       ndof: int,
+                       n_mult: int = 1) -> np.ndarray:
+    """
+    Append element-wise Lagrange multiplier degrees of freedom to an element
+    degree of freedom matrix for mixed/saddle point formulations. The
+    multipliers are numbered after the ndof primary degrees of freedom, i. e.
+    multiplier j of element e has index ndof + e*n_mult + j.
+
+    Parameters
+    ----------
+    edofMat : np.ndarray, shape (nel,n_eldof)
+        element degree of freedom matrix of the primary field.
+    ndof : int
+        total number of primary degrees of freedom.
+    n_mult : int
+        number of multipliers per element.
+
+    Returns
+    -------
+    edofMat : np.ndarray, shape (nel,n_eldof+n_mult)
+        extended element degree of freedom matrix.
+    """
+    #
+    nel = edofMat.shape[0]
+    mult = ndof + np.arange(nel*n_mult,
+                            dtype=edofMat.dtype).reshape(nel, n_mult)
+    return np.column_stack((edofMat, mult))
+
 def update_indices(indices: np.ndarray,
                    fixed: np.ndarray, 
                    mask: np.ndarray) -> np.ndarray:

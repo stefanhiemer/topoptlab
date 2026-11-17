@@ -8,7 +8,7 @@ from scipy.sparse import csr_array
 from topoptlab.filter.filter import TOFilter
 
 # baseplate -> (axis, flip) with axis 0: x, 1: y, 2: z of the element index.
-# Same convention as LangelaarFilter and design_analysis.baseplate_slice:
+# Same convention as LangelaarFilter and design_analysis.overhang.baseplate_slice:
 # N/S are the first/last image row (iy), W/E the first/last image column
 # (ix) and B/U the first/last voxel layer (iz).
 _BASEPLATES = {"W": (0, False),
@@ -94,7 +94,7 @@ class CastingFilterGersborg2011(TOFilter):
             number of constraints.
         baseplate : str
             face at which the material is attached, same convention as
-            LangelaarFilter and design_analysis.support_indicator. In 2D:
+            LangelaarFilter and design_analysis.overhang.support_indicator. In 2D:
             'N', 'S', 'E', 'W' (first/last image row, first/last image
             column). In 3D additionally 'B', 'U' (first/last voxel layer in
             z). Material is solid at the baseplate and void away from it.

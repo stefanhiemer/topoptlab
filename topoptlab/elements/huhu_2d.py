@@ -18,8 +18,8 @@ def _lk_huhu_2d(xe: np.ndarray,
                 quadr_method: str = "gauss-lobatto",
                 t: np.ndarray = np.array([1.]),
                 nquad: int = 3,
-                shape_functions_grad: Callable = shape_functions_dxi,
-                invjac: Callable = invjacobian, 
+                shape_functions_dxi: Callable = shape_functions_dxi,
+                invjacobian: Callable = invjacobian, 
                 **kwargs: Any) -> np.ndarray:
     """
     Create element stiffness matrix for 2D HuHu regularization with
@@ -53,9 +53,9 @@ def _lk_huhu_2d(xe: np.ndarray,
         thickness of element.
     nquad : int
         number of quadrature points.
-    shape_functions_grad : Callable
+    shape_functions_dxi : Callable
         gradients of shape functions of shape (...,4,2).
-    invjac : Callable
+    invjacobian : Callable
         inverse jacobian of parametric mapping of shape (...,2,2).
         
     Returns
@@ -86,11 +86,11 @@ def _lk_huhu_2d(xe: np.ndarray,
     xi,eta,zeta = [_x[:,0] for _x in np.split(x, ndim,axis=1)] + \
                   (2*[None])[:(3-ndim)]
     # get jacobian for isoparametric map
-    Jinv,detJ = invjac(xi=xi,
+    Jinv,detJ = invjacobian(xi=xi,
                        eta=eta,
                        zeta=zeta,
                        xe=xe,
-                       shape_functions_dxi=shape_functions_grad,
+                       shape_functions_dxi=shape_functions_dxi,
                        all_elems=True,
                        return_det=True)
     Jinv = Jinv.reshape(nel,nq,ndim,ndim)
@@ -110,7 +110,7 @@ def _lk_huhu_2d(xe: np.ndarray,
         # calculate def. grad
         B_F = dispgrad_matrix(xi=xi, eta=eta, zeta=None, xe=xe,
                               shape_functions_dxi=shape_functions_dxi,
-                              invjacobian=invjac,
+                              invjacobian=invjacobian,
                               all_elems=True,
                               return_detJ=False) 
         B_F = B_F.reshape(nel, nq,  B_F.shape[-2], B_F.shape[-1])

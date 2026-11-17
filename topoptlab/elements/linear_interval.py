@@ -151,7 +151,7 @@ def check_inputs(xi: float | np.ndarray,
 def shape_functions(xi: float | np.ndarray, 
                     **kwargs: Any) -> np.ndarray:
     """
-    Shape functions for bilinear quadrilateral Lagrangian element in reference
+    Shape functions for linear interval Lagrangian element in reference
     domain. Coordinates bounded in [-1,1].
 
     Parameters
@@ -186,15 +186,13 @@ def shape_functions_dxi(xi: float | np.ndarray,
         gradient of shape functions at specified coordinate(s).
 
     """
-    if isinstance(xi,float):
-        ncoords = 1
-    elif isinstance(xi,np.ndarray):
-        ncoords = xi.shape
-    return 1/2 * np.array([[-1, 1]]) * np.ones(ncoords)[:,None,None]
+    ncoords = np.asarray(xi).reshape(-1).shape[0]
+    return 1/2 * np.tile(np.array([[-1.],[1.]]), (ncoords,1,1))
 
 def jacobian(xi: float | np.ndarray, 
              xe: np.ndarray,
-             all_elems: bool = False) -> np.ndarray:
+             all_elems: bool = False,
+             **kwargs: Any) -> np.ndarray:
     """
     Jacobian for linear interval Lagrangian element.
 
@@ -257,15 +255,16 @@ def invjacobian(xi: np.ndarray,
     # jacobian
     J = jacobian(xi=xi,xe=xe,all_elems=all_elems)
     # raise warning if determinant close to zero
-    if np.any(np.isclose(J, 0)):
+    detJ = J[:,0,0]
+    if np.any(np.isclose(detJ, 0)):
         warn("Determinant of element numerically close to zero.")
-    elif np.any(J<0):
+    elif np.any(detJ<0):
         raise ValueError("Determinant of Jacobian negative.")
     # return inverse
     if not return_det:
-        return (J**(-1))[:,None,None]
+        return 1/J
     else:
-        return (J**(-1))[:,None,None], J
+        return 1/J, detJ
 
 def bmatrix(xi: np.ndarray,
             xe: np.ndarray,
@@ -310,7 +309,7 @@ def bmatrix(xi: np.ndarray,
         invJ,detJ = invjacobian(xi=xi,xe=xe,
                                 return_det=return_detJ)
     # helper array to collect shape function derivatives
-    B = shape_functions_dxi(xi)*invJ
+    B = invJ @ shape_functions_dxi(xi).transpose([0,2,1])
     if not return_detJ:
         return B
     else:

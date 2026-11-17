@@ -17,13 +17,13 @@ def fd_check(matmodel, F, params, eps=1e-8):
 
     # Build Voigt basis strains dE_j (as symmetric matrices)
     for j in range(nvoigt):
-        i, k = voigt_pair(j, ndim)  # returns 1-based (i,k)
-        i -= 1
-        k -= 1
+        i, k = voigt_pair(j, ndim)  # returns 0-based (i,k)
 
+        # unit perturbation in Voigt notation with engineering convention, 
+        # i. e. shear components are 2*E_ik
         dE = np.zeros((ndim, ndim), dtype=F.dtype)
-        dE[i, k] = 1.0
-        dE[k, i] = 1.0  # symmetric; for diagonal this is redundant
+        dE[i, k] = 1.0 if i == k else 0.5
+        dE[k, i] = dE[i, k]
 
         # dF = F^{-T} dE  -> solve(F^T dF = dE)
         Ft = np.swapaxes(F, -1, -2)

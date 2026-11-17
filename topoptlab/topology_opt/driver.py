@@ -377,6 +377,12 @@ def main(nelx: int, nely: int,
                                   "Haeviside complement Sigmund 2007",
                                   "Haeviside eta projection",
                                   "Volume Preserving eta projection",
+                                  "Dilate Sigmund 2007",
+                                  "Erode Sigmund 2007",
+                                  "Open Sigmund 2007",
+                                  "Close Sigmund 2007",
+                                  "Open-close Sigmund 2007",
+                                  "Close-open Sigmund 2007",
                                   "No filter"][ft])
         else:
             log.info("filter: custom")

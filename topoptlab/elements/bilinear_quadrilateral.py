@@ -4,10 +4,10 @@ from warnings import warn
 
 import numpy as np
 
-def create_edofMat(nelx: int, 
-                   nely: int, 
+def create_edofMat(nelx: int,
+                   nely: int,
                    nnode_dof: int,
-                   dtype: type = np.int32, 
+                   dtype: type = np.int32,
                    **kwargs: Any) -> tuple[np.ndarray,np.ndarray,np.ndarray,
                                            None,None]:
     """
@@ -47,12 +47,12 @@ def create_edofMat(nelx: int,
     edofMat = edofMat + np.tile(np.arange(nnode_dof,dtype=dtype),4)[None,:]
     return edofMat, n1, n2, None, None
 
-def apply_pbc(edofMat: np.ndarray, 
+def apply_pbc(edofMat: np.ndarray,
               pbc: list | np.ndarray,
-              nelx: int, 
-              nely: int, 
+              nelx: int,
+              nely: int,
               nnode_dof: int,
-              dtype: type = np.int32, 
+              dtype: type = np.int32,
               **kwargs: Any) -> np.ndarray:
     """
     Convert a given element-degree-of-freedom matrix (edofMat) of a regular

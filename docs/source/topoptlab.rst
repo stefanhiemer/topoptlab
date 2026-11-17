@@ -1,6 +1,14 @@
 topoptlab package
 =================
 
+Subpackages
+-----------
+
+.. toctree::
+   :maxdepth: 4
+
+   topoptlab.fem_solvers
+
 Submodules
 ----------
 
@@ -8,8 +16,10 @@ Submodules
    :maxdepth: 4
 
    topoptlab.accelerators
+   topoptlab.aggregation
    topoptlab.amg
-   topoptlab.design_analysis
+   topoptlab.block_assembly
+   topoptlab.convergence_criteria
    topoptlab.draw_functions
    topoptlab.fdm
    topoptlab.fem
@@ -19,9 +29,13 @@ Submodules
    topoptlab.linear_solvers
    topoptlab.log_utils
    topoptlab.material_interpolation
+   topoptlab.material_tensors
    topoptlab.multigrid
    topoptlab.objectives
    topoptlab.output_designs
+   topoptlab.param_continuation
+   topoptlab.problem_solver
+   topoptlab.profile_utils
    topoptlab.rotation_matrices
    topoptlab.solve_linsystem
    topoptlab.stiffness_tensors

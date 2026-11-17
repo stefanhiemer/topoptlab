@@ -11,24 +11,39 @@ from topoptlab.symbolic.matrix_utils import eye, simplify_matrix,\
                                             integrate
 from topoptlab.symbolic.strain_measures import dispgrad_matrix,\
                                                small_strain_matrix
-#from topoptlab.symbolic.hyperelasticity import stvenant_2pk, stvenant_cauchy
 
 def buckling_matrix(ndim : int,
-                    u : None | MatrixFunction,
-                    c : None | MatrixFunction,
+                    sigma : None | MatrixFunction = None,
+                    u : None | MatrixFunction = None,
+                    c : None | MatrixFunction = None,
                     element_type : str ="Lagrange",
                     order : int = 1) -> MatrixFunction:
     """
-    Symbolically compute the tangent stiffness matrix for nonlinear elasticity.
+    Symbolically compute the stress stiffness (geometric stiffness) matrix
+    for linearized buckling
+
+        G = int B_h^T (I kron sigma) B_h dV
+
+    where B_h is the matrix to compute the displacement gradient and sigma
+    the (Cauchy) stress of the linear prebuckling state. If sigma is None,
+    the stress is calculated from the displacements via sigma = c@B@u.
+    Otherwise the given stress is assumed constant within the element (e. g.
+    evaluated at the element center), so G is linear in the stress
+    components.
 
     Parameters
     ----------
     ndim : int
         number of spatial dimensions. Must be between 1 and 3.
+    sigma : None or symfem.functions.MatrixFunction
+        constant stress in Voigt notation. If None, stress is calculated from
+        the displacements.
     u : None or symfem.functions.MatrixFunction
-        displacements at current iterate.
+        nodal displacements of the prebuckling state. Only used if sigma is
+        None. If None, generic displacements are assumed.
     c : None or symfem.functions.MatrixFunction
-        stiffness tensor . if None, generic stiffness tensor is assumed.
+        stiffness tensor in Voigt notation. Only used if sigma is None. If
+        None, generic stiffness tensor is assumed.
     element_type : str
         type of element.
     order : int
@@ -36,62 +51,50 @@ def buckling_matrix(ndim : int,
 
     Returns
     -------
-    Ke : symfem.functions.MatrixFunction
-        symbolic tangent stiffness matrix.
-    fe : symfem.functions.MatrixFunction
-        symbolic internal forces.
+    Ge : symfem.functions.MatrixFunction
+        symbolic stress stiffness matrix.
 
     """
     #
     vertices, nd_inds, ref, basis = base_cell(ndim)
-    # anisotropic stiffness tensor or equivalent in Voigt notation 
-    if c is None:
-        c = generate_constMatrix(ncol=int((ndim**2 + ndim) /2),
-                                 nrow=int((ndim**2 + ndim) /2),
-                                 name="c")
-    #
-    if u is None:
-        u = generate_constMatrix(ncol=1,
-                                 nrow=len(nd_inds)*ndim,
-                                 name="u")
-    # calculate matrix for deformation gradient
+    # stress in Voigt notation
+    if sigma is None:
+        #
+        if u is None:
+            u = generate_constMatrix(ncol=1,
+                                     nrow=len(nd_inds)*ndim,
+                                     name="u")
+        # anisotropic stiffness tensor or equivalent in Voigt notation
+        if c is None:
+            c = generate_constMatrix(ncol=int((ndim**2 + ndim) /2),
+                                     nrow=int((ndim**2 + ndim) /2),
+                                     name="c")
+        # small strain matrix
+        b = small_strain_matrix(ndim=ndim,
+                                nd_inds=nd_inds,
+                                basis=basis,
+                                isoparam_kws={"element_type": element_type,
+                                              "order": order})
+        sigma = c@b@u
+    # calculate matrix for displacement gradient
     b_h = dispgrad_matrix(ndim=ndim,
                           nd_inds=nd_inds,
                           basis=basis,
                           isoparam_kws={"element_type": element_type,
                                         "order": order})
-    # calculate small strain matrix and stress
-    b = small_strain_matrix(ndim=ndim,
-                            nd_inds=nd_inds,
-                            basis=basis,
-                            isoparam_kws={"element_type": element_type,
-                                          "order": order})
-    sigma = kron(eye(ndim),from_voigt(b@u, eng_conv=False))
+    sigma = kron(eye(ndim),from_voigt(sigma, eng_conv=False))
     # create full integral and multiply with determinant
-    Jdet = jacobian(ndim=ndim, element_type=element_type, order=order,
-                    return_J=False, return_inv=False, return_det=True)
-    return simplify_matrix(M=integrate(M=b_h.transpose()@S@b_h,
+    Jdet = jacobian(ndim=ndim,
+                    element_type=element_type,
+                    order=order,
+                    return_J=False,
+                    return_inv=False,
+                    return_det=True)
+    integrand = b_h.transpose()@sigma@b_h * Jdet
+    return simplify_matrix(M=integrate(M=integrand,
                                        domain=ref,
                                        variables=x,
-                                       dummy_vars=t, 
-                                       parallel=None))
-
-if  __name__ == "__main__":
-    #res,symbs = residual(ndim=2,
-    #                sigma=stvenant_cauchy,
-    #                return_symbols=True)
-    from topoptlab.symbolic.stvenant import stvenant_matmodel
-    ndim = 2
-    Ke,fe = tangentstiffness_matrix(ndim = ndim,
-                                    u = None,
-                                    material_model = stvenant_matmodel,
-                                    material_constants = {"c": generate_constMatrix(ncol=int((ndim**2 + ndim) /2),
-                                                                                    nrow=int((ndim**2 + ndim) /2),
-                                                                                    name="c")},
-                                    plane_stress = False,
-                                    element_type ="Lagrange",
-                                    order = 1)
-    print(fe)
-    print()
-    print(Ke)
-    #print(linearize(res, symbols=symbs).shape)
+                                       dummy_vars=t,
+                                       parallel=None,
+                                       symmetry=True),
+                           symmetry=True)

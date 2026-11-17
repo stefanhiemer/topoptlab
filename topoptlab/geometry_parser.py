@@ -11,12 +11,12 @@ from topoptlab.elements.bilinear_quadrilateral import shape_functions_dxi as dxi
 from topoptlab.elements.trilinear_hexahedron import shape_functions_dxi as dxi_hex
 
 def mesh_cadfile(cad_file : str,
-                 output_file : str, 
-                 etype : str, 
+                 output_file : str,
+                 etype : str,
                  show_gui: bool = False) -> None:
     """
     Mesh a given CAD file (usually step format, but whatever gmsh can read
-    should work). 
+    should work).
 
     Parameters
     ----------

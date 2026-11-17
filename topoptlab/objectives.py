@@ -8,7 +8,7 @@ import numpy as np
 from scipy.ndimage import correlate, convolve
 
 from topoptlab.aggregation import softmax_ks, softmax_ks_dx
-from topoptlab.design_analysis import baseplate_slice, baseplate_kernel
+from topoptlab.design_analysis.overhang import baseplate_slice, baseplate_kernel
 
 def compliance(xPhys: np.ndarray,
                u: np.ndarray,

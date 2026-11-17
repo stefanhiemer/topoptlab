@@ -69,8 +69,8 @@ def to_voigt(A: np.ndarray,
     ndim = A.shape[-1]
     nv = int((ndim**2 + ndim) /2)
     #
-    row = np.array([0,1,2][:ndim]+[1,0,0][-(nv-ndim):])
-    col = np.array([0,1,2][:ndim]+[2,2,1][-(nv-ndim):]) 
+    row = np.array([0,1,2][:ndim]+[1,0,0][3-(nv-ndim):])
+    col = np.array([0,1,2][:ndim]+[2,2,1][3-(nv-ndim):])
     A_v = A[...,row,col]
     # apply factor 2 scaling
     if eng_conv:
@@ -82,13 +82,14 @@ def voigt_index(i: np.ndarray,
                 ndim: int) -> np.ndarray:
     """
     Map tensor index pairs (i,j) to Voigt indices for arbitrary dimension.
+    Ordering is consistent with to_voigt.
 
     Parameters
     ----------
     i : int or np.ndarray
-        first tensor index (1-based).
+        first tensor index (0-based).
     j : int or np.ndarray
-        second tensor index (1-based).
+        second tensor index (0-based).
     ndim : int
         spatial dimension.
 
@@ -97,16 +98,19 @@ def voigt_index(i: np.ndarray,
     alpha : np.ndarray
         Voigt index/indices (0-based).
     """
-    i = np.asarray(i)
-    j = np.asarray(j)
-    i_, j_ = np.minimum(i, j), np.maximum(i, j)
-
-    return np.where( i_ == j_, i_,
-                    ndim + i_ * ndim - (i_ * (i_ + 1)) // 2 + (j_ - i_ - 1))
+    #
+    nv = int((ndim**2 + ndim) /2)
+    row, col = voigt_pair(np.arange(nv), ndim)
+    # lookup table
+    table = np.zeros((ndim,ndim), dtype=int)
+    table[row,col] = np.arange(nv)
+    table[col,row] = np.arange(nv)
+    return table[np.asarray(i),np.asarray(j)]
 
 def voigt_pair(alpha: np.ndarray, ndim: int) -> tuple[np.ndarray, np.ndarray]:
     """
-    Map Voigt indices back to tensor index pairs (i,j), 
+    Map Voigt indices back to tensor index pairs (i,j). Ordering is consistent
+    with to_voigt.
 
     Parameters
     ----------
@@ -123,16 +127,9 @@ def voigt_pair(alpha: np.ndarray, ndim: int) -> tuple[np.ndarray, np.ndarray]:
         second tensor index (0-based).
     """
     alpha = np.asarray(alpha)
-
-    pairs = []
-    # diagonals
-    for k in range(ndim):
-        pairs.append((k, k))
-    # upper triangle
-    for i in range(ndim):
-        for j in range(i + 1, ndim):
-            pairs.append((i, j))
-
-    pairs = np.array(pairs, dtype=int)
-    ij = pairs[alpha]
-    return ij[..., 0], ij[..., 1]
+    #
+    nv = int((ndim**2 + ndim) /2)
+    # same ordering as in to_voigt
+    row = np.array([0,1,2][:ndim]+[1,0,0][3-(nv-ndim):])
+    col = np.array([0,1,2][:ndim]+[2,2,1][3-(nv-ndim):])
+    return row[alpha], col[alpha]

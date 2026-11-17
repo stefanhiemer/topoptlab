@@ -6,6 +6,8 @@ from topoptlab.filter.haeviside_projectors import HaevisideProjectorGuest2004,\
                                                   HaevisideProjectorSigmund2007,\
                                                   EtaProjectorXu2010
 from topoptlab.filter.amfilter_langelaar import LangelaarFilter
+from topoptlab.filter.morphology_filter import DilateFilterSigmund2007,\
+                                               ErodeFilterSigmund2007
 
 def fetch_filters(ft : int,
                   filter_args : list) -> list:
@@ -21,7 +23,22 @@ def fetch_filters(ft : int,
         4: density filter + eta projection (volume conserving 
                             eta depends on filter_args)
         5: density filter + langelaar filter + eta projection
+        6: dilate filter
+        7: erode filter
+        8: open filter (erode + dilate)
+        9: close filter (dilate + erode)
+        10: open-close filter (erode + dilate + dilate + erode)
+        11: close-open filter (dilate + erode + erode + dilate)
         -1: not filter
+
+    Filters 6-11 are the morphology based filters by Sigmund, Ole.
+    "Morphology-based black and white filters for topology optimization."
+    Structural and Multidisciplinary Optimization 33.4 (2007): 401-424.
+    Note that open-close and close-open do not reliably impose a minimum
+    length scale on both phases, see Schevenels, Mattias, and Ole Sigmund.
+    "On the implementation and effectiveness of morphological close-open
+    and open-close filters for topology optimization." Structural and
+    Multidisciplinary Optimization 54.1 (2016): 15-21.
 
     Parameters
     ----------
@@ -53,6 +70,26 @@ def fetch_filters(ft : int,
         filters = [DensityFilter,
                    LangelaarFilter,
                    EtaProjectorXu2010]
+    elif ft == 6:
+        filters = [DilateFilterSigmund2007]
+    elif ft == 7:
+        filters = [ErodeFilterSigmund2007]
+    elif ft == 8:
+        filters = [ErodeFilterSigmund2007,
+                   DilateFilterSigmund2007]
+    elif ft == 9:
+        filters = [DilateFilterSigmund2007,
+                   ErodeFilterSigmund2007]
+    elif ft == 10:
+        filters = [ErodeFilterSigmund2007,
+                   DilateFilterSigmund2007,
+                   DilateFilterSigmund2007,
+                   ErodeFilterSigmund2007]
+    elif ft == 11:
+        filters = [DilateFilterSigmund2007,
+                   ErodeFilterSigmund2007,
+                   ErodeFilterSigmund2007,
+                   DilateFilterSigmund2007]
     elif ft == -1:
         filters = []
     else:

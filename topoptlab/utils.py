@@ -1,11 +1,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 from warnings import warn
 from typing import Any
-from itertools import chain
+from itertools import chain, product
 
 import numpy as np
 from scipy.ndimage import zoom
 from scipy.linalg import solve_triangular
+from scipy.sparse import coo_array, csr_array
 
 from topoptlab.optimizer.mma_utils import mma_defaultkws, gcmma_defaultkws
 
@@ -923,3 +924,125 @@ def identity(x):
         The same object, unmodified.
     """
     return x
+
+def grid_adjacency(nelx: int,
+                   nely: int,
+                   nelz: None | int = None,
+                   pbc: None | list | np.ndarray = None,
+                   n_shared: None | int = None) -> csr_array:
+    """
+    Create the element adjacency graph of the standard regular grid directly
+    from its element ordering, so without element nodes. Two elements are
+    adjacent if they share at least n_shared nodes. For irregular meshes use
+    element_adjacency.
+
+    Parameters
+    ----------
+    nelx : int
+        number of elements in x direction.
+    nely : int
+        number of elements in y direction.
+    nelz : None or int
+        number of elements in z direction. If None, a 2D grid is assumed.
+    pbc : None or list or np.ndarray of shape/len ndim with elements of datatype bool
+        periodic boundary condition flags in the order x, y(, z). If None,
+        no periodicity.
+    n_shared : None or int
+        minimum number of shared nodes for two elements to be adjacent. If
+        None, face adjacency is assumed (2 in 2D, 4 in 3D). n_shared=1
+        corresponds to node adjacency (8-neighborhood in 2D, 26-neighborhood
+        in 3D).
+
+    Returns
+    -------
+    adjacency : scipy.sparse.csr_array, shape (n_el,n_el)
+        symmetric adjacency matrix with ones for adjacent elements and zero
+        diagonal.
+
+    """
+    #
+    if nelz is None:
+        ndim = 2
+        shape = np.array([nelx, nely])
+    else:
+        ndim = 3
+        shape = np.array([nelz, nelx, nely])
+    #
+    if n_shared is None:
+        n_shared = 2**(ndim-1)
+    if pbc is None:
+        pbc = np.zeros(ndim, dtype=bool)
+    # periodicity flags in the order of the element index (x,y) or (z,x,y)
+    pbc = np.asarray(pbc, dtype=bool)[[0,1] if ndim == 2 else [2,0,1]]
+    # grid position of each element
+    pos = np.indices(shape).reshape(ndim, -1)
+    el = np.arange(pos.shape[1])
+    #
+    rows, cols = [], []
+    for offset in product((-1, 0, 1), repeat=ndim):
+        offset = np.array(offset)
+        nnz = np.count_nonzero(offset)
+        # neighbors sharing a face, edge or node share 2**(ndim-nnz) nodes
+        if nnz == 0 or 2**(ndim-nnz) < n_shared:
+            continue
+        nb = pos + offset[:,None]
+        valid = np.all(((nb >= 0) & (nb < shape[:,None])) | pbc[:,None],
+                       axis=0)
+        nb = nb % shape[:,None]
+        rows.append(el[valid])
+        cols.append(np.ravel_multi_index(nb[:,valid], shape))
+    rows, cols = np.concatenate(rows), np.concatenate(cols)
+    # remove self loops (periodic grids with one element in a direction)
+    mask = rows != cols
+    adjacency = coo_array((np.ones(mask.sum()), (rows[mask], cols[mask])),
+                          shape=(el.shape[0], el.shape[0])).tocsr()
+    # duplicates (periodic grids with two elements in a direction)
+    adjacency.data[:] = 1.
+    return adjacency
+
+def element_adjacency(elnodes: np.ndarray,
+                      n_shared: None | int = None) -> csr_array:
+    """
+    Create the element adjacency graph of a mesh. Two elements are adjacent
+    if they share at least n_shared nodes. Works for every mesh that is
+    described by its element nodes, e. g. the regular grid (edofMat of a
+    scalar field, so nnode_dof=1), regular grids with periodic boundary
+    conditions (the periodic adjacency then follows automatically) or meshes
+    read via topoptlab.geometry_parser.read_mesh.
+
+    Parameters
+    ----------
+    elnodes : np.ndarray, shape (n_el,n_nodes_el)
+        node indices of each element.
+    n_shared : None or int
+        minimum number of shared nodes for two elements to be adjacent. If
+        None, face adjacency is assumed for linear Lagrangian elements, i. e.
+        1 for intervals, 2 for quadrilaterals and 4 for hexahedra. n_shared=1
+        corresponds to node adjacency (in 2D the 8-neighborhood on a regular
+        grid).
+
+    Returns
+    -------
+    adjacency : scipy.sparse.csr_array, shape (n_el,n_el)
+        symmetric adjacency matrix with ones for adjacent elements and zero
+        diagonal.
+
+    """
+    #
+    n_el, n_nodes_el = elnodes.shape
+    #
+    if n_shared is None:
+        n_shared = {2: 1, 4: 2, 8: 4}[n_nodes_el]
+    # element-node incidence matrix
+    incidence = coo_array((np.ones(elnodes.size),
+                           (np.repeat(np.arange(n_el),
+                            n_nodes_el),
+                            elnodes.flatten())),
+                          shape=(n_el, elnodes.max()+1)).tocsr()
+    incidence.data[:] = 1.
+    # number of shared nodes
+    shared = (incidence @ incidence.T).tocoo()
+    mask = (shared.data >= n_shared) & (shared.row != shared.col)
+    return coo_array((np.ones(mask.sum()),
+                      (shared.row[mask], shared.col[mask])),
+                     shape=(n_el, n_el)).tocsr()

@@ -6,25 +6,23 @@ import numpy as np
 
 from topoptlab.voigt import from_voigt
 from topoptlab.fem import get_integrpoints 
-from topoptlab.elements.bilinear_quadrilateral import shape_functions_dxi
-from topoptlab.elements.isoparam_mapping import invjacobian
+from topoptlab.elements.isoparam_mapping import invjacobian as _invjacobian
 from topoptlab.elements.strain_measures import dispgrad_matrix,\
                                                lagrangian_strainvar_matrix
 
-def _lk_nonlinear_elast_2d(xe: np.ndarray,
-                           ue: np.ndarray,
-                           material_model: Callable,
-                           material_constants: dict,
-                           quadr_method: str = "gauss-legendre",
-                           t: np.ndarray = np.array([1.]),
-                           nquad: int = 2,
-                           shape_functions_grad: Callable = shape_functions_dxi,
-                           invjac: Callable = invjacobian, 
-                           **kwargs: Any) -> np.ndarray:
+def _lk_nonlinear_elast(xe: np.ndarray,
+                        ue: np.ndarray,
+                        material_model: Callable,
+                        material_constants: dict,
+                        quadr_method: str = "gauss-legendre",
+                        t: np.ndarray = np.array([1.]),
+                        nquad: int = 2,
+                        shape_functions_dxi: None | Callable = None,
+                        invjacobian: Callable = _invjacobian, 
+                        **kwargs: Any) -> np.ndarray:
     """
-    Create element tangential stiffness matrix for 2D nonlinear elasticity with
-    bilinear quadrilateral Lagrangian elements in terms of 2. Piola Kirchhoff
-    stress S. Constitutive tensor must be derived by:
+    Create element tangential stiffness matrix for nonlinear elasticity with
+    Lagrangian elements in terms of 2. Piola Kirchhoff stress S. Constitutive tensor must be derived by:
         
         C_ij = d S_i / d E_j
         
@@ -32,11 +30,11 @@ def _lk_nonlinear_elast_2d(xe: np.ndarray,
 
     Parameters
     ----------
-    xe : np.ndarray, shape (nels,4,2)
+    xe : np.ndarray, shape (nels,n_nodes,ndim)
         coordinates of element nodes. Please look at the
         definition/function of the shape function, then the node ordering is
         clear.
-    ue : np.ndarray,shape (nels,8).
+    ue : np.ndarray,shape (nels,n_nodes*ndim).
         nodal displacements.
     material_model: callable
         returns 2. PK stress tensor and constitutive tensor both in Voigt 
@@ -51,19 +49,22 @@ def _lk_nonlinear_elast_2d(xe: np.ndarray,
         quadrature points and weights. Check function get_integrpoints for
         available options.
     t : np.ndarray of shape (nels) or (1)
-        thickness of element.
+        thickness of element in 2D or cross section area in 1D. Ignored
+        in 3D.
     nquad : int
         number of quadrature points.
-    shape_functions_grad : Callable
-        gradients of shape functions of shape (...,4,2).
-    invjac : Callable
-        inverse jacobian of parametric mapping of shape (...,2,2).
+    shape_functions_dxi : callable or None
+        gradients of shape functions of shape (...,n_nodes,ndim). If None,
+        bilinear quadrilateral or trilinear hexahedral elements are assumed
+        (ndim=2/3).
+    invjacobian : callable
+        inverse jacobian of parametric mapping of shape (...,ndim,ndim).
         
     Returns
     -------
-    Ke : np.ndarray, shape (nels,8,8)
+    Ke : np.ndarray, shape (nels,n_nodes*ndim,n_nodes*ndim)
         element stiffness matrix.
-    fe : np.ndarray, shape (nels,8,1)
+    fe : np.ndarray, shape (nels,n_nodes*ndim)
         element internal force vector.
 
     """
@@ -73,8 +74,19 @@ def _lk_nonlinear_elast_2d(xe: np.ndarray,
     #
     nel,n_nodes,ndim = xe.shape
     #
-    if isinstance(t,float) and ndim==2:
-        t = np.array([t])
+    # thickness (2D) or cross section area (1D)
+    if ndim < 3:
+        t = np.full(nel, t) if np.size(t) == 1 else np.asarray(t)
+    # gradient of shape functions
+    if shape_functions_dxi is None:
+        if ndim == 1:
+            from topoptlab.elements.linear_interval import shape_functions_dxi
+        elif ndim == 2:
+            from topoptlab.elements.bilinear_quadrilateral import shape_functions_dxi
+        elif ndim == 3:
+            from topoptlab.elements.trilinear_hexahedron import shape_functions_dxi
+        else:
+            raise NotImplementedError(f"only dimensions 1, 2 and 3 implemented. current ndim {ndim}")
     #
     x,w=get_integrpoints(ndim=ndim,nq=nquad,method=quadr_method)
     nq =w.shape[0]
@@ -83,8 +95,8 @@ def _lk_nonlinear_elast_2d(xe: np.ndarray,
                   (2*[None])[:(3-ndim)]
     # calculate displacement gradient 
     B_h,detJ = dispgrad_matrix(xi=xi, eta=eta, zeta=zeta, xe=xe,
-                               shape_functions_dxi=shape_functions_grad,
-                               invjacobian=invjac,
+                               shape_functions_dxi=shape_functions_dxi,
+                               invjacobian=invjacobian,
                                all_elems=True,
                                return_detJ=True) 
     B_h = B_h.reshape(nel, nq,  B_h.shape[-2], B_h.shape[-1])
@@ -98,8 +110,8 @@ def _lk_nonlinear_elast_2d(xe: np.ndarray,
                                        zeta=zeta,
                                        xe=xe,
                                        F=F.reshape(nel*nq,ndim,ndim),
-                                       shape_functions_dxi=shape_functions_grad,
-                                       invjacobian=invjac,
+                                       shape_functions_dxi=shape_functions_dxi,
+                                       invjacobian=invjacobian,
                                        all_elems=True,
                                        return_detJ=False)
     B_dE = B_dE.reshape(nel, nq,  B_dE.shape[-2], B_dE.shape[-1])
@@ -117,7 +129,7 @@ def _lk_nonlinear_elast_2d(xe: np.ndarray,
     Ke = (w[None,:,None,None]*integral*detJ[:,:,None,None]).sum(axis=1)
     fe = (w[None,:,None]*fe*detJ[:,:,None]).sum(axis=1)
     # multiply thickness
-    if ndim == 2:
-        return t[:,None,None] * Ke, t[:,None,None] * fe 
+    if ndim < 3:
+        return t[:,None,None] * Ke, t[:,None] * fe
     else:
         return Ke, fe

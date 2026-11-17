@@ -9,6 +9,7 @@ from topoptlab.fem import get_integrpoints
 def _lk_linear_elast(xe: np.ndarray,
                      c: np.ndarray,
                      quadr_method: str = "gauss-legendre",
+                     t: np.ndarray = np.array([1.]),
                      nquad: int = 2,
                      bmatrix: None | Callable = None,
                      **kwargs: Any) -> np.ndarray:
@@ -28,6 +29,9 @@ def _lk_linear_elast(xe: np.ndarray,
         name of quadrature method or function/callable that returns coordinates of
         quadrature points and weights. Check function get_integrpoints for
         available options.
+    t : np.ndarray of shape (nels) or (1)
+        thickness of element in 2D or cross section area in 1D. Ignored
+        in 3D.
     nquad : int
         number of quadrature points.
     bmatrix : callable or None
@@ -50,14 +54,19 @@ def _lk_linear_elast(xe: np.ndarray,
     #
     if len(c.shape) == 2:
         c = c[None,:,:]
+    # thickness (2D) or cross section area (1D)
+    if ndim < 3:
+        t = np.full(nel, t) if np.size(t) == 1 else np.asarray(t)
     # B matrix for isoparametric mapping
     if bmatrix is None:
-        if ndim == 2:
+        if ndim == 1:
+            from topoptlab.elements.linear_interval import bmatrix
+        elif ndim == 2:
             from topoptlab.elements.bilinear_quadrilateral import bmatrix
         elif ndim == 3:
             from topoptlab.elements.trilinear_hexahedron import bmatrix
         else:
-            raise NotImplementedError(f"only dimensions 2 and 3 implemented. current ndim {ndim}")
+            raise NotImplementedError(f"only dimensions 1, 2 and 3 implemented. current ndim {ndim}")
     #
     x,w=get_integrpoints(ndim=ndim,nq=nquad,method=quadr_method)
     nq =w.shape[0]
@@ -73,12 +82,18 @@ def _lk_linear_elast(xe: np.ndarray,
     #
     integral = B.transpose([0,1,3,2])@c[:,None,:,:]@B
     # multiply by determinant and quadrature
-    return (w[None,:,None,None]*integral*detJ[:,:,None,None]).sum(axis=1)
+    Ke = (w[None,:,None,None]*integral*detJ[:,:,None,None]).sum(axis=1)
+    #
+    if ndim < 3:
+        return t[:,None,None] * Ke
+    else:
+        return Ke
 
 def _lf_strain(xe: np.ndarray,
                eps: np.ndarray,
                c: np.ndarray,
                quadr_method: str = "gauss-legendre",
+               t: np.ndarray = np.array([1.]),
                nquad: int = 2,
                bmatrix: None | Callable = None,
                **kwargs: Any) -> np.ndarray:
@@ -101,6 +116,9 @@ def _lf_strain(xe: np.ndarray,
         name of quadrature method or function/callable that returns coordinates of
         quadrature points and weights. Check function get_integrpoints for
         available options.
+    t : np.ndarray of shape (nels) or (1)
+        thickness of element in 2D or cross section area in 1D. Ignored
+        in 3D.
     nquad : int
         number of quadrature points
     bmatrix : callable or None
@@ -126,14 +144,19 @@ def _lf_strain(xe: np.ndarray,
     #
     if len(c.shape) == 2:
         c = c[None,:,:]
+    # thickness (2D) or cross section area (1D)
+    if ndim < 3:
+        t = np.full(nel, t) if np.size(t) == 1 else np.asarray(t)
     # B matrix for isoparametric mapping
     if bmatrix is None:
-        if ndim == 2:
+        if ndim == 1:
+            from topoptlab.elements.linear_interval import bmatrix
+        elif ndim == 2:
             from topoptlab.elements.bilinear_quadrilateral import bmatrix
         elif ndim == 3:
             from topoptlab.elements.trilinear_hexahedron import bmatrix
         else:
-            raise NotImplementedError(f"only dimensions 2 and 3 implemented. current ndim {ndim}")
+            raise NotImplementedError(f"only dimensions 1, 2 and 3 implemented. current ndim {ndim}")
     #
     x,w=get_integrpoints(ndim=ndim,nq=nquad,method=quadr_method)
     nq =w.shape[0]
@@ -149,4 +172,9 @@ def _lf_strain(xe: np.ndarray,
     #
     integral = B.transpose([0,1,3,2])@c[:,None,:,:]@eps[:,None,None,:].transpose(0,1,3,2)
     # multiply by determinant and quadrature
-    return (w[None,:,None,None]*integral*detJ[:,:,None,None]).sum(axis=1)
+    Ke = (w[None,:,None,None]*integral*detJ[:,:,None,None]).sum(axis=1)
+    #
+    if ndim < 3:
+        return t[:,None,None] * Ke
+    else:
+        return Ke

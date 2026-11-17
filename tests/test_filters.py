@@ -21,6 +21,8 @@ from topoptlab.filter.haeviside_projectors import (
     MultiEtaProjectorXu2010,
 )
 from topoptlab.filter.simplex_filter import SimplexFilter
+from topoptlab.filter.morphology_filter import DilateFilterSigmund2007,\
+                                               ErodeFilterSigmund2007
 from topoptlab.utils import map_eltoimg,map_imgtoel,map_eltovoxel,map_voxeltoel
 from topoptlab.example_bc.lin_elast import mbb_2d
 from topoptlab.topology_optimization import main
@@ -247,6 +249,28 @@ def test_volume_conservation(n,beta,volfrac,filter,finder,kwargs):
                            {'beta': 5}, None),
                           (SimplexFilter(n_constr=1),
                            {}, (6 * 4, 2)),
+                          (DilateFilterSigmund2007(**{"nelx": 6,
+                                                      "nely": 4,
+                                                      "n_constr": 1,
+                                                      "rmin": 1.5}),
+                           {'beta': 5}, None),
+                          (ErodeFilterSigmund2007(**{"nelx": 6,
+                                                     "nely": 4,
+                                                     "n_constr": 1,
+                                                     "rmin": 1.5}),
+                           {'beta': 5}, None),
+                          (DilateFilterSigmund2007(**{"nelx": 6,
+                                                      "nely": 4,
+                                                      "n_constr": 1,
+                                                      "rmin": 1.5,
+                                                      "filter_mode": "helmholtz"}),
+                           {'beta': 5}, None),
+                          (ErodeFilterSigmund2007(**{"nelx": 6,
+                                                     "nely": 4,
+                                                     "n_constr": 1,
+                                                     "rmin": 1.5,
+                                                     "filter_mode": "helmholtz"}),
+                           {'beta': 5}, None),
                           ])
 def test_apply_filter_dx(filt,
                          filter_kw,
@@ -279,3 +303,85 @@ def test_apply_filter_dx(filt,
                      filt.apply_filter(x - eps * v, **filter_kw))) / (2 * eps)
     dx = filt.apply_filter_dx(x=x, x_filtered=xf, dx_filtered=g, **filter_kw)
     assert_allclose(np.sum(dx * v), fd, rtol=1e-4)
+
+@pytest.mark.parametrize('nelx, nely, nelz, rmin',
+                         [(10, 8, None, 2.5),
+                          (6, 5, 4, 1.8)])
+def test_morphology(nelx, nely, nelz, rmin):
+    """
+    Check basic properties of the dilate/erode filters by Sigmund 2007.
+    """
+    kw = dict(nelx=nelx, nely=nely, nelz=nelz, n_constr=1, rmin=rmin)
+    dilate = DilateFilterSigmund2007(**kw)
+    erode = ErodeFilterSigmund2007(**kw)
+    n = np.prod([nelx, nely, nelz][:2 if nelz is None else 3])
+    rng = default_rng(0)
+    x = rng.uniform(0., 1., (n, 1))
+    # constant fields are unchanged
+    for c in (0., 0.3, 1.):
+        assert_allclose(dilate.apply_filter(np.full((n, 1), c), beta=20.), c,
+                        atol=1e-12)
+        assert_allclose(erode.apply_filter(np.full((n, 1), c), beta=20.), c,
+                        atol=1e-12)
+    # duality: erode(x) = 1 - dilate(1-x)
+    assert_allclose(erode.apply_filter(x, beta=10.),
+                    1 - dilate.apply_filter(1 - x, beta=10.))
+    # ordering: erode <= neighborhood average <= dilate
+    avg = dilate.filter.apply_filter(x)
+    assert (erode.apply_filter(x, beta=10.) <= avg + 1e-12).all()
+    assert (dilate.apply_filter(x, beta=10.) >= avg - 1e-12).all()
+    # large beta approaches neighborhood max/min (error <= log(N)/beta)
+    H = dilate.filter.H.tocsr()
+    H.eliminate_zeros()
+    xmax = np.array([x[H[i].indices].max() for i in range(n)])
+    xmin = np.array([x[H[i].indices].min() for i in range(n)])
+    beta = 500.
+    nmax = np.diff(H.indptr).max()
+    assert_allclose(dilate.apply_filter(x, beta=beta)[:, 0], xmax,
+                    atol=np.log(nmax)/beta)
+    assert_allclose(erode.apply_filter(x, beta=beta)[:, 0], xmin,
+                    atol=np.log(nmax)/beta)
+    # single solid element dilates to its neighborhood
+    x = np.zeros((n, 1))
+    x[n//2] = 1.
+    xd = dilate.apply_filter(x, beta=beta)[:, 0]
+    assert_allclose(xd[H[n//2].indices], 1., atol=np.log(nmax)/beta)
+    # and is removed by erosion
+    assert (erode.apply_filter(x, beta=beta) < np.log(nmax)/beta).all()
+
+from topoptlab.filter.fetch_filter import fetch_filters
+from topoptlab.filter.workflows import filter_design_variables,\
+                                       sensitivity_propagation
+
+@pytest.mark.parametrize('ft', [6, 7, 8, 9, 10, 11])
+def test_morphology_chains(ft, nelx=8, nely=6, rmin=1.6, beta=5.):
+    """
+    Finite-difference check of the morphology filter chains fetched by
+    integer code, propagated through the standard filter workflows.
+    """
+    n = nelx*nely
+    filters = fetch_filters(ft=ft,
+                            filter_args=[dict(nelx=nelx, nely=nely,
+                                              n_constr=1, rmin=rmin)])
+    filter_kw = {"beta": beta}
+    mask = np.zeros(n, dtype=bool)
+    kw = dict(ft=filters, filter_kw=filter_kw, el_flags_policy=None)
+    #
+    def forward(x):
+        xTilde = [None]*(len(filters)-1)
+        return filter_design_variables(x=x, xTilde=xTilde, xPhys=None,
+                                       passive_mask=mask, active_mask=mask,
+                                       **kw)
+    rng = default_rng(0)
+    x = rng.uniform(0.01, 0.99, (n, 1))
+    g = rng.standard_normal((n, 1))
+    v = rng.standard_normal((n, 1))
+    eps = 1e-6
+    xTilde, xPhys = forward(x)
+    fd = np.sum(g*(forward(x + eps*v)[1] - forward(x - eps*v)[1]))/(2*eps)
+    dobj, dconstrs = g.copy(), g.copy()
+    dobj, dconstrs = sensitivity_propagation(dobj=dobj, dconstrs=dconstrs,
+                                             x=x, xTilde=xTilde, xPhys=xPhys,
+                                             prescribed_mask=mask, **kw)
+    assert_allclose(np.sum(dobj*v), fd, rtol=1e-4)
+    assert_allclose(dconstrs, dobj)

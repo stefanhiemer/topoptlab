@@ -12,7 +12,7 @@ from topoptlab.solve_linsystem import solve_lin
 from topoptlab.material_models.neohooke import neohookean_matmodel
 
 # for elemental stiffness matrix and internal force
-from topoptlab.elements.nonlinear_elasticity_2d import _lk_nonlinear_elast_2d
+from topoptlab.elements.nonlinear_elasticity import _lk_nonlinear_elast
 
 # The boundary condition for cshape
 from topoptlab.example_bc.lin_elast import cshape2d
@@ -168,7 +168,7 @@ def Cshape(nelx,
         for it in range(int(newton_maxit)):
             ue = u[edofMat].reshape(n, 8)
             # Nonlinear elastic tangent stiffness and internal force
-            Ke_e, fint_e = _lk_nonlinear_elast_2d(
+            Ke_e, fint_e = _lk_nonlinear_elast(
                 xe=xe,
                 ue=ue,
                 material_model=neohookean_matmodel,
@@ -221,7 +221,7 @@ def Cshape(nelx,
                 # Re-evaluate the residual at the trial displacement
                 ue_trial = u_trial[edofMat].reshape(n, 8)
 
-                _, fint_e_trial = _lk_nonlinear_elast_2d(
+                _, fint_e_trial = _lk_nonlinear_elast(
                     xe=xe,
                     ue=ue_trial,
                     material_model=neohookean_matmodel, 

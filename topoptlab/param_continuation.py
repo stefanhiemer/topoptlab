@@ -4,7 +4,7 @@ from typing import Any
 import numpy as np
 
 from topoptlab.log_utils import EmptyLogger,BaseLogger
-from topoptlab.design_analysis import gray_indicator, level_indicator
+from topoptlab.design_analysis.discreteness import gray_indicator, level_indicator
 
 def run_continuation(continuation_kw: dict,
                      stage: int,

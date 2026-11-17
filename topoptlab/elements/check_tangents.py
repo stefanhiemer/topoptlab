@@ -57,7 +57,7 @@ def check_tangent_fd(Ke_fe : Callable,
 if __name__ == "__main__":
     
     from topoptlab.material_models.neohooke import neohookean_matmodel
-    from topoptlab.elements.nonlinear_elasticity_2d import _lk_nonlinear_elast_2d
+    from topoptlab.elements.nonlinear_elasticity import _lk_nonlinear_elast
     #
     nel = 1 
     xe = np.array([[[-1,-1],[1,-1],[1,1],[-1,1]]])
@@ -66,7 +66,7 @@ if __name__ == "__main__":
                    0.,0.,0.,1.],
                   ]).shape)
     u = np.random.rand(nel,np.prod(xe.shape[-2:]))
-    check_tangent_fd(Ke_fe = _lk_nonlinear_elast_2d,
+    check_tangent_fd(Ke_fe = _lk_nonlinear_elast,
                      Ke_fe_args = {"xe": xe,
                                    "material_model": neohookean_matmodel,
                                    "material_constants": {"c": np.ones((3,3)), 

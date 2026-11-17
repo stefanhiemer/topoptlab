@@ -9,6 +9,7 @@ from topoptlab.fem import get_integrpoints
 def _lf_bodyforce(xe: np.ndarray,
                   b: None | np.ndarray = None,
                   quadr_method: str = "gauss-legendre",
+                  t: np.ndarray = np.array([1.]),
                   nquad: int = 1,
                   shape_functions: None | Callable = None,
                   jacobian: None | Callable = None,
@@ -30,6 +31,9 @@ def _lf_bodyforce(xe: np.ndarray,
         name of quadrature method or function/callable that returns coordinates of
         quadrature points and weights. Check function get_integrpoints for
         available options.
+    t : np.ndarray of shape (nels) or (1)
+        thickness of element in 2D or cross section area in 1D. Ignored
+        in 3D.
     nquad : int
         number of quadrature points
     shape_functions : callable or None
@@ -59,22 +63,29 @@ def _lf_bodyforce(xe: np.ndarray,
         b = np.array([0.,-1.] + [0.]*(ndim-2))
     if (len(b.shape) == 1) or (b.shape[0] == 1):
         b = np.full((xe.shape[0],ndim), b)
+    # thickness (2D) or cross section area (1D)
+    if ndim < 3:
+        t = np.full(nel, t) if np.size(t) == 1 else np.asarray(t)
     # shape functions
     if shape_functions is None:
-        if ndim == 2:
+        if ndim == 1:
+            from topoptlab.elements.linear_interval import shape_functions
+        elif ndim == 2:
             from topoptlab.elements.bilinear_quadrilateral import shape_functions
         elif ndim == 3:
             from topoptlab.elements.trilinear_hexahedron import shape_functions
         else:
-            raise NotImplementedError(f"only dimensions 2 and 3 implemented. current ndim {ndim}")
+            raise NotImplementedError(f"only dimensions 1, 2 and 3 implemented. current ndim {ndim}")
     # jacobian of isoparametric mapping
     if jacobian is None:
-        if ndim == 2:
+        if ndim == 1:
+            from topoptlab.elements.linear_interval import jacobian
+        elif ndim == 2:
             from topoptlab.elements.bilinear_quadrilateral import jacobian
         elif ndim == 3:
             from topoptlab.elements.trilinear_hexahedron import jacobian
         else:
-            raise NotImplementedError(f"only dimensions 2 and 3 implemented. current ndim {ndim}")
+            raise NotImplementedError(f"only dimensions 1, 2 and 3 implemented. current ndim {ndim}")
     #
     x,w=  get_integrpoints(ndim=ndim, nq=nquad, method=quadr_method)
     nq =w.shape[0]
@@ -91,4 +102,7 @@ def _lf_bodyforce(xe: np.ndarray,
     # multiply by determinant and quadrature
     fe = (w[None,:,None,None]*integral*detJ[:,:,None,None]).sum(axis=1)
     #
-    return fe
+    if ndim < 3:
+        return t[:,None,None] * fe
+    else:
+        return fe

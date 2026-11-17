@@ -11,7 +11,7 @@ from matplotlib.colors import Normalize
 from topoptlab.utils import map_eltoimg
 from topoptlab.geometries import sphere
 from topoptlab.output_designs import threshold
-from topoptlab.design_analysis import lengthscale_violations
+from topoptlab.design_analysis.lengthscale import lengthscale_violations
 
 def display(x,nelx,nely,r):
     #

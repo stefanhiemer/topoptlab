@@ -2,6 +2,12 @@
 
 Symbolically compute forces due to constant bodyforce.
 
+### `buckling.py`
+
+Symbolically compute stress stiffness (geometric stiffness) matrix for 
+linearized buckling, either in terms of the prebuckling displacements or for a 
+constant stress.
+
 ### `heatexpansion.py`
 
 Symbolically compute forces due to heat expansion.
