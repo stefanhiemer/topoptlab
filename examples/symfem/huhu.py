@@ -27,7 +27,7 @@ if __name__ == "__main__":
         print(convert_to_code(huhu_tangent(u=None,
                                            ndim=dim,
                                            a=None, 
-                                           do_integral=True),
+                                           return_integrand=False),
                               matrices=[],vectors=["l","g"]),"\n")
     #
     print("Tangent with exponential: Picard iteration")
@@ -36,7 +36,7 @@ if __name__ == "__main__":
         Ke, fe = huhu_tangent(u=None,
                               ndim=dim,
                               a=symbols("a"),
-                              do_integral=True,
+                              return_integrand=False,
                               method="picard")
         print(convert_to_code(Ke,
                               matrices=[],
@@ -53,7 +53,7 @@ if __name__ == "__main__":
         print(convert_to_code(huhu_tangent(u=None,
                                            ndim=dim,
                                            a=symbols("a"), 
-                                           do_integral=True, 
+                                           return_integrand=False, 
                                            mode="newton"),
                               matrices=[],
                               vectors=["l","g"], 

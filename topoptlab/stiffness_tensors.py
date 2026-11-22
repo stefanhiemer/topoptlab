@@ -197,9 +197,9 @@ def isotropic_3d(E:float = 1., nu:float = 0.3) -> np.ndarray:
     return E/((1+nu)*(1-2*nu))*np.array([[1-nu,nu,nu,0,0,0],
                                          [nu,1-nu,nu,0,0,0],
                                          [nu,nu,1-nu,0,0,0],
-                                         [0,0,0,(1-nu)/2,0,0],
-                                         [0,0,0,0,(1-nu)/2,0],
-                                         [0,0,0,0,0,(1-nu)/2]])
+                                         [0,0,0,(1-2*nu)/2,0,0],
+                                         [0,0,0,0,(1-2*nu)/2,0],
+                                         [0,0,0,0,0,(1-2*nu)/2]])
 
 def orthotropic_2d(Ex: float, Ey: float, 
                    nu_xy: float, G_xy: float,

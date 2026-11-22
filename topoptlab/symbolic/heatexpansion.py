@@ -12,7 +12,8 @@ from topoptlab.symbolic.stiffness_tensors import stifftens_isotropic
 
 def heatexp_iso(ndim: int,
                 element_type: str = "Lagrange",
-                order: int = 1) -> MatrixFunction:
+                order: int = 1,
+                return_integrand: bool = False) -> MatrixFunction:
     """
     Symbolically compute the heat expansion matrix for linear elasticity of an 
     isotropic material.
@@ -25,6 +26,9 @@ def heatexp_iso(ndim: int,
         type of element.
     order : int
         order of element.
+    return_integrand : bool
+        if True, return the integrand (including the determinant of the
+        jacobian) without integrating it over the element.
 
     Returns
     -------
@@ -51,11 +55,14 @@ def heatexp_iso(ndim: int,
     Jdet = jacobian(ndim=ndim, element_type=element_type, order=order,
                     return_J=False, return_inv=False, return_det=True)
     integrand = b.transpose()@c@a@NT * Jdet
+    if return_integrand:
+        return integrand
     return simplify_matrix(integrand.integral(ref,x))
 
 def heatexp_aniso(ndim: int,
                   element_type: str = "Lagrange",
-                  order: int = 1) -> MatrixFunction:
+                  order: int = 1,
+                  return_integrand: bool = False) -> MatrixFunction:
     """
     Symbolically compute the heat expansion matrix for linear elasticity of an 
     anisotropic material.
@@ -68,6 +75,9 @@ def heatexp_aniso(ndim: int,
         type of element.
     order : int
         order of element.
+    return_integrand : bool
+        if True, return the integrand (including the determinant of the
+        jacobian) without integrating it over the element.
 
     Returns
     -------
@@ -97,4 +107,6 @@ def heatexp_aniso(ndim: int,
     Jdet = jacobian(ndim=ndim, element_type=element_type, order=order,
                     return_J=False, return_inv=False, return_det=True)
     integrand = b.transpose()@c@a@NT * Jdet
+    if return_integrand:
+        return integrand
     return integrand.integral(ref,x)

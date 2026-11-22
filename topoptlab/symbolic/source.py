@@ -13,7 +13,8 @@ from topoptlab.symbolic.matrix_utils import simplify_matrix, \
 def source(ndim : int,
            volume_source : None | ScalarFunction = None,
            element_type : str = "Lagrange",
-           order : int = 1) -> MatrixFunction:
+           order : int = 1,
+           return_integrand : bool = False) -> MatrixFunction:
     """
     Symbolically compute the mass matrix.
 
@@ -25,6 +26,9 @@ def source(ndim : int,
         type of element.
     order : int
         order of element.
+    return_integrand : bool
+        if True, return the integrand (including the determinant of the
+        jacobian) without integrating it over the element.
 
     Returns
     -------
@@ -44,6 +48,8 @@ def source(ndim : int,
     Jdet = jacobian(ndim=ndim, element_type=element_type, order=order,
                     return_J=False, return_inv=False, return_det=True)
     integrand = N@volume_source*Jdet
+    if return_integrand:
+        return integrand
     return simplify_matrix(integrate(M=integrand,
                                      domain=ref,
                                      variables=x,

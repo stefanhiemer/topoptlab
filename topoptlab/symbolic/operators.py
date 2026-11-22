@@ -15,7 +15,8 @@ from topoptlab.symbolic.parametric_map import jacobian
 def aniso_laplacian(ndim: int, 
                     K: None | MatrixFunction = None,
                     element_type: str = "Lagrange",
-                    order: int = 1) -> MatrixFunction:
+                    order: int = 1,
+                    return_integrand: bool = False) -> MatrixFunction:
     """
     Symbolically compute the stiffness matrix for an anisotropic Laplacian 
     operator 
@@ -35,6 +36,9 @@ def aniso_laplacian(ndim: int,
         type of element.
     order : int
         order of element.
+    return_integrand : bool
+        if True, return the integrand (including the determinant of the
+        jacobian) without integrating it over the element.
 
     Returns
     -------
@@ -58,6 +62,8 @@ def aniso_laplacian(ndim: int,
     gradN = VectorFunction(basis).grad(ndim)@Jinv.transpose()
     #
     integrand = gradN@K@gradN.transpose() * Jdet
+    if return_integrand:
+        return integrand
     return simplify_matrix(integrate(M=integrand,
                                      domain=ref,
                                      variables=x,
@@ -69,7 +75,8 @@ def nonlin_laplacian(ndim: int,
                      K: None | MatrixFunction = None,
                      linearization="newton",
                      element_type: str = "Lagrange",
-                     order: int = 1) -> MatrixFunction:
+                     order: int = 1,
+                     return_integrand: bool = False) -> MatrixFunction:
     """
     Symbolically compute the (tangent) conductivity matrix for the (informal) 
     an anisotropic nonlinear Laplacian operator at point phi_0
@@ -96,6 +103,9 @@ def nonlin_laplacian(ndim: int,
         type of element.
     order : int
         order of element.
+    return_integrand : bool
+        if True, return the integrand (including the determinant of the
+        jacobian) without integrating it over the element.
 
     Returns
     -------
@@ -134,11 +144,13 @@ def nonlin_laplacian(ndim: int,
         integrand = integrand.subs("phi",values=phi0_interpol)
     elif linearization == "picard":
         integrand = integrand.subs("phi",values=phi0_interpol)
+    if return_integrand:
+        return integrand*Jdet
     return simplify_matrix( (integrand* Jdet).integral(ref,x))
 
 def hessian_matrix(scalarfield : bool, 
                    ndim : int, 
-                   integrate : bool = False,
+                   return_integrand : bool = True,
                    element_type : str = "Lagrange",
                    order : int = 1) -> MatrixFunction:
     """
@@ -156,8 +168,10 @@ def hessian_matrix(scalarfield : bool,
         components.
     ndim : int
         number of spatial dimensions
-    integrate : bool
-        if True, integrate the Hessian matrix over the element.
+    return_integrand : bool
+        if True, return the Hessian matrix at a point of the element.
+        Otherwise integrate it (multiplied with the determinant of the
+        jacobian) over the element.
     element_type : str
         type of element.
     order : int
@@ -198,7 +212,7 @@ def hessian_matrix(scalarfield : bool,
                for i in range(ndim**2)]
     hessian = MatrixFunction(hessian)
     #
-    if element_type is not None and integrate:
+    if element_type is not None and not return_integrand:
         hessian = (hessian*Jdet).integral(ref,x)
     #
     if not scalarfield:

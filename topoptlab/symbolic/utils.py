@@ -3,7 +3,8 @@ from multiprocessing import cpu_count
 
 import numpy as np
 
-from sympy import expand, simplify, Expr, collect, Function, Piecewise
+from sympy import expand, simplify, Expr, collect, Function, Piecewise,\
+                  Add, sympify
 
 def is_equal(expr1: Expr, 
              expr2: Expr)-> bool:
@@ -83,6 +84,38 @@ def split_expression(expression: Expr,
     return chunks
 
 
+
+def separate_terms(expression: Expr,
+                   variables: list) -> dict:
+    """
+    Separate an expression into terms that depend on the provided variables
+    and coefficients that do not, i. e.
+
+        expression = sum_k c_k * m_k(variables)
+
+    The expression is expanded first, so terms with a common denominator
+    depending on the variables stay together with that denominator. Used to
+    integrate a matrix by integrating each distinct term m_k only once.
+
+    Parameters
+    ----------
+    expression : sympy.Expr
+        sympy expression.
+    variables : list
+        list of sympy variables.
+
+    Returns
+    -------
+    terms : dict
+        keys are the terms m_k that depend on the variables (1 for the
+        constant part), values the coefficients c_k.
+
+    """
+    terms = {}
+    for term in Add.make_args(expand(sympify(expression))):
+        coeff, dep = term.as_independent(*variables, as_Add=False)
+        terms[dep] = terms.get(dep, 0) + coeff
+    return terms
 
 rect = np.array([[[-1,-1],[1,-1],[1,1],[-1,1]]])
 hexahedron = np.array([[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
@@ -191,7 +224,7 @@ def take_generic_branch(expression):
     
     Parameters
     ----------
-    expression : Expr
+    expression : Expr or symfem.functions.ScalarFunction
         sympy expression with Piecewise.
 
     Returns
@@ -200,6 +233,8 @@ def take_generic_branch(expression):
         main branch of given expression.
 
     """
+    if hasattr(expression, "as_sympy"):
+        expression = sympify(expression.as_sympy())
     return expression.replace(lambda e: isinstance(e,Piecewise), 
                               _choose_branch)
 

@@ -14,7 +14,8 @@ from topoptlab.symbolic.parametric_map import jacobian
 def inertia(ndim: int, 
             v: None | MatrixFunction = None,
             element_type: str = "Lagrange",
-            order: int = 1) -> MatrixFunction:
+            order: int = 1,
+            return_integrand: bool = False) -> MatrixFunction:
     """
     Symbolically compute the convective term and linearized inertia matrix of the
     navier stokes equations
@@ -31,6 +32,9 @@ def inertia(ndim: int,
         type of element.
     order : int
         order of element.
+    return_integrand : bool
+        if True, return the integrand (including the determinant of the
+        jacobian) without integrating it over the element.
 
     Returns
     -------
@@ -74,13 +78,16 @@ def inertia(ndim: int,
     #
     inertia_matrix = oseen + newt_corr
     #
+    convective_term = N_v@to_square(v=B_j@v, order="C")@N_v.transpose()@v
+    if return_integrand:
+        return inertia_matrix*Jdet, convective_term*Jdet
+    #
     inertia_matrix = simplify_matrix(integrate(M=inertia_matrix*Jdet,
                                                domain=ref,
                                                variables=x,
                                                dummy_vars=t,
                                                parallel=None,
                                                symmetry=False))
-    convective_term = N_v@to_square(v=B_j@v, order="C")@N_v.transpose()@v
     convective_term = simplify_matrix(integrate(M=convective_term*Jdet,
                                                 domain=ref,
                                                 variables=x,

@@ -13,7 +13,8 @@ def advection(ndim: int,
               v: None | MatrixFunction = None,
               element_type: str = "Lagrange",
               velocity: bool = False,
-              order: int = 1) -> MatrixFunction:
+              order: int = 1,
+              return_integrand: bool = False) -> MatrixFunction:
     """
     Symbolically compute the advection matrix given velocity field v
     
@@ -34,6 +35,9 @@ def advection(ndim: int,
         type of element.
     order : int
         order of element.
+    return_integrand : bool
+        if True, return the integrand (including the determinant of the
+        jacobian) without integrating it over the element.
 
     Returns
     -------
@@ -64,6 +68,8 @@ def advection(ndim: int,
         integrand = N@phi.transpose()@gradN@N_v.transpose()
     else:
         integrand = N@v.transpose()@N_v@gradN.transpose()
+    if return_integrand:
+        return integrand*Jdet
     return simplify_matrix(integrate(M=integrand*Jdet,
                                      domain=ref,
                                      variables=x,

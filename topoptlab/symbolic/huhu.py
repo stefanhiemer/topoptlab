@@ -1,13 +1,13 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 from typing import Any
 
-from sympy import exp,simplify
+from sympy import exp,simplify,factor
 from sympy.core.symbol import Symbol,Expr
 from symfem.symbols import x,t
 from symfem.functions import ScalarFunction,MatrixFunction
 
 from topoptlab.symbolic.matrix_utils import generate_constMatrix, \
-                                            to_column, simplify_matrix,integrate, factor
+                                            to_column, simplify_matrix,integrate
 from topoptlab.symbolic.strain_measures import def_grad, dispgrad_matrix
 from topoptlab.symbolic.operators import hessian_matrix
 from topoptlab.symbolic.cell import base_cell
@@ -19,7 +19,7 @@ def huhu_engdensity(u : None | MatrixFunction,
                     kr : None | Symbol | ScalarFunction = None,
                     element_type: str = "Lagrange",
                     order: int = 1,
-                    do_integral: bool = True,
+                    return_integrand: bool = False,
                     parallel: bool = False,
                     **kwargs: Any) -> ScalarFunction:
     """
@@ -63,7 +63,7 @@ def huhu_engdensity(u : None | MatrixFunction,
     #
     huhu = ScalarFunction( huhu )
     #
-    if element_type is not None and do_integral:
+    if element_type is not None and not return_integrand:
         huhu = integral(scalar_function=huhu,
                         domain=ref, 
                         vars=x, 
@@ -79,7 +79,7 @@ def huhu_tangent(u : None | MatrixFunction,
                  Fdet: None | Expr | ScalarFunction = None,
                  element_type: str = "Lagrange",
                  order: int = 1,
-                 do_integral: bool = True,
+                 return_integrand: bool = False,
                  mode : str = "picard",
                  **kwargs: Any) -> MatrixFunction:
     """
@@ -153,7 +153,7 @@ def huhu_tangent(u : None | MatrixFunction,
         #
         Ke = exp(-a*simplify(Fdet))*Ke
     #
-    if element_type is not None and do_integral:
+    if element_type is not None and not return_integrand:
         Ke = integrate(M=Ke*Jdet,
                        domain=ref,
                        variables=x,

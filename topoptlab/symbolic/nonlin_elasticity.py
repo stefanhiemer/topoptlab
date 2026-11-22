@@ -21,7 +21,8 @@ def tangentstiffness_matrix(ndim : int,
                             material_model: None | Callable,
                             material_constants: dict,
                             element_type : str ="Lagrange",
-                            order : int = 1) -> MatrixFunction:
+                            order : int = 1,
+                            return_integrand : bool = False) -> MatrixFunction:
     """
     Symbolically compute the tangent stiffness matrix for nonlinear elasticity.
 
@@ -42,6 +43,9 @@ def tangentstiffness_matrix(ndim : int,
         type of element.
     order : int
         order of element.
+    return_integrand : bool
+        if True, return the integrand (including the determinant of the
+        jacobian) without integrating it over the element.
 
     Returns
     -------
@@ -87,14 +91,16 @@ def tangentstiffness_matrix(ndim : int,
                     return_J=False, return_inv=False, return_det=True)
     # internal forces
     fe = b_dE.transpose()@s
+    S = kron(eye(ndim),from_voigt(s, eng_conv=False))
+    Ke = (b_dE.transpose()@c@b_dE + b_h.transpose()@S@b_h)* Jdet
+    if return_integrand:
+        return Ke, fe
     fe = simplify_matrix(M=integrate(M=fe,
                                      domain=ref,
                                      variables=x,
                                      dummy_vars=t, 
                                      parallel=None))
     # tangent stiffness matrix
-    S = kron(eye(ndim),from_voigt(s, eng_conv=False))
-    Ke = (b_dE.transpose()@c@b_dE + b_h.transpose()@S@b_h)* Jdet
     Ke = simplify_matrix(M=integrate(M=Ke,
                                      domain=ref,
                                      variables=x,
@@ -110,7 +116,8 @@ def residual(ndim : int,
              material_params: dict = dict(),
              element_type : str ="Lagrange",
              order : int = 1,
-             return_symbols: bool =False) -> MatrixFunction:
+             return_symbols: bool =False,
+             return_integrand: bool = False) -> MatrixFunction:
     """
     Symbolically compute the residual for nonlinear elasticity formulated in 
     terms of the 1. Piola-Kirchhoff (PK) stress P and the deformation gradient
@@ -140,6 +147,9 @@ def residual(ndim : int,
         type of element.
     order : int
         order of element.
+    return_integrand : bool
+        if True, return the integrand (including the determinant of the
+        jacobian) without integrating it over the element.
 
     Returns
     -------
@@ -182,7 +192,11 @@ def residual(ndim : int,
     Jdet = jacobian(ndim=ndim, element_type=element_type, order=order,
                     return_J=False, return_inv=False, return_det=True)
     integrand = b_h.transpose()@ to_column(P) * Jdet
-    if return_symbols:
+    if return_integrand and return_symbols:
+        return integrand, u_symbs
+    elif return_integrand:
+        return integrand
+    elif return_symbols:
         return simplify_matrix( integrand.integral(ref,x) ), u_symbs
     else:
         return simplify_matrix( integrand.integral(ref,x) )

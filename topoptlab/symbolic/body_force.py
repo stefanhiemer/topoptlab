@@ -9,7 +9,8 @@ from topoptlab.symbolic.parametric_map import jacobian
 
 def body_force(ndim: int,
                element_type: str = "Lagrange",
-               order: int = 1) -> MatrixFunction:
+               order: int = 1,
+               return_integrand: bool = False) -> MatrixFunction:
     """
     Symbolically compute the body force.
 
@@ -21,6 +22,9 @@ def body_force(ndim: int,
         type of element.
     order : int
         order of element.
+    return_integrand : bool
+        if True, return the integrand (including the determinant of the
+        jacobian) without integrating it over the element.
 
     Returns
     -------
@@ -38,6 +42,8 @@ def body_force(ndim: int,
     Jdet = jacobian(ndim=ndim, element_type=element_type, order=order,
                     return_J=False, return_inv=False, return_det=True)
     integrand = N@body_force*Jdet
+    if return_integrand:
+        return integrand
     return simplify_matrix(integrate(M=integrand,
                                      domain=ref,
                                      variables=x,

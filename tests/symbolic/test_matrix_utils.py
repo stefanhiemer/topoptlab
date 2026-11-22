@@ -234,3 +234,89 @@ def test_integrate(el,shape,order,ndim,mode,
     print(sol)
     assert actual == sol
     return
+
+from topoptlab.symbolic.matrix_utils import integrate_separated, generate_constMatrix
+from topoptlab.symbolic.utils import is_equal, separate_terms
+
+def test_separate_terms():
+    from sympy import symbols
+    a, b, X, Y = symbols("a b X Y")
+    expr = (a + b*X)*(1 + Y) + a/(1 + X*Y)
+    terms = separate_terms(expr, [X, Y])
+    assert set(terms) == {1, X, Y, X*Y, 1/(X*Y + 1)}
+    assert terms[1] == a and terms[X*Y] == b
+    assert is_equal(sum(c*m for m, c in terms.items()), expr)
+    return
+
+@pytest.mark.parametrize('simplify', [False, True])
+@pytest.mark.parametrize('shape,mode,symmetry,parallel,backend',
+                         [("triangle","matrix",True,False,"sympy"),
+                          ("quadrilateral","vector",False,False,"sympy"),
+                          ("quadrilateral","matrix",False,True,"sympy"),
+                          ("hexahedron","matrix",True,True,"sympy"),
+                          ("quadrilateral","laplace",False,False,"sympy"),
+                          ("quadrilateral","laplace",True,False,"symint")])
+def test_integrate_separated(shape, mode, symmetry, parallel, backend,
+                             simplify):
+    """
+    Compare integrate_separated with integrate for mass matrices, vectors of
+    shape functions and Laplacian with generic conductivity.
+    """
+    if backend == "symint":
+        pytest.importorskip("symintegral")
+    element = create_element(shape,
+                             "Lagrange" if shape == "triangle" else "Q", 1)
+    ref = create_reference(shape)
+    N = MatrixFunction([[b] for b in element.get_basis_functions()])
+    if mode == "vector":
+        integrand = flatten(N)
+    elif mode == "matrix":
+        integrand = N@N.transpose()
+    elif mode == "laplace":
+        G = MatrixFunction([[b.grad(2)[0], b.grad(2)[1]] \
+                            for b in element.get_basis_functions()])
+        c = generate_constMatrix(2, 2, "c", symmetric=True)
+        integrand = G@c@G.transpose()
+    #
+    sol = integrate(M=integrand, domain=ref, variables=x, dummy_vars=t,
+                    parallel=False)
+    actual = integrate_separated(M=integrand, domain=ref, variables=x,
+                                 dummy_vars=t, parallel=parallel,
+                                 symmetry=symmetry, backend=backend,
+                                 simplify=simplify)
+    if mode == "vector":
+        assert all(is_equal(actual[i].as_sympy(), sol[i].as_sympy()) \
+                   for i in range(sol.shape[0]))
+    else:
+        assert all(is_equal(actual[i][j].as_sympy(), sol[i][j].as_sympy()) \
+                   for i in range(sol.shape[0]) for j in range(sol.shape[1]))
+    return
+
+from topoptlab.symbolic.matrix_utils import common_factor
+
+def test_common_factor():
+    from sympy import symbols, tan
+    l1, l2, k, g = symbols("l1 l2 k g")
+    assert common_factor([2*k/(3*l1*l2), 4*k**2/(9*l1), 0,
+                          6*k*tan(g)/(l1*l2**2)]) == 2*k/(9*l1)
+    assert common_factor([l1, 1/l1]) == 1
+    assert common_factor([0, 0]) == 1
+    return
+
+def test_integrate_separated_factor():
+    """
+    Common prefactor is extracted and returned separately.
+    """
+    from sympy import symbols
+    k, l = symbols("k l")
+    element = create_element("quadrilateral", "Q", 1)
+    ref = create_reference("quadrilateral")
+    N = MatrixFunction([[b] for b in element.get_basis_functions()])
+    integrand = (N@N.transpose())*(6*k*l)
+    full = integrate(M=integrand, domain=ref, variables=x, dummy_vars=t)
+    M, factor = integrate_separated(M=integrand, domain=ref, variables=x,
+                                    dummy_vars=t, return_factor=True)
+    assert factor == 6*k*l
+    assert all(is_equal(M[i][j].as_sympy()*factor, full[i][j].as_sympy()) \
+               for i in range(4) for j in range(4))
+    return

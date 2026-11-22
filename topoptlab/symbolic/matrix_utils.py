@@ -7,13 +7,16 @@ from multiprocessing import Pool, cpu_count
 from tqdm import tqdm
 
 from sympy import symbols, Symbol, Function, Inverse, Trace,\
-                  factor_terms, sympify, Integer, Float
+                  factor_terms, sympify, Integer, Float, expand,\
+                  Integral, Rational, igcd, ilcm
 from sympy.core.expr import Expr
 from symfem.references import Reference
 from symfem.functions import ScalarFunction,VectorFunction,MatrixFunction
 from symfem.symbols import AxisVariablesNotSingle
 
-from topoptlab.symbolic.utils import is_equal, take_generic_branch
+from topoptlab.symbolic.utils import is_equal, take_generic_branch,\
+                                    separate_terms
+from topoptlab.symbolic.scalar_utils import _integrate_chunk
 
 def generate_constMatrix(ncol: int, nrow: int, name: str,
                          symmetric: bool = False,
@@ -521,6 +524,45 @@ def factor_matrix(M : VectorFunction | MatrixFunction,
     elif isvectorfunc:
         return VectorFunction(M_new), common_fac
 
+def common_factor(factors: list) -> Expr:
+    """
+    Greatest common factor of a list of products, e. g. the factors
+    extracted by _factor_expr. A base is part of the common factor if it
+    appears in every nonzero factor with exponents of the same sign; its
+    exponent is the one with the smallest magnitude. Rational numbers
+    contribute the gcd of their numerators divided by the lcm of their
+    denominators.
+
+    Parameters
+    ----------
+    factors : list
+        list of sympy expressions (products).
+
+    Returns
+    -------
+    common : sympy.Expr
+        common factor. 1 if there is none.
+
+    """
+    factors = [sympify(f) for f in factors if sympify(f) != 0]
+    if len(factors) == 0:
+        return Integer(1)
+    # numerical part
+    numbers = [f.as_coeff_Mul()[0] for f in factors]
+    common = Rational(igcd(*[abs(n.p) for n in numbers]),
+                      ilcm(*[n.q for n in numbers]))
+    # symbolic part
+    powers = [f.as_coeff_Mul()[1].as_powers_dict() for f in factors]
+    for base in powers[0]:
+        exps = [sympify(p.get(base, 0)) for p in powers]
+        if not all(e.is_number for e in exps):
+            continue
+        if all(e > 0 for e in exps):
+            common *= base**min(exps)
+        elif all(e < 0 for e in exps):
+            common *= base**max(exps)
+    return common
+
 def _simplify_expr(expression: ScalarFunction) -> ScalarFunction:
     """
     Simplify sympy expression.
@@ -585,7 +627,7 @@ def simplify_matrix(M: VectorFunction | MatrixFunction,
                                symmetry = symmetry)
     #
     if eliminate_piecewise:
-        M_new = _apply_elementwise(M=M, 
+        M_new = _apply_elementwise(M=M_new, 
                                    func = take_generic_branch,
                                    dscr = "Take general branch for piecewise expressions.",
                                    return_symfemfunc = True,
@@ -668,6 +710,320 @@ def integrate(M: VectorFunction | MatrixFunction,
                                            "dummy_vars": dummy_vars},
                               parallel = parallel, 
                               symmetry = symmetry)
+
+def integrate_separated(M: VectorFunction | MatrixFunction,
+                        domain: Reference,
+                        variables: AxisVariablesNotSingle,
+                        dummy_vars: AxisVariablesNotSingle,
+                        parallel: None | bool = None,
+                        parallel_threshold : int = 16,
+                        symmetry : None | bool = None,
+                        backend: str = "sympy",
+                        backend_kws: None | dict = None,
+                        simplify: bool = False,
+                        return_factor: bool = False
+                        ) -> VectorFunction | MatrixFunction | tuple:
+    """
+    Compute the integral of the VectorFunction or MatrixFunction element-wise
+    by integrating each distinct term only once. All entries are separated
+    into coefficients and terms depending on the variables
+
+        M_ij = sum_k c_ijk * m_k(variables),
+
+    the distinct terms m_k of all entries are collected, integrated (in
+    parallel), and the entries are reassembled by back-substitution
+
+        int M_ij = sum_k c_ijk * int m_k.
+
+    Entries of FEM matrices share most of their terms, so far fewer
+    integrals are needed than with integrate.
+
+    Parameters
+    ----------
+    M : symfem.functions.VectorFunction or symfem.functions.MatrixFunction.
+        vector or matrix to be integrated.
+    domain : symfem.references.Reference
+        domain of the integral
+    variables : symfem.symbols.AxisVariablesNotSingle
+        variables to integrate with respect to.
+    dummy_vars :  symfem.symbols.AxisVariablesNotSingle
+        dummy variables to use inside the integral.
+    parallel : None or bool
+        if True, separation, integration of the distinct terms and reassembly
+        are parallelized via Pool. If None, automatically switch to
+        parallelization if number of entries is larger than
+        parallel_threshold.
+    parallel_threshold : int
+        if parallel is None and number of entries > parallel_threshold,
+        parallelization is used.
+    symmetry : None or bool
+        if True, assume M to be symmetric and only separate the upper
+        triangle. Only applies to square matrices.
+    backend : str
+        integrator for the distinct terms. "sympy" uses sympy via the same
+        mapping as topoptlab.symbolic.scalar_utils.integral, "symint" uses
+        symintegral.integrate (optional dependency) on the same mapped
+        integral, e. g. for rational integrands of non-affine elements.
+    backend_kws : None or dict
+        keyword arguments passed to the integrator of the backend. Only used
+        for "symint", where it defaults to {"backends": ("sympy",)}.
+    simplify : bool
+        if True, simplify the result cheaply: each distinct integral is
+        simplified once, the terms of each entry are grouped by equal
+        integral values and only the grouped coefficients are expanded and
+        factored (sympy.factor_terms). Much faster than simplify_matrix on
+        the result, but the expressions are typically 15-20 % longer as no
+        full simplification of the entries is done.
+    return_factor : bool
+        the common prefactor of all entries that does not depend on the
+        variables (e. g. the determinant of the jacobian of affine cells or
+        material constants) is always pulled out before separation and
+        multiplied back at the end. If True, it is not multiplied back but
+        returned separately, so that M_integrated*factor is the integral.
+
+    Returns
+    -------
+    M_integrated : symfem.functions.VectorFunction or symfem.functions.MatrixFunction
+        element-wise integrated vector/matrix.
+    factor : sympy.Expr
+        common prefactor. Only returned if return_factor is True.
+
+    """
+    #
+    ismatrixfunc = isinstance(M, MatrixFunction)
+    if ismatrixfunc:
+        nrow, ncol = M.shape[0], M.shape[1]
+        if symmetry and nrow != ncol:
+            warn("symmetry only applies to square matrices. Symmetry will be ignored.")
+            symmetry = False
+        inds = [(i, j) for i in range(nrow)
+                for j in range(i if symmetry else 0, ncol)]
+        entries = [M[i][j] for i, j in inds]
+    elif isinstance(M, VectorFunction):
+        nrow = M.shape[0]
+        inds = [(i,) for i in range(nrow)]
+        entries = [M[i] for i in range(nrow)]
+    else:
+        raise TypeError("M must be either symfem.functions.MatrixFunction ",
+                        "or symfem.functions.VectorFunction. Current type: ",
+                        type(M))
+    # separate entries into coefficients and terms
+    variables = list(variables)
+    if backend_kws is None:
+        backend_kws = {}
+    if parallel is None:
+        parallel = len(entries) > parallel_threshold
+    pool = Pool(cpu_count()) if parallel else None
+    try:
+        separated = _map(pool, _separate_entry,
+                         [(e, variables) for e in entries],
+                         "Separation of entries.")
+        # extract common prefactor of all entries
+        factors = [sep[0] for sep in separated]
+        common = common_factor(factors)
+        separated = [{m: c*(f/common) for m, c in sep.items()} \
+                     for f, (_, sep) in zip(factors, separated)]
+        # distinct terms over all entries
+        unique = list(dict.fromkeys(m for sep in separated for m in sep))
+        # integrate distinct terms
+        values = _map(pool, _integrate_term,
+                      [(m, domain, variables, list(dummy_vars), backend,
+                        backend_kws, simplify) for m in unique],
+                      "Integration of distinct terms.")
+        values = dict(zip(unique, values))
+        # reassemble by back-substitution
+        # multiply common prefactor back in during reassembly
+        integrated = _map(pool, _reassemble_entry,
+                          [({m: values[m] for m in sep}, sep, simplify,
+                            Integer(1) if return_factor else common) \
+                           for sep in separated],
+                          "Reassembly of entries.")
+    finally:
+        if pool is not None:
+            pool.close()
+            pool.join()
+    if not ismatrixfunc:
+        M_new = VectorFunction(integrated)
+    else:
+        M_new = [[0 for j in range(ncol)] for i in range(nrow)]
+        for (i, j), v in zip(inds, integrated):
+            M_new[i][j] = v
+            if symmetry:
+                M_new[j][i] = v
+        M_new = MatrixFunction(M_new)
+    if return_factor:
+        return M_new, common
+    return M_new
+
+def _integrate_term(term: Expr,
+                    domain: Reference,
+                    variables: list,
+                    dummy_vars: list,
+                    backend: str,
+                    backend_kws: dict,
+                    simplify: bool = False) -> Expr:
+    """
+    Helper function for integrate_separated() that integrates one distinct
+    term over the domain.
+
+    Parameters
+    ----------
+    term : sympy.Expr
+        term to be integrated.
+    domain : symfem.references.Reference
+        domain of the integral
+    variables : list
+        variables to integrate with respect to.
+    dummy_vars : list
+        dummy variables to use inside the integral.
+    backend : str
+        either "sympy" or "symint".
+    backend_kws : dict
+        keyword arguments passed to the integrator of the backend.
+    simplify : bool
+        if True, simplify the integral.
+
+    Returns
+    -------
+    integrated : sympy.Expr
+        integral of term.
+
+    """
+    integrated = _integrate_term_backend(term=term, domain=domain,
+                                         variables=variables,
+                                         dummy_vars=dummy_vars,
+                                         backend=backend,
+                                         backend_kws=backend_kws)
+    if simplify:
+        return sympify(integrated).simplify()
+    return integrated
+
+def _integrate_term_backend(term: Expr,
+                            domain: Reference,
+                            variables: list,
+                            dummy_vars: list,
+                            backend: str,
+                            backend_kws: dict) -> Expr:
+    """
+    Integrate one term over the domain with the given backend. See
+    _integrate_term for the parameters.
+    """
+    if backend == "sympy":
+        point = VectorFunction(domain.origin)
+        for ti, a in zip(dummy_vars, domain.axes):
+            point += ti * VectorFunction(a)
+        return _integrate_chunk(expr=term,
+                                vars=variables,
+                                dummy_vars=dummy_vars,
+                                orig=[p.as_sympy() for p in point],
+                                jacobian=domain.jacobian(),
+                                limits=domain.integration_limits(dummy_vars))
+    elif backend == "symint":
+        from symintegral import integrate as symint_integrate
+        # map to reference cell as in topoptlab.symbolic.scalar_utils
+        point = VectorFunction(domain.origin)
+        for ti, a in zip(dummy_vars, domain.axes):
+            point += ti * VectorFunction(a)
+        expr = sympify(term)
+        for v, p in zip(variables, point):
+            expr = expr.subs(v, p.as_sympy())
+        kws = {"backends": ("sympy",)}
+        kws.update(backend_kws)
+        return symint_integrate(Integral(expr*domain.jacobian(),
+                                         *domain.integration_limits(dummy_vars)),
+                                **kws)
+    else:
+        raise ValueError(f"unknown backend: {backend}")
+
+def _separate_entry(entry: ScalarFunction,
+                    variables: list) -> dict:
+    """
+    Helper function for integrate_separated() that separates one entry into
+    terms depending on the variables and their coefficients.
+
+    Parameters
+    ----------
+    entry : symfem.functions.ScalarFunction
+        entry of matrix/vector.
+    variables : list
+        variables to integrate with respect to.
+
+    Returns
+    -------
+    factor : sympy.Expr
+        factor of the entry that does not depend on the variables.
+    separated : dict
+        keys are the terms, values the coefficients of the remainder.
+
+    """
+    factor, remainder = _factor_expr(expression=entry.as_sympy(),
+                                     variables=variables)
+    return factor, separate_terms(expression=remainder, variables=variables)
+
+def _reassemble_entry(values: dict,
+                      separated: dict,
+                      simplify: bool,
+                      factor: Expr = Integer(1)) -> Expr:
+    """
+    Helper function for integrate_separated() that reassembles one entry
+    from the integrated terms.
+
+    Parameters
+    ----------
+    values : dict
+        integrals of the terms of the entry.
+    separated : dict
+        keys are the terms, values the coefficients.
+    simplify : bool
+        if True, group the terms by equal integral values and expand and
+        factor the grouped coefficients.
+    factor : sympy.Expr
+        prefactor multiplied into the coefficients before expansion, so
+        that it can cancel with the coefficients.
+
+    Returns
+    -------
+    integrated : sympy.Expr
+        integrated entry.
+
+    """
+    if not simplify:
+        return factor*sum((c*values[m] for m, c in separated.items()),
+                          Integer(0))
+    grouped = {}
+    for m, c in separated.items():
+        if values[m] != 0:
+            grouped[values[m]] = grouped.get(values[m], 0) + c
+    return factor_terms(sum((factor_terms(expand(factor*c))*v \
+                             for v, c in grouped.items()), Integer(0)))
+
+def _map(pool: None | Pool,
+         func: Callable,
+         tasks: list,
+         dscr: str) -> list:
+    """
+    Apply func to the tasks serially or with the given Pool.
+
+    Parameters
+    ----------
+    pool : None or multiprocessing.Pool
+        pool. If None, serial execution.
+    func : callable
+        function applied to each task.
+    tasks : list
+        list of argument tuples.
+    dscr : str
+        description of function displayed on the progress bar.
+
+    Returns
+    -------
+    results : list
+        results in the order of the tasks.
+
+    """
+    if pool is None:
+        return [func(*task) for task in tasks]
+    return list(tqdm(pool.starmap(func, tasks), total=len(tasks), desc=dscr))
 
 def eye(size: int) -> MatrixFunction:
     """

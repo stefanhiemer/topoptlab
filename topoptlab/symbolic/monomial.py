@@ -12,7 +12,8 @@ def monomial(mononomial_order: int,
              scalarfield: bool,
              ndim: int,
              element_type: str = "Lagrange",
-             order: int = 1) -> MatrixFunction:
+             order: int = 1,
+             return_integrand: bool = False) -> MatrixFunction:
     """
     Symbolically compute the element matrix for the linearization of a
     monomial nonlinear (reaction) term u^n of a scalar field u, i.e.
@@ -33,6 +34,9 @@ def monomial(mononomial_order: int,
         type of element.
     order : int
         order of element.
+    return_integrand : bool
+        if True, return the integrand (including the determinant of the
+        jacobian) without integrating it over the element.
 
     Returns
     -------
@@ -64,6 +68,8 @@ def monomial(mononomial_order: int,
     for i in range(mononomial_order-1):
         integrand = integrand@uhat
     integrand = integrand@N.transpose()*Jdet
+    if return_integrand:
+        return integrand
     return simplify_matrix( integrand.integral(ref,x) )
 
 if __name__ == "__main__":

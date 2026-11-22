@@ -13,7 +13,8 @@ from topoptlab.symbolic.strain_measures import small_strain_matrix
 def stiffness_matrix(ndim : int,
                      c : None | MatrixFunction,
                      element_type : str ="Lagrange",
-                     order : int = 1) -> MatrixFunction:
+                     order : int = 1,
+                     return_integrand : bool = False) -> MatrixFunction:
     """
     Symbolically compute the stiffness matrix for linear elasticity.
 
@@ -27,6 +28,9 @@ def stiffness_matrix(ndim : int,
         type of element.
     order : int
         order of element.
+    return_integrand : bool
+        if True, return the integrand (including the determinant of the
+        jacobian) without integrating it over the element.
 
     Returns
     -------
@@ -51,6 +55,8 @@ def stiffness_matrix(ndim : int,
     Jdet = jacobian(ndim=ndim, element_type=element_type, order=order,
                     return_J=False, return_inv=False, return_det=True)
     integrand = b.transpose()@c@b * Jdet
+    if return_integrand:
+        return integrand
     return simplify_matrix(integrate(M=integrand,
                                      domain=ref,
                                      variables=x,
@@ -63,7 +69,8 @@ def strainforces(ndim : int,
                  c : None | MatrixFunction, 
                  plane_stress : bool = False,
                  element_type : str ="Lagrange",
-                 order : int = 1) -> MatrixFunction:
+                 order : int = 1,
+                 return_integrand : bool = False) -> MatrixFunction:
     """
     Symbolically compute the nodal forces due to a uniform strain for a 
     linear elastic material.
@@ -78,6 +85,9 @@ def strainforces(ndim : int,
         type of element.
     order : int
         order of element.
+    return_integrand : bool
+        if True, return the integrand (including the determinant of the
+        jacobian) without integrating it over the element.
 
     Returns
     -------
@@ -105,6 +115,8 @@ def strainforces(ndim : int,
     Jdet = jacobian(ndim=ndim, element_type=element_type, order=order,
                     return_J=False, return_inv=False, return_det=True)
     integrand = b.transpose()@c@eps * Jdet
+    if return_integrand:
+        return integrand
     return simplify_matrix(M=integrate(M=integrand,
                                        domain=ref,
                                        variables=x,

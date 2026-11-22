@@ -50,7 +50,8 @@ def run_mbb(ft: int) -> np.ndarray:
     return xPhys
 
 
-def save_design(xPhys: np.ndarray, file: str) -> None:
+def save_design(xPhys: np.ndarray, 
+                file: str) -> None:
     """
     Save design as png without axes, ticks or bounding box.
     """
@@ -62,6 +63,7 @@ def save_design(xPhys: np.ndarray, file: str) -> None:
     fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
     fig.savefig(file, bbox_inches="tight", pad_inches=0, dpi=200)
     plt.close(fig)
+    return
 
 
 if __name__ == "__main__":
