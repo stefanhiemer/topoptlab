@@ -1,0 +1,433 @@
+{
+  "timeout": 300,
+  "results": [
+    {
+      "element": "poisson",
+      "ndim": 1,
+      "backend": "sympy",
+      "entries": 3,
+      "terms total": 3,
+      "terms distinct": 1,
+      "times": {
+        "integrate serial": 0.01853054700040957,
+        "integrate parallel": 0.3230447889982315,
+        "separated serial": 0.002415799997834256,
+        "separated parallel": 0.09074472300198977
+      },
+      "identical": true,
+      "order": 1
+    },
+    {
+      "element": "poisson",
+      "ndim": 1,
+      "backend": "symint",
+      "entries": 3,
+      "terms total": 3,
+      "terms distinct": 1,
+      "times": {
+        "integrate serial": 0.0025611590026528575,
+        "integrate parallel": 0.07034451800063835,
+        "separated serial": 0.0008443240003543906,
+        "separated parallel": 0.07362254699910409
+      },
+      "identical": true,
+      "order": 1
+    },
+    {
+      "element": "poisson",
+      "ndim": 2,
+      "backend": "sympy",
+      "entries": 10,
+      "terms total": 56,
+      "terms distinct": 6,
+      "times": {
+        "integrate serial": 0.34232671200152254,
+        "integrate parallel": 0.21776029000102426,
+        "separated serial": 0.11037211199800367,
+        "separated parallel": 0.188392873002158
+      },
+      "identical": true,
+      "order": 1
+    },
+    {
+      "element": "poisson",
+      "ndim": 2,
+      "backend": "symint",
+      "entries": 10,
+      "terms total": 56,
+      "terms distinct": 6,
+      "times": {
+        "integrate serial": 0.09577586699742824,
+        "integrate parallel": 0.12070138399940333,
+        "separated serial": 0.057836862997646676,
+        "separated parallel": 0.14898723600344965
+      },
+      "identical": true,
+      "order": 1
+    },
+    {
+      "element": "poisson",
+      "ndim": 3,
+      "backend": "sympy",
+      "entries": 36,
+      "terms total": 764,
+      "terms distinct": 23,
+      "times": {
+        "integrate serial": 7.603345994000847,
+        "integrate parallel": 1.162271220000548,
+        "separated serial": 2.229367412001011,
+        "separated parallel": 0.5144372659997316
+      },
+      "identical": true,
+      "order": 1
+    },
+    {
+      "element": "poisson",
+      "ndim": 3,
+      "backend": "symint",
+      "entries": 36,
+      "terms total": 764,
+      "terms distinct": 23,
+      "times": {
+        "integrate serial": 2.2147389560013835,
+        "integrate parallel": 0.44446348199926433,
+        "separated serial": 0.937352913999348,
+        "separated parallel": 0.45530154399966705
+      },
+      "identical": true,
+      "order": 1
+    },
+    {
+      "element": "elasticity",
+      "ndim": 1,
+      "backend": "sympy",
+      "entries": 3,
+      "terms total": 3,
+      "terms distinct": 1,
+      "times": {
+        "integrate serial": 0.005254985000647139,
+        "integrate parallel": 0.09017121000215411,
+        "separated serial": 0.0033502180012874305,
+        "separated parallel": 0.09081994799998938
+      },
+      "identical": true,
+      "order": 1
+    },
+    {
+      "element": "elasticity",
+      "ndim": 1,
+      "backend": "symint",
+      "entries": 3,
+      "terms total": 3,
+      "terms distinct": 1,
+      "times": {
+        "integrate serial": 0.002022762997512473,
+        "integrate parallel": 0.07324186400001054,
+        "separated serial": 0.0008592640006099828,
+        "separated parallel": 0.08722705299805966
+      },
+      "identical": true,
+      "order": 1
+    },
+    {
+      "element": "elasticity",
+      "ndim": 2,
+      "backend": "sympy",
+      "entries": 36,
+      "terms total": 216,
+      "terms distinct": 6,
+      "times": {
+        "integrate serial": 1.6038181200019608,
+        "integrate parallel": 0.36568405899743084,
+        "separated serial": 0.3502847399977327,
+        "separated parallel": 0.20599223899989738
+      },
+      "identical": true,
+      "order": 1
+    },
+    {
+      "element": "elasticity",
+      "ndim": 2,
+      "backend": "symint",
+      "entries": 36,
+      "terms total": 216,
+      "terms distinct": 6,
+      "times": {
+        "integrate serial": 0.5044599219982047,
+        "integrate parallel": 0.1886430759986979,
+        "separated serial": 0.19608962799975416,
+        "separated parallel": 0.17325166999944486
+      },
+      "identical": true,
+      "order": 1
+    },
+    {
+      "element": "elasticity",
+      "ndim": 3,
+      "backend": "sympy",
+      "entries": 300,
+      "terms total": 6864,
+      "terms distinct": 23,
+      "times": {
+        "integrate serial": 91.67415176099894,
+        "integrate parallel": 13.370582318999368,
+        "separated serial": 22.753489107999485,
+        "separated parallel": 3.6383874679995643
+      },
+      "identical": true,
+      "order": 1
+    },
+    {
+      "element": "elasticity",
+      "ndim": 3,
+      "backend": "symint",
+      "entries": 300,
+      "terms total": 6864,
+      "terms distinct": 23,
+      "times": {
+        "integrate serial": 27.3568041360013,
+        "integrate parallel": 4.002028746999713,
+        "separated serial": 22.014953373000026,
+        "separated parallel": 3.611587524999777
+      },
+      "identical": true,
+      "order": 1
+    },
+    {
+      "element": "mass",
+      "ndim": 1,
+      "backend": "sympy",
+      "entries": 3,
+      "terms total": 8,
+      "terms distinct": 3,
+      "times": {
+        "integrate serial": 0.015078121999977157,
+        "integrate parallel": 0.09472160899895243,
+        "separated serial": 0.014945667000574758,
+        "separated parallel": 0.1206915940019826
+      },
+      "identical": true,
+      "order": 1
+    },
+    {
+      "element": "mass",
+      "ndim": 1,
+      "backend": "symint",
+      "entries": 3,
+      "terms total": 8,
+      "terms distinct": 3,
+      "times": {
+        "integrate serial": 0.005410814002971165,
+        "integrate parallel": 0.07679143700079294,
+        "separated serial": 0.004470624000532553,
+        "separated parallel": 0.10640915399926598
+      },
+      "identical": true,
+      "order": 1
+    },
+    {
+      "element": "mass",
+      "ndim": 2,
+      "backend": "sympy",
+      "entries": 36,
+      "terms total": 152,
+      "terms distinct": 10,
+      "times": {
+        "integrate serial": 0.233414370999526,
+        "integrate parallel": 0.168897889998334,
+        "separated serial": 0.11045008200017037,
+        "separated parallel": 0.14695337200100766
+      },
+      "identical": true,
+      "order": 1
+    },
+    {
+      "element": "mass",
+      "ndim": 2,
+      "backend": "symint",
+      "entries": 36,
+      "terms total": 152,
+      "terms distinct": 10,
+      "times": {
+        "integrate serial": 0.06781145200147876,
+        "integrate parallel": 0.1312335049988178,
+        "separated serial": 0.04536632000235841,
+        "separated parallel": 0.13303382000231068
+      },
+      "identical": true,
+      "order": 1
+    },
+    {
+      "element": "mass",
+      "ndim": 3,
+      "backend": "sympy",
+      "entries": 300,
+      "terms total": 2016,
+      "terms distinct": 28,
+      "times": {
+        "integrate serial": 2.939511078999203,
+        "integrate parallel": 0.5053473899970413,
+        "separated serial": 0.7998407849991054,
+        "separated parallel": 0.30800015100248856
+      },
+      "identical": true,
+      "order": 1
+    },
+    {
+      "element": "mass",
+      "ndim": 3,
+      "backend": "symint",
+      "entries": 300,
+      "terms total": 2016,
+      "terms distinct": 28,
+      "times": {
+        "integrate serial": 0.7146717620016716,
+        "integrate parallel": 0.2659346039981756,
+        "separated serial": 0.43574156500108074,
+        "separated parallel": 0.24467043500044383
+      },
+      "identical": true,
+      "order": 1
+    },
+    {
+      "element": "poisson",
+      "ndim": 1,
+      "order": 2,
+      "backend": "sympy",
+      "entries": 6,
+      "terms total": 13,
+      "terms distinct": 3,
+      "times": {
+        "integrate parallel": 0.3423648719981429,
+        "separated parallel": 0.12309483400167665
+      },
+      "identical": true
+    },
+    {
+      "element": "poisson",
+      "ndim": 1,
+      "order": 2,
+      "backend": "symint",
+      "entries": 6,
+      "terms total": 13,
+      "terms distinct": 3,
+      "times": {
+        "integrate parallel": 0.08173676799924579,
+        "separated parallel": 0.09261333100585034
+      },
+      "identical": true
+    },
+    {
+      "element": "poisson",
+      "ndim": 2,
+      "order": 2,
+      "backend": "sympy",
+      "entries": 45,
+      "terms total": 789,
+      "terms distinct": 22,
+      "times": {
+        "integrate parallel": 1.0213454969998566,
+        "separated parallel": 0.42300137400161475
+      },
+      "identical": true
+    },
+    {
+      "element": "poisson",
+      "ndim": 2,
+      "order": 2,
+      "backend": "symint",
+      "entries": 45,
+      "terms total": 789,
+      "terms distinct": 22,
+      "times": {
+        "integrate parallel": 0.5124512089969357,
+        "separated parallel": 0.36276848999841604
+      },
+      "identical": true
+    },
+    {
+      "element": "poisson",
+      "ndim": 3,
+      "order": 2,
+      "backend": "sympy",
+      "entries": 378,
+      "terms total": 35514,
+      "terms distinct": 121,
+      "times": {
+        "integrate parallel": 100.18484544399689,
+        "separated parallel": 18.723155685001984
+      },
+      "identical": true
+    },
+    {
+      "element": "poisson",
+      "ndim": 3,
+      "order": 2,
+      "backend": "symint",
+      "entries": 378,
+      "terms total": 35514,
+      "terms distinct": 121,
+      "times": {
+        "integrate parallel": 41.68902032299957,
+        "separated parallel": 18.829804264001723
+      },
+      "identical": true
+    },
+    {
+      "element": "elasticity",
+      "ndim": 1,
+      "order": 2,
+      "backend": "sympy",
+      "entries": 6,
+      "terms total": 13,
+      "terms distinct": 3,
+      "times": {
+        "integrate parallel": 0.0924366029939847,
+        "separated parallel": 0.12929607499972917
+      },
+      "identical": true
+    },
+    {
+      "element": "elasticity",
+      "ndim": 1,
+      "order": 2,
+      "backend": "symint",
+      "entries": 6,
+      "terms total": 13,
+      "terms distinct": 3,
+      "times": {
+        "integrate parallel": 0.07431392800208414,
+        "separated parallel": 0.09534684199752519
+      },
+      "identical": true
+    },
+    {
+      "element": "elasticity",
+      "ndim": 2,
+      "order": 2,
+      "backend": "sympy",
+      "entries": 171,
+      "terms total": 3051,
+      "terms distinct": 22,
+      "times": {
+        "integrate parallel": 4.3369565889952355,
+        "separated parallel": 1.2246393469977193
+      },
+      "identical": true
+    },
+    {
+      "element": "elasticity",
+      "ndim": 2,
+      "order": 2,
+      "backend": "symint",
+      "entries": 171,
+      "terms total": 3051,
+      "terms distinct": 22,
+      "times": {
+        "integrate parallel": 1.9664359320013318,
+        "separated parallel": 1.1736417799984338
+      },
+      "identical": true
+    }
+  ]
+}
