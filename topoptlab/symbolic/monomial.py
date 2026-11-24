@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 from symfem.functions import MatrixFunction
-from symfem.symbols import x
+from symfem.symbols import x, t
 
 from topoptlab.symbolic.cell import base_cell
+from topoptlab.symbolic.matrix_utils import integrate
 from topoptlab.symbolic.shapefunction_matrix import shape_function_matrix
 from topoptlab.symbolic.code_conversion import convert_to_code
 from topoptlab.symbolic.parametric_map import jacobian
@@ -13,7 +14,8 @@ def monomial(mononomial_order: int,
              ndim: int,
              element_type: str = "Lagrange",
              order: int = 1,
-             return_integrand: bool = False) -> MatrixFunction:
+             return_integrand: bool = False,
+             backend: str = "sympy") -> MatrixFunction:
     """
     Symbolically compute the element matrix for the linearization of a
     monomial nonlinear (reaction) term u^n of a scalar field u, i.e.
@@ -37,6 +39,9 @@ def monomial(mononomial_order: int,
     return_integrand : bool
         if True, return the integrand (including the determinant of the
         jacobian) without integrating it over the element.
+    backend : str
+        integration backend, either "sympy" or "symint". See
+        topoptlab.symbolic.scalar_utils.integrate_expression.
 
     Returns
     -------
@@ -49,7 +54,9 @@ def monomial(mononomial_order: int,
     if not scalarfield:
         raise NotImplementedError("Polynomial for vectorfields not yet implemented.")
     #
-    vertices, nd_inds, ref, basis  = base_cell(ndim)
+    vertices, nd_inds, ref, basis  = base_cell(ndim=ndim,
+                                               element_type=element_type,
+                                               order=order)
     # get shape functions as a column vector/matrix
     if scalarfield:
         N = MatrixFunction([[b] for b in basis])
@@ -70,7 +77,8 @@ def monomial(mononomial_order: int,
     integrand = integrand@N.transpose()*Jdet
     if return_integrand:
         return integrand
-    return simplify_matrix( integrand.integral(ref,x) )
+    return simplify_matrix(integrate(M=integrand, domain=ref, variables=x,
+                                     dummy_vars=t, backend=backend))
 
 if __name__ == "__main__":
     #

@@ -191,17 +191,20 @@ from symfem.symbols import x,t
 from symfem import create_element, create_reference
 
 from topoptlab.symbolic.matrix_utils import flatten,integrate
+from topoptlab.symbolic.utils import is_equal
 
-@pytest.mark.parametrize('el,shape,order,ndim,mode,symmetry,parallel',
-                         [("Lagrange","triangle",1,2,"vector",False,False), 
-                          ("Lagrange","triangle",1,2,"matrix",False,False), 
-                          ("Lagrange","triangle",1,2,"matrix",True,False),
-                          ("Lagrange","triangle",1,2,"vector",False,True),
-                          ("Lagrange","triangle",1,2,"matrix",False,True), 
-                          ("Lagrange","triangle",1,2,"matrix",True,True)])
+@pytest.mark.parametrize('el,shape,order,ndim,mode,symmetry,parallel,backend',
+                         [("Lagrange","triangle",1,2,"vector",False,False,"sympy"), 
+                          ("Lagrange","triangle",1,2,"matrix",False,False,"sympy"), 
+                          ("Lagrange","triangle",1,2,"matrix",True,False,"sympy"),
+                          ("Lagrange","triangle",1,2,"vector",False,True,"sympy"),
+                          ("Lagrange","triangle",1,2,"matrix",False,True,"sympy"), 
+                          ("Lagrange","triangle",1,2,"matrix",True,True,"sympy"),
+                          ("Lagrange","triangle",1,2,"vector",False,False,"symint"),
+                          ("Lagrange","triangle",1,2,"matrix",True,True,"symint")])
 
 def test_integrate(el,shape,order,ndim,mode, 
-                   symmetry,parallel):
+                   symmetry,parallel,backend):
     """
     Integrate shape functions N if vectorfunction, if matrixfunc 
     integrate N@N.T.
@@ -227,12 +230,16 @@ def test_integrate(el,shape,order,ndim,mode,
                        domain=ref, 
                        variables=x, 
                        dummy_vars=t, 
-                       parallel=parallel)
+                       parallel=parallel,
+                       symmetry=symmetry,
+                       backend=backend)
     #
-    print(actual)
-    print()
-    print(sol)
-    assert actual == sol
+    if mode == "vector":
+        assert all(is_equal(actual[i].as_sympy(), sol[i].as_sympy()) \
+                   for i in range(sol.shape[0]))
+    else:
+        assert all(is_equal(actual[i][j].as_sympy(), sol[i][j].as_sympy()) \
+                   for i in range(sol.shape[0]) for j in range(sol.shape[1]))
     return
 
 from topoptlab.symbolic.matrix_utils import integrate_separated, generate_constMatrix
@@ -255,15 +262,14 @@ def test_separate_terms():
                           ("quadrilateral","matrix",False,True,"sympy"),
                           ("hexahedron","matrix",True,True,"sympy"),
                           ("quadrilateral","laplace",False,False,"sympy"),
-                          ("quadrilateral","laplace",True,False,"symint")])
+                          ("quadrilateral","laplace",True,False,"symint"),
+                          ("hexahedron","matrix",True,True,"symint")])
 def test_integrate_separated(shape, mode, symmetry, parallel, backend,
                              simplify):
     """
     Compare integrate_separated with integrate for mass matrices, vectors of
     shape functions and Laplacian with generic conductivity.
     """
-    if backend == "symint":
-        pytest.importorskip("symintegral")
     element = create_element(shape,
                              "Lagrange" if shape == "triangle" else "Q", 1)
     ref = create_reference(shape)

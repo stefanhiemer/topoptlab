@@ -14,7 +14,8 @@ def source(ndim : int,
            volume_source : None | ScalarFunction = None,
            element_type : str = "Lagrange",
            order : int = 1,
-           return_integrand : bool = False) -> MatrixFunction:
+           return_integrand : bool = False,
+           backend : str = "sympy") -> MatrixFunction:
     """
     Symbolically compute the mass matrix.
 
@@ -29,6 +30,9 @@ def source(ndim : int,
     return_integrand : bool
         if True, return the integrand (including the determinant of the
         jacobian) without integrating it over the element.
+    backend : str
+        integration backend, either "sympy" or "symint". See
+        topoptlab.symbolic.scalar_utils.integrate_expression.
 
     Returns
     -------
@@ -37,7 +41,9 @@ def source(ndim : int,
 
     """
     #
-    vertices, nd_inds, ref, basis  = base_cell(ndim)
+    vertices, nd_inds, ref, basis  = base_cell(ndim=ndim,
+                                               element_type=element_type,
+                                               order=order)
     #
     if volume_source is None:
         volume_source = generate_constMatrix(ncol=1,nrow=1,name="b")
@@ -55,5 +61,6 @@ def source(ndim : int,
                                      variables=x,
                                      dummy_vars=t, 
                                      parallel=None, 
-                                     symmetry=False), 
+                                     symmetry=False,
+                                     backend=backend), 
                            symmetry=True)

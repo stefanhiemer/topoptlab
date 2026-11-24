@@ -18,7 +18,8 @@ def buckling_matrix(ndim : int,
                     c : None | MatrixFunction = None,
                     element_type : str ="Lagrange",
                     order : int = 1,
-                    return_integrand : bool = False) -> MatrixFunction:
+                    return_integrand : bool = False,
+                    backend : str = "sympy") -> MatrixFunction:
     """
     Symbolically compute the stress stiffness (geometric stiffness) matrix
     for linearized buckling
@@ -52,6 +53,9 @@ def buckling_matrix(ndim : int,
     return_integrand : bool
         if True, return the integrand (including the determinant of the
         jacobian) without integrating it over the element.
+    backend : str
+        integration backend, either "sympy" or "symint". See
+        topoptlab.symbolic.scalar_utils.integrate_expression.
 
     Returns
     -------
@@ -60,7 +64,9 @@ def buckling_matrix(ndim : int,
 
     """
     #
-    vertices, nd_inds, ref, basis = base_cell(ndim)
+    vertices, nd_inds, ref, basis = base_cell(ndim=ndim,
+                                              element_type=element_type,
+                                              order=order)
     # stress in Voigt notation
     if sigma is None:
         #
@@ -102,5 +108,6 @@ def buckling_matrix(ndim : int,
                                        variables=x,
                                        dummy_vars=t,
                                        parallel=None,
-                                       symmetry=True),
+                                       symmetry=True,
+                                       backend=backend),
                            symmetry=True)

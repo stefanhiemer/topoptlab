@@ -136,7 +136,9 @@ def eng_strain(ndim: int,
 
     """
     #
-    vertices, nd_inds, ref, basis  = base_cell(ndim)
+    vertices, nd_inds, ref, basis  = base_cell(ndim=ndim,
+                                               element_type=element_type,
+                                               order=order)
     # small strain matrix
     b = small_strain_matrix(ndim=ndim,
                             nd_inds=nd_inds,
@@ -226,7 +228,9 @@ def disp_grad(ndim: int,
 
     """
     #
-    vertices, nd_inds, ref, basis  = base_cell(ndim)
+    vertices, nd_inds, ref, basis  = base_cell(ndim=ndim,
+                                               element_type=element_type,
+                                               order=order)
     # small strain matrix
     b = dispgrad_matrix(ndim=ndim,
                         nd_inds=nd_inds,

@@ -428,6 +428,118 @@
         "separated parallel": 1.1736417799984338
       },
       "identical": true
+    },
+    {
+      "element": "elasticity",
+      "ndim": 3,
+      "order": 2,
+      "backend": "sympy",
+      "entries": 3321,
+      "terms total": 316587,
+      "terms distinct": 121,
+      "times": {
+        "integrate parallel": null,
+        "separated parallel": 229.23483051499898
+      },
+      "identical": null
+    },
+    {
+      "element": "elasticity",
+      "ndim": 3,
+      "order": 2,
+      "backend": "symint",
+      "entries": 3321,
+      "terms total": 316587,
+      "terms distinct": 121,
+      "times": {
+        "integrate parallel": null,
+        "separated parallel": 238.5172761649992
+      },
+      "identical": null
+    },
+    {
+      "element": "mass",
+      "ndim": 1,
+      "order": 2,
+      "backend": "sympy",
+      "entries": 6,
+      "terms total": 19,
+      "terms distinct": 5,
+      "times": {
+        "integrate parallel": 0.10323747199981881,
+        "separated parallel": 0.12375709600019036
+      },
+      "identical": true
+    },
+    {
+      "element": "mass",
+      "ndim": 1,
+      "order": 2,
+      "backend": "symint",
+      "entries": 6,
+      "terms total": 19,
+      "terms distinct": 5,
+      "times": {
+        "integrate parallel": 0.06844710000041232,
+        "separated parallel": 0.09023587699994096
+      },
+      "identical": true
+    },
+    {
+      "element": "mass",
+      "ndim": 2,
+      "order": 2,
+      "backend": "sympy",
+      "entries": 171,
+      "terms total": 1003,
+      "terms distinct": 26,
+      "times": {
+        "integrate parallel": 0.49951943599990045,
+        "separated parallel": 0.2966635689990653
+      },
+      "identical": true
+    },
+    {
+      "element": "mass",
+      "ndim": 2,
+      "order": 2,
+      "backend": "symint",
+      "entries": 171,
+      "terms total": 1003,
+      "terms distinct": 26,
+      "times": {
+        "integrate parallel": 0.26666053099870624,
+        "separated parallel": 0.25351798700103245
+      },
+      "identical": true
+    },
+    {
+      "element": "mass",
+      "ndim": 3,
+      "order": 2,
+      "backend": "sympy",
+      "entries": 3321,
+      "terms total": 39864,
+      "terms distinct": 126,
+      "times": {
+        "integrate parallel": 17.459987890000775,
+        "separated parallel": 6.358997520999765
+      },
+      "identical": true
+    },
+    {
+      "element": "mass",
+      "ndim": 3,
+      "order": 2,
+      "backend": "symint",
+      "entries": 3321,
+      "terms total": 39864,
+      "terms distinct": 126,
+      "times": {
+        "integrate parallel": 7.721078729999135,
+        "separated parallel": 5.858612989000903
+      },
+      "identical": true
     }
   ]
 }

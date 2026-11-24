@@ -43,6 +43,6 @@ jobs:
           if ! git diff --quiet -- README.md; then
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git commit -am "docs: update coverage badge to ${PCT}% [skip ci]" -- README.md
+            git commit -m "docs: update coverage badge to ${PCT}% [skip ci]" -- README.md
             git push
           fi

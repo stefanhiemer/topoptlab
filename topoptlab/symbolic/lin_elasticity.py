@@ -14,7 +14,8 @@ def stiffness_matrix(ndim : int,
                      c : None | MatrixFunction,
                      element_type : str ="Lagrange",
                      order : int = 1,
-                     return_integrand : bool = False) -> MatrixFunction:
+                     return_integrand : bool = False,
+                     backend : str = "sympy") -> MatrixFunction:
     """
     Symbolically compute the stiffness matrix for linear elasticity.
 
@@ -31,6 +32,9 @@ def stiffness_matrix(ndim : int,
     return_integrand : bool
         if True, return the integrand (including the determinant of the
         jacobian) without integrating it over the element.
+    backend : str
+        integration backend, either "sympy" or "symint". See
+        topoptlab.symbolic.scalar_utils.integrate_expression.
 
     Returns
     -------
@@ -39,7 +43,9 @@ def stiffness_matrix(ndim : int,
 
     """
     #
-    vertices, nd_inds, ref, basis = base_cell(ndim)
+    vertices, nd_inds, ref, basis = base_cell(ndim=ndim,
+                                              element_type=element_type,
+                                              order=order)
     # anisotropic stiffness tensor or equivalent in Voigt notation 
     if c is None:
         c = generate_constMatrix(ncol=int((ndim**2 + ndim) /2),
@@ -62,7 +68,8 @@ def stiffness_matrix(ndim : int,
                                      variables=x,
                                      dummy_vars=t, 
                                      parallel=None, 
-                                     symmetry=True), 
+                                     symmetry=True,
+                                     backend=backend), 
                            symmetry=True) #simplify_matrix( integrand.integral(ref,x,t) )
 
 def strainforces(ndim : int,
@@ -70,7 +77,8 @@ def strainforces(ndim : int,
                  plane_stress : bool = False,
                  element_type : str ="Lagrange",
                  order : int = 1,
-                 return_integrand : bool = False) -> MatrixFunction:
+                 return_integrand : bool = False,
+                 backend : str = "sympy") -> MatrixFunction:
     """
     Symbolically compute the nodal forces due to a uniform strain for a 
     linear elastic material.
@@ -88,6 +96,9 @@ def strainforces(ndim : int,
     return_integrand : bool
         if True, return the integrand (including the determinant of the
         jacobian) without integrating it over the element.
+    backend : str
+        integration backend, either "sympy" or "symint". See
+        topoptlab.symbolic.scalar_utils.integrate_expression.
 
     Returns
     -------
@@ -96,7 +107,9 @@ def strainforces(ndim : int,
 
     """
     #
-    vertices, nd_inds, ref, basis  = base_cell(ndim)
+    vertices, nd_inds, ref, basis  = base_cell(ndim=ndim,
+                                               element_type=element_type,
+                                               order=order)
     # anisotropic stiffness tensor or equivalent in Voigt notation
     if c is None:
         c = generate_constMatrix(ncol=int((ndim**2 + ndim) /2),
@@ -122,5 +135,6 @@ def strainforces(ndim : int,
                                        variables=x,
                                        dummy_vars=t, 
                                        parallel=None, 
-                                       symmetry=False))
+                                       symmetry=False,
+                                       backend=backend))
 

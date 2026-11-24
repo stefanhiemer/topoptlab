@@ -24,6 +24,7 @@ dependencies = ["numpy",
                 "mmapy",
                 "meshio",
                 "symfem",
+                "symintegral",
                 "pyamg",
                 "tqdm"]
 

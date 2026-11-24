@@ -34,11 +34,6 @@ Symbolically compute mass matrix.
 
 Symbolically compute matrix of a monomial of order >2.
 
-### `node_ordering.py`
-
-Find index of each vertex by finding the element basis function that amounts 
-to 1.
-
 ### `orthotropic_invariants.py`
 
 Calculate stress invariants for orthotropic materials symbolically. Only viable 

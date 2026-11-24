@@ -1046,3 +1046,85 @@ def element_adjacency(elnodes: np.ndarray,
     return coo_array((np.ones(mask.sum()),
                       (shared.row[mask], shared.col[mask])),
                      shape=(n_el, n_el)).tocsr()
+
+def adjacency(nelx: int,
+              nely: None | int = None,
+              nelz: None | int = None,
+              pbc: None | list | np.ndarray = None) -> np.ndarray:
+    """
+    Create the adjacency list of the standard regular grid, i. e. all
+    elements that share a face (2/4/6 in 1/2/3D). are listed once.
+
+    Parameters
+    ----------
+    nelx : int
+        number of elements in x direction.
+    nely : None or int
+        number of elements in y direction. If None, a 1D grid is assumed.
+    nelz : None or int
+        number of elements in z direction. If None, a 2D grid is assumed.
+    pbc : None or list or np.ndarray of shape/len ndim or 1 with elements of datatype bool
+        periodic boundary condition flags in the order x, y(, z). A single
+        flag is applied to all directions. If None, no periodicity.
+
+    Returns
+    -------
+    adj : np.ndarray, shape (n_pairs,2)
+        index pairs (i,j) of adjacent elements. j is the neighbor of i in
+        positive y, x or z direction (in this order for each element i), so
+        i < j except for pairs that wrap around a periodic boundary. For a
+        periodic direction with only one or two elements, self loops or
+        duplicate pairs occur.
+
+    """
+    #
+    if nely is None:
+        ndim = 1
+    elif nelz is None:
+        ndim = 2
+    else:
+        ndim = 3
+    nel = int(np.prod([nelx,nely,nelz][:ndim]))
+    #
+    if pbc is None:
+        pbc = False
+    pbc = np.asarray(pbc)
+    if pbc.shape[0] != ndim and pbc.shape[0] == 1:
+        pbc = np.repeat(pbc,ndim)
+    #
+    i = np.arange(nel)[:,None]
+    j = i + np.array([1,nely,nelx*nely])[None,:ndim]
+    i = np.tile(i,(1,2**ndim))
+    # remap for pbc
+    # x
+    if ndim == 1 and pbc[0]:
+        j[-1] = 0
+    elif ndim == 2 and pbc[0]:
+        j[-nely:,1] = np.arange(nely)
+    elif ndim == 3 and pbc[0]:
+        j[(i[:,0] % (nelx*nely)) // nely == nelx-1, 1] -= nelx*nely
+    # y
+    if ndim > 1 and pbc[1]:
+        j[nely-1::nely,0] -= nely # y
+    # z
+    if ndim > 2 and pbc[2]:
+        j[-nelx*nely:,2] = np.arange(nelx*nely)
+    # kill too big entries without pbc
+    # x
+    if ndim == 1 and not pbc[0]:
+        j[-1] = -1
+    elif ndim == 2 and not pbc[0]:
+        j[-nely:,1] = -1
+    elif ndim == 3 and not pbc[0]:
+        j[(i[:,0] % (nelx*nely)) // nely == nelx-1, 1] = -1
+    # y
+    if ndim > 1 and not pbc[1]:
+        j[nely-1::nely,0] = -1
+    # z
+    if ndim > 2 and not pbc[2]:
+        j[-nelx*nely:,2] = -1
+    #
+    mask = j.flatten() != -1
+    adj = np.column_stack((i.flatten()[mask],
+                           j.flatten()[mask]))
+    return adj

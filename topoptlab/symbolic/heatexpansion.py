@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 from symfem.functions import MatrixFunction
-from symfem.symbols import x
+from symfem.symbols import x, t
 from sympy import symbols
 
 from topoptlab.symbolic.cell import base_cell
+from topoptlab.symbolic.matrix_utils import integrate
 from topoptlab.symbolic.matrix_utils import simplify_matrix, generate_constMatrix
 from topoptlab.symbolic.parametric_map import jacobian
 from topoptlab.symbolic.strain_measures import small_strain_matrix
@@ -13,7 +14,8 @@ from topoptlab.symbolic.stiffness_tensors import stifftens_isotropic
 def heatexp_iso(ndim: int,
                 element_type: str = "Lagrange",
                 order: int = 1,
-                return_integrand: bool = False) -> MatrixFunction:
+                return_integrand: bool = False,
+                backend: str = "sympy") -> MatrixFunction:
     """
     Symbolically compute the heat expansion matrix for linear elasticity of an 
     isotropic material.
@@ -29,6 +31,9 @@ def heatexp_iso(ndim: int,
     return_integrand : bool
         if True, return the integrand (including the determinant of the
         jacobian) without integrating it over the element.
+    backend : str
+        integration backend, either "sympy" or "symint". See
+        topoptlab.symbolic.scalar_utils.integrate_expression.
 
     Returns
     -------
@@ -37,7 +42,9 @@ def heatexp_iso(ndim: int,
 
     """
     #
-    vertices, nd_inds, ref, basis  = base_cell(ndim)
+    vertices, nd_inds, ref, basis  = base_cell(ndim=ndim,
+                                               element_type=element_type,
+                                               order=order)
     # anisotropic stiffness tensor or equivalent in Voigt notation
     c = stifftens_isotropic(ndim)
     # transpose of shape functions
@@ -57,12 +64,14 @@ def heatexp_iso(ndim: int,
     integrand = b.transpose()@c@a@NT * Jdet
     if return_integrand:
         return integrand
-    return simplify_matrix(integrand.integral(ref,x))
+    return simplify_matrix(integrate(M=integrand, domain=ref, variables=x,
+                                     dummy_vars=t, backend=backend))
 
 def heatexp_aniso(ndim: int,
                   element_type: str = "Lagrange",
                   order: int = 1,
-                  return_integrand: bool = False) -> MatrixFunction:
+                  return_integrand: bool = False,
+                  backend: str = "sympy") -> MatrixFunction:
     """
     Symbolically compute the heat expansion matrix for linear elasticity of an 
     anisotropic material.
@@ -78,6 +87,9 @@ def heatexp_aniso(ndim: int,
     return_integrand : bool
         if True, return the integrand (including the determinant of the
         jacobian) without integrating it over the element.
+    backend : str
+        integration backend, either "sympy" or "symint". See
+        topoptlab.symbolic.scalar_utils.integrate_expression.
 
     Returns
     -------
@@ -86,7 +98,9 @@ def heatexp_aniso(ndim: int,
 
     """
     #
-    vertices, nd_inds, ref, basis  = base_cell(ndim)
+    vertices, nd_inds, ref, basis  = base_cell(ndim=ndim,
+                                               element_type=element_type,
+                                               order=order)
     # anisotropic stiffness tensor or equivalent in Voigt notation
     c = generate_constMatrix(int((ndim**2 + ndim) /2),
                              int((ndim**2 + ndim) /2),
@@ -109,4 +123,5 @@ def heatexp_aniso(ndim: int,
     integrand = b.transpose()@c@a@NT * Jdet
     if return_integrand:
         return integrand
-    return integrand.integral(ref,x)
+    return integrate(M=integrand, domain=ref, variables=x, dummy_vars=t,
+                     backend=backend)

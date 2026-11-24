@@ -20,6 +20,7 @@ def huhu_engdensity(u : None | MatrixFunction,
                     element_type: str = "Lagrange",
                     order: int = 1,
                     return_integrand: bool = False,
+                    backend: str = "sympy",
                     parallel: bool = False,
                     **kwargs: Any) -> ScalarFunction:
     """
@@ -68,7 +69,8 @@ def huhu_engdensity(u : None | MatrixFunction,
                         domain=ref, 
                         vars=x, 
                         dummy_vars=t,
-                        parallel=parallel)
+                        parallel=parallel,
+                        backend=backend)
     return ScalarFunction(factor(huhu._f))
 
 def huhu_tangent(u : None | MatrixFunction, 
@@ -80,6 +82,7 @@ def huhu_tangent(u : None | MatrixFunction,
                  element_type: str = "Lagrange",
                  order: int = 1,
                  return_integrand: bool = False,
+                 backend: str = "sympy",
                  mode : str = "picard",
                  **kwargs: Any) -> MatrixFunction:
     """
@@ -159,13 +162,15 @@ def huhu_tangent(u : None | MatrixFunction,
                        variables=x,
                        dummy_vars=t,
                        parallel=None, 
-                       symmetry=any([mode=="picard",a is None]))
+                       symmetry=any([mode=="picard",a is None]),
+                       backend=backend)
         if a is not None:
             fe = integrate(M=fe*Jdet,
                            domain=ref,
                            variables=x,
                            dummy_vars=t,
-                           parallel=None)
+                           parallel=None,
+                           backend=backend)
             return Ke, fe
         else:
             return Ke

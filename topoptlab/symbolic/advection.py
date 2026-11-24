@@ -14,7 +14,8 @@ def advection(ndim: int,
               element_type: str = "Lagrange",
               velocity: bool = False,
               order: int = 1,
-              return_integrand: bool = False) -> MatrixFunction:
+              return_integrand: bool = False,
+              backend: str = "sympy") -> MatrixFunction:
     """
     Symbolically compute the advection matrix given velocity field v
     
@@ -38,6 +39,9 @@ def advection(ndim: int,
     return_integrand : bool
         if True, return the integrand (including the determinant of the
         jacobian) without integrating it over the element.
+    backend : str
+        integration backend, either "sympy" or "symint". See
+        topoptlab.symbolic.scalar_utils.integrate_expression.
 
     Returns
     -------
@@ -75,11 +79,5 @@ def advection(ndim: int,
                                      variables=x,
                                      dummy_vars=t,
                                      parallel=None,
-                                     symmetry=False))
-
-if  __name__ == "__main__":
-    ndim = 2
-    Ke = advection(ndim=ndim,
-                   element_type="Lagrange",
-                   order=1)
-    print(Ke)
+                                     symmetry=False,
+                                     backend=backend))

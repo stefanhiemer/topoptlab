@@ -16,7 +16,8 @@ def aniso_laplacian(ndim: int,
                     K: None | MatrixFunction = None,
                     element_type: str = "Lagrange",
                     order: int = 1,
-                    return_integrand: bool = False) -> MatrixFunction:
+                    return_integrand: bool = False,
+                    backend: str = "sympy") -> MatrixFunction:
     """
     Symbolically compute the stiffness matrix for an anisotropic Laplacian 
     operator 
@@ -39,6 +40,9 @@ def aniso_laplacian(ndim: int,
     return_integrand : bool
         if True, return the integrand (including the determinant of the
         jacobian) without integrating it over the element.
+    backend : str
+        integration backend, either "sympy" or "symint". See
+        topoptlab.symbolic.scalar_utils.integrate_expression.
 
     Returns
     -------
@@ -69,14 +73,16 @@ def aniso_laplacian(ndim: int,
                                      variables=x,
                                      dummy_vars=t, 
                                      parallel=None, 
-                                     symmetry=True))
+                                     symmetry=True,
+                                     backend=backend))
 
 def nonlin_laplacian(ndim: int, 
                      K: None | MatrixFunction = None,
                      linearization="newton",
                      element_type: str = "Lagrange",
                      order: int = 1,
-                     return_integrand: bool = False) -> MatrixFunction:
+                     return_integrand: bool = False,
+                     backend: str = "sympy") -> MatrixFunction:
     """
     Symbolically compute the (tangent) conductivity matrix for the (informal) 
     an anisotropic nonlinear Laplacian operator at point phi_0
@@ -106,6 +112,9 @@ def nonlin_laplacian(ndim: int,
     return_integrand : bool
         if True, return the integrand (including the determinant of the
         jacobian) without integrating it over the element.
+    backend : str
+        integration backend, either "sympy" or "symint". See
+        topoptlab.symbolic.scalar_utils.integrate_expression.
 
     Returns
     -------
@@ -146,11 +155,14 @@ def nonlin_laplacian(ndim: int,
         integrand = integrand.subs("phi",values=phi0_interpol)
     if return_integrand:
         return integrand*Jdet
-    return simplify_matrix( (integrand* Jdet).integral(ref,x))
+    return simplify_matrix(integrate(M=integrand*Jdet, domain=ref, variables=x,
+                                     dummy_vars=t,
+                                     backend=backend))
 
 def hessian_matrix(scalarfield : bool, 
                    ndim : int, 
                    return_integrand : bool = True,
+                   backend : str = "sympy",
                    element_type : str = "Lagrange",
                    order : int = 1) -> MatrixFunction:
     """
@@ -172,6 +184,9 @@ def hessian_matrix(scalarfield : bool,
         if True, return the Hessian matrix at a point of the element.
         Otherwise integrate it (multiplied with the determinant of the
         jacobian) over the element.
+    backend : str
+        integration backend, either "sympy" or "symint". See
+        topoptlab.symbolic.scalar_utils.integrate_expression.
     element_type : str
         type of element.
     order : int
@@ -213,7 +228,9 @@ def hessian_matrix(scalarfield : bool,
     hessian = MatrixFunction(hessian)
     #
     if element_type is not None and not return_integrand:
-        hessian = (hessian*Jdet).integral(ref,x)
+        hessian = integrate(M=hessian*Jdet, domain=ref, variables=x,
+                            dummy_vars=t,
+                            backend=backend)
     #
     if not scalarfield:
         return kron( simplify_matrix(hessian),eye(size=ndim))

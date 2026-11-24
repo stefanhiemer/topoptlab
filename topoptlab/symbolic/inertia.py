@@ -15,7 +15,8 @@ def inertia(ndim: int,
             v: None | MatrixFunction = None,
             element_type: str = "Lagrange",
             order: int = 1,
-            return_integrand: bool = False) -> MatrixFunction:
+            return_integrand: bool = False,
+            backend: str = "sympy") -> MatrixFunction:
     """
     Symbolically compute the convective term and linearized inertia matrix of the
     navier stokes equations
@@ -35,6 +36,9 @@ def inertia(ndim: int,
     return_integrand : bool
         if True, return the integrand (including the determinant of the
         jacobian) without integrating it over the element.
+    backend : str
+        integration backend, either "sympy" or "symint". See
+        topoptlab.symbolic.scalar_utils.integrate_expression.
 
     Returns
     -------
@@ -87,13 +91,15 @@ def inertia(ndim: int,
                                                variables=x,
                                                dummy_vars=t,
                                                parallel=None,
-                                               symmetry=False))
+                                               symmetry=False,
+                                               backend=backend))
     convective_term = simplify_matrix(integrate(M=convective_term*Jdet,
                                                 domain=ref,
                                                 variables=x,
                                                 dummy_vars=t,
                                                 parallel=None,
-                                                symmetry=False))
+                                                symmetry=False,
+                                                backend=backend))
     return inertia_matrix, convective_term
 
 if  __name__ == "__main__":

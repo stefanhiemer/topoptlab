@@ -22,7 +22,8 @@ def tangentstiffness_matrix(ndim : int,
                             material_constants: dict,
                             element_type : str ="Lagrange",
                             order : int = 1,
-                            return_integrand : bool = False) -> MatrixFunction:
+                            return_integrand : bool = False,
+                            backend : str = "sympy") -> MatrixFunction:
     """
     Symbolically compute the tangent stiffness matrix for nonlinear elasticity.
 
@@ -46,6 +47,9 @@ def tangentstiffness_matrix(ndim : int,
     return_integrand : bool
         if True, return the integrand (including the determinant of the
         jacobian) without integrating it over the element.
+    backend : str
+        integration backend, either "sympy" or "symint". See
+        topoptlab.symbolic.scalar_utils.integrate_expression.
 
     Returns
     -------
@@ -56,7 +60,9 @@ def tangentstiffness_matrix(ndim : int,
 
     """
     #
-    vertices, nd_inds, ref, basis = base_cell(ndim)
+    vertices, nd_inds, ref, basis = base_cell(ndim=ndim,
+                                              element_type=element_type,
+                                              order=order)
     #
     if u is None:
         u = generate_constMatrix(ncol=1,
@@ -99,13 +105,15 @@ def tangentstiffness_matrix(ndim : int,
                                      domain=ref,
                                      variables=x,
                                      dummy_vars=t, 
-                                     parallel=None))
+                                     parallel=None,
+                                     backend=backend))
     # tangent stiffness matrix
     Ke = simplify_matrix(M=integrate(M=Ke,
                                      domain=ref,
                                      variables=x,
                                      dummy_vars=t, 
-                                     parallel=None))
+                                     parallel=None,
+                                     backend=backend))
     
     return Ke, fe
 
@@ -117,7 +125,8 @@ def residual(ndim : int,
              element_type : str ="Lagrange",
              order : int = 1,
              return_symbols: bool =False,
-             return_integrand: bool = False) -> MatrixFunction:
+             return_integrand: bool = False,
+             backend: str = "sympy") -> MatrixFunction:
     """
     Symbolically compute the residual for nonlinear elasticity formulated in 
     terms of the 1. Piola-Kirchhoff (PK) stress P and the deformation gradient
@@ -150,6 +159,9 @@ def residual(ndim : int,
     return_integrand : bool
         if True, return the integrand (including the determinant of the
         jacobian) without integrating it over the element.
+    backend : str
+        integration backend, either "sympy" or "symint". See
+        topoptlab.symbolic.scalar_utils.integrate_expression.
 
     Returns
     -------
@@ -158,7 +170,9 @@ def residual(ndim : int,
 
     """
     #
-    vertices, nd_inds, ref, basis  = base_cell(ndim)
+    vertices, nd_inds, ref, basis  = base_cell(ndim=ndim,
+                                               element_type=element_type,
+                                               order=order)
     #
     u,u_symbs = generate_constMatrix(ncol=1, nrow=len(basis)*ndim, name="u",
                                      return_symbols=True)
@@ -197,9 +211,13 @@ def residual(ndim : int,
     elif return_integrand:
         return integrand
     elif return_symbols:
-        return simplify_matrix( integrand.integral(ref,x) ), u_symbs
+        return simplify_matrix(integrate(M=integrand, domain=ref, variables=x,
+                                         dummy_vars=t,
+                                         backend=backend)), u_symbs
     else:
-        return simplify_matrix( integrand.integral(ref,x) )
+        return simplify_matrix(integrate(M=integrand, domain=ref, variables=x,
+                                         dummy_vars=t,
+                                         backend=backend))
 
 def linearize(r: MatrixFunction,
               symbols: list) -> MatrixFunction:

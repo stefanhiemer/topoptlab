@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 from collections.abc import Callable
+from typing import Any
 from warnings import warn
 from math import floor,sqrt
 from multiprocessing import Pool, cpu_count
@@ -8,7 +9,7 @@ from tqdm import tqdm
 
 from sympy import symbols, Symbol, Function, Inverse, Trace,\
                   factor_terms, sympify, Integer, Float, expand,\
-                  Integral, Rational, igcd, ilcm
+                  Rational, igcd, ilcm
 from sympy.core.expr import Expr
 from symfem.references import Reference
 from symfem.functions import ScalarFunction,VectorFunction,MatrixFunction
@@ -16,7 +17,7 @@ from symfem.symbols import AxisVariablesNotSingle
 
 from topoptlab.symbolic.utils import is_equal, take_generic_branch,\
                                     separate_terms
-from topoptlab.symbolic.scalar_utils import _integrate_chunk
+from topoptlab.symbolic.scalar_utils import integrate_expression
 
 def generate_constMatrix(ncol: int, nrow: int, name: str,
                          symmetric: bool = False,
@@ -336,25 +337,25 @@ def _apply_elementwise(M: VectorFunction | MatrixFunction,
     dscr : str 
         description of function displayed on the progress bar.
     return_symfemfunc : bool
-        if True, returns MatrixFunction which is basically in same spirit as 
-        element-wise operations in numpy. If False returns a list of lists 
-        with identical shapes as the MatrixFunction. Needed if func returns 
+        if True, returns MatrixFunction which is basically in same spirit as
+        element-wise operations in numpy. If False returns a list of lists
+        with identical shapes as the MatrixFunction. Needed if func returns
         more than one output.
     parallel : None or bool
-        if True, operation is parallelized via Pool. If None, autmatically 
+        if True, operation is parallelized via Pool. If None, autmatically
         switch to parallelization if entries are larger than parallel_threshold.
-    parellel_threshold : int 
-        if parallel is None and if size(M) > parallel_threshold, 
-        parallelization is used.  
+    parellel_threshold : int
+        if parallel is None and if size(M) > parallel_threshold,
+        parallelization is used.
     symmetry : None or bool
-        if True, assume M to be symmetric and reduce number of function calls 
-        accordingly and copies entries afterwards. Only applies to square 
+        if True, assume M to be symmetric and reduce number of function calls
+        accordingly and copies entries afterwards. Only applies to square
         matrices.
         
     Returns
     -------
     M_applied : symfem.functions.VectorFunction symfem.functions.MatrixFunction
-        element-wise operated on vector/matrix.  
+        element-wise operated on vector/matrix.
     
     """
     # avoid repetitive instance check
@@ -450,7 +451,7 @@ def _factor_expr(expression : Expr,
 
 def factor_matrix(M : VectorFunction | MatrixFunction,
                   variables : list,
-                  parallel : None | bool = None, 
+                  parallel : None | bool = None,
                   symmetry : bool = False
                   ) -> VectorFunction | MatrixFunction:
     """
@@ -642,7 +643,9 @@ def simplify_matrix(M: VectorFunction | MatrixFunction,
 def _integrate_entry(f : ScalarFunction, 
                      domain: Reference,
                      variables: AxisVariablesNotSingle,
-                     dummy_vars: AxisVariablesNotSingle, ) -> tuple:
+                     dummy_vars: AxisVariablesNotSingle,
+                     backend: str = "sympy",
+                     backend_kws: None | dict = None) -> ScalarFunction:
     """
     Helper function for integrate() that computes the integral of the element 
     M[i,j] of MatrixFunction M.
@@ -657,15 +660,24 @@ def _integrate_entry(f : ScalarFunction,
         variables to integrate with respect to.
     dummy_vars :  symfem.symbols.AxisVariablesNotSingle
         dummy variables to use inside the integral.
+    backend : str
+        integrator, either "sympy" or "symint". See
+        topoptlab.symbolic.scalar_utils.integrate_expression.
+    backend_kws : None or dict
+        keyword arguments passed to symintegral.integrate. Only used for
+        "symint".
 
     Returns
     -------
-    integrated : tuple
-        tuple that contains i, j, M_integrated[i,j], domain, vars, and 
-        dummy_vars.  
+    integrated : symfem.functions.ScalarFunction
+        integrated entry.
     
     """
-    return f.integral(domain, variables, dummy_vars)
+    return ScalarFunction(integrate_expression(expression=f, domain=domain,
+                                               variables=variables,
+                                               dummy_vars=dummy_vars,
+                                               backend=backend,
+                                               backend_kws=backend_kws))
     
 
 def integrate(M: VectorFunction | MatrixFunction, 
@@ -673,7 +685,9 @@ def integrate(M: VectorFunction | MatrixFunction,
               variables: AxisVariablesNotSingle,
               dummy_vars: AxisVariablesNotSingle, 
               parallel: None | bool = None, 
-              symmetry : None | bool = None)-> MatrixFunction:
+              symmetry : None | bool = None,
+              backend: str = "sympy",
+              backend_kws: None | dict = None)-> MatrixFunction:
     """
     Compute the integral of the VectorFunction or MatrixFunction element-wise .
     
@@ -694,6 +708,12 @@ def integrate(M: VectorFunction | MatrixFunction,
         if True, assume M to be symmetric and reduce number of integrations 
         accordingly and copies entries afterwards. Only applies to square 
         matrices.
+    backend : str
+        integrator, either "sympy" or "symint". See
+        topoptlab.symbolic.scalar_utils.integrate_expression.
+    backend_kws : None or dict
+        keyword arguments passed to symintegral.integrate. Only used for
+        "symint".
         
     Returns
     -------
@@ -705,10 +725,12 @@ def integrate(M: VectorFunction | MatrixFunction,
                               func = _integrate_entry,
                               dscr = "Integration MatrixFunction.",
                               return_symfemfunc = True,
-                              func_args = {"domain": domain, 
-                                           "variables": variables, 
-                                           "dummy_vars": dummy_vars},
-                              parallel = parallel, 
+                              func_args = {"domain": domain,
+                                           "variables": variables,
+                                           "dummy_vars": dummy_vars,
+                                           "backend": backend,
+                                           "backend_kws": backend_kws},
+                              parallel = parallel,
                               symmetry = symmetry)
 
 def integrate_separated(M: VectorFunction | MatrixFunction,
@@ -760,13 +782,11 @@ def integrate_separated(M: VectorFunction | MatrixFunction,
         if True, assume M to be symmetric and only separate the upper
         triangle. Only applies to square matrices.
     backend : str
-        integrator for the distinct terms. "sympy" uses sympy via the same
-        mapping as topoptlab.symbolic.scalar_utils.integral, "symint" uses
-        symintegral.integrate (optional dependency) on the same mapped
-        integral, e. g. for rational integrands of non-affine elements.
+        integrator for the distinct terms, either "sympy" or "symint". See
+        topoptlab.symbolic.scalar_utils.integrate_expression.
     backend_kws : None or dict
-        keyword arguments passed to the integrator of the backend. Only used
-        for "symint", where it defaults to {"backends": ("sympy",)}.
+        keyword arguments passed to symintegral.integrate. Only used for
+        "symint".
     simplify : bool
         if True, simplify the result cheaply: each distinct integral is
         simplified once, the terms of each entry are grouped by equal
@@ -838,6 +858,12 @@ def integrate_separated(M: VectorFunction | MatrixFunction,
                             Integer(1) if return_factor else common) \
                            for sep in separated],
                           "Reassembly of entries.")
+    except BaseException:
+        # kill workers immediately on errors/interrupts instead of waiting
+        if pool is not None:
+            pool.terminate()
+            pool = None
+        raise
     finally:
         if pool is not None:
             pool.close()
@@ -889,51 +915,14 @@ def _integrate_term(term: Expr,
         integral of term.
 
     """
-    integrated = _integrate_term_backend(term=term, domain=domain,
-                                         variables=variables,
-                                         dummy_vars=dummy_vars,
-                                         backend=backend,
-                                         backend_kws=backend_kws)
+    integrated = integrate_expression(expression=term, domain=domain,
+                                      variables=variables,
+                                      dummy_vars=dummy_vars,
+                                      backend=backend,
+                                      backend_kws=backend_kws)
     if simplify:
         return sympify(integrated).simplify()
     return integrated
-
-def _integrate_term_backend(term: Expr,
-                            domain: Reference,
-                            variables: list,
-                            dummy_vars: list,
-                            backend: str,
-                            backend_kws: dict) -> Expr:
-    """
-    Integrate one term over the domain with the given backend. See
-    _integrate_term for the parameters.
-    """
-    if backend == "sympy":
-        point = VectorFunction(domain.origin)
-        for ti, a in zip(dummy_vars, domain.axes):
-            point += ti * VectorFunction(a)
-        return _integrate_chunk(expr=term,
-                                vars=variables,
-                                dummy_vars=dummy_vars,
-                                orig=[p.as_sympy() for p in point],
-                                jacobian=domain.jacobian(),
-                                limits=domain.integration_limits(dummy_vars))
-    elif backend == "symint":
-        from symintegral import integrate as symint_integrate
-        # map to reference cell as in topoptlab.symbolic.scalar_utils
-        point = VectorFunction(domain.origin)
-        for ti, a in zip(dummy_vars, domain.axes):
-            point += ti * VectorFunction(a)
-        expr = sympify(term)
-        for v, p in zip(variables, point):
-            expr = expr.subs(v, p.as_sympy())
-        kws = {"backends": ("sympy",)}
-        kws.update(backend_kws)
-        return symint_integrate(Integral(expr*domain.jacobian(),
-                                         *domain.integration_limits(dummy_vars)),
-                                **kws)
-    else:
-        raise ValueError(f"unknown backend: {backend}")
 
 def _separate_entry(entry: ScalarFunction,
                     variables: list) -> dict:
@@ -1023,7 +1012,29 @@ def _map(pool: None | Pool,
     """
     if pool is None:
         return [func(*task) for task in tasks]
-    return list(tqdm(pool.starmap(func, tasks), total=len(tasks), desc=dscr))
+    # imap (unlike starmap) yields results as they finish, so the progress
+    # bar shows the actual progress
+    return list(tqdm(pool.imap(_star_apply, [(func, task) for task in tasks]),
+                     total=len(tasks), desc=dscr))
+
+def _star_apply(func_task: tuple) -> Any:
+    """
+    Unpack (func, task) and call func(*task). Helper for Pool.imap which only
+    passes a single argument.
+
+    Parameters
+    ----------
+    func_task : tuple
+        function and tuple of its arguments.
+
+    Returns
+    -------
+    result : Any
+        return value of func.
+
+    """
+    func, task = func_task
+    return func(*task)
 
 def eye(size: int) -> MatrixFunction:
     """
