@@ -198,7 +198,7 @@ def disp_grad(ndim: int,
               u: None | MatrixFunction = None,
               element_type: str = "Lagrange",
               order: int = 1,
-              shape: str = "quadratic") -> MatrixFunction:
+              shape: str = "square") -> MatrixFunction:
     """
     Symbolically compute the displacement gradient. If the shape argument is 
     "square", compute 
@@ -254,7 +254,7 @@ def def_grad(ndim: int,
              u: None | MatrixFunction = None,
              element_type: str = "Lagrange",
              order: int = 1,
-             shape: str = "quadratic"):
+             shape: str = "square"):
     """
     Symbolically compute deformation gradient. If the shape argument is 
     "square", compute 
@@ -300,6 +300,46 @@ def def_grad(ndim: int,
                   shape=shape)
     return I + H
 
+def _as_square_defgrad(F: None | MatrixFunction,
+                       ndim: int,
+                       element_type: str = "Lagrange",
+                       order: int = 1) -> MatrixFunction:
+    """
+    Return the deformation gradient F in matrix form of shape (ndim,ndim). If
+    F is None, it is calculated symbolically via def_grad. If F is flattened
+    of shape (ndim**2,1), it is reshaped in C-order consistent with
+    dispgrad_matrix and def_grad(shape="voigt"), i. e. F.flatten()[i*ndim+j]
+    = F_ij.
+
+    Parameters
+    ----------
+    F : None or symfem.functions.MatrixFunction
+        symbolic deformation gradient of shape (ndim,ndim) or (ndim**2,1).
+    ndim : int
+        number of spatial dimensions. Only used if F is None.
+    element_type : str
+        type of element. Only used if F is None.
+    order : int
+        order of element. Only used if F is None.
+
+    Returns
+    -------
+    F : symfem.functions.MatrixFunction
+        symbolic deformation gradient of shape (ndim,ndim).
+    """
+    if F is None:
+        return def_grad(ndim=ndim,
+                        element_type=element_type,
+                        order=order,
+                        shape="square")
+    elif F.shape[1] == 1 and F.shape[0] > 1:
+        return to_square(v=F, order="C")
+    elif F.shape[0] == F.shape[1]:
+        return F
+    else:
+        raise ValueError("F must be of shape (ndim,ndim) or (ndim**2,1): ",
+                         F.shape)
+
 def cauchy_strain(ndim: int,
                   F: None | MatrixFunction = None,
                   element_type: str = "Lagrange",
@@ -309,16 +349,17 @@ def cauchy_strain(ndim: int,
         
         C = F.T @ F
         
-    C is the Cauchy–Green deformation tensor.
+    where F is the deformation gradient.
 
     Parameters
     ----------
     ndim : int
         number of spatial dimensions. Must be between 1 and 3.
     F : None or symfem.functions.MatrixFunction
-        symbolic deformation gradient of shape (ndim,ndim). If not None, then 
-        all the other arguments are ignored and the strain is calculated with 
-        the provided F.
+        symbolic deformation gradient of shape (ndim,ndim) or flattened in 
+        C-order of shape (ndim**2,1). If not None, then all the other 
+        arguments are ignored and the strain is calculated with the provided 
+        F. If None, F is calculated via def_grad.
     element_type : str
         type of element.
     order : int
@@ -331,13 +372,8 @@ def cauchy_strain(ndim: int,
 
     """
     #
-    if F.shape[0] == ndim**2 and F.shape[1] == 1:
-        F = to_square(v=F,order="F")
-    #
-    if F is None:
-        F = def_grad(ndim=ndim,
-                     element_type=element_type,
-                     order=order)
+    F = _as_square_defgrad(F=F, ndim=ndim,
+                           element_type=element_type, order=order)
     return simplify_matrix(F.transpose()@F)
 
 def lagrangian_strain(ndim: int,
@@ -356,9 +392,10 @@ def lagrangian_strain(ndim: int,
     ndim : int
         number of spatial dimensions. Must be between 1 and 3.
     F : None or symfem.functions.MatrixFunction
-        symbolic deformation gradient of shape (ndim,ndim). If not None, then 
-        all the other arguments are ignored and the strain is calculated with 
-        the provided F.
+        symbolic deformation gradient of shape (ndim,ndim) or flattened in 
+        C-order of shape (ndim**2,1). If not None, then all the other 
+        arguments are ignored and the strain is calculated with the provided 
+        F. If None, F is calculated via def_grad.
     element_type : str
         type of element.
     order : int
@@ -371,17 +408,10 @@ def lagrangian_strain(ndim: int,
 
     """
     #
-    if F.shape[0] == ndim**2 and F.shape[1] == 1:
-        F = to_square(v=F,order="F")
-    #
-    if F is None:
-        F = def_grad(ndim=ndim,
-                     element_type=element_type,
-                     order=order)
-    return (cauchy_strain(ndim=ndim, 
-                         F=F, 
-                         element_type=element_type,
-                         order=order)-eye(ndim)).__mul__(Rational(1,2))
+    F = _as_square_defgrad(F=F, ndim=ndim,
+                           element_type=element_type, order=order)
+    return (cauchy_strain(ndim=F.shape[0],
+                          F=F)-eye(F.shape[0])).__mul__(Rational(1,2))
 
 def lagrangian_strainvar_matrix(ndim : int,
                                 nd_inds : list,
@@ -466,16 +496,21 @@ def lagrangian_strainvar(ndim: int,
     Symbolically compute the variation of the Green-Lagrangian strain tensor 
     delta E around the current displacement u0 and deformation gradient F0:
         
-        delta E = 1/2 * (F0.T @ grad(u) + grad(u) @ F0).
+        delta E = 1/2 * (F0.T @ grad(u) + grad(u).T @ F0)
+    
+    where grad(u) is the gradient of the displacement variation interpolated 
+    from the nodal values u (symbols u1, u2, ...). In Voigt notation with 
+    engineering convention this equals lagrangian_strainvar_matrix(F0) @ u.
     
     Parameters
     ----------
     ndim : int
         number of spatial dimensions. Must be between 1 and 3.
     F : None or symfem.functions.MatrixFunction
-        symbolic deformation gradient of shape (ndim,ndim). If not None, then
-        all the other arguments are ignored and the strain is calculated with
-        the provided F.
+        symbolic deformation gradient F0 of shape (ndim,ndim) or flattened in
+        C-order of shape (ndim**2,1). If None, F0 is generated from the 
+        constant symbols F11, F12, ... (independent of the nodal 
+        displacement variation u).
     element_type : str
         type of element.
     order : int
@@ -483,40 +518,49 @@ def lagrangian_strainvar(ndim: int,
 
     Returns
     -------
-    C : symfem.MatrixFunction
-        symbolic Cauchy strain of shape (ndim,ndim)
+    dE : symfem.MatrixFunction
+        symbolic variation of the Green-Lagrangian strain tensor of shape 
+        (ndim,ndim)
 
     """
-    #
-    if F.shape[0] == ndim**2 and F.shape[1] == 1:
-        F = to_square(v=F,order="F")
-    #
+    # F0 must not share the symbols of the displacement variation
     if F is None:
-        F = def_grad(ndim=ndim,
-                     element_type=element_type,
-                     order=order)
-    return (cauchy_strain(ndim=ndim,
-                         F=F,
-                         element_type=element_type,
-                         order=order)-eye(ndim)).__mul__(Rational(1,2))
+        F = generate_constMatrix(ncol=ndim, nrow=ndim, name="F")
+    F = _as_square_defgrad(F=F, ndim=ndim,
+                           element_type=element_type, order=order)
+    # gradient of the displacement variation (nodal values u)
+    dH = disp_grad(ndim=F.shape[0],
+                   u=None,
+                   element_type=element_type,
+                   order=order,
+                   shape="square")
+    return simplify_matrix((F.transpose()@dH + dH.transpose()@F)\
+                           .__mul__(Rational(1,2)))
 
 def finger_strain(ndim: int,
                   F: None | MatrixFunction = None,
                   element_type: str = "Lagrange",
                   order: int = 1) ->  MatrixFunction:
     """
-    Symbolically compute Finger strain tensor:
+    Symbolically compute the inverse of the right Cauchy–Green deformation 
+    tensor C:
         
-        Finger = inv(C)
+        inv(C) = inv(F.T @ F)
+    
+    Note: inv(C) is also known as Piola deformation tensor. In parts of the 
+    literature the Finger tensor denotes the left Cauchy–Green tensor B 
+    instead (see green_strain). Name kept consistent with 
+    topoptlab.elements.strain_measures.finger_strain.
 
     Parameters
     ----------
     ndim : int
         number of spatial dimensions. Must be between 1 and 3.
     F : None or symfem.functions.MatrixFunction
-        symbolic deformation gradient of shape (ndim,ndim). If not None, then 
-        all the other arguments are ignored and the strain is calculated with 
-        the provided F.
+        symbolic deformation gradient of shape (ndim,ndim) or flattened in 
+        C-order of shape (ndim**2,1). If not None, then all the other 
+        arguments are ignored and the strain is calculated with the provided 
+        F. If None, F is calculated via def_grad.
     element_type : str
         type of element.
     order : int
@@ -525,17 +569,14 @@ def finger_strain(ndim: int,
     Returns
     -------
     Finger : symfem.MatrixFunction
-        symbolic Finger strain tensor of shape (ndim,ndim) 
+        symbolic inverse of right Cauchy–Green tensor of shape (ndim,ndim) 
 
     """
     #
-    if F.shape[0] == ndim**2 and F.shape[1] == 1:
-        F = to_square(v=F,order="F")
-    #
-    C = cauchy_strain(ndim=ndim,
-                      F=F,
-                      element_type=element_type,
-                      order=order)
+    F = _as_square_defgrad(F=F, ndim=ndim,
+                           element_type=element_type, order=order)
+    C = cauchy_strain(ndim=F.shape[0],
+                      F=F)
     return simplify_matrix( inverse(C) )
 
 def green_strain(ndim: int,
@@ -543,19 +584,22 @@ def green_strain(ndim: int,
                  element_type: str = "Lagrange",
                  order: int = 1) ->  MatrixFunction:
     """
-    Symbolically compute the Green strain tensor (left Cauchy–Green deformation 
-    tensor).
+    Symbolically compute the left Cauchy–Green deformation tensor B:
     
-    B = F @ F.T
+        B = F @ F.T
+    
+    Note: despite the function name, this is NOT the Green-Lagrangian strain 
+    E (see lagrangian_strain).
 
     Parameters
     ----------
     ndim : int
         number of spatial dimensions. Must be between 1 and 3.
     F : None or symfem.functions.MatrixFunction
-        symbolic deformation gradient of shape (ndim,ndim). If not None, then 
-        all the other arguments are ignored and the strain is calculated with 
-        the provided F.
+        symbolic deformation gradient of shape (ndim,ndim) or flattened in 
+        C-order of shape (ndim**2,1). If not None, then all the other 
+        arguments are ignored and the strain is calculated with the provided 
+        F. If None, F is calculated via def_grad.
     element_type : str
         type of element.
     order : int
@@ -564,15 +608,10 @@ def green_strain(ndim: int,
     Returns
     -------
     B : symfem.MatrixFunction
-        symbolic Green strain tensor of shape (ndim,ndim) 
+        symbolic left Cauchy–Green deformation tensor of shape (ndim,ndim) 
 
     """
     #
-    if F.shape[0] == ndim**2 and F.shape[1] == 1:
-        F = to_square(v=F,order="F")
-    #
-    if F is None:
-        F = def_grad(ndim=ndim,
-                     element_type=element_type,
-                     order=order)
+    F = _as_square_defgrad(F=F, ndim=ndim,
+                           element_type=element_type, order=order)
     return simplify_matrix(F@F.transpose())

@@ -18,7 +18,7 @@ def stvenant_engdensity(E : None | MatrixFunction = None,
     
         engdensity = 1/2 E.T@C@E
     
-    where E is the Lagrangian strain in Voigt notation.
+    where E is the Lagrangian strain in Voigt notation (engineering convention).
 
     Parameters
     ----------
@@ -55,7 +55,7 @@ def stvenant_engdensity(E : None | MatrixFunction = None,
                                  name="E")
     #
     if not is_voigt(M=E,ndim=ndim):
-        E = to_voigt(E)
+        E = to_voigt(E, eng_conv=True)
     # anisotropic stiffness tensor or equivalent in Voigt notation 
     if c is None:
         c = generate_constMatrix(ncol=int((ndim**2 + ndim) /2),
@@ -74,7 +74,7 @@ def stress_2pk(E : None | MatrixFunction =  None,
     
         S = C@E
     
-    where E is the Lagrangian strain in Voigt notation.
+    where E is the Lagrangian strain in Voigt notation (engineering convention).
 
     Parameters
     ----------
@@ -111,7 +111,7 @@ def stress_2pk(E : None | MatrixFunction =  None,
                                  name="E")
     #
     if not is_voigt(M=E,ndim=ndim):
-        E = to_voigt(E)
+        E = to_voigt(E, eng_conv=True)
     # anisotropic stiffness tensor or equivalent in Voigt notation 
     if c is None:
         c = generate_constMatrix(ncol=int((ndim**2 + ndim) /2),
@@ -165,7 +165,7 @@ def stress_1pk(F : None | MatrixFunction,
                                  name="E")
     #
     if not is_voigt(M=E,ndim=ndim):
-        E = to_voigt(E)
+        E = to_voigt(E, eng_conv=True)
     # anisotropic stiffness tensor or equivalent in Voigt notation 
     if c is None:
         c = generate_constMatrix(ncol=int((ndim**2 + ndim) /2),
@@ -226,7 +226,7 @@ def stvenant_cauchy(F : None | MatrixFunction,
                                  name="E")
     #
     if not is_voigt(M=E,ndim=ndim):
-        E = to_voigt(E)
+        E = to_voigt(E, eng_conv=True)
     # anisotropic stiffness tensor or equivalent in Voigt notation
     if c is None:
         c = generate_constMatrix(ncol=int((ndim**2 + ndim) /2),

@@ -17,6 +17,13 @@ Generalization from displacement maximization to a displacement control, i. e.
 the optimized design should show a preset displacement under the given boundary
 conditions.  
 
+### `force_inverter2d_morphology.py`
+
+Force inverter as in `force_inverter2d.py`, optimized once with each of the
+morphology filters of Sigmund 2007 (dilate, erode, open, close) using MMA and
+continuation of the projection sharpness. The final designs are shown side by
+side.
+
 ### `force_inverter3d.py`
 
 Generalization of the displacement maximization case to 2D.

@@ -10,7 +10,8 @@ from topoptlab.symbolic.matrix_utils import eye, simplify_matrix,\
                                             generate_constMatrix,\
                                             generate_FunctMatrix, to_voigt,\
                                             from_voigt, to_column, kron,\
-                                            integrate, to_square
+                                            integrate, integrate_separated,\
+                                            to_square
 from topoptlab.symbolic.strain_measures import dispgrad_matrix,\
                                                def_grad, lagrangian_strainvar_matrix
 from topoptlab.symbolic.stress_conversions import cauchy_to_pk1, pk2_to_pk1
@@ -36,7 +37,9 @@ def tangentstiffness_matrix(ndim : int,
     material_model: callable
         returns 2. PK stress tensor and constitutive tensor both in Voigt 
         notation as function of deformation gradient F (matrix form) and 
-        the material constants provided in the dictionary. 
+        the material constants provided in the dictionary. The
+        constitutive tensor must be symmetric (hyperelastic material), as
+        only the upper triangle of the tangent stiffness matrix is integrated.
     material_constants : dict
         contains the material constants needed to calculate 2. PK stress and 
         constitutive tensor. Keys must match arguments of material_model.
@@ -74,13 +77,14 @@ def tangentstiffness_matrix(ndim : int,
                           basis=basis,
                           isoparam_kws={"element_type": element_type,
                                         "order": order})
-    F = to_square(b_h@u,order="C")
+    F = eye(ndim) + to_square(b_h@u,order="C")
     # calculate constitutive tensor and 2. PK stress 
     if material_model is None:
         c = generate_constMatrix(ncol=int((ndim**2 + ndim) /2),
                                  nrow=int((ndim**2 + ndim) /2),
-                                 name="c")
-        s = generate_constMatrix(ncol=int((ndim**2 + ndim) /2),
+                                 name="c",
+                                 symmetric=True)
+        s = generate_constMatrix(ncol=1,
                                  nrow=int((ndim**2 + ndim) /2),
                                  name="s")
     else:
@@ -96,24 +100,28 @@ def tangentstiffness_matrix(ndim : int,
     Jdet = jacobian(ndim=ndim, element_type=element_type, order=order,
                     return_J=False, return_inv=False, return_det=True)
     # internal forces
-    fe = b_dE.transpose()@s
+    fe = (b_dE.transpose()@s) * Jdet
     S = kron(eye(ndim),from_voigt(s, eng_conv=False))
     Ke = (b_dE.transpose()@c@b_dE + b_h.transpose()@S@b_h)* Jdet
     if return_integrand:
         return Ke, fe
-    fe = simplify_matrix(M=integrate(M=fe,
-                                     domain=ref,
-                                     variables=x,
-                                     dummy_vars=t, 
-                                     parallel=None,
-                                     backend=backend))
-    # tangent stiffness matrix
-    Ke = simplify_matrix(M=integrate(M=Ke,
-                                     domain=ref,
-                                     variables=x,
-                                     dummy_vars=t, 
-                                     parallel=None,
-                                     backend=backend))
+    fe = simplify_matrix(M=integrate_separated(M=fe,
+                                               domain=ref,
+                                               variables=x,
+                                               dummy_vars=t,
+                                               parallel=None,
+                                               symmetry=False,
+                                               backend=backend))
+    # tangent stiffness matrix (symmetric as the constitutive tensor of a 
+    # hyperelastic material has major symmetry)
+    Ke = simplify_matrix(M=integrate_separated(M=Ke,
+                                               domain=ref,
+                                               variables=x,
+                                               dummy_vars=t,
+                                               parallel=None,
+                                               symmetry=True,
+                                               backend=backend),
+                         symmetry=True)
     
     return Ke, fe
 
@@ -268,7 +276,6 @@ if  __name__ == "__main__":
                                     material_constants = {"c": generate_constMatrix(ncol=int((ndim**2 + ndim) /2),
                                                                                     nrow=int((ndim**2 + ndim) /2),
                                                                                     name="c")},
-                                    plane_stress = False,
                                     element_type ="Lagrange",
                                     order = 1)
     print(fe)

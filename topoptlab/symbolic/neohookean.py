@@ -1,14 +1,15 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 from typing import Any
 
-from sympy import ln
+from sympy import ln, Rational
 from sympy.core.symbol import Symbol,Expr
 from symfem.functions import ScalarFunction,MatrixFunction
 
 from topoptlab.symbolic.matrix_utils import generate_constMatrix, \
                                             is_voigt,\
-                                            to_voigt, trace, inverse, eye
-from topoptlab.symbolic.strain_measures import cauchy_strain,green_strain
+                                            to_voigt, to_square, trace, \
+                                            inverse, eye
+from topoptlab.symbolic.strain_measures import cauchy_strain
 
 def neohookean_engdensity(F : None | MatrixFunction = None,
                           h : None | Symbol | ScalarFunction = None,
@@ -19,7 +20,7 @@ def neohookean_engdensity(F : None | MatrixFunction = None,
     """
     Return elastic energy density for Neo-Hookean material defined as 
     
-        engdensity = h*ln(det(F))**2 + mu*((tr(C)/2 - 3) - ln(det(F))) 
+        engdensity = h/2*ln(det(F))**2 + mu*((tr(C) - 3)/2 - ln(det(F))) 
     
     where F is the deformation gradient in matrix notation, C the
     Cauchy–Green deformation tensor, h and mu are the Lame constants, and 
@@ -42,7 +43,7 @@ def neohookean_engdensity(F : None | MatrixFunction = None,
     Returns
     -------
     engdensity : symfem.functions.ScalarFunction
-        elastic energy density for St. Venant material.
+        elastic energy density for Neo-Hookean material.
 
     """ 
     #
@@ -68,7 +69,7 @@ def neohookean_engdensity(F : None | MatrixFunction = None,
     # second Lame constant
     if mu is None:
         mu =  Symbol("mu")
-    return ScalarFunction( h*ln( Fdet )**2 + mu*( 1/2*( trace(C,mode="sympy")-3) - ln(Fdet))  )
+    return ScalarFunction( h/2*ln( Fdet )**2 + mu*( Rational(1,2)*( trace(C,mode="sympy")-3) - ln(Fdet))  )
 
 def neohookean_2pk(F : None | MatrixFunction = None,
                    h : None | Symbol | ScalarFunction = None,
@@ -79,12 +80,12 @@ def neohookean_2pk(F : None | MatrixFunction = None,
     """
     Returns 2. Piola-Kirchhoff stress (2PK) S for Neo-Hookean material:
         
-        S = h*ln(det(F))*inv(B) + mu*(1-inv(B))
+        S = h*ln(det(F))*inv(C) + mu*(I-inv(C))
         
     
     where h and mu are the Lame constants, det(F) the determinant of the 
-    deformation gradient F, B the left Cauchy–Green deformation tensor and inv 
-    the matrix inverse.
+    deformation gradient F, C = F.T@F the right Cauchy–Green deformation 
+    tensor, I the identity and inv the matrix inverse.
 
     Parameters
     ----------
@@ -121,14 +122,16 @@ def neohookean_2pk(F : None | MatrixFunction = None,
     elif isinstance(Fdet,ScalarFunction):
         Fdet = Fdet.as_sympy()
     #
-    Binv = inverse(green_strain(ndim=ndim,F=F))
+    Cinv = inverse(cauchy_strain(ndim=F.shape[0],F=F))
     # first Lame constant 
     if h is None:
         h =  Symbol("h")
     # second Lame constant
     if mu is None:
         mu =  Symbol("mu")
-    return Binv.__mul__(h*ln(Fdet)) + (eye(Binv.shape[0])-Binv).__mul__(mu) 
+    return to_voigt(Cinv.__mul__(h*ln(Fdet)) + \
+                    (eye(Cinv.shape[0])-Cinv).__mul__(mu), 
+                    eng_conv=False)
 
 def neohookean_1pk(F : None | MatrixFunction = None,
                    h : None | Symbol | ScalarFunction = None,
@@ -148,7 +151,8 @@ def neohookean_1pk(F : None | MatrixFunction = None,
     Parameters
     ----------
     F : None or MatrixFunction
-        Deformation gradient. 
+        Deformation gradient either of shape (ndim,ndim) or flattened in 
+        C-order of shape (ndim**2,1). 
     h : None or sympy.core.symbol.Symbol or symfem.functions.ScalarFunction
         first Lame constant.
     mu : None or sympy.core.symbol.Symbol or symfem.functions.ScalarFunction
@@ -162,7 +166,7 @@ def neohookean_1pk(F : None | MatrixFunction = None,
     Returns
     -------
     P : symfem.functions.MatrixFunction
-        symbolic 1. Piola-Kirchhoff stress (1PK) in flattened notation.
+        symbolic 1. Piola-Kirchhoff stress (1PK) of shape (ndim,ndim).
 
     """
     #
@@ -174,14 +178,14 @@ def neohookean_1pk(F : None | MatrixFunction = None,
         F = generate_constMatrix(ncol=ndim,
                                  nrow=ndim,
                                  name="F")
+    # flattened (C-order) deformation gradient to matrix form
+    elif F.shape[1] == 1 and F.shape[0] > 1:
+        F = to_square(v=F, order="C")
     # 
     if Fdet is None:
         Fdet = F.det().as_sympy()
     elif isinstance(Fdet,ScalarFunction):
         Fdet = Fdet.as_sympy()
-    #
-    if is_voigt(M=F,ndim=ndim):
-        F = to_voigt(F)
     # first Lame constant 
     if h is None:
         h =  Symbol("h")

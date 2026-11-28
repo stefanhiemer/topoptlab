@@ -430,8 +430,8 @@ def stress_pnorm(u: np.ndarray,
     np.add.at(rhs_adj[:, 0], edofMat,- ds_p_du)
     return obj, rhs_adj, ds_p_dxPhys, False
 
-def am_angle(xPhys: np.ndarray, 
-             p: float, 
+def am_angle(xPhys: np.ndarray,
+             p: float,
              ks_exponent: float,
              baseplate: str,
              ndim: int,
@@ -538,7 +538,7 @@ def am_angle(xPhys: np.ndarray,
     softmax_dx[np.isnan(softmax_dx)] = 0.
     return softmax, softmax_dx, None
 
-def support(xPhys: np.ndarray, 
+def support(xPhys: np.ndarray,
             baseplate: str,
             ndim: int,
             invmapping: Callable,
